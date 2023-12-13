@@ -279,31 +279,38 @@ func (r *cfg) Create(
 	log.Info("create", "key", key.String(), "targetKey", targetKey)
 
 	// get the data of the runtime object
-	newObj, ok := runtimeObject.(*api.Config)
+	newConfig, ok := runtimeObject.(*api.Config)
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	log.Info("create", "obj", string(newObj.Spec.Config[0].Value.Raw))
+	log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
 
 	// interact with the data server
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		return nil, apierrors.NewInternalError(errors.Wrap(err, "target not found"))
 	}
-	if err := tctx.SetIntent(ctx, targetKey, newObj); err != nil {
+	if err := tctx.SetIntent(ctx, targetKey, newConfig); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
 	log.Info("create intent succeeded")
 
-	if err := r.store.Create(ctx, key, runtimeObject); err != nil {
+	newConfig.Status.SetConditions(configv1alpha1.Ready())
+	newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    tctx.DataStore.Schema.Name,
+		Vendor:  tctx.DataStore.Schema.Vendor,
+		Version: tctx.DataStore.Schema.Version,
+	}
+
+	if err := r.store.Create(ctx, key, newConfig); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
 
 	r.watchers.NotifyWatchers(watch.Event{
 		Type:   watch.Added,
-		Object: newObj,
+		Object: newConfig,
 	})
-	return runtimeObject, nil
+	return newConfig, nil
 }
 
 func (r *cfg) Update(
@@ -382,26 +389,33 @@ func (r *cfg) Update(
 		if err := tctx.SetIntent(ctx, targetKey, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
-		if err := r.store.Update(ctx, key, newObj); err != nil {
+
+		newConfig.Status.SetConditions(configv1alpha1.Ready())
+		newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+			Type:    tctx.DataStore.Schema.Name,
+			Vendor:  tctx.DataStore.Schema.Vendor,
+			Version: tctx.DataStore.Schema.Version,
+		}
+		if err := r.store.Update(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
 		r.watchers.NotifyWatchers(watch.Event{
 			Type:   watch.Added,
-			Object: newObj,
+			Object: newConfig,
 		})
-		return newObj, false, nil
+		return newConfig, false, nil
 	}
 	if err := tctx.SetIntent(ctx, targetKey, newConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	if err := r.store.Create(ctx, key, newObj); err != nil {
+	if err := r.store.Create(ctx, key, newConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
 	r.watchers.NotifyWatchers(watch.Event{
 		Type:   watch.Modified,
-		Object: newObj,
+		Object: newConfig,
 	})
-	return newObj, true, nil
+	return newConfig, true, nil
 
 }
 
@@ -463,10 +477,10 @@ func (r *cfg) Delete(
 	}
 	r.watchers.NotifyWatchers(watch.Event{
 		Type:   watch.Modified,
-		Object: obj,
+		Object: newConfig,
 	})
 
-	return obj, true, nil
+	return newConfig, true, nil
 }
 
 func (r *cfg) DeleteCollection(

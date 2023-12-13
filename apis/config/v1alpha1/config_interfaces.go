@@ -63,7 +63,19 @@ func (Config) NewList() runtime.Object {
 	return &ConfigList{}
 }
 
+// GetCondition returns the condition based on the condition kind
+func (r *Config) GetCondition(t ConditionType) Condition {
+	return r.Status.GetCondition(t)
+}
+
+// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
+// to be set at once
+func (r *Config) SetConditions(c ...Condition) {
+	r.Status.SetConditions(c...)
+}
+
 // GetListMeta returns the ListMeta
 func (r *ConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
+
