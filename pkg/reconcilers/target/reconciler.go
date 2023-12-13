@@ -19,7 +19,6 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -61,7 +60,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	r.configStore = cfg.ConfigStore
+	//r.configStore = cfg.ConfigStore
 	r.targetStore = cfg.TargetStore
 	r.dataServerStore = cfg.DataServerStore
 
@@ -77,7 +76,7 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	configStore     store.Storer[runtime.Object]
+	//configStore     store.Storer[runtime.Object]
 	targetStore     store.Storer[target.Context]
 	dataServerStore store.Storer[dsctx.Context]
 }
@@ -149,7 +148,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// first check if the target has an assigned dataserver, if not allocate one
 	// update the target store with the updated information
-	currentTargetCtx, err := r.targetStore.Get(ctx, store.GetNSNKey(req.NamespacedName))
+	currentTargetCtx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
 		selectedDSctx, err := r.selectDataServerContext(ctx)
 		if err != nil {
@@ -161,7 +160,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, store.GetNameKey(selectedDSctx.Client.GetAddress()), key)
 		// create the target in the target store
-		r.targetStore.Create(ctx, store.GetNSNKey(req.NamespacedName), target.Context{
+		r.targetStore.Create(ctx, key, target.Context{
 			Client: selectedDSctx.Client,
 		})
 	} else {
@@ -170,6 +169,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	// Now that the target store is up to date and we have an assigned dataserver
 	// we will create/update the datastore for the target
+
+	log.Info("target ready state", "ready", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
 		if err := r.updateDataStoreTargetNotReady(ctx, cr); err != nil {
 			cr.Status.UsedReferences = nil
@@ -182,15 +183,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	// Target is ready
-	usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
+	changed, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
 	if err != nil {
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	cr.Status.UsedReferences = usedRefs
-	cr.SetConditions(invv1alpha1.DSReady())
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	// robustness avoid to update status when there is no change
+	// avoid retriggering reconcile
+	if changed {
+		cr.Status.UsedReferences = usedRefs
+		cr.SetConditions(invv1alpha1.DSReady())
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, dsKey store.Key, targetKey store.Key) {
@@ -225,7 +232,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*dsctx.Contex
 	log := log.FromContext(ctx)
 	var err error
 	selectedDSctx := &dsctx.Context{}
-	minTargets := -1
+	minTargets := 9999
 	r.dataServerStore.List(ctx, func(ctx context.Context, k store.Key, dsctx dsctx.Context) {
 		if dsctx.Targets.Len() == 0 || dsctx.Targets.Len() < minTargets {
 			selectedDSctx = &dsctx
@@ -234,6 +241,8 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*dsctx.Contex
 	})
 	// create and start client if it does not exist
 	if selectedDSctx.Client == nil {
+		log.Info("selectedDSctx", "selectedDSctx", selectedDSctx)
+
 		selectedDSctx.Client, err = dsclient.New(selectedDSctx.Config)
 		if err != nil {
 			// happens when address or config is not set properly
@@ -282,69 +291,77 @@ func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv
 // 1. create a datastore if none exists
 // 2. delete/update the datastore if changes were detected
 // 3. do nothing if no changes were detected.
-func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1alpha1.Target) (*invv1alpha1.TargetStatusUsedReferences, error) {
+func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1alpha1.Target) (bool, *invv1alpha1.TargetStatusUsedReferences, error) {
 	key := store.GetNSNKey(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).WithValues("targetkey", key.String())
-
+	changed := false
 	req, usedRefs, err := r.getCreateDataStoreRequest(ctx, cr)
 	if err != nil {
 		log.Error(err, "cannot create datastore request from CR/Profiles")
-		return nil, err
+		return changed, nil, err
 	}
 	// this should always succeed
 	targetCtx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
 		log.Error(err, "cannot get datastore from store")
-		return nil, err
+		return changed, nil, err
 	}
 	// get the datastore from the dataserver
 	getRsp, err := targetCtx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
 	if err != nil {
 		if !strings.Contains(err.Error(), "unknown datastore") {
 			log.Error(err, "cannot get datastore from dataserver")
-			return nil, err
+			return changed, nil, err
 		}
 		log.Info("datastore does not exist")
 		// datastore does not exist
 	} else {
-
-		// datastore exists -< validate changes and if so delete the datastore
-		if r.validateDataStoreChanges(ctx, req, getRsp, cr, usedRefs) {
+		// datastore exists -> validate changes and if so delete the datastore
+		if r.hasDataStoreChanged(ctx, req, getRsp, cr, usedRefs) {
 			log.Info("datastore exist -> changed")
+			changed = true
 			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: key.String()})
 			if err != nil {
 				log.Error(err, "cannot delete datstore in dataserver")
-				return nil, err
+				return changed, nil, err
 			}
 			log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 		} else {
 			log.Info("datastore exist -> no change")
-			return usedRefs, nil
+			return changed, usedRefs, nil
 		}
 	}
 	// datastore does not exist -> create datastore
 	rsp, err := targetCtx.Client.CreateDataStore(ctx, req)
 	if err != nil {
 		log.Error(err, "cannot create datastore in dataserver")
-		return nil, err
+		return changed, nil, err
 	}
 	targetCtx.DataStore = req
 	if err := r.targetStore.Update(ctx, key, targetCtx); err != nil {
 		log.Error(err, "cannot update datastore in store")
-		return nil, err
+		return changed, nil, err
 	}
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
-	return usedRefs, nil
+	return changed, usedRefs, nil
 }
 
-func (r *reconciler) validateDataStoreChanges(
+func (r *reconciler) hasDataStoreChanged(
 	ctx context.Context,
 	req *sdcpb.CreateDataStoreRequest,
 	rsp *sdcpb.GetDataStoreResponse,
 	cr *invv1alpha1.Target,
 	usedRefs *invv1alpha1.TargetStatusUsedReferences,
 ) bool {
-	//log := log.FromContext(ctx)
+	log := log.FromContext(ctx)
+	log.Info("hasDataStoreChanged",
+		"name", fmt.Sprintf("%s/%s", req.Name, rsp.Name),
+		"schema Name", fmt.Sprintf("%s/%s", req.Schema.Name, rsp.Schema.Name),
+		"schema Vendor", fmt.Sprintf("%s/%s", req.Schema.Vendor, rsp.Schema.Vendor),
+		"schema Version", fmt.Sprintf("%s/%s", req.Schema.Version, rsp.Schema.Version),
+		"target Type", fmt.Sprintf("%s/%s", req.Target.Type, rsp.Target.Type),
+		"target Address", fmt.Sprintf("%s/%s", req.Target.Address, rsp.Target.Address),
+	)
 	if req.Name != rsp.Name {
 		return true
 	}
@@ -360,8 +377,15 @@ func (r *reconciler) validateDataStoreChanges(
 	}
 
 	if cr.Status.UsedReferences == nil {
+		log.Info("hasDataStoreChanged", "UsedReferences", "nil")
 		return true
 	}
+
+	log.Info("hasDataStoreChanged",
+		"ConnectionProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.ConnectionProfileResourceVersion, usedRefs.ConnectionProfileResourceVersion),
+		"SyncProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SyncProfileResourceVersion, usedRefs.SyncProfileResourceVersion),
+		"SecretResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SecretResourceVersion, usedRefs.SecretResourceVersion),
+	)
 
 	if cr.Status.UsedReferences.ConnectionProfileResourceVersion != usedRefs.ConnectionProfileResourceVersion ||
 		cr.Status.UsedReferences.SyncProfileResourceVersion != usedRefs.SyncProfileResourceVersion ||

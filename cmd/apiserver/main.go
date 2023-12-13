@@ -75,7 +75,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	configStore := memstore.NewStore[runtime.Object]()
+	//configStore := memstore.NewStore[runtime.Object]()
+
 	targetStore := memstore.NewStore[target.Context]()
 	// TODO dataServer -> this should be decoupled in a scaled out environment
 	time.Sleep(5 * time.Second)
@@ -104,7 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 	ctrlCfg := &ctrlconfig.ControllerConfig{
-		ConfigStore:     configStore,
+		//ConfigStore:     configStore,
 		TargetStore:     targetStore,
 		DataServerStore: dataServerStore,
 	}
@@ -122,7 +123,7 @@ func main() {
 		if err := builder.APIServer.
 			WithOpenAPIDefinitions("Config", "v0.0.0", openapi.GetOpenAPIDefinitions).
 			//WithResourceAndHandler(&v1alpha1.Config{}, filepath.NewJSONFilepathStorageProvider(&v1alpha1.Config{}, "data")).
-			WithResourceAndHandler(&v1alpha1.Config{}, config.NewProvider(ctx, &v1alpha1.Config{}, configStore, targetStore)).
+			WithResourceAndHandler(&v1alpha1.Config{}, config.NewProvider(ctx, &v1alpha1.Config{}, targetStore)).
 			WithoutEtcd().
 			WithLocalDebugExtension().
 			Execute(); err != nil {

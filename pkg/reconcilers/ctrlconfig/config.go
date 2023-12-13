@@ -18,13 +18,12 @@ package ctrlconfig
 
 import (
 	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
-	"github.com/iptecharch/config-server/pkg/target"
 	"github.com/iptecharch/config-server/pkg/store"
-	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/iptecharch/config-server/pkg/target"
 )
 
 type ControllerConfig struct {
-	ConfigStore     store.Storer[runtime.Object]
+	//ConfigStore     store.Storer[runtime.Object]
 	TargetStore     store.Storer[target.Context]
 	DataServerStore store.Storer[dsctx.Context]
 }
