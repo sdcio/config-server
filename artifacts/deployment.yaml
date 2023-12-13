@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-apiserver
+  namespace: network-system
+  labels:
+    config-apiserver: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      config-apiserver: "true"
+  template:
+    metadata:
+      labels:
+        config-apiserver: "true"
+    spec:
+      serviceAccountName: config-apiserver
+      containers:
+      - name: capis
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/capis:latest
+        imagePullPolicy: Always
+        command:
+        - /capis
+        args:
+        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
+        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
+        - "--feature-gates=APIPriorityAndFairness=false"
+        - "--audit-log-path=-"
+        - "--audit-log-maxage=0"
+        - "--audit-log-maxbackup=0"
+        - "--secure-port=6443"
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: ENABLE_TARGET
+          value: "true"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 300Mi
+        volumeMounts:
+        - name: apiserver-certs
+          mountPath: /apiserver.local.config/certificates
+          readOnly: true
+      volumes:
+      - name: apiserver-certs
+        secret:
+          secretName: capis
