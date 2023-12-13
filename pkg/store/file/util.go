@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/store"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,6 +63,8 @@ func convert(obj any) (runtime.Object, error) {
 }
 
 func (r *file[T1]) writeFile(ctx context.Context, key store.Key, obj T1) error {
+	log := log.FromContext(ctx)
+
 	runtimeObj, err := convert(obj)
 	if err != nil {
 		return err
@@ -71,7 +74,11 @@ func (r *file[T1]) writeFile(ctx context.Context, key store.Key, obj T1) error {
 	if err := r.codec.Encode(runtimeObj, buf); err != nil {
 		return err
 	}
-	return os.WriteFile(r.filename(key), buf.Bytes(), 0600)
+	log.Info("write file", "fileName", r.filename(key), "data", string(buf.Bytes()))
+	if err := ensureDir(filepath.Dir(r.filename(key))); err != nil {
+		return err
+	}
+	return os.WriteFile(r.filename(key), buf.Bytes(), 0644)
 }
 
 func (r *file[T1]) deleteFile(ctx context.Context, key store.Key) error {
@@ -91,24 +98,20 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 			return nil
 		}
 		// this is a json file by now
-		// next step is find the key
-		fpSplit := strings.Split(path, "/")
-		objRootSplit := strings.Split(path, "/")
-		if len(fpSplit) <= len(objRootSplit) {
-			return fmt.Errorf("path cannot be smaller than objRootPath, objRootPath %s, path %s", r.objRootPath, path)
+		// next step is find the key (namespace and name)
+		fmt.Println("path", path)
+		name := strings.TrimSuffix(filepath.Base(path), ".json")
+		fmt.Println("name", name)
+		namespace := ""
+		pathSplit := strings.Split(path, "/")
+		if len(pathSplit) > (len(strings.Split(r.objRootPath, "/")) + 1) {
+			namespace = pathSplit[len(pathSplit)-2]
 		}
-		name := strings.TrimSuffix(fpSplit[len(fpSplit)-1], ".json")
-		namespace := fpSplit[len(fpSplit)-2]
+		fmt.Println("namespace", namespace)
 		key := store.GetNSNKey(types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
 		})
-		if len(fpSplit) == len(objRootSplit)+1 {
-			// non namespace
-			key = store.GetNSNKey(types.NamespacedName{
-				Name: name,
-			})
-		}
 
 		newObj, err := r.readFile(ctx, key)
 		if err != nil {
@@ -117,6 +120,7 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 		if visitorFunc != nil {
 			visitorFunc(ctx, key, newObj)
 		}
+
 		return nil
 	})
 }
@@ -128,7 +132,7 @@ func exists(filepath string) bool {
 
 func ensureDir(dirname string) error {
 	if !exists(dirname) {
-		return os.MkdirAll(dirname, 0700)
+		return os.MkdirAll(dirname, 0755)
 	}
 	return nil
 }

@@ -76,8 +76,10 @@ func (r *file[T1]) Create(ctx context.Context, key store.Key, data T1) error {
 	if _, err := r.Get(ctx, key); err == nil {
 		return fmt.Errorf("duplicate entry %v", key.String())
 	}
-	// update the cache before calling the callback since the cb fn will use this data
-	r.update(ctx, key, data)
+	// update the store before calling the callback since the cb fn will use this data
+	if err := r.update(ctx, key, data); err != nil {
+		return err
+	}
 
 	// notify watchers
 	r.watchers.NotifyWatchers(ctx, watch.Event[T1]{
@@ -142,8 +144,7 @@ func (r *file[T1]) Delete(ctx context.Context, key store.Key) error {
 		})
 	}
 	// delete the entry to ensure the cb uses the proper data
-	r.delete(ctx, key)
-	return nil
+	return r.delete(ctx, key)
 }
 
 func (r *file[T1]) Watch(ctx context.Context) (watch.Interface[T1], error) {

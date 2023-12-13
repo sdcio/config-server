@@ -17,8 +17,10 @@ package config
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	api "github.com/iptecharch/config-server/apis/config/v1alpha1"
@@ -228,6 +230,8 @@ func (r *cfg) List(
 		return nil, err
 	}
 
+	log.Info("list...")
+
 	r.store.List(ctx, func(ctx context.Context, key store.Key, obj runtime.Object) {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
@@ -265,6 +269,8 @@ func (r *cfg) Create(
 		return nil, apierrors.NewBadRequest(err.Error())
 	}
 	accessor.SetUID(uuid.NewUUID())
+	accessor.SetCreationTimestamp(metav1.Now())
+	accessor.SetResourceVersion(generateRandomString(6))
 
 	key, targetKey, err := r.getKeys(ctx, runtimeObject)
 	if err != nil {
@@ -343,15 +349,16 @@ func (r *cfg) Update(
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfig))
 	}
 
-	fmt.Printf("ctx: %#v\n", ctx)
-	fmt.Printf("objInfo: %#v\n", objInfo)
-	log.Info("update", "objInfo", reflect.TypeOf(objInfo))
-	log.Info("update", "oldObject", oldObj)
 	newObj, err := objInfo.UpdatedObject(ctx, oldObj)
 	if err != nil {
 		log.Info("update failed to construct UpdatedObject", "error", err.Error())
 		return nil, false, err
 	}
+	accessor, err := meta.Accessor(newObj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
 	newConfig, ok := newObj.(*api.Config)
@@ -423,6 +430,13 @@ func (r *cfg) Delete(
 	if err != nil {
 		return nil, false, apierrors.NewNotFound(r.gr, name)
 	}
+
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	now := metav1.Now()
+	accessor.SetDeletionTimestamp(&now)
 
 	// get the data of the runtime object
 	newConfig, ok := obj.(*api.Config)
@@ -531,4 +545,14 @@ func (r *cfg) Watch(
 	}
 
 	return w, nil
+}
+
+func generateRandomString(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	charset := "0123456789"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(result)
 }
