@@ -45,15 +45,24 @@ type ConfigStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
 	ConditionedStatus `json:",inline" yaml:",inline"`
-	// LastAppliedConfig defines the configuration that was last applied to the target device
-	//+kubebuilder:pruning:PreserveUnknownFields
-	//LastAppliedConfig runtime.RawExtension `json:"lastAppliedConfig,omitempty" yaml:"lastAppliedConfig,omitempty"`
+	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
+	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" yaml:"lastKnownGoodSchema,omitempty"`
+}
+
+type ConfigStatusLastKnownGoodSchema struct {
+	// Schema Type
+	Type string `json:"type,omitempty" yaml:"type,omitempty"`
+	// Schema Vendor
+	Vendor string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	// Schema Version
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 //	Config is the Schema for the Config API
+//
 // +k8s:openapi-gen=true
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
