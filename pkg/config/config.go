@@ -20,15 +20,16 @@ import (
 	"reflect"
 	"strings"
 
-	api "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/target"
 	"github.com/henderiw/logger/log"
+	api "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/iptecharch/config-server/pkg/store/file"
+	"github.com/iptecharch/config-server/pkg/target"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/watch"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/generic"
@@ -60,11 +62,8 @@ var _ rest.Storage = &cfg{}
 // TODO this is to be replaced by the metadata
 //var targetKey = store.GetNSNKey(types.NamespacedName{Namespace: "default", Name: "dev1"})
 
-func NewProvider(ctx context.Context, obj resource.Object, store store.Storer[runtime.Object], targetStore store.Storer[target.Context]) builderrest.ResourceHandlerProvider {
+func NewProvider(ctx context.Context, obj resource.Object, targetStore store.Storer[target.Context]) builderrest.ResourceHandlerProvider {
 	return func(scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
-
-		fmt.Println("schema", *scheme)
-
 		gr := obj.GetGroupVersionResource().GroupResource()
 		codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
 			StorageMediaType:  runtime.ContentTypeJSON,
@@ -72,6 +71,20 @@ func NewProvider(ctx context.Context, obj resource.Object, store store.Storer[ru
 			StorageVersion:    scheme.PrioritizedVersionsForGroup(obj.GetGroupVersionResource().Group)[0],
 			MemoryVersion:     scheme.PrioritizedVersionsForGroup(obj.GetGroupVersionResource().Group)[0],
 			Config:            storagebackend.Config{}, // useless fields..
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		// mem store
+		//store := memory.NewStore[runtime.Object]()
+		// file store
+		store, err := file.NewStore[runtime.Object](&file.Config{
+			GroupResource: gr,
+			RootPath:      "config",
+			Codec:         codec,
+			NewFunc:       func() runtime.Object { return &configv1alpha1.Config{} },
 		})
 		if err != nil {
 			return nil, err

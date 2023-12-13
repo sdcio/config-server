@@ -183,9 +183,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		if !r.HasReferencesChanged(ctx, cr, drRuleResourceVersion, drCtx) {
+			log.Info("refs -> no change")
 			cr.SetConditions(invv1alpha1.Ready())
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
+		log.Info("refs -> changed")
 		// we stop the discovery rule
 		dr.Stop(ctx)
 		if err = r.discoveryStore.Delete(ctx, key); err != nil {
@@ -193,7 +195,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			log.Error(err, "cannot delete discovery rule from store")
 		}
 	}
-	// new initialization
+	// new discovery initialization
 	dr = drInit(r.Client)
 	// this fetches the discovery rule based on a the configured discovery rule reference
 	// each kind of discovery rule is abstracted

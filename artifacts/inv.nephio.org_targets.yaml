@@ -24,6 +24,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='DSReady')].status
       name: DATASTORE
       type: string
+    - jsonPath: .spec.address
+      name: ADDRESS
+      type: string
     - jsonPath: .status.discoveryInfo.platform
       name: PLATFORM
       type: string
