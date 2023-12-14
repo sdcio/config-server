@@ -150,6 +150,9 @@ func (r *client) GetIntent(ctx context.Context, in *sdcpb.GetIntentRequest, opts
 func (r *client) SetIntent(ctx context.Context, in *sdcpb.SetIntentRequest, opts ...grpc.CallOption) (*sdcpb.SetIntentResponse, error) {
 	return r.dsclient.SetIntent(ctx, in, opts...)
 }
+func (r *client) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest, opts ...grpc.CallOption) (*sdcpb.ListIntentResponse, error) {
+	return r.dsclient.ListIntent(ctx, in, opts...)
+}
 
 /*
 func (r *client) getGRPCOpts() ([]grpc.DialOption, error) {
