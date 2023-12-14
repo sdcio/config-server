@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
-	api "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
@@ -60,6 +59,7 @@ const (
 var _ rest.StandardStorage = &cfg{}
 var _ rest.Scoper = &cfg{}
 var _ rest.Storage = &cfg{}
+var _ rest.TableConvertor = &cfg{}
 
 // TODO this is to be replaced by the metadata
 //var targetKey = store.GetNSNKey(types.NamespacedName{Namespace: "default", Name: "dev1"})
@@ -116,12 +116,12 @@ func NewConfigREST(
 	newListFunc func() runtime.Object,
 ) rest.Storage {
 	c := &cfg{
-		store:          store,
-		targetStore:    targetStore,
-		TableConvertor: rest.NewDefaultTableConvertor(gr),
+		store:       store,
+		targetStore: targetStore,
+		//TableConvertor: rest.NewDefaultTableConvertor(gr),
+		TableConvertor: NewConfigTableConvertor(gr),
 		codec:          codec,
 		gr:             gr,
-		//gvk:            gvk,
 		isNamespaced: isNamespaced,
 		newFunc:      newFunc,
 		newListFunc:  newListFunc,
@@ -139,9 +139,7 @@ type cfg struct {
 
 	rest.TableConvertor
 	codec runtime.Codec
-	//objRootPath  string
 	gr schema.GroupResource
-	//gvk          schema.GroupVersionKind
 	isNamespaced bool
 
 	watchers    *watchers
@@ -279,7 +277,7 @@ func (r *cfg) Create(
 	log.Info("create", "key", key.String(), "targetKey", targetKey)
 
 	// get the data of the runtime object
-	newConfig, ok := runtimeObject.(*api.Config)
+	newConfig, ok := runtimeObject.(*configv1alpha1.Config)
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
@@ -351,7 +349,7 @@ func (r *cfg) Update(
 		}
 	}
 	// get the data of the runtime object
-	oldConfig, ok := oldObj.(*api.Config)
+	oldConfig, ok := oldObj.(*configv1alpha1.Config)
 	if !ok {
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfig))
 	}
@@ -368,7 +366,7 @@ func (r *cfg) Update(
 	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
-	newConfig, ok := newObj.(*api.Config)
+	newConfig, ok := newObj.(*configv1alpha1.Config)
 	if !ok {
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", newObj))
 	}
@@ -453,7 +451,7 @@ func (r *cfg) Delete(
 	accessor.SetDeletionTimestamp(&now)
 
 	// get the data of the runtime object
-	newConfig, ok := obj.(*api.Config)
+	newConfig, ok := obj.(*configv1alpha1.Config)
 	if !ok {
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", obj))
 	}
