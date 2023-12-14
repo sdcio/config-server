@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"path/filepath"
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -74,8 +77,35 @@ func (r *Config) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
+func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
+	if r.Status.LastKnownGoodSchema == nil {
+		return &ConfigStatusLastKnownGoodSchema{}
+	}
+	return r.Status.LastKnownGoodSchema
+}
+
+func (r *Config) GetTarget() string {
+	if len(r.Labels) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	targetNamespace, ok := r.Labels["targetNamespace"]
+	if ok {
+		sb.WriteString(targetNamespace)
+		sb.WriteString("/")
+	}
+	targetName, ok := r.Labels["targetName"]
+	if ok {
+		sb.WriteString(targetName)
+	}
+	return sb.String()
+}
+
 // GetListMeta returns the ListMeta
 func (r *ConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
 
+func (r *ConfigStatusLastKnownGoodSchema) String() string {
+	return filepath.Join(r.Type, r.Vendor, r.Version)
+}
