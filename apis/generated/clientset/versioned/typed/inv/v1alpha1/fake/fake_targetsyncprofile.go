@@ -33,9 +33,9 @@ type FakeTargetSyncProfiles struct {
 	ns   string
 }
 
-var targetsyncprofilesResource = schema.GroupVersionResource{Group: "inv.nephio.org", Version: "v1alpha1", Resource: "targetsyncprofiles"}
+var targetsyncprofilesResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "targetsyncprofiles"}
 
-var targetsyncprofilesKind = schema.GroupVersionKind{Group: "inv.nephio.org", Version: "v1alpha1", Kind: "TargetSyncProfile"}
+var targetsyncprofilesKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "TargetSyncProfile"}
 
 // Get takes name of the targetSyncProfile, and returns the corresponding targetSyncProfile object, and an error if there is any.
 func (c *FakeTargetSyncProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetSyncProfile, err error) {

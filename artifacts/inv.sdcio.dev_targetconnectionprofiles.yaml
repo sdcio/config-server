@@ -4,12 +4,12 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.12.1
-  name: targetconnectionprofiles.inv.nephio.org
+  name: targetconnectionprofiles.inv.sdcio.dev
 spec:
-  group: inv.nephio.org
+  group: inv.sdcio.dev
   names:
     categories:
-    - nephio
+    - sdc
     - inv
     kind: TargetConnectionProfile
     listKind: TargetConnectionProfileList

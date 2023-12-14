@@ -33,9 +33,9 @@ type FakeTargets struct {
 	ns   string
 }
 
-var targetsResource = schema.GroupVersionResource{Group: "inv.nephio.org", Version: "v1alpha1", Resource: "targets"}
+var targetsResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "targets"}
 
-var targetsKind = schema.GroupVersionKind{Group: "inv.nephio.org", Version: "v1alpha1", Kind: "Target"}
+var targetsKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "Target"}
 
 // Get takes name of the target, and returns the corresponding target object, and an error if there is any.
 func (c *FakeTargets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Target, err error) {

@@ -33,9 +33,9 @@ type FakeTargetConnectionProfiles struct {
 	ns   string
 }
 
-var targetconnectionprofilesResource = schema.GroupVersionResource{Group: "inv.nephio.org", Version: "v1alpha1", Resource: "targetconnectionprofiles"}
+var targetconnectionprofilesResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "targetconnectionprofiles"}
 
-var targetconnectionprofilesKind = schema.GroupVersionKind{Group: "inv.nephio.org", Version: "v1alpha1", Kind: "TargetConnectionProfile"}
+var targetconnectionprofilesKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "TargetConnectionProfile"}
 
 // Get takes name of the targetConnectionProfile, and returns the corresponding targetConnectionProfile object, and an error if there is any.
 func (c *FakeTargetConnectionProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetConnectionProfile, err error) {

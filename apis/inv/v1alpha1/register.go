@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // +kubebuilder:object:generate=true
-// +groupName=inv.nephio.org
+// +groupName=inv.sdcio.dev
 package v1alpha1
 
 import (
@@ -25,7 +25,7 @@ import (
 
 var (
 	// SchemeGroupVersion contains the API group and version information for the types in this package.
-	SchemeGroupVersion = schema.GroupVersion{Group: "inv.nephio.org", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "inv.sdcio.dev", Version: "v1alpha1"}
 	// AddToScheme applies all the stored functions to the scheme. A non-nil error
 	// indicates that one function failed and the attempt was abandoned.
 	//AddToScheme = (&runtime.SchemeBuilder{}).AddToScheme

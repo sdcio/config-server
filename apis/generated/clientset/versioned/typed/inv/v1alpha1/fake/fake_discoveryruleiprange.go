@@ -33,9 +33,9 @@ type FakeDiscoveryRuleIPRanges struct {
 	ns   string
 }
 
-var discoveryruleiprangesResource = schema.GroupVersionResource{Group: "inv.nephio.org", Version: "v1alpha1", Resource: "discoveryruleipranges"}
+var discoveryruleiprangesResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "discoveryruleipranges"}
 
-var discoveryruleiprangesKind = schema.GroupVersionKind{Group: "inv.nephio.org", Version: "v1alpha1", Kind: "DiscoveryRuleIPRange"}
+var discoveryruleiprangesKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "DiscoveryRuleIPRange"}
 
 // Get takes name of the discoveryRuleIPRange, and returns the corresponding discoveryRuleIPRange object, and an error if there is any.
 func (c *FakeDiscoveryRuleIPRanges) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DiscoveryRuleIPRange, err error) {

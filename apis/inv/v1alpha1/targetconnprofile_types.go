@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Nephio Authors.
+Copyright 2023 The sdc Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ type TargetConnectionProfileSpec struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:categories={nephio,inv}
+// +kubebuilder:resource:categories={sdc,inv}
 // TargetConnectionProfile is the Schema for the TargetConnectionProfile API
 // +k8s:openapi-gen=true
 type TargetConnectionProfile struct {

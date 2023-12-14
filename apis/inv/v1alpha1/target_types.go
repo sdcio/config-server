@@ -101,7 +101,7 @@ type TargetStatusUsedReferences struct {
 // +kubebuilder:printcolumn:name="TYPE",type="string",JSONPath=".status.discoveryInfo.type"
 // +kubebuilder:printcolumn:name="SERIALNUMBER",type="string",JSONPath=".status.discoveryInfo.serialNumber"
 // +kubebuilder:printcolumn:name="MACADDRESS",type="string",JSONPath=".status.discoveryInfo.macAddress"
-// +kubebuilder:resource:categories={nephio,inv}
+// +kubebuilder:resource:categories={sdc,inv}
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true
 type Target struct {

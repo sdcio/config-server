@@ -27,6 +27,7 @@ import (
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
 	"github.com/iptecharch/config-server/pkg/target"
+	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/watch"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
@@ -60,9 +62,6 @@ var _ rest.StandardStorage = &cfg{}
 var _ rest.Scoper = &cfg{}
 var _ rest.Storage = &cfg{}
 var _ rest.TableConvertor = &cfg{}
-
-// TODO this is to be replaced by the metadata
-//var targetKey = store.GetNSNKey(types.NamespacedName{Namespace: "default", Name: "dev1"})
 
 func NewProvider(ctx context.Context, obj resource.Object, targetStore store.Storer[target.Context]) builderrest.ResourceHandlerProvider {
 	return func(scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
@@ -122,11 +121,13 @@ func NewConfigREST(
 		TableConvertor: NewConfigTableConvertor(gr),
 		codec:          codec,
 		gr:             gr,
-		isNamespaced: isNamespaced,
-		newFunc:      newFunc,
-		newListFunc:  newListFunc,
-		watchers:     NewWatchers(32),
+		isNamespaced:   isNamespaced,
+		newFunc:        newFunc,
+		newListFunc:    newListFunc,
+		//watchers:       NewWatchers(32),
+		watcherManager: watchermanager.New(32),
 	}
+	go c.watcherManager.Start(ctx)
 	// start watching target changes
 	targetWatcher := targetWatcher{targetStore: targetStore}
 	targetWatcher.Watch(ctx)
@@ -138,13 +139,14 @@ type cfg struct {
 	targetStore store.Storer[target.Context]
 
 	rest.TableConvertor
-	codec runtime.Codec
-	gr schema.GroupResource
+	codec        runtime.Codec
+	gr           schema.GroupResource
 	isNamespaced bool
 
-	watchers    *watchers
-	newFunc     func() runtime.Object
-	newListFunc func() runtime.Object
+	//watchers       *watchers
+	watcherManager watchermanager.WatcherManager
+	newFunc        func() runtime.Object
+	newListFunc    func() runtime.Object
 }
 
 func (r *cfg) Destroy() {}
@@ -217,7 +219,7 @@ func (r *cfg) List(
 	log := log.FromContext(ctx)
 
 	// Get Key
-	ns, namespaced := genericapirequest.NamespaceFrom(ctx)
+	_, namespaced := genericapirequest.NamespaceFrom(ctx)
 	if namespaced != r.isNamespaced {
 		return nil, fmt.Errorf("namespace mismatch got %t, want %t", namespaced, r.isNamespaced)
 	}
@@ -237,11 +239,40 @@ func (r *cfg) List(
 			return
 		}
 
-		if namespaced && accessor.GetNamespace() == ns {
-			appendItem(v, obj)
+		filtered := false
+		if options.FieldSelector == nil {
+			log.Info("list", "fieldselector", "nil")
 		} else {
+			log.Info("list", "fieldselector", "not nil")
+			for _, req := range options.FieldSelector.Requirements() {
+				filtered = true
+				log.Info("list", "fieldselector", "not nil",
+					 "Operator", req.Operator,
+					 "Field", req.Field,
+					 "Value", req.Value,
+					)
+				switch req.Operator {
+				case selection.Equals:
+					if req.Field == "metadata.name" {
+						if req.Value == accessor.GetName() {
+							appendItem(v, obj)
+						}
+					}
+				}
+			}
+		}
+
+		if !filtered {
 			appendItem(v, obj)
 		}
+
+		/*
+			if namespaced && accessor.GetNamespace() == ns {
+				appendItem(v, obj)
+			} else {
+				appendItem(v, obj)
+			}
+		*/
 	})
 
 	return newListObj, nil
@@ -304,10 +335,16 @@ func (r *cfg) Create(
 		return nil, apierrors.NewInternalError(err)
 	}
 
-	r.watchers.NotifyWatchers(watch.Event{
+	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Added,
 		Object: newConfig,
 	})
+	/*
+		r.watchers.NotifyWatchers(watch.Event{
+			Type:   watch.Added,
+			Object: newConfig,
+		})
+	*/
 	return newConfig, nil
 }
 
@@ -397,10 +434,17 @@ func (r *cfg) Update(
 		if err := r.store.Update(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
-		r.watchers.NotifyWatchers(watch.Event{
+
+		r.notifyWatcher(ctx, watch.Event{
 			Type:   watch.Added,
 			Object: newConfig,
 		})
+		/*
+			r.watchers.NotifyWatchers(watch.Event{
+				Type:   watch.Added,
+				Object: newConfig,
+			})
+		*/
 		return newConfig, false, nil
 	}
 	if err := tctx.SetIntent(ctx, targetKey, newConfig); err != nil {
@@ -409,10 +453,16 @@ func (r *cfg) Update(
 	if err := r.store.Create(ctx, key, newConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	r.watchers.NotifyWatchers(watch.Event{
+	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Modified,
 		Object: newConfig,
 	})
+	/*
+		r.watchers.NotifyWatchers(watch.Event{
+			Type:   watch.Modified,
+			Object: newConfig,
+		})
+	*/
 	return newConfig, true, nil
 
 }
@@ -468,15 +518,25 @@ func (r *cfg) Delete(
 	if err := tctx.DeleteIntent(ctx, targetKey, newConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	log.Info("delete intent succeeded")
+	log.Info("delete intent from target succeeded")
 
 	if err := r.store.Delete(ctx, key); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	r.watchers.NotifyWatchers(watch.Event{
-		Type:   watch.Modified,
+	log.Info("delete intent from store succeeded")
+
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Deleted,
 		Object: newConfig,
 	})
+
+	log.Info("delete intent from store succeeded and watch notified")
+	/*
+		r.watchers.NotifyWatchers(watch.Event{
+			Type:   watch.Deleted,
+			Object: newConfig,
+		})
+	*/
 
 	return newConfig, true, nil
 }
@@ -527,36 +587,63 @@ func (r *cfg) Watch(
 
 	// logger
 	log := log.FromContext(ctx)
-	log.Info("watch", "options", *options)
 
-	if r.watchers.IsExhausted() {
-		return nil, fmt.Errorf("cannot allocate watcher, out of resources")
-	}
-	w := &mWatch{
-		watchers: r.watchers,
-		resultCh: make(chan watch.Event, 10),
-	}
-	// On initial watch, send all the existing objects
-	list, err := r.List(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	items := reflect.ValueOf(list).Elem().FieldByName("Items")
-	for i := 0; i < items.Len(); i++ {
-		obj := items.Index(i).Addr().Interface().(runtime.Object)
-		w.resultCh <- watch.Event{
-			Type:   watch.Added,
-			Object: obj,
+	if options.FieldSelector == nil {
+		log.Info("watch", "options", *options, "fieldselector", "nil")
+	} else {
+		requirements := options.FieldSelector.Requirements()
+		log.Info("watch", "options", *options, "fieldselector", options.FieldSelector.Requirements())
+		for _, requirement := range requirements {
+			log.Info("watch requirement",
+				"Operator", requirement.Operator,
+				"Value", requirement.Value,
+				"Field", requirement.Field,
+			)
 		}
+
 	}
-	// this ensures the initial events from the list
-	// get processed first
-	if err := r.watchers.Add(w); err != nil {
-		return nil, err
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	w := &watcher{
+		cancel:     cancel,
+		resultChan: make(chan watch.Event),
 	}
+
+	go w.listAndWatch(ctx, r, options)
 
 	return w, nil
+
+	/*
+		if r.watchers.IsExhausted() {
+			return nil, fmt.Errorf("cannot allocate watcher, out of resources")
+		}
+		w := &mWatch{
+			watchers: r.watchers,
+			resultCh: make(chan watch.Event, 10),
+		}
+		// On initial watch, send all the existing objects
+		list, err := r.List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+
+		items := reflect.ValueOf(list).Elem().FieldByName("Items")
+		for i := 0; i < items.Len(); i++ {
+			obj := items.Index(i).Addr().Interface().(runtime.Object)
+			w.resultCh <- watch.Event{
+				Type:   watch.Added,
+				Object: obj,
+			}
+		}
+		// this ensures the initial events from the list
+		// get processed first
+		if err := r.watchers.Add(w); err != nil {
+			return nil, err
+		}
+
+		return w, nil
+	*/
 }
 
 func generateRandomString(length int) string {
@@ -567,4 +654,11 @@ func generateRandomString(length int) string {
 		result[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(result)
+}
+
+func (r *cfg) notifyWatcher(ctx context.Context, event watch.Event) {
+	log := log.FromContext(ctx).With("eventType", event.Type)
+	log.Info("notify watcherManager")
+
+	r.watcherManager.WatchChan() <- event
 }

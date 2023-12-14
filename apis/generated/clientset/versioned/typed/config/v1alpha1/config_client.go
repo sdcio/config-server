@@ -28,7 +28,7 @@ type ConfigV1alpha1Interface interface {
 	ConfigsGetter
 }
 
-// ConfigV1alpha1Client is used to interact with features provided by the config.example.com group.
+// ConfigV1alpha1Client is used to interact with features provided by the config.sdcio.dev group.
 type ConfigV1alpha1Client struct {
 	restClient rest.Interface
 }
