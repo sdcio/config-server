@@ -27,10 +27,11 @@ func GetSyncProfile(syncProfile *TargetSyncProfile) *sdcpb.Sync {
 		Buffer:       10000.,
 		WriteWorkers: 10,
 	}
-	sync.Gnmi = make([]*sdcpb.GNMISync, 0, len(syncProfile.Spec.Sync))
+	sync.Config = make([]*sdcpb.SyncConfig, 0, len(syncProfile.Spec.Sync))
 	for _, syncConfig := range syncProfile.Spec.Sync {
-		sync.Gnmi = append(sync.Gnmi, &sdcpb.GNMISync{
+		sync.Config = append(sync.Config, &sdcpb.SyncConfig{
 			Name:     syncConfig.Name,
+			Protocol: string(syncConfig.Protocol),
 			Path:     syncConfig.Paths,
 			Mode:     getSyncMode(syncConfig.Mode),
 			Encoding: getEncoding(syncConfig.Encoding),
