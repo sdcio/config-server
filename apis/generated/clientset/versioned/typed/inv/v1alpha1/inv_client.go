@@ -32,7 +32,7 @@ type InvV1alpha1Interface interface {
 	TargetSyncProfilesGetter
 }
 
-// InvV1alpha1Client is used to interact with features provided by the inv.nephio.org group.
+// InvV1alpha1Client is used to interact with features provided by the inv.sdcio.dev group.
 type InvV1alpha1Client struct {
 	restClient rest.Interface
 }

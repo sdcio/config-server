@@ -4,12 +4,12 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.12.1
-  name: discoveryrules.inv.nephio.org
+  name: discoveryrules.inv.sdcio.dev
 spec:
-  group: inv.nephio.org
+  group: inv.sdcio.dev
   names:
     categories:
-    - nephio
+    - sdc
     - inv
     kind: DiscoveryRule
     listKind: DiscoveryRuleList

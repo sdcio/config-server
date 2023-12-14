@@ -47,7 +47,7 @@ type DiscoveryRuleIPRangeSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:categories={nephio,inv}
+// +kubebuilder:resource:categories={sdc,inv}
 // DiscoveryRuleIPRange is the Schema for the DiscoveryRuleIPRange API
 // +k8s:openapi-gen=true
 type DiscoveryRuleIPRange struct {

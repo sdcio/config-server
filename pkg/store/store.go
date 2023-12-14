@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/iptecharch/config-server/pkg/store/watch"
+	//metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 )
 
 // Storer defines the interface for a generic storage system.

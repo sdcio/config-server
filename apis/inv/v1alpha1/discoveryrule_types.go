@@ -99,7 +99,7 @@ type DiscoveryRuleStatusUsedReferences struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:resource:categories={nephio,inv}
+// +kubebuilder:resource:categories={sdc,inv}
 // DiscoveryRule is the Schema for the DiscoveryRule API
 // +k8s:openapi-gen=true
 type DiscoveryRule struct {

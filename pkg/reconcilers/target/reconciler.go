@@ -33,7 +33,7 @@ func init() {
 }
 
 const (
-	finalizer = "target.inv.nephio.org/finalizer"
+	finalizer = "target.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -44,8 +44,8 @@ type adder interface {
 	Add(item interface{})
 }
 
-//+kubebuilder:rbac:groups=inv.nephio.org,resources=targets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=inv.nephio.org,resources=targets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {

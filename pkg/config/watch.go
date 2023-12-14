@@ -14,6 +14,7 @@
 
 package config
 
+/*
 import (
 	"sync"
 
@@ -83,3 +84,4 @@ func (r *mWatch) Stop() {
 func (r *mWatch) ResultChan() <-chan watch.Event {
 	return r.resultCh
 }
+*/
