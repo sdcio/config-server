@@ -108,30 +108,37 @@ func (r *watcher) innerListAndWatch(ctx context.Context, c *cfg, options *metain
 
 	// we add the watcher to the watchermanager and start building a backlog for intermediate changes
 	// the backlog will be replayed
-	log.Info("starting watch before listing")
+	log.Info("starting watch")
 	if err := c.watcherManager.Add(ctx, options, r); err != nil {
 		return err
 	}
 
-	obj, err := c.List(ctx, options)
-	if err != nil {
-		r.setDone()
-		return err
-	}
-	cfgList, ok := obj.(*configv1alpha1.ConfigList)
-	if !ok {
-		r.setDone()
-		return fmt.Errorf("expecting type, got: %s", reflect.TypeOf(obj).Name())
-	}
-	for _, obj := range cfgList.Items {
-		ev := watch.Event{
-			Type:   watch.Added,
-			Object: &obj,
+	// options.Watch means watch only no listing
+	if !options.Watch {
+		log.Info("starting list watch")
+		obj, err := c.List(ctx, options)
+		if err != nil {
+			r.setDone()
+			return err
 		}
-		r.sendWatchEvent(ctx, ev)
-	}
+		cfgList, ok := obj.(*configv1alpha1.ConfigList)
+		if !ok {
+			r.setDone()
+			return fmt.Errorf("expecting type, got: %s", reflect.TypeOf(obj).Name())
+		}
+		for _, obj := range cfgList.Items {
+			obj := obj
+			ev := watch.Event{
+				Type:   watch.Added,
+				Object: &obj,
+			}
+			r.sendWatchEvent(ctx, ev)
+		}
 
-	log.Info("finished list")
+		log.Info("finished list watch")
+	} else {
+		log.Info("watch only, no list")
+	}
 
 	// Repeatedly flush the backlog until we catch up
 	for {
@@ -195,7 +202,6 @@ func (r *watcher) sendWatchEvent(ctx context.Context, event watch.Event) {
 		log.Info("sending watch event")
 	}
 
-	
 	r.resultChan <- event
 }
 
