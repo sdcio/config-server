@@ -6,14 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	dsclient "github.com/iptecharch/config-server/pkg/dataserver/client"
-	"github.com/iptecharch/config-server/pkg/reconcilers"
-	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
-	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
-	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
-	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/target"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -26,6 +18,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	dsclient "github.com/iptecharch/config-server/pkg/dataserver/client"
+	"github.com/iptecharch/config-server/pkg/reconcilers"
+	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
+	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
+	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/iptecharch/config-server/pkg/target"
 )
 
 func init() {
@@ -446,11 +447,11 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	}
 	usedReferences.SecretResourceVersion = secret.ResourceVersion
 
-	tls := &sdcpb.TLS{}
-	if connProfile.Spec.SkipVerify == true {
-		tls.SkipVerify = true
-	}
+	var tls *sdcpb.TLS
 	if cr.Spec.TLSSecret != nil {
+		tls = &sdcpb.TLS{
+			SkipVerify: connProfile.Spec.SkipVerify,
+		}
 		tlsSecret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *cr.Spec.TLSSecret})
 		if err != nil {
 			return nil, nil, err
@@ -478,7 +479,8 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 				Username: string(secret.Data["username"]),
 				Password: string(secret.Data["password"]),
 			},
-			Tls: tls,
+			Tls:       tls,
+			IncludeNs: connProfile.Spec.IncludeNS,
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
