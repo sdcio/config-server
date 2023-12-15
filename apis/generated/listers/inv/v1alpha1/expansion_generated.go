@@ -31,6 +31,14 @@ type DiscoveryRuleIPRangeListerExpansion interface{}
 // DiscoveryRuleIPRangeNamespaceLister.
 type DiscoveryRuleIPRangeNamespaceListerExpansion interface{}
 
+// DiscoveryRuleStaticListerExpansion allows custom methods to be added to
+// DiscoveryRuleStaticLister.
+type DiscoveryRuleStaticListerExpansion interface{}
+
+// DiscoveryRuleStaticNamespaceListerExpansion allows custom methods to be added to
+// DiscoveryRuleStaticNamespaceLister.
+type DiscoveryRuleStaticNamespaceListerExpansion interface{}
+
 // TargetListerExpansion allows custom methods to be added to
 // TargetLister.
 type TargetListerExpansion interface{}

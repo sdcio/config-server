@@ -53,11 +53,11 @@ OUTER:
 		case "Nokia":
 			if strings.Contains(m.Name, "srl_nokia") {
 				// SRL
-				init := discoverers.Discoverers[nokia_srl.NokiaSRLDiscovererName]
+				init := discoverers.Discoverers[nokia_srl.ProviderName]
 				discoverer = init()
 			} else {
 				// SROS
-				init := discoverers.Discoverers[nokia_sros.NokiaSROSDiscovererName]
+				init := discoverers.Discoverers[nokia_sros.ProviderName]
 				discoverer = init()
 			}
 			break OUTER

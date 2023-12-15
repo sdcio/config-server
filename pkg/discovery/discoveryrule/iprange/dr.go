@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule"
+	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule/target"
 	"github.com/iptecharch/config-server/pkg/discovery/gnmi"
-	"github.com/henderiw/logger/log"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +36,7 @@ type ipRangeDR struct {
 	drrule *invv1alpha1.DiscoveryRuleIPRange
 }
 
-func (r *ipRangeDR) GetDiscoveryRule(ctx context.Context, key types.NamespacedName) (string, error) {
+func (r *ipRangeDR) Get(ctx context.Context, key types.NamespacedName) (string, error) {
 	dr := &invv1alpha1.DiscoveryRuleIPRange{}
 	if err := r.client.Get(ctx, key, dr); err != nil {
 		return "", err
@@ -75,12 +76,12 @@ func (r *ipRangeDR) Stop(ctx context.Context) {
 func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext) error {
 	log := log.FromContext(ctx)
 
-	hosts, err := getHosts(r.drrule.Spec.CIDRs...)
+	hosts, err := discoveryrule.GetHosts(r.drrule.Spec.CIDRs...)
 	if err != nil {
 		return err
 	}
 	for _, e := range r.drrule.Spec.Excludes {
-		excludes, err := getHosts(e)
+		excludes, err := discoveryrule.GetHosts(e)
 		if err != nil {
 			return err
 		}
@@ -90,7 +91,7 @@ func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContex
 	}
 
 	sem := semaphore.NewWeighted(2)
-	for _, ip := range sortIPs(hosts) {
+	for _, ip := range discoveryrule.SortIPs(hosts) {
 		err = sem.Acquire(ctx, 1)
 		if err != nil {
 			return err
@@ -101,14 +102,15 @@ func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContex
 		default:
 			go func(ip string) {
 				defer sem.Release(1)
-				err := r.discover(ctx, dr, ip)
-				if err != nil {
+				if err := r.discover(ctx, dr, ip); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context canceled") {
 						log.Info("discovery cancelled", "IP", ip)
 					} else {
 						log.Info("discovery failed", "IP", ip, "error", err)
 					}
+
+					// TODO: update the status
 					return
 				}
 			}(ip)
@@ -151,6 +153,6 @@ func (r *ipRangeDR) discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleC
 		b, _ := json.Marshal(di)
 		log.Info("discovery info", "info", string(b))
 
-		return discoveryrule.ApplyTarget(ctx, r.client, dr, di, t, nil, discoverer.ProviderName())
+		return target.ApplyTarget(ctx, r.client, dr, di, t.Config.Address, nil, discoverer.GetName())
 	}
 }

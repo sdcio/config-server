@@ -60,16 +60,17 @@ type TargetStatus struct {
 }
 
 type DiscoveryInfo struct {
-	// Vendor associated with the target
-	Vendor string `json:"vendor,omitempty"`
 	// Type associated with the target
 	Type string `json:"type,omitempty"`
+	// Vendor associated with the target
+	Vendor string `json:"vendor,omitempty"`
+	// Version associated with the target
+	Version string `json:"version,omitempty"`
 	// HostName associated with the target
 	HostName string `json:"hostname,omitempty"`
 	// Platform associated with the target
 	Platform string `json:"platform,omitempty"`
-	// Version associated with the target
-	Version string `json:"version,omitempty"`
+	
 	// MacAddress associated with the target
 	MacAddress string `json:"macAddress,omitempty"`
 	// SerialNumber associated with the target

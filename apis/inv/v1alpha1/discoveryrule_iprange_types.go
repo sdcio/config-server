@@ -30,16 +30,16 @@ type DiscoveryRuleIPRangeSpec struct {
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="cidr is immutable"
 	// list of CIDR(s) to be scanned
-	CIDRs []string `json:"cidrs"`
+	CIDRs []string `json:"cidrs" yaml:"cidrs"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="excludes is immutable"
 	// IP CIDR(s) to be excluded
-	Excludes []string `json:"excludes,omitempty"`
+	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="concurrentScans is immutable"
 	// +kubebuilder:default:=10
 	// number of concurrent IP scan
-	ConcurrentScans int64 `json:"concurrentScans,omitempty"`
+	ConcurrentScans int64 `json:"concurrentScans,omitempty" yaml:"concurrentScans,omitempty"`
 }
 
 // +kubebuilder:object:root=true

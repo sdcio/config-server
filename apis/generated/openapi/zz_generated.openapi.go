@@ -48,6 +48,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleIPRangeSpec":           schema_config_server_apis_inv_v1alpha1_DiscoveryRuleIPRangeSpec(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatic":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatic(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticList":            schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticList(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpec":            schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpec(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecSchema":      schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpecSchema(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecTarget":      schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpecTarget(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatusUsedReferences":  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatusUsedReferences(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference":                    schema_config_server_apis_inv_v1alpha1_ObjectReference(ref),
@@ -562,6 +567,13 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"vendor": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Vendor associated with the target",
@@ -569,9 +581,9 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCa
 							Format:      "",
 						},
 					},
-					"type": {
+					"version": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Type associated with the target",
+							Description: "Version associated with the target",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -586,13 +598,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCa
 					"platform": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Platform associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"version": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Version associated with the target",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1002,6 +1007,191 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatic(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryRuleStatic is the Schema for the DiscoveryRuleStatic API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryRuleList contains a list of DiscoveryRuleStatic",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatic"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatic", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryRuleSpec defines the desired state of DiscoveryRule",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets define the list of Targets(s)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecTarget"),
+									},
+								},
+							},
+						},
+					},
+					"schema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schema the target uses",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecSchema"),
+						},
+					},
+				},
+				Required: []string{"targets", "schema"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecSchema", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpecTarget"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpecSchema(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provider of the Schema associated with the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version of the Provider Schema associated with the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"provider", "version"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpecTarget(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"hostName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostName defines the hostname of the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Address defines the address of the target as <ip>:<port>",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"hostName", "address"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1292,6 +1482,12 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 						},
 					},
 					"skipVerify": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"include-ns": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
