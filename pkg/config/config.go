@@ -600,7 +600,6 @@ func (r *cfg) Watch(
 				"Field", requirement.Field,
 			)
 		}
-
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

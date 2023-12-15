@@ -144,6 +144,12 @@ func newTargetCR(ctx context.Context,
 
 func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Target, di *invv1alpha1.DiscoveryInfo) bool {
 	log := log.FromContext(ctx)
+
+	log.Info("validateDataStoreChanges", "current target status", curTargetCR.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
+	if curTargetCR.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
+		return true
+	}
+
 	log.Info("validateDataStoreChanges",
 		"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
 		"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
