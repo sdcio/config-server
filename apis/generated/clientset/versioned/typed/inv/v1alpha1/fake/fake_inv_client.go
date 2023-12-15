@@ -33,6 +33,10 @@ func (c *FakeInvV1alpha1) DiscoveryRuleIPRanges(namespace string) v1alpha1.Disco
 	return &FakeDiscoveryRuleIPRanges{c, namespace}
 }
 
+func (c *FakeInvV1alpha1) DiscoveryRuleStatics(namespace string) v1alpha1.DiscoveryRuleStaticInterface {
+	return &FakeDiscoveryRuleStatics{c, namespace}
+}
+
 func (c *FakeInvV1alpha1) Targets(namespace string) v1alpha1.TargetInterface {
 	return &FakeTargets{c, namespace}
 }

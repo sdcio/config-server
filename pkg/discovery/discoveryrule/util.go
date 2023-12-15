@@ -1,4 +1,4 @@
-package iprange
+package discoveryrule
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 )
 
 // getHosts gets all the IP address in a range
-func getHosts(cidrs ...string) (map[string]struct{}, error) {
+func GetHosts(cidrs ...string) (map[string]struct{}, error) {
 	ips := make(map[string]struct{})
 	for _, cidr := range cidrs {
 		ip, ipnet, err := net.ParseCIDR(cidr)
@@ -15,14 +15,14 @@ func getHosts(cidrs ...string) (map[string]struct{}, error) {
 			return nil, err
 		}
 
-		for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); incIP(ip) {
+		for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); IncIP(ip) {
 			ips[ip.String()] = struct{}{}
 		}
 	}
 	return ips, nil
 }
 
-func incIP(ip net.IP) {
+func IncIP(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
 		ip[j]++
 		if ip[j] > 0 {
@@ -31,7 +31,7 @@ func incIP(ip net.IP) {
 	}
 }
 
-func sortIPs(hosts map[string]struct{}) []string {
+func SortIPs(hosts map[string]struct{}) []string {
 	realIPs := make([]net.IP, 0, len(hosts))
 
 	for ip := range hosts {

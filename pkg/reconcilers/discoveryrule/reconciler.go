@@ -65,6 +65,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Watches(&source.Kind{Type: &invv1alpha1.TargetConnectionProfile{}}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&source.Kind{Type: &invv1alpha1.TargetSyncProfile{}}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&source.Kind{Type: &invv1alpha1.DiscoveryRuleIPRange{}}, &drIPRangeEventHandler{client: mgr.GetClient()}).
+		Watches(&source.Kind{Type: &invv1alpha1.DiscoveryRuleStatic{}}, &drStaticEventHandler{client: mgr.GetClient()}).
 		Complete(r)
 }
 
@@ -127,17 +128,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	exists := false
+	// check if the discovery rule is running
+	isDRRunning := false
 	dr, err := r.discoveryStore.Get(ctx, key)
 	if err == nil {
-		exists = true
+		isDRRunning = true
 	}
 
-	// gather the references
+	// gather the referencesm from the CR
 	drGVK, drCtx, err := r.getReferences(ctx, cr)
 	if err != nil {
 		log.Error(err, "cannot get reference context")
-		if exists {
+		if isDRRunning {
 			// we stop the discovery rule
 			dr.Stop(ctx)
 			if err := r.discoveryStore.Delete(ctx, key); err != nil {
@@ -150,8 +152,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{RequeueAfter: 1 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	// based on the gvk check if the gvk is supported
-	// unlikely to happen since the GVK is immutable
+	// based on the gvk check if the gvk is supported 
 	drInit, ok := discoveryrule.DiscoveryRules[*drGVK]
 	if !ok {
 		log.Info("cannot initialize discovery rule, gvk not registered", "gvk", *drGVK)
@@ -167,9 +168,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	if exists {
+	if isDRRunning {
 		drKey := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.DiscoveryRuleRef.Name}
-		drRuleResourceVersion, err := dr.GetDiscoveryRule(ctx, drKey)
+		drRuleResourceVersion, err := dr.Get(ctx, drKey)
 		if err != nil {
 			// we stop the discovery rule
 			dr.Stop(ctx)
@@ -200,7 +201,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// this fetches the discovery rule based on a the configured discovery rule reference
 	// each kind of discovery rule is abstracted
 	drKey := types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.DiscoveryRuleRef.Name}
-	drRuleResourceVersion, err := dr.GetDiscoveryRule(ctx, drKey)
+	drRuleResourceVersion, err := dr.Get(ctx, drKey)
 	if err != nil {
 		log.Error(err, "cannot get discovery rule", "key", drKey, "nsn", drKey.String())
 		cr.SetConditions(invv1alpha1.Failed(fmt.Sprintf("cannot get discovery rule, gvk %v with nsn %s not available", *drGVK, drKey.String())))
@@ -227,7 +228,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	cr.SetConditions(invv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-
 }
 
 func (r *reconciler) getReferences(ctx context.Context, cr *invv1alpha1.DiscoveryRule) (*schema.GroupVersionKind, *invv1alpha1.DiscoveryRuleContext, error) {

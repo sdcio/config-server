@@ -53,6 +53,12 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+              include-ns:
+                default: false
+                type: boolean
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               insecure:
                 default: false
                 type: boolean

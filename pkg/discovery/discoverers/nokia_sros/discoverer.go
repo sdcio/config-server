@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	NokiaSROSDiscovererName = "nokia-sros"
+	ProviderName = "sros.nokia.com"
+	Vendor       = "Nokia"
+	Type         = "sros"
 	// TODO: check if we need to differentiate slotA and slotB
 	srosSWVersionPath    = "state/system/version/version-number"
 	srosChassisPath      = "state/system/platform"
@@ -24,15 +26,23 @@ const (
 )
 
 func init() {
-	discoverers.Register(NokiaSROSDiscovererName, func() discoverers.Discoverer {
+	discoverers.Register(ProviderName, func() discoverers.Discoverer {
 		return &sros{}
 	})
 }
 
 type sros struct{}
 
-func (s *sros) ProviderName() string {
-	return "sros.nokia.com"
+func (s *sros) GetName() string {
+	return ProviderName
+}
+
+func (s *sros) GetType() string {
+	return Type
+}
+
+func (s *sros) GetVendor() string {
+	return Vendor
 }
 
 func (s *sros) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
@@ -56,8 +66,8 @@ func (s *sros) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContex
 		return nil, err
 	}
 	di := &invv1alpha1.DiscoveryInfo{
-		Type:   "sros",
-		Vendor: "Nokia",
+		Type:   Type,
+		Vendor: Vendor,
 		LastSeen: metav1.Time{
 			Time: time.Now(),
 		},

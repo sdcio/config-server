@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	NokiaSRLDiscovererName = "nokia-srl"
+	ProviderName = "srl.nokia.com"
+	Vendor       = "Nokia"
+	Type         = "srl"
 	// TODO: check if we need to differentiate slotA and slotB
 	srlSwVersionPath = "platform/control/software-version"
 	srlChassisPath   = "platform/chassis"
@@ -26,15 +28,23 @@ const (
 )
 
 func init() {
-	discoverers.Register(NokiaSRLDiscovererName, func() discoverers.Discoverer {
+	discoverers.Register(ProviderName, func() discoverers.Discoverer {
 		return &srl{}
 	})
 }
 
 type srl struct{}
 
-func (s *srl) ProviderName() string {
-	return "srl.nokia.com"
+func (s *srl) GetName() string {
+	return ProviderName
+}
+
+func (s *srl) GetType() string {
+	return Type
+}
+
+func (s *srl) GetVendor() string {
+	return Vendor
 }
 
 func (s *srl) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
@@ -57,8 +67,8 @@ func (s *srl) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext
 		return nil, err
 	}
 	di := &invv1alpha1.DiscoveryInfo{
-		Type:   "srl",
-		Vendor: "Nokia",
+		Type:   Type,
+		Vendor: Vendor,
 		LastSeen: metav1.Time{
 			Time: time.Now(),
 		},
@@ -99,4 +109,3 @@ func getVersion(version string) string {
 	}, ".")
 	return version
 }
-

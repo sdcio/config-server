@@ -37,7 +37,7 @@ func (r *DiscoveryRule) SetConditions(c ...Condition) {
 // +k8s:deepcopy-gen=false
 type DiscoveryRuleContext struct {
 	Client                   client.Client
-	DiscoveryRule            *DiscoveryRule
+	DiscoveryRule            *DiscoveryRule // this is the original CR
 	ConnectionProfile        *TargetConnectionProfile
 	SyncProfile              *TargetSyncProfile
 	SecretResourceVersion    string
