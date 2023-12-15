@@ -53,13 +53,16 @@ type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
-	Encoding   Encoding `json:"encoding" yaml:"encoding"`
+	Encoding Encoding `json:"encoding" yaml:"encoding"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:default:=false
-	Insecure   bool     `json:"insecure,omitempty" yaml:"insecure,omitempty"`
+	Insecure bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:default:=true
-	SkipVerify bool     `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
+	SkipVerify bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:default:=false
+	IncludeNS bool `json:"include-ns,omitempty" yaml:"include-ns,omitempty"`
 }
 
 // +kubebuilder:object:root=true
