@@ -46,23 +46,27 @@ const (
 
 // TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile
 type TargetConnectionProfileSpec struct {
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="port is immutable"
+	// +kubebuilder:default:=57400
+	// Port defines the port on which the scan runs
+	Port uint `json:"port" yaml:"port"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding" yaml:"encoding"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="insecure is immutable"
 	// +kubebuilder:default:=false
 	Insecure bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="skipVerify is immutable"
 	// +kubebuilder:default:=true
 	SkipVerify bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
 	// +kubebuilder:default:=false
-	IncludeNS bool `json:"include-ns,omitempty" yaml:"include-ns,omitempty"`
+	IncludeNS bool `json:"includeNS,omitempty" yaml:"include-ns,omitempty"`
 }
 
 // +kubebuilder:object:root=true

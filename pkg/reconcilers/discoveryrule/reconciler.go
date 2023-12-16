@@ -152,7 +152,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{RequeueAfter: 1 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	// based on the gvk check if the gvk is supported 
+	// based on the gvk check if the gvk is supported
 	drInit, ok := discoveryrule.DiscoveryRules[*drGVK]
 	if !ok {
 		log.Info("cannot initialize discovery rule, gvk not registered", "gvk", *drGVK)
@@ -219,12 +219,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// update discovery rule start time
 	cr.Status.StartTime = metav1.Now()
+
+	//for _, profile := range drCtx
 	cr.Status.UsedReferences = &invv1alpha1.DiscoveryRuleStatusUsedReferences{
-		SecretResourceVersion:            drCtx.SecretResourceVersion,
-		TLSSecretResourceVersion:         "", // TODO
-		ConnectionProfileResourceVersion: drCtx.ConnectionProfile.ResourceVersion,
-		SyncProfileResourceVersion:       drCtx.SyncProfile.ResourceVersion,
-		DiscoveryRuleRefResourceVersion:  drRuleResourceVersion,
+		SecretResourceVersion:           drCtx.SecretResourceVersion,
+		TLSSecretResourceVersion:        "", // TODO
+		Profiles:                        drCtx.GetProfilesResourceVersion(),
+		DiscoveryRuleRefResourceVersion: drRuleResourceVersion,
 	}
 	cr.SetConditions(invv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -244,20 +245,28 @@ func (r *reconciler) getReferences(ctx context.Context, cr *invv1alpha1.Discover
 }
 
 func (r *reconciler) getDiscoveryContext(ctx context.Context, cr *invv1alpha1.DiscoveryRule) (*invv1alpha1.DiscoveryRuleContext, error) {
-	connProfile, err := r.getConnProfile(ctx, types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.ConnectionProfile,
-	})
-	if err != nil {
-		return nil, err
+	profiles := make([]invv1alpha1.DiscoveryRuleContextProfile, 0, len(cr.Spec.Profiles))
+	for _, profile := range cr.Spec.Profiles {
+		connProfile, err := r.getConnProfile(ctx, types.NamespacedName{
+			Namespace: cr.GetNamespace(),
+			Name:      profile.ConnectionProfile,
+		})
+		if err != nil {
+			return nil, err
+		}
+		syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{
+			Namespace: cr.GetNamespace(),
+			Name:      profile.SyncProfile,
+		})
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, invv1alpha1.DiscoveryRuleContextProfile{
+			ConnectionProfile: connProfile,
+			SyncProfile:       syncProfile,
+		})
 	}
-	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{
-		Namespace: cr.GetNamespace(),
-		Name:      cr.Spec.SyncProfile,
-	})
-	if err != nil {
-		return nil, err
-	}
+
 	secret, err := r.getSecret(ctx, types.NamespacedName{
 		Namespace: cr.GetNamespace(),
 		Name:      cr.Spec.Secret,
@@ -269,8 +278,7 @@ func (r *reconciler) getDiscoveryContext(ctx context.Context, cr *invv1alpha1.Di
 	return &invv1alpha1.DiscoveryRuleContext{
 		Client:                r.Client,
 		DiscoveryRule:         cr,
-		ConnectionProfile:     connProfile,
-		SyncProfile:           syncProfile,
+		Profiles:              profiles,
 		SecretResourceVersion: secret.ResourceVersion,
 	}, nil
 }
@@ -322,16 +330,37 @@ func (r *reconciler) HasReferencesChanged(ctx context.Context, cr *invv1alpha1.D
 	}
 	log.Info("HasReferencesChanged",
 		"drRuleResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.DiscoveryRuleRefResourceVersion, drRuleResourceVersion),
-		"ConnectionProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.ConnectionProfileResourceVersion, drCtx.ConnectionProfile.ResourceVersion),
-		"SyncProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SyncProfileResourceVersion, drCtx.SyncProfile.ResourceVersion),
 		"SecretResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SecretResourceVersion, drCtx.SecretResourceVersion),
 	)
 	if cr.Status.UsedReferences.DiscoveryRuleRefResourceVersion != drRuleResourceVersion ||
-		cr.Status.UsedReferences.ConnectionProfileResourceVersion != drCtx.ConnectionProfile.ResourceVersion ||
-		cr.Status.UsedReferences.SyncProfileResourceVersion != drCtx.SyncProfile.ResourceVersion ||
 		cr.Status.UsedReferences.SecretResourceVersion != drCtx.SecretResourceVersion {
 		//cr.Status.UsedReferences.TLSSecretResourceVersion != "" {}
 		return true
 	}
+
+	log.Info("HasReferencesChanged", "profile length", fmt.Sprintf("%d/%d", len(cr.Status.UsedReferences.Profiles), len(drCtx.Profiles)))
+	if len(cr.Status.UsedReferences.Profiles) != len(drCtx.Profiles) {
+		return true
+	}
+
+	for idx := range cr.Status.UsedReferences.Profiles {
+		log.Info("HasReferencesChanged",
+			"ConnectionProfileResourceVersion",
+			fmt.Sprintf("%s/%s",
+				cr.Status.UsedReferences.Profiles[idx].ConnectionProfileResourceVersion,
+				drCtx.Profiles[idx].ConnectionProfile.ResourceVersion,
+			),
+			"SyncProfileResourceVersion",
+			fmt.Sprintf("%s/%s",
+				cr.Status.UsedReferences.Profiles[idx].SyncProfileResourceVersion,
+				drCtx.Profiles[idx].SyncProfile.ResourceVersion,
+			),
+		)
+		if cr.Status.UsedReferences.Profiles[idx].ConnectionProfileResourceVersion != drCtx.Profiles[idx].ConnectionProfile.ResourceVersion ||
+			cr.Status.UsedReferences.Profiles[idx].SyncProfileResourceVersion != drCtx.Profiles[idx].SyncProfile.ResourceVersion {
+			return true
+		}
+	}
+
 	return false
 }

@@ -38,7 +38,7 @@ func (r *targetConnProfileEventHandler) Create(evt event.CreateEvent, q workqueu
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Update(evt event.UpdateEvent,q workqueue.RateLimitingInterface) {
+func (r *targetConnProfileEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(evt.ObjectOld, q)
 	r.add(evt.ObjectNew, q)
 }
@@ -73,12 +73,14 @@ func (r *targetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
 		return
 	}
 	for _, dr := range drs.Items {
-		if dr.Spec.ConnectionProfile == cr.GetName() {
-			key := types.NamespacedName{
-				Namespace: dr.Namespace,
-				Name:      dr.Name}
-			log.Info("event requeue target", "key", key.String())
-			queue.Add(reconcile.Request{NamespacedName: key})
+		for _, profile := range dr.Spec.Profiles {
+			if profile.ConnectionProfile == cr.GetName() {
+				key := types.NamespacedName{
+					Namespace: dr.Namespace,
+					Name:      dr.Name}
+				log.Info("event requeue target", "key", key.String())
+				queue.Add(reconcile.Request{NamespacedName: key})
+			}
 		}
 	}
 }

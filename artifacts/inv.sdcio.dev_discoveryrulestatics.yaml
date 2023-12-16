@@ -59,21 +59,21 @@ spec:
                 - version
                 type: object
                 x-kubernetes-validations:
-                - message: concurrentScans is immutable
+                - message: schema is immutable
                   rule: self == oldSelf
               targets:
                 description: Targets define the list of Targets(s)
                 items:
                   properties:
-                    address:
-                      description: Address defines the address of the target as <ip>:<port>
-                      type: string
                     hostName:
                       description: HostName defines the hostname of the target
                       type: string
+                    ip:
+                      description: IP defines the ip address of the target
+                      type: string
                   required:
-                  - address
                   - hostName
+                  - ip
                   type: object
                 type: array
             required:

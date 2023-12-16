@@ -13,6 +13,7 @@ import (
 	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule/target"
 	"github.com/iptecharch/config-server/pkg/discovery/gnmi"
 	"golang.org/x/sync/semaphore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,7 +74,7 @@ func (r *ipRangeDR) Stop(ctx context.Context) {
 	}
 }
 
-func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext) error {
+func (r *ipRangeDR) run(ctx context.Context, drctx *invv1alpha1.DiscoveryRuleContext) error {
 	log := log.FromContext(ctx)
 
 	hosts, err := discoveryrule.GetHosts(r.drrule.Spec.CIDRs...)
@@ -102,7 +103,7 @@ func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContex
 		default:
 			go func(ip string) {
 				defer sem.Release(1)
-				if err := r.discover(ctx, dr, ip); err != nil {
+				if err := r.discover(ctx, drctx, ip); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context canceled") {
 						log.Info("discovery cancelled", "IP", ip)
@@ -122,37 +123,71 @@ func (r *ipRangeDR) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContex
 func (r *ipRangeDR) discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, ip string) error {
 	log := log.FromContext(ctx)
 
-	switch dr.ConnectionProfile.Spec.Protocol {
-	case "snmp":
-		return nil
-	case "netconf":
-		return nil
-	default: // gnmi
-		t, err := gnmi.CreateTarget(ctx, r.client, dr, ip)
-		if err != nil {
-			return err
-		}
-		log.Info("Creating gNMI client", "IP", t.Config.Name)
-		err = t.CreateGNMIClient(ctx)
-		if err != nil {
-			return err
-		}
-		defer t.Close()
-		capRsp, err := t.Capabilities(ctx)
-		if err != nil {
-			return err
-		}
-		discoverer, err := gnmi.GetDiscovererGNMI(capRsp)
-		if err != nil {
-			return err
-		}
-		di, err := discoverer.Discover(ctx, dr, t)
-		if err != nil {
-			return err
-		}
-		b, _ := json.Marshal(di)
-		log.Info("discovery info", "info", string(b))
+	// TODO handle multiple discovery profiles
+	for _, profile := range dr.Profiles {
+		switch profile.ConnectionProfile.Spec.Protocol {
+		case "snmp":
+			return nil
+		case "netconf":
+			return nil
+		default: // gnmi
+			secret := &corev1.Secret{}
+			err := r.client.Get(ctx, types.NamespacedName{
+				Namespace: dr.DiscoveryRule.GetNamespace(),
+				Name:      dr.DiscoveryRule.Spec.Secret,
+			}, secret)
+			if err != nil {
+				return err
+			}
+			address := fmt.Sprintf("%s:%d", ip, profile.ConnectionProfile.Spec.Port)
 
-		return target.ApplyTarget(ctx, r.client, dr, di, t.Config.Address, nil, discoverer.GetName())
+			t, err := gnmi.CreateTarget(ctx, address, secret, profile.ConnectionProfile)
+			if err != nil {
+				return err
+			}
+			log.Info("Creating gNMI client", "IP", t.Config.Name)
+			err = t.CreateGNMIClient(ctx)
+			if err != nil {
+				return err
+			}
+			defer t.Close()
+			capRsp, err := t.Capabilities(ctx)
+			if err != nil {
+				return err
+			}
+			discoverer, err := gnmi.GetDiscovererGNMI(capRsp)
+			if err != nil {
+				return err
+			}
+			di, err := discoverer.Discover(ctx, dr, t)
+			if err != nil {
+				return err
+			}
+			b, _ := json.Marshal(di)
+			log.Info("discovery info", "info", string(b))
+
+			drclient := &target.DRClient{
+				Client: r.client,
+				DR:     dr.DiscoveryRule,
+			}
+
+			newTargetCr, err := drclient.NewTargetCR(
+				ctx,
+				t.Config.Address,
+				&invv1alpha1.DiscoveryRuleSpecProfile{
+					ConnectionProfile: profile.ConnectionProfile.GetName(),
+					SyncProfile:       profile.SyncProfile.GetName(),
+				},
+				di,
+				nil,
+				discoverer.GetName(),
+			)
+			if err != nil {
+				return err
+			}
+
+			return drclient.ApplyTarget(ctx, newTargetCr, di)
+		}
 	}
+	return nil
 }

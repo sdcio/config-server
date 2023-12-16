@@ -3,7 +3,6 @@ package gnmi
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -14,29 +13,20 @@ import (
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/target"
+
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateTarget(ctx context.Context, c client.Client, dr *invv1alpha1.DiscoveryRuleContext, ip string) (*target.Target, error) {
-	secret := &corev1.Secret{}
-	err := c.Get(ctx, types.NamespacedName{
-		Namespace: dr.DiscoveryRule.GetNamespace(),
-		Name:      dr.DiscoveryRule.Spec.Secret,
-	}, secret)
-	if err != nil {
-		return nil, err
-	}
+func CreateTarget(ctx context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
 
 	tOpts := []api.TargetOption{
 		//api.Name(req.NamespacedName.String()),
-		api.Address(fmt.Sprintf("%s:%d", ip, dr.DiscoveryRule.Spec.Port)),
+		api.Address(address),
 		api.Username(string(secret.Data["username"])),
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
-	if dr.ConnectionProfile.Spec.Insecure == true {
+	if connProfile.Spec.Insecure == true {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
 		tOpts = append(tOpts, api.SkipVerify(true))

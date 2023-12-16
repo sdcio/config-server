@@ -191,7 +191,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.UsedReferences = usedRefs
 		cr.SetConditions(invv1alpha1.DSReady())
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		return ctrl.Result{}, nil
+		//return ctrl.Result{}, nil
 	}
 	// target not ready so we can wait till the target goes to ready state
 	cr.Status.UsedReferences = nil

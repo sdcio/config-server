@@ -38,10 +38,26 @@ func (r *DiscoveryRule) SetConditions(c ...Condition) {
 type DiscoveryRuleContext struct {
 	Client                   client.Client
 	DiscoveryRule            *DiscoveryRule // this is the original CR
-	ConnectionProfile        *TargetConnectionProfile
-	SyncProfile              *TargetSyncProfile
+	Profiles                 []DiscoveryRuleContextProfile
 	SecretResourceVersion    string
 	TLSSecretResourceVersion string
+}
+
+// +k8s:deepcopy-gen=false
+type DiscoveryRuleContextProfile struct {
+	ConnectionProfile *TargetConnectionProfile
+	SyncProfile       *TargetSyncProfile
+}
+
+func (r *DiscoveryRuleContext) GetProfilesResourceVersion() []DiscoveryRuleProfile {
+	p := make([]DiscoveryRuleProfile, 0, len(r.Profiles))
+	for _, profile := range r.Profiles {
+		p = append(p, DiscoveryRuleProfile{
+			ConnectionProfileResourceVersion: profile.ConnectionProfile.ResourceVersion,
+			SyncProfileResourceVersion:       profile.SyncProfile.ResourceVersion,
+		})
+	}
+	return p
 }
 
 func (r *DiscoveryRule) GetTargetLabels(t *TargetSpec) (map[string]string, error) {

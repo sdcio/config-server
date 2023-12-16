@@ -80,17 +80,51 @@ func (r *static) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext) 
 	}
 	discoverer := init()
 
+	drclient := &target.DRClient{
+		Client: r.client,
+		DR:     dr.DiscoveryRule,
+	}
+
+	existingTargets, err := drclient.ListTargets(ctx)
+	if err != nil {
+		return err
+	}
+
 	for _, t := range r.drrule.Spec.Targets {
+		t := t
 		di := &invv1alpha1.DiscoveryInfo{
 			Type:     discoverer.GetType(),
 			Vendor:   discoverer.GetVendor(),
 			Version:  r.drrule.Spec.Schema.Version,
 			HostName: t.HostName,
 		}
+		// For static Discovery rules we pick the first profile in the list
+		// if no profiles are available we return an error
+		if len(dr.Profiles) == 0 || len(dr.DiscoveryRule.Spec.Profiles) == 0 {
+			return fmt.Errorf("cannot create a target without a connection profile")
+		}
 
-		if err := target.ApplyTarget(ctx, r.client, dr, di, t.Address, nil, discoverer.GetName()); err != nil {
+		newTargetCR, err := drclient.NewTargetCR(
+			ctx,
+			fmt.Sprintf("%s:%d", t.IP, *&dr.Profiles[0].ConnectionProfile.Spec.Port),
+			&dr.DiscoveryRule.Spec.Profiles[0],
+			di,
+			nil,
+			discoverer.GetName(),
+		)
+		if err != nil {
 			return err
 		}
+
+		if err := drclient.ApplyTarget(ctx, newTargetCR, di); err != nil {
+			return err
+		}
+		// delete the target from the existing targets
+		delete(existingTargets, types.NamespacedName{Namespace: newTargetCR.Namespace, Name: newTargetCR.Name})
+	}
+
+	for _, targetCR := range existingTargets {
+		drclient.Delete(ctx, targetCR)
 	}
 	return nil
 }
