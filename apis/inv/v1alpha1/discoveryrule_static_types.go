@@ -28,7 +28,7 @@ type DiscoveryRuleStaticSpec struct {
 	// Targets define the list of Targets(s)
 	Targets []DiscoveryRuleStaticSpecTarget `json:"targets" yaml:"targets"`
 
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="concurrentScans is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="schema is immutable"
 	// Schema the target uses
 	Schema DiscoveryRuleStaticSpecSchema `json:"schema" yaml:"schema"`
 }
@@ -36,8 +36,8 @@ type DiscoveryRuleStaticSpec struct {
 type DiscoveryRuleStaticSpecTarget struct {
 	// HostName defines the hostname of the target
 	HostName string `json:"hostName" yaml:"hostName"`
-	// Address defines the address of the target as <ip>:<port>
-	Address string `json:"address" yaml:"address"`
+	// IP defines the ip address of the target
+	IP string `json:"ip" yaml:"address"`
 }
 
 type DiscoveryRuleStaticSpecSchema struct {

@@ -28,23 +28,26 @@ type DiscoveryRuleSpec struct {
 	// +kubebuilder:default:="1m"
 	// Period defines the wait period between discovery rule runs
 	Period metav1.Duration `json:"period" yaml:"period"`
-	// +kubebuilder:default:=57400
-	// Port defines the port on which the scan runs
-	Port uint `json:"port" yaml:"port"`
 	// Secret defines the name of the secret to connect to the target
 	Secret string `json:"secret" yaml:"secret"`
 	// TLSSecret defines the name of the TLS secret to connect to the target
-	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecre,omitempty"`
+	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty"`
+	// DiscoveryRuleRef points to a specific implementation of the discovery rule
+	// e.g. ip range or api or topology rule
+	DiscoveryRuleRef ObjectReference `json:"discoveryRuleRef" yaml:"discoveryRuleRef"`
+	// Profiles define the list of profiles the discovery controller uses to discover the target
+	// The order in which they are specified is maintained during discovery
+	Profiles []DiscoveryRuleSpecProfile `json:"profiles,omitempty" yaml:"profiles,omitempty"`
+	// TargetTemplate defines the template we use to create the targets
+	// as a result of the discovery
+	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
+}
+
+type DiscoveryRuleSpecProfile struct {
 	// ConnectionProfile defines the profile used to connect to the target
 	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
 	// SyncProfile defines the profile used to sync the config from the target
 	SyncProfile string `json:"syncProfile" yaml:"syncProfile"`
-	// DiscoveryRuleRef points to a specific implementation of the discovery rule
-	// e.g. ip range or api or topology rule
-	DiscoveryRuleRef ObjectReference `json:"discoveryRuleRef" yaml:"discoveryRuleRef"`
-	// TargetTemplate defines the template we use to create the targets
-	// as a result of the discovery
-	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
 }
 
 type ObjectReference struct {
@@ -86,11 +89,15 @@ type DiscoveryRuleStatus struct {
 }
 
 type DiscoveryRuleStatusUsedReferences struct {
-	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty"`
-	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty"`
+	SecretResourceVersion           string                 `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty"`
+	TLSSecretResourceVersion        string                 `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty"`
+	Profiles                        []DiscoveryRuleProfile `json:"profiles,omitempty" yaml:"profiles,omitempty"`
+	DiscoveryRuleRefResourceVersion string                 `json:"discoveryRuleRefResourceVersion" yaml:"discoveryRuleRefResourceVersion"`
+}
+
+type DiscoveryRuleProfile struct {
 	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion"`
 	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion"`
-	DiscoveryRuleRefResourceVersion  string `json:"discoveryRuleRefResourceVersion" yaml:"discoveryRuleRefResourceVersion"`
 }
 
 // +kubebuilder:object:root=true

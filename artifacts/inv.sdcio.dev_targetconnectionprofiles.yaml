@@ -51,19 +51,26 @@ spec:
                 - config
                 type: string
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: encoding is immutable
                   rule: self == oldSelf
-              include-ns:
+              includeNS:
                 default: false
                 type: boolean
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: includeNS is immutable
                   rule: self == oldSelf
               insecure:
                 default: false
                 type: boolean
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: insecure is immutable
+                  rule: self == oldSelf
+              port:
+                default: 57400
+                description: Port defines the port on which the scan runs
+                type: integer
+                x-kubernetes-validations:
+                - message: port is immutable
                   rule: self == oldSelf
               protocol:
                 default: gnmi
@@ -74,16 +81,17 @@ spec:
                 - noop
                 type: string
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: protocol is immutable
                   rule: self == oldSelf
               skipVerify:
                 default: true
                 type: boolean
                 x-kubernetes-validations:
-                - message: Value is immutable
+                - message: skipVerify is immutable
                   rule: self == oldSelf
             required:
             - encoding
+            - port
             - protocol
             type: object
         type: object

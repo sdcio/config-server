@@ -41,10 +41,6 @@ spec:
           spec:
             description: DiscoveryRuleSpec defines the desired state of DiscoveryRule
             properties:
-              connectionProfile:
-                description: ConnectionProfile defines the profile used to connect
-                  to the target
-                type: string
               discoveryRuleRef:
                 description: DiscoveryRuleRef points to a specific implementation
                   of the discovery rule e.g. ip range or api or topology rule
@@ -68,17 +64,28 @@ spec:
                 description: Period defines the wait period between discovery rule
                   runs
                 type: string
-              port:
-                default: 57400
-                description: Port defines the port on which the scan runs
-                type: integer
+              profiles:
+                description: Profiles define the list of profiles the discovery controller
+                  uses to discover the target The order in which they are specified
+                  is maintained during discovery
+                items:
+                  properties:
+                    connectionProfile:
+                      description: ConnectionProfile defines the profile used to connect
+                        to the target
+                      type: string
+                    syncProfile:
+                      description: SyncProfile defines the profile used to sync the
+                        config from the target
+                      type: string
+                  required:
+                  - connectionProfile
+                  - syncProfile
+                  type: object
+                type: array
               secret:
                 description: Secret defines the name of the secret to connect to the
                   target
-                type: string
-              syncProfile:
-                description: SyncProfile defines the profile used to sync the config
-                  from the target
                 type: string
               targetTemplate:
                 description: TargetTemplate defines the template we use to create
@@ -108,12 +115,9 @@ spec:
                   to the target
                 type: string
             required:
-            - connectionProfile
             - discoveryRuleRef
             - period
-            - port
             - secret
-            - syncProfile
             type: object
           status:
             description: DiscoveryRuleStatus defines the observed state of DiscoveryRule
@@ -186,20 +190,26 @@ spec:
                 description: UsedReferences track the resource used to reconcile the
                   cr
                 properties:
-                  connectionProfileResourceVersion:
-                    type: string
                   discoveryRuleRefResourceVersion:
                     type: string
+                  profiles:
+                    items:
+                      properties:
+                        connectionProfileResourceVersion:
+                          type: string
+                        syncProfileResourceVersion:
+                          type: string
+                      required:
+                      - connectionProfileResourceVersion
+                      - syncProfileResourceVersion
+                      type: object
+                    type: array
                   secretResourceVersion:
-                    type: string
-                  syncProfileResourceVersion:
                     type: string
                   tlsSecretResourceVersion:
                     type: string
                 required:
-                - connectionProfileResourceVersion
                 - discoveryRuleRefResourceVersion
-                - syncProfileResourceVersion
                 type: object
             type: object
         type: object

@@ -73,12 +73,15 @@ func (r *targetSyncProfileEventHandler) add(obj runtime.Object, queue adder) {
 		return
 	}
 	for _, dr := range drs.Items {
-		if dr.Spec.SyncProfile == cr.GetName() {
-			key := types.NamespacedName{
-				Namespace: dr.Namespace,
-				Name:      dr.Name}
-			log.Info("event requeue target", "key", key.String())
-			queue.Add(reconcile.Request{NamespacedName: key})
+		for _, profile := range dr.Spec.Profiles {
+			if profile.SyncProfile == cr.GetName() {
+				key := types.NamespacedName{
+					Namespace: dr.Namespace,
+					Name:      dr.Name}
+				log.Info("event requeue target", "key", key.String())
+				queue.Add(reconcile.Request{NamespacedName: key})
+			}
 		}
+
 	}
 }

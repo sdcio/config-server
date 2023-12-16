@@ -43,11 +43,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule":                      schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleContext":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleContext(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleContextProfile":        schema_config_server_apis_inv_v1alpha1_DiscoveryRuleContextProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleIPRange":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleIPRange(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleIPRangeList":           schema_config_server_apis_inv_v1alpha1_DiscoveryRuleIPRangeList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleIPRangeSpec":           schema_config_server_apis_inv_v1alpha1_DiscoveryRuleIPRangeSpec(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleProfile":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpecProfile":           schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpecProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatic":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatic(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticList":            schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStaticSpec":            schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpec(ref),
@@ -709,14 +712,18 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleContext(ref common.Refe
 							Ref: ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule"),
 						},
 					},
-					"ConnectionProfile": {
+					"Profiles": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile"),
-						},
-					},
-					"SyncProfile": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile"),
+							Description: "this is the original CR",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleContextProfile"),
+									},
+								},
+							},
 						},
 					},
 					"SecretResourceVersion": {
@@ -734,11 +741,36 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleContext(ref common.Refe
 						},
 					},
 				},
-				Required: []string{"Client", "DiscoveryRule", "ConnectionProfile", "SyncProfile", "SecretResourceVersion", "TLSSecretResourceVersion"},
+				Required: []string{"Client", "DiscoveryRule", "Profiles", "SecretResourceVersion", "TLSSecretResourceVersion"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile", "sigs.k8s.io/controller-runtime/pkg/client.Client"},
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleContextProfile", "sigs.k8s.io/controller-runtime/pkg/client.Client"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleContextProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ConnectionProfile": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile"),
+						},
+					},
+					"SyncProfile": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile"),
+						},
+					},
+				},
+				Required: []string{"ConnectionProfile", "SyncProfile"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile"},
 	}
 }
 
@@ -932,6 +964,33 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref common.Referen
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"connectionProfileResourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"syncProfileResourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"connectionProfileResourceVersion", "syncProfileResourceVersion"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -944,14 +1003,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Description: "Period defines the wait period between discovery rule runs",
 							Default:     0,
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
-						},
-					},
-					"port": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Port defines the port on which the scan runs",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
 						},
 					},
 					"secret": {
@@ -969,6 +1020,48 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Format:      "",
 						},
 					},
+					"discoveryRuleRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DiscoveryRuleRef points to a specific implementation of the discovery rule e.g. ip range or api or topology rule",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference"),
+						},
+					},
+					"profiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Profiles define the list of profiles the discovery controller uses to discover the target The order in which they are specified is maintained during discovery",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpecProfile"),
+									},
+								},
+							},
+						},
+					},
+					"targetTemplate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetTemplate defines the template we use to create the targets as a result of the discovery",
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate"),
+						},
+					},
+				},
+				Required: []string{"period", "secret", "discoveryRuleRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpecProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpecProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
 					"connectionProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConnectionProfile defines the profile used to connect to the target",
@@ -985,25 +1078,10 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Format:      "",
 						},
 					},
-					"discoveryRuleRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DiscoveryRuleRef points to a specific implementation of the discovery rule e.g. ip range or api or topology rule",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference"),
-						},
-					},
-					"targetTemplate": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TargetTemplate defines the template we use to create the targets as a result of the discovery",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate"),
-						},
-					},
 				},
-				Required: []string{"period", "port", "secret", "connectionProfile", "syncProfile", "discoveryRuleRef"},
+				Required: []string{"connectionProfile", "syncProfile"},
 			},
 		},
-		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -1177,16 +1255,16 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStaticSpecTarget(ref co
 							Format:      "",
 						},
 					},
-					"address": {
+					"ip": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Address defines the address of the target as <ip>:<port>",
+							Description: "IP defines the ip address of the target",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"hostName", "address"},
+				Required: []string{"hostName", "ip"},
 			},
 		},
 	}
@@ -1252,18 +1330,17 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatusUsedReferences(re
 							Format: "",
 						},
 					},
-					"connectionProfileResourceVersion": {
+					"profiles": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"syncProfileResourceVersion": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleProfile"),
+									},
+								},
+							},
 						},
 					},
 					"discoveryRuleRefResourceVersion": {
@@ -1274,9 +1351,11 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatusUsedReferences(re
 						},
 					},
 				},
-				Required: []string{"connectionProfileResourceVersion", "syncProfileResourceVersion", "discoveryRuleRefResourceVersion"},
+				Required: []string{"discoveryRuleRefResourceVersion"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleProfile"},
 	}
 }
 
@@ -1468,6 +1547,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 							Format:  "",
 						},
 					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port defines the port on which the scan runs",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"encoding": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -1487,14 +1574,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 							Format: "",
 						},
 					},
-					"include-ns": {
+					"includeNS": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
 				},
-				Required: []string{"protocol", "encoding"},
+				Required: []string{"protocol", "port", "encoding"},
 			},
 		},
 	}

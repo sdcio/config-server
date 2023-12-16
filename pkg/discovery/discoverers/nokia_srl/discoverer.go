@@ -29,25 +29,25 @@ const (
 
 func init() {
 	discoverers.Register(ProviderName, func() discoverers.Discoverer {
-		return &srl{}
+		return &discoverer{}
 	})
 }
 
-type srl struct{}
+type discoverer struct{}
 
-func (s *srl) GetName() string {
+func (s *discoverer) GetName() string {
 	return ProviderName
 }
 
-func (s *srl) GetType() string {
+func (s *discoverer) GetType() string {
 	return Type
 }
 
-func (s *srl) GetVendor() string {
+func (s *discoverer) GetVendor() string {
 	return Vendor
 }
 
-func (s *srl) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
+func (s *discoverer) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
 	req, err := api.NewGetRequest(
 		api.Path(srlSwVersionPath),
 		api.Path(srlChassisPath),
