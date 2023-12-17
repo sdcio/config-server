@@ -61,6 +61,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().DiscoveryRuleIPRanges().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("discoveryrulestatics"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().DiscoveryRuleStatics().Informer()}, nil
+	case invv1alpha1.SchemeGroupVersion.WithResource("schemas"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Schemas().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("targets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Targets().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("targetconnectionprofiles"):

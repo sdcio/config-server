@@ -21,6 +21,8 @@ type DiscoveryRuleIPRangeExpansion interface{}
 
 type DiscoveryRuleStaticExpansion interface{}
 
+type SchemaExpansion interface{}
+
 type TargetExpansion interface{}
 
 type TargetConnectionProfileExpansion interface{}

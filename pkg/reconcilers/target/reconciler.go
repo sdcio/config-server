@@ -20,11 +20,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	dsclient "github.com/iptecharch/config-server/pkg/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
+	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
 )
@@ -163,10 +163,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			// add the target to the DS
-			r.addTargetToDataServer(ctx, store.GetNameKey(selectedDSctx.Client.GetAddress()), key)
+			r.addTargetToDataServer(ctx, store.GetNameKey(selectedDSctx.DSClient.GetAddress()), key)
 			// create the target in the target store
 			r.targetStore.Create(ctx, key, target.Context{
-				Client: selectedDSctx.Client,
+				Client: selectedDSctx.DSClient,
 			})
 		} else {
 			// safety
@@ -240,16 +240,16 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*dsctx.Contex
 		}
 	})
 	// create and start client if it does not exist
-	if selectedDSctx.Client == nil {
+	if selectedDSctx.DSClient == nil {
 		log.Info("selectedDSctx", "selectedDSctx", selectedDSctx)
 
-		selectedDSctx.Client, err = dsclient.New(selectedDSctx.Config)
+		selectedDSctx.DSClient, err = dsclient.New(selectedDSctx.Config)
 		if err != nil {
 			// happens when address or config is not set properly
 			log.Error(err, "cannot create dataserver client")
 			return nil, err
 		}
-		if err := selectedDSctx.Client.Start(ctx); err != nil {
+		if err := selectedDSctx.DSClient.Start(ctx); err != nil {
 			log.Error(err, "cannot start dataserver client")
 			return nil, err
 		}
