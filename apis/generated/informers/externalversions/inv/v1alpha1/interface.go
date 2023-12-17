@@ -27,6 +27,8 @@ type Interface interface {
 	DiscoveryRuleIPRanges() DiscoveryRuleIPRangeInformer
 	// DiscoveryRuleStatics returns a DiscoveryRuleStaticInformer.
 	DiscoveryRuleStatics() DiscoveryRuleStaticInformer
+	// Schemas returns a SchemaInformer.
+	Schemas() SchemaInformer
 	// Targets returns a TargetInformer.
 	Targets() TargetInformer
 	// TargetConnectionProfiles returns a TargetConnectionProfileInformer.
@@ -59,6 +61,11 @@ func (v *version) DiscoveryRuleIPRanges() DiscoveryRuleIPRangeInformer {
 // DiscoveryRuleStatics returns a DiscoveryRuleStaticInformer.
 func (v *version) DiscoveryRuleStatics() DiscoveryRuleStaticInformer {
 	return &discoveryRuleStaticInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Schemas returns a SchemaInformer.
+func (v *version) Schemas() SchemaInformer {
+	return &schemaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Targets returns a TargetInformer.

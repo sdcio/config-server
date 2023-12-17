@@ -59,6 +59,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatusUsedReferences":  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatusUsedReferences(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ObjectReference":                    schema_config_server_apis_inv_v1alpha1_ObjectReference(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema":                             schema_config_server_apis_inv_v1alpha1_Schema(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
@@ -1391,6 +1397,296 @@ func schema_config_server_apis_inv_v1alpha1_ObjectReference(ref common.Reference
 					},
 				},
 				Required: []string{"apiVersion", "kind", "name"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Schema(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Schema is the Schema for the Schema API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchemaList contains a list of Schemas",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchemaSpec defines the desired state of Schema",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL specifies the base URL for a given repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provider specifies the provider of the schema.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version defines the version of the schema",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines the that the BranchOrTag string is a repository branch or a tag",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref defines the branch or tag of the repository corresponding to the provider schema version",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dirs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dirs defines the list of directories that identified the provider schema in src/dst pairs relative within the repository",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath"),
+									},
+								},
+							},
+						},
+					},
+					"schema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schema provides the details of which files must be used for the models and which files/directories cana be excludes",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema"),
+						},
+					},
+				},
+				Required: []string{"repoURL", "provider", "version", "kind", "ref", "dirs", "schema"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"models": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Models defines the list of files/directories to be used as a model",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"includes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Excludes defines the list of files/directories to be excluded",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"excludes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Excludes defines the list of files/directories to be excluded",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"models", "includes", "excludes"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchemaStatus defines the observed state of Schema",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src in the repository to a given destination in the schema server",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"src": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Src is the relative directory in the repository URL",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dst": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dst is the relative directory in the schema server",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"src", "dst"},
 			},
 		},
 	}

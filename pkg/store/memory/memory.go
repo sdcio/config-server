@@ -22,7 +22,7 @@ import (
 
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/watch"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 	//metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 )
 

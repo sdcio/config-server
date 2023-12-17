@@ -215,6 +215,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// given this is a ummutable field this means the CR will have to be deleted/recreated
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	
+	// TODO in the case of a Static Discovery Rule this can be synchronous
 	go dr.Run(ctx, drCtx)
 
 	// update discovery rule start time

@@ -26,4 +26,5 @@ type ControllerConfig struct {
 	//ConfigStore     store.Storer[runtime.Object]
 	TargetStore     store.Storer[target.Context]
 	DataServerStore store.Storer[dsctx.Context]
+	SchemaDir       string
 }

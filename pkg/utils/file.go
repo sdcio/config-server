@@ -51,3 +51,7 @@ func ErrNotIsSubfolder(base, specific string) error {
 	}
 	return err
 }
+
+func RemoveDirectory(path string) error {
+	return os.RemoveAll(path)
+}

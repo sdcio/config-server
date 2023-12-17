@@ -39,6 +39,14 @@ type DiscoveryRuleStaticListerExpansion interface{}
 // DiscoveryRuleStaticNamespaceLister.
 type DiscoveryRuleStaticNamespaceListerExpansion interface{}
 
+// SchemaListerExpansion allows custom methods to be added to
+// SchemaLister.
+type SchemaListerExpansion interface{}
+
+// SchemaNamespaceListerExpansion allows custom methods to be added to
+// SchemaNamespaceLister.
+type SchemaNamespaceListerExpansion interface{}
+
 // TargetListerExpansion allows custom methods to be added to
 // TargetLister.
 type TargetListerExpansion interface{}

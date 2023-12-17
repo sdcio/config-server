@@ -28,6 +28,7 @@ type InvV1alpha1Interface interface {
 	DiscoveryRulesGetter
 	DiscoveryRuleIPRangesGetter
 	DiscoveryRuleStaticsGetter
+	SchemasGetter
 	TargetsGetter
 	TargetConnectionProfilesGetter
 	TargetSyncProfilesGetter
@@ -48,6 +49,10 @@ func (c *InvV1alpha1Client) DiscoveryRuleIPRanges(namespace string) DiscoveryRul
 
 func (c *InvV1alpha1Client) DiscoveryRuleStatics(namespace string) DiscoveryRuleStaticInterface {
 	return newDiscoveryRuleStatics(c, namespace)
+}
+
+func (c *InvV1alpha1Client) Schemas(namespace string) SchemaInterface {
+	return newSchemas(c, namespace)
 }
 
 func (c *InvV1alpha1Client) Targets(namespace string) TargetInterface {

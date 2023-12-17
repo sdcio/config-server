@@ -25,22 +25,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
 	"github.com/iptecharch/config-server/apis/generated/openapi"
 	"github.com/iptecharch/config-server/pkg/config"
-	dsclient "github.com/iptecharch/config-server/pkg/dataserver/client"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoveryrule/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
+	_ "github.com/iptecharch/config-server/pkg/reconcilers/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
-	_ "github.com/iptecharch/config-server/pkg/reconcilers/discoveryrule"
-	_ "github.com/iptecharch/config-server/pkg/reconcilers/target"
+	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
+	ssclient "github.com/iptecharch/config-server/pkg/sdc/schemaserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	memstore "github.com/iptecharch/config-server/pkg/store/memory"
 	"github.com/iptecharch/config-server/pkg/target"
-	"github.com/henderiw/logger/log"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -55,6 +55,7 @@ import (
 
 const (
 	dataServerAddress = "localhost:56000"
+	schemaBaseDir     = "schemas"
 )
 
 func main() {
@@ -108,6 +109,7 @@ func main() {
 		//ConfigStore:     configStore,
 		TargetStore:     targetStore,
 		DataServerStore: dataServerStore,
+		SchemaDir:       schemaBaseDir,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -164,17 +166,30 @@ func createDataServer(ctx context.Context, dataServerStore store.Storer[dsctx.Co
 	}
 	dsClient, err := dsclient.New(dsConfig)
 	if err != nil {
-		log.Error("cannot create client to dataserver", "err", err)
+		log.Error("cannot create dsclient to dataserver", "err", err)
 		return nil, err
 	}
 	if err := dsClient.Start(ctx); err != nil {
-		log.Error("cannot start client to dataserver", "err", err)
+		log.Error("cannot start dsclient to dataserver", "err", err)
+		return nil, err
+	}
+	ssConfig := &ssclient.Config{
+		Address: dataServerAddress,
+	}
+	ssClient, err := ssclient.New(ssConfig)
+	if err != nil {
+		log.Error("cannot create schemaclient to dataserver", "err", err)
+		return nil, err
+	}
+	if err := ssClient.Start(ctx); err != nil {
+		log.Error("cannot start schemaclient to dataserver", "err", err)
 		return nil, err
 	}
 	dsCtx := dsctx.Context{
-		Config:  dsConfig,
-		Targets: sets.New[string](),
-		Client:  dsClient,
+		Config:   dsConfig,
+		Targets:  sets.New[string](),
+		DSClient: dsClient,
+		SSClient: ssClient,
 	}
 	if err := dataServerStore.Create(ctx, store.GetNameKey(dataServerAddress), dsCtx); err != nil {
 		log.Error("cannot store dataserver", "err", err)
