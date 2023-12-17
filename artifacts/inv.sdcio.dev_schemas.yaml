@@ -21,17 +21,17 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
-    - jsonPath: .spec.url
+    - jsonPath: .spec.repoURL
       name: URL
+      type: string
+    - jsonPath: .spec.ref
+      name: REF
       type: string
     - jsonPath: .spec.provider
       name: PROVIDER
       type: string
     - jsonPath: .spec.version
       name: VERSION
-      type: string
-    - jsonPath: .spec.branchOrTag
-      name: BRANCH-TAG
       type: string
     name: v1alpha1
     schema:
