@@ -4,19 +4,23 @@
 
 The schema reconciler watches the `schema CR` and downloads the schema from a specifc URL 
 
-schema is immutable
+schema is immutable -> change handling is not relevant
+
+the following elements need to be aligned.
+- dir of the yang schema with key provider/version
+- schema of the schema-server
 
 ## create logic
 
-There is no update since the spec is immutable
-- when a schema gets created, we check if it is already installed; if not -> install it
-- once it is installed we check if the schema server has it and if not -> create/reload schema in schemaserver
+1. validate if the provider/version dir exists; if not create it
+2. validate if the schema in the schema server exists; if not create it
 
-## Validating changes
+## delete logic
+
+1. validate if the schema in the schema server exists; if yes delete it
+2. validate if the provider/version dir exists; if yes delete it
+
+## update logic
 
 schema is an immutable object, not needed
 
-
-## TODO
-
-- Delete
