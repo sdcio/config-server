@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"sync"
 
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
@@ -18,6 +19,7 @@ type Loader struct {
 	schemaDir string
 
 	//schemas contains the Schema Reference indexed by Provider.Version key
+	m       sync.RWMutex
 	schemas map[string]*invv1alpha1.SchemaSpec
 }
 
@@ -48,6 +50,8 @@ func NewLoader(tmpDir, schemaDir string) (*Loader, error) {
 // AddRef overwrites the provider schema version
 // The schemaRef is immutable
 func (r *Loader) AddRef(ctx context.Context, spec *invv1alpha1.SchemaSpec) {
+	r.m.Lock()
+	defer r.m.Unlock()
 	r.schemas[spec.GetKey()] = spec
 }
 
@@ -63,14 +67,20 @@ func (r *Loader) DelRef(ctx context.Context, key string) error {
 			return err
 		}
 	}
-	delete(r.schemas, key)
+	r.del(key)
 	return nil
+}
+
+func (r *Loader) del(key string) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	delete(r.schemas, key)
 }
 
 // GetRef return an error of the ref does not exist
 // If the ref exists the ref is retrieved with an inidcation if the base provider schema version dir exists
 func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpec, bool, error) {
-	ref, exists := r.schemas[key]
+	ref, exists := r.get(key)
 	if !exists {
 		return nil, false, fmt.Errorf("no repository reference registered for key %q", key)
 	}
@@ -79,6 +89,13 @@ func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpe
 		return ref, true, nil
 	}
 	return ref, false, nil
+}
+
+func (r *Loader) get(key string) (*invv1alpha1.SchemaSpec, bool) {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	ref, exists := r.schemas[key]
+	return ref, exists
 }
 
 func (r *Loader) Load(ctx context.Context, key string) error {
