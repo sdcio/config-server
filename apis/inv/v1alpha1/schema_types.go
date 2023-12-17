@@ -100,10 +100,10 @@ type SchemaStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.url"
+// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
-// +kubebuilder:printcolumn:name="BRANCH-TAG",type="string",JSONPath=".spec.branchOrTag"
 // +kubebuilder:resource:categories={sdc,inv}
 // Schema is the Schema for the Schema API
 // +k8s:openapi-gen=true

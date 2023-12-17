@@ -82,7 +82,9 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 func getNewBase(basePath string, in []string) []string {
 	str := make([]string, 0, len(in))
 	for _, s := range in {
-		str = append(str, fmt.Sprintf("./%s", path.Join(basePath, s)))
+		
+		str = append(str, path.Join(basePath, s))
+		//str = append(str, fmt.Sprintf("./%s", path.Join(basePath, s)))
 	}
 	return str
 }

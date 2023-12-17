@@ -161,6 +161,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
 	}); err != nil {
+		log.Info("schema", "schema", spec.GetSchema())
 		log.Info("create schema", "Models", spec.GetNewSchemaBase(r.schemaBasePath).Models)
 		log.Info("create schema", "Includes", spec.GetNewSchemaBase(r.schemaBasePath).Includes)
 		log.Info("create schema", "Excludes", spec.GetNewSchemaBase(r.schemaBasePath).Excludes)
@@ -168,18 +169,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
 			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
-			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Models,
+			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
 			log.Error(err, "cannot load schema")
-			cr.SetConditions(invv1alpha1.Failed(err.Error()))
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-
-		if _, err := r.schemaclient.ReloadSchema(ctx, &sdcpb.ReloadSchemaRequest{
-			Schema: spec.GetSchema(),
-		}); err != nil {
-			log.Error(err, "cannot reload schema")
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
