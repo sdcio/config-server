@@ -30,6 +30,7 @@ all the reference are immutable objects
 ## Status
 
 a dedicated datastore condition is setup to reflect issues
+usedReferences is managed by the target controller
 
 ## TODO
 

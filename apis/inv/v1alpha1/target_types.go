@@ -25,22 +25,16 @@ import (
 
 // TargetSpec defines the desired state of Target
 type TargetSpec struct {
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
 	// Provider specifies the provider using this target.
 	Provider string `json:"provider" yaml:"provider"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="address is immutable"
 	// Address defines the address to connect to the target
 	Address string `json:"address" yaml:"address"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="secret is immutable"
 	// Secret defines the name of the secret to connect to the target
 	Secret string `json:"secret" yaml:"secret"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="tlsSecret is immutable"
 	// TLSSecret defines the name of the TLS secret to connect to the target
 	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecre,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectionProfile is immutable"
 	// ConnectionProfile defines the profile used to connect to the target
 	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="syncProfile is immutable"
 	// SyncProfile defines the profile used to sync the config from the target
 	SyncProfile string `json:"syncProfile" yaml:"syncProfile"`
 }
@@ -60,17 +54,16 @@ type TargetStatus struct {
 }
 
 type DiscoveryInfo struct {
+	// Protocol used for discovery
+	Protocol string `json:"protocol,omitempty"`
 	// Type associated with the target
-	Type string `json:"type,omitempty"`
-	// Vendor associated with the target
-	Vendor string `json:"vendor,omitempty"`
+	Provider string `json:"provider,omitempty"`
 	// Version associated with the target
 	Version string `json:"version,omitempty"`
 	// HostName associated with the target
 	HostName string `json:"hostname,omitempty"`
 	// Platform associated with the target
 	Platform string `json:"platform,omitempty"`
-	
 	// MacAddress associated with the target
 	MacAddress string `json:"macAddress,omitempty"`
 	// SerialNumber associated with the target
@@ -95,11 +88,9 @@ type TargetStatusUsedReferences struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="DATASTORE",type="string",JSONPath=".status.conditions[?(@.type=='DSReady')].status"
+// +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="ADDRESS",type="string",JSONPath=".spec.address"
 // +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".status.discoveryInfo.version"
-// +kubebuilder:printcolumn:name="VENDOR",type="string",JSONPath=".status.discoveryInfo.vendor"
-// +kubebuilder:printcolumn:name="TYPE",type="string",JSONPath=".status.discoveryInfo.type"
 // +kubebuilder:printcolumn:name="SERIALNUMBER",type="string",JSONPath=".status.discoveryInfo.serialNumber"
 // +kubebuilder:printcolumn:name="MACADDRESS",type="string",JSONPath=".status.discoveryInfo.macAddress"
 // +kubebuilder:resource:categories={sdc,inv}

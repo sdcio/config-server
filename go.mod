@@ -1,13 +1,12 @@
 module github.com/iptecharch/config-server
 
-go 1.21.1
-
-toolchain go1.21.4
+go 1.21.4
 
 require (
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
+	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/iptecharch/sdc-protos v0.0.14
 	github.com/openconfig/gnmi v0.10.0
@@ -119,6 +118,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/oauth2 v0.13.0 // indirect

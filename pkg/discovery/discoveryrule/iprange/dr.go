@@ -1,5 +1,6 @@
 package iprange
 
+/*
 import (
 	"context"
 	"encoding/json"
@@ -191,3 +192,4 @@ func (r *ipRangeDR) discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleC
 	}
 	return nil
 }
+*/

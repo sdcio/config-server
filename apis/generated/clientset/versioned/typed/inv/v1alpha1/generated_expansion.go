@@ -17,10 +17,6 @@ package v1alpha1
 
 type DiscoveryRuleExpansion interface{}
 
-type DiscoveryRuleIPRangeExpansion interface{}
-
-type DiscoveryRuleStaticExpansion interface{}
-
 type SchemaExpansion interface{}
 
 type TargetExpansion interface{}

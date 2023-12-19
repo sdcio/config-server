@@ -37,3 +37,46 @@ It uses `owner references` in the associated target CR. This means namespaces wi
 - make the rule reference immutable
 - implement TLS
 - why does the Own trigger so many reconcile changes-> is it becuse of the time and date
+
+
+
+
+
+
+
+## new design
+
+Discovery Context
+- Key: APIversion:Kind:Namespace:Name:Prefix
+- Discovery
+    - prefix/range:
+        discovered
+        not discovered
+    - address
+        discovered
+        not discovered
+    - no discovery/address
+- Run:
+    - get addresses -> hostIP(s)
+    - check discovered targets
+
+
+1. gather profiles and validate profile existance (profiles are immutable) 
+    -> results in profiles being valid or not
+2. do we do schema validation -> TBD
+
+-> results in a list of profiles being valid or not
+
+3. walk over the list of ips/services/pods relevant for this discovery rule
+per entry we check the
+
+On Change: (upon reconcile -> start/stop)
+- check Discovery entries and make them up to date
+- stop/start the discovery loop
+
+Periodically: ()
+- Per DiscoverRule
+    - Discovery Entries (prefixes and addresses and profiles)
+    - Discovered Entries (static or dynamic, addresses)
+        - if retry works keep the entry
+        - if rety

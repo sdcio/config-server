@@ -9,31 +9,21 @@ import (
 )
 
 const (
-	ProviderName = "test.sdcio.dev"
-	Vendor       = "Test"
-	Type         = "test"
+	Provider = "test.example.sdcio.dev"
 )
 
 func init() {
-	discoverers.Register(ProviderName, func() discoverers.Discoverer {
+	discoverers.Register(Provider, func() discoverers.Discoverer {
 		return &discoverer{}
 	})
 }
 
 type discoverer struct{}
 
-func (s *discoverer) GetName() string {
-	return ProviderName
+func (s *discoverer) GetProvider() string {
+	return Provider
 }
 
-func (s *discoverer) GetType() string {
-	return Type
-}
-
-func (s *discoverer) GetVendor() string {
-	return Vendor
-}
-
-func (s *discoverer) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
+func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
 	return &invv1alpha1.DiscoveryInfo{}, nil
 }

@@ -1,5 +1,7 @@
 package static
 
+
+/*
 import (
 	"context"
 	"fmt"
@@ -128,3 +130,4 @@ func (r *static) run(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext) 
 	}
 	return nil
 }
+*/

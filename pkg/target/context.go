@@ -38,17 +38,6 @@ func getGVKNSN(obj *configv1alpha1.Config) string {
 	return fmt.Sprintf("%s.%s.%s.%s", obj.APIVersion, obj.Kind, obj.Namespace, obj.Name)
 }
 
-/*
-func getCandidateDatastore(obj *configv1alpha1.Config) *sdcpb.DataStore {
-	return &sdcpb.DataStore{
-		Type:     sdcpb.Type_CANDIDATE,
-		Name:     getGVKNSN(obj),
-		Owner:    getGVKNSN(obj),
-		Priority: int32(obj.Spec.Priority),
-	}
-}
-*/
-
 func (r *Context) Validate(ctx context.Context, key store.Key) error {
 	if r.Client == nil {
 		return fmt.Errorf("client for target %s unavailable", key.String())

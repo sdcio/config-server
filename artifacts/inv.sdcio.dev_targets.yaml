@@ -24,20 +24,14 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='DSReady')].status
       name: DATASTORE
       type: string
+    - jsonPath: .spec.provider
+      name: PROVIDER
+      type: string
     - jsonPath: .spec.address
       name: ADDRESS
       type: string
     - jsonPath: .status.discoveryInfo.platform
       name: PLATFORM
-      type: string
-    - jsonPath: .status.discoveryInfo.version
-      name: VERSION
-      type: string
-    - jsonPath: .status.discoveryInfo.vendor
-      name: VENDOR
-      type: string
-    - jsonPath: .status.discoveryInfo.type
-      name: TYPE
       type: string
     - jsonPath: .status.discoveryInfo.serialNumber
       name: SERIALNUMBER
@@ -68,43 +62,25 @@ spec:
               address:
                 description: Address defines the address to connect to the target
                 type: string
-                x-kubernetes-validations:
-                - message: address is immutable
-                  rule: self == oldSelf
               connectionProfile:
                 description: ConnectionProfile defines the profile used to connect
                   to the target
                 type: string
-                x-kubernetes-validations:
-                - message: connectionProfile is immutable
-                  rule: self == oldSelf
               provider:
                 description: Provider specifies the provider using this target.
                 type: string
-                x-kubernetes-validations:
-                - message: provider is immutable
-                  rule: self == oldSelf
               secret:
                 description: Secret defines the name of the secret to connect to the
                   target
                 type: string
-                x-kubernetes-validations:
-                - message: secret is immutable
-                  rule: self == oldSelf
               syncProfile:
                 description: SyncProfile defines the profile used to sync the config
                   from the target
                 type: string
-                x-kubernetes-validations:
-                - message: syncProfile is immutable
-                  rule: self == oldSelf
               tlsSecret:
                 description: TLSSecret defines the name of the TLS secret to connect
                   to the target
                 type: string
-                x-kubernetes-validations:
-                - message: tlsSecret is immutable
-                  rule: self == oldSelf
             required:
             - address
             - connectionProfile
@@ -192,6 +168,12 @@ spec:
                   platform:
                     description: Platform associated with the target
                     type: string
+                  protocol:
+                    description: Protocol used for discovery
+                    type: string
+                  provider:
+                    description: Type associated with the target
+                    type: string
                   serialNumber:
                     description: SerialNumber associated with the target
                     type: string
@@ -200,12 +182,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  type:
-                    description: Type associated with the target
-                    type: string
-                  vendor:
-                    description: Vendor associated with the target
-                    type: string
                   version:
                     description: Version associated with the target
                     type: string

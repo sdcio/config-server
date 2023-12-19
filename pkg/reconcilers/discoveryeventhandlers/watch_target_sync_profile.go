@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discoveryrule
+package discoveryeventhandler
 
 import (
 	"context"
@@ -28,33 +28,34 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetConnProfileEventHandler struct {
-	client client.Client
+type TargetSyncProfileEventHandler struct {
+	Client client.Client
+	ObjList invv1alpha1.DiscoveryObjectList
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetSyncProfileEventHandler) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetSyncProfileEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(evt.ObjectOld, q)
 	r.add(evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetSyncProfileEventHandler) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetSyncProfileEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(evt.Object, q)
 }
 
-func (r *targetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.TargetConnectionProfile)
+func (r *TargetSyncProfileEventHandler) add(obj runtime.Object, queue adder) {
+	cr, ok := obj.(*invv1alpha1.TargetSyncProfile)
 	if !ok {
 		return
 	}
@@ -67,20 +68,20 @@ func (r *targetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
 	}
-	drs := &invv1alpha1.DiscoveryRuleList{}
-	if err := r.client.List(ctx, drs, opts...); err != nil {
-		log.Error(err, "cannot list links")
+	drs := r.ObjList
+	if err := r.Client.List(ctx, drs, opts...); err != nil {
+		log.Error(err, "cannot list discovery rules")
 		return
 	}
-	for _, dr := range drs.Items {
-		for _, profile := range dr.Spec.Profiles {
-			if profile.ConnectionProfile == cr.GetName() {
-				key := types.NamespacedName{
-					Namespace: dr.Namespace,
-					Name:      dr.Name}
-				log.Info("event requeue target", "key", key.String())
-				queue.Add(reconcile.Request{NamespacedName: key})
-			}
+	for _, dr := range drs.GetItems() {
+		// check if the sync profile is referenced in the ConnectivityProfile
+		if dr.GetDiscoveryParameters().ConnectivityProfile.SyncProfile == cr.GetName() {
+			key := types.NamespacedName{
+				Namespace: dr.GetNamespace(),
+				Name:      dr.GetName()}
+			log.Info("event requeue target", "key", key.String())
+			queue.Add(reconcile.Request{NamespacedName: key})
+			continue
 		}
 	}
 }
