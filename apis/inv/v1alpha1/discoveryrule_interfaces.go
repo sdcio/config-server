@@ -117,6 +117,24 @@ func (r *DiscoveryRule) Validate() error {
 			}
 		}
 	}
+
+	switch r.Spec.Kind {
+	case DiscoveryRuleSpecKindIP:
+		if len(r.Spec.Prefixes) == 0 {
+			errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without ip prefixes", string(r.Spec.Kind)))
+		}
+	case DiscoveryRuleSpecKindPOD, DiscoveryRuleSpecKindSVC:
+		if r.Spec.Selector == nil {
+			errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without a selector", string(r.Spec.Kind)))
+		} else {
+			if len(r.Spec.Selector.MatchExpressions) == 0 && len(r.Spec.Selector.MatchLabels) == 0 {
+				errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without selector criteria", string(r.Spec.Kind)))
+			}
+		}
+	default:
+		errm = errors.Join(errm, fmt.Errorf("unsupported discovery kind, got: %s", string(r.Spec.Kind)))
+	}
+
 	if err := r.Spec.DiscoveryParameters.Validate(); err != nil {
 		errm = errors.Join(errm, err)
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/discovery2/discoveryrule"
+	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	discoveryeventhandler "github.com/iptecharch/config-server/pkg/reconcilers/discoveryeventhandlers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
