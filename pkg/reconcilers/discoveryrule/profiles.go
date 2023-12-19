@@ -14,10 +14,15 @@ import (
 func (r *reconciler) getDRConfig(ctx context.Context, cr *invv1alpha1.DiscoveryRule) (*discoveryrule.DiscoveryRuleConfig, error) {
 	var errm error
 
-	discProfile, err := r.getDiscoveryProfile(ctx, cr)
-	if err != nil {
-		errm = errors.Join(errm, err)
+	var discProfile *discoveryrule.DiscoveryProfile
+	if cr.GetDiscoveryParameters().Discover {
+		var err error
+		discProfile, err = r.getDiscoveryProfile(ctx, cr)
+		if err != nil {
+			errm = errors.Join(errm, err)
+		}
 	}
+
 	connProfile, err := r.getConnectivityProfile(ctx, cr)
 	if err != nil {
 		errm = errors.Join(errm, err)
