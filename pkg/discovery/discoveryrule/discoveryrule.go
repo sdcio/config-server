@@ -1,5 +1,6 @@
 package discoveryrule
 
+/*
 import (
 	"context"
 
@@ -25,3 +26,4 @@ type DiscoveryRule interface {
 	// Get gets the specific discovery Rule and return the resource version and error
 	Get(ctx context.Context, key types.NamespacedName) (string, error)
 }
+*/

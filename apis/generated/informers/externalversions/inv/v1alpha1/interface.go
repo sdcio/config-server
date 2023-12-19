@@ -23,10 +23,6 @@ import (
 type Interface interface {
 	// DiscoveryRules returns a DiscoveryRuleInformer.
 	DiscoveryRules() DiscoveryRuleInformer
-	// DiscoveryRuleIPRanges returns a DiscoveryRuleIPRangeInformer.
-	DiscoveryRuleIPRanges() DiscoveryRuleIPRangeInformer
-	// DiscoveryRuleStatics returns a DiscoveryRuleStaticInformer.
-	DiscoveryRuleStatics() DiscoveryRuleStaticInformer
 	// Schemas returns a SchemaInformer.
 	Schemas() SchemaInformer
 	// Targets returns a TargetInformer.
@@ -51,16 +47,6 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // DiscoveryRules returns a DiscoveryRuleInformer.
 func (v *version) DiscoveryRules() DiscoveryRuleInformer {
 	return &discoveryRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// DiscoveryRuleIPRanges returns a DiscoveryRuleIPRangeInformer.
-func (v *version) DiscoveryRuleIPRanges() DiscoveryRuleIPRangeInformer {
-	return &discoveryRuleIPRangeInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// DiscoveryRuleStatics returns a DiscoveryRuleStaticInformer.
-func (v *version) DiscoveryRuleStatics() DiscoveryRuleStaticInformer {
-	return &discoveryRuleStaticInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Schemas returns a SchemaInformer.

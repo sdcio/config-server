@@ -1,5 +1,6 @@
 package target
 
+/*
 import (
 	"context"
 	"fmt"
@@ -209,3 +210,4 @@ func (r *DRClient) Delete(ctx context.Context, obj client.Object) error {
 	}
 	return nil
 }
+*/

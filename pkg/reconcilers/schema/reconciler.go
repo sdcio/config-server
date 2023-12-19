@@ -161,6 +161,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
 	}); err != nil {
+		// TODO act upon NotFound error, etc
+
 		log.Info("schema", "schema", spec.GetSchema())
 		log.Info("create schema", "Models", spec.GetNewSchemaBase(r.schemaBasePath).Models)
 		log.Info("create schema", "Includes", spec.GetNewSchemaBase(r.schemaBasePath).Includes)

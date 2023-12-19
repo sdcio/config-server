@@ -26,8 +26,6 @@ import (
 type InvV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	DiscoveryRulesGetter
-	DiscoveryRuleIPRangesGetter
-	DiscoveryRuleStaticsGetter
 	SchemasGetter
 	TargetsGetter
 	TargetConnectionProfilesGetter
@@ -41,14 +39,6 @@ type InvV1alpha1Client struct {
 
 func (c *InvV1alpha1Client) DiscoveryRules(namespace string) DiscoveryRuleInterface {
 	return newDiscoveryRules(c, namespace)
-}
-
-func (c *InvV1alpha1Client) DiscoveryRuleIPRanges(namespace string) DiscoveryRuleIPRangeInterface {
-	return newDiscoveryRuleIPRanges(c, namespace)
-}
-
-func (c *InvV1alpha1Client) DiscoveryRuleStatics(namespace string) DiscoveryRuleStaticInterface {
-	return newDiscoveryRuleStatics(c, namespace)
 }
 
 func (c *InvV1alpha1Client) Schemas(namespace string) SchemaInterface {

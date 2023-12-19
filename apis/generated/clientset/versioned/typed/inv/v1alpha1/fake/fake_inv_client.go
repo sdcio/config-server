@@ -29,14 +29,6 @@ func (c *FakeInvV1alpha1) DiscoveryRules(namespace string) v1alpha1.DiscoveryRul
 	return &FakeDiscoveryRules{c, namespace}
 }
 
-func (c *FakeInvV1alpha1) DiscoveryRuleIPRanges(namespace string) v1alpha1.DiscoveryRuleIPRangeInterface {
-	return &FakeDiscoveryRuleIPRanges{c, namespace}
-}
-
-func (c *FakeInvV1alpha1) DiscoveryRuleStatics(namespace string) v1alpha1.DiscoveryRuleStaticInterface {
-	return &FakeDiscoveryRuleStatics{c, namespace}
-}
-
 func (c *FakeInvV1alpha1) Schemas(namespace string) v1alpha1.SchemaInterface {
 	return &FakeSchemas{c, namespace}
 }

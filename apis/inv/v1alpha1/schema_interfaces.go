@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	"fmt"
 	"path"
-	"strings"
 
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,17 +51,10 @@ func (r *SchemaSpec) GetKey() string {
 	return fmt.Sprintf("%s.%s", r.Provider, r.Version)
 }
 
-func (r *SchemaSpec) GetVendorType() (string, string) {
-	split := strings.Split(r.Provider, ".")
-	if len(split) < 2 {
-		return "", ""
-	}
-	return split[0], split[1]
-}
-
 func (r *SchemaSpec) GetSchema() *sdcpb.Schema {
-	name, vendor := r.GetVendorType()
+	name, vendor := GetVendorType(r.Provider)
 	return &sdcpb.Schema{
+		//Name: r.Provider,
 		Name:    name,
 		Vendor:  vendor,
 		Version: r.Version,
@@ -82,7 +74,7 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 func getNewBase(basePath string, in []string) []string {
 	str := make([]string, 0, len(in))
 	for _, s := range in {
-		
+
 		str = append(str, path.Join(basePath, s))
 		//str = append(str, fmt.Sprintf("./%s", path.Join(basePath, s)))
 	}

@@ -14,9 +14,7 @@ import (
 )
 
 const (
-	ProviderName = "sros.nokia.com"
-	Vendor       = "Nokia"
-	Type         = "sros"
+	Provider = "sros.nokia.sdcio.dev"
 	// TODO: check if we need to differentiate slotA and slotB
 	srosSWVersionPath    = "state/system/version/version-number"
 	srosChassisPath      = "state/system/platform"
@@ -26,26 +24,18 @@ const (
 )
 
 func init() {
-	discoverers.Register(ProviderName, func() discoverers.Discoverer {
+	discoverers.Register(Provider, func() discoverers.Discoverer {
 		return &discoverer{}
 	})
 }
 
 type discoverer struct{}
 
-func (s *discoverer) GetName() string {
-	return ProviderName
+func (s *discoverer) GetProvider() string {
+	return Provider
 }
 
-func (s *discoverer) GetType() string {
-	return Type
-}
-
-func (s *discoverer) GetVendor() string {
-	return Vendor
-}
-
-func (s *discoverer) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
+func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
 	req, err := api.NewGetRequest(
 		api.Path(srosSWVersionPath),
 		api.Path(srosChassisPath),
@@ -66,8 +56,8 @@ func (s *discoverer) Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRule
 		return nil, err
 	}
 	di := &invv1alpha1.DiscoveryInfo{
-		Type:   Type,
-		Vendor: Vendor,
+		Protocol: string(invv1alpha1.Protocol_GNMI),
+		Provider: Provider,
 		LastSeen: metav1.Time{
 			Time: time.Now(),
 		},

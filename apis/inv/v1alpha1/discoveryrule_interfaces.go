@@ -17,11 +17,46 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"bytes"
-	"html/template"
+	"errors"
+	"fmt"
 
+	"github.com/henderiw/iputil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// +k8s:deepcopy-gen=false
+type DiscoveryObject interface {
+	client.Object
+	GetCondition(t ConditionType) Condition
+	SetConditions(c ...Condition)
+	GetDiscoveryParameters() DiscoveryParameters
+	GetDiscoveryKind() DiscoveryRuleSpecKind
+	GetPrefixes() []DiscoveryRulePrefix
+	GetLabelSelectors() metav1.LabelSelector
+}
+
+// +k8s:deepcopy-gen=false
+// A DiscoveryObject is a list of discovery resources.
+type DiscoveryObjectList interface {
+	client.ObjectList
+	// GetItems returns the list of discovery resources.
+	GetItems() []DiscoveryObject
+}
+
+var _ DiscoveryObjectList = &DiscoveryRuleList{}
+
+// Returns the generic discovery rule
+func (r *DiscoveryRuleList) GetItems() []DiscoveryObject {
+	l := make([]DiscoveryObject, len(r.Items))
+	for i, item := range r.Items {
+		item := item
+		l[i] = &item
+	}
+	return l
+}
+
+var _ DiscoveryObject = &DiscoveryRule{}
 
 // GetCondition returns the condition based on the condition kind
 func (r *DiscoveryRule) GetCondition(t ConditionType) Condition {
@@ -34,75 +69,56 @@ func (r *DiscoveryRule) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
-// +k8s:deepcopy-gen=false
-type DiscoveryRuleContext struct {
-	Client                   client.Client
-	DiscoveryRule            *DiscoveryRule // this is the original CR
-	Profiles                 []DiscoveryRuleContextProfile
-	SecretResourceVersion    string
-	TLSSecretResourceVersion string
+// Returns the generic discovery rule
+func (r *DiscoveryRule) GetDiscoveryParameters() DiscoveryParameters {
+	return r.Spec.DiscoveryParameters
 }
 
-// +k8s:deepcopy-gen=false
-type DiscoveryRuleContextProfile struct {
-	ConnectionProfile *TargetConnectionProfile
-	SyncProfile       *TargetSyncProfile
+func (r *DiscoveryRule) GetDiscoveryKind() DiscoveryRuleSpecKind {
+	return r.Spec.Kind
 }
 
-func (r *DiscoveryRuleContext) GetProfilesResourceVersion() []DiscoveryRuleProfile {
-	p := make([]DiscoveryRuleProfile, 0, len(r.Profiles))
-	for _, profile := range r.Profiles {
-		p = append(p, DiscoveryRuleProfile{
-			ConnectionProfileResourceVersion: profile.ConnectionProfile.ResourceVersion,
-			SyncProfileResourceVersion:       profile.SyncProfile.ResourceVersion,
-		})
+func (r *DiscoveryRule) GetPrefixes() []DiscoveryRulePrefix {
+	return r.Spec.Prefixes
+}
+
+func (r *DiscoveryRule) GetLabelSelectors() metav1.LabelSelector {
+	if r.Spec.Selector == nil {
+		return metav1.LabelSelector{}
 	}
-	return p
-}
+	return *r.Spec.Selector
+}	
 
-func (r *DiscoveryRule) GetTargetLabels(t *TargetSpec) (map[string]string, error) {
-	if r.Spec.TargetTemplate == nil {
-		return map[string]string{
-			LabelKeyDiscoveryRule: r.GetName(),
-		}, nil
-	}
-	return r.buildTags(r.Spec.TargetTemplate.Labels, t)
-}
-
-func (r *DiscoveryRule) GetTargetAnnotations(t *TargetSpec) (map[string]string, error) {
-	if r.Spec.TargetTemplate == nil {
-		return map[string]string{
-			LabelKeyDiscoveryRule: r.GetName(),
-		}, nil
-	}
-	return r.buildTags(r.Spec.TargetTemplate.Annotations, t)
-}
-
-func (r *DiscoveryRule) buildTags(m map[string]string, t *TargetSpec) (map[string]string, error) {
-	// initialize map if empty
-	if m == nil {
-		m = make(map[string]string)
-	}
-	// add discovery-rule labels
-	if t != nil {
-		if _, ok := m[LabelKeyDiscoveryRule]; !ok {
-			m[LabelKeyDiscoveryRule] = r.GetName()
+func (r *DiscoveryRule) Validate() error {
+	var errm error
+	// when discovery is diabled
+	// 1. the prefix need to be a /32 or /128
+	// 2. a hostname is needed
+	if !r.Spec.DiscoveryParameters.Discover {
+		for _, p := range r.Spec.Prefixes {
+			if p.HostName == "" {
+				errm = errors.Join(errm, fmt.Errorf("when discovery is disabled, the prefix %s need to have a hostname", p.Prefix))
+			}
+			ipp, err := iputil.New(p.Prefix)
+			if err != nil {
+				errm = errors.Join(errm, fmt.Errorf("parsing prefix %s failed %s", p.Prefix, err.Error()))
+				continue
+			}
+			if !ipp.IsAddressPrefix() {
+				errm = errors.Join(errm, fmt.Errorf("when discovery is disabled, the prefix need to be an address, got: %s", p.Prefix))
+			}
+		}
+	} else {
+		for _, p := range r.Spec.Prefixes {
+			_, err := iputil.New(p.Prefix)
+			if err != nil {
+				errm = errors.Join(errm, fmt.Errorf("parsing prefix %s failed %s", p.Prefix, err.Error()))
+				continue
+			}
 		}
 	}
-	// render values templates
-	labels := make(map[string]string, len(m))
-	b := new(bytes.Buffer)
-	for k, v := range m {
-		tpl, err := template.New(k).Parse(v)
-		if err != nil {
-			return nil, err
-		}
-		b.Reset()
-		err = tpl.Execute(b, t)
-		if err != nil {
-			return nil, err
-		}
-		labels[k] = b.String()
+	if err := r.Spec.DiscoveryParameters.Validate(); err != nil {
+		errm = errors.Join(errm, err)
 	}
-	return labels, nil
+	return errm
 }

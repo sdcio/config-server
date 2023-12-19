@@ -19,11 +19,7 @@ func Register(name string, initFn Initializer) {
 // SerialNumber, etc
 type Discoverer interface {
 	// Discover the target
-	Discover(ctx context.Context, dr *invv1alpha1.DiscoveryRuleContext, t *target.Target) (*invv1alpha1.DiscoveryInfo, error)
-	// GetName gets the provider name
-	GetName() string
-	// GetType gets the vendor device/NF type
-	GetType() string
-	// GetVendor gets the vendor name
-	GetVendor() string
+	Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error)
+	// GetProvider gets the provider name
+	GetProvider() string
 }

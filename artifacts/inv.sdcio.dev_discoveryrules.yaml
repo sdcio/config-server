@@ -41,55 +41,160 @@ spec:
           spec:
             description: DiscoveryRuleSpec defines the desired state of DiscoveryRule
             properties:
-              discoveryRuleRef:
-                description: DiscoveryRuleRef points to a specific implementation
-                  of the discovery rule e.g. ip range or api or topology rule
+              concurrentScans:
+                default: 10
+                description: number of concurrent IP scan
+                format: int64
+                type: integer
+              connectivityProfile:
+                description: ConnectivityProfile define the profile the discovery
+                  controller uses to connect to targets once discovered
                 properties:
-                  apiVersion:
-                    description: API version of the referent.
+                  connectionProfile:
+                    description: ConnectionProfile define the profile used to connect
+                      to the target once discovered
                     type: string
-                  kind:
-                    description: Kind of the referent.
+                  defaultSchema:
+                    description: DefaultSchema define the default schema used to connect
+                      to a target Used typically without discovery
+                    properties:
+                      provider:
+                        description: Provider specifies the provider of the schema.
+                        type: string
+                      version:
+                        description: Version defines the version of the schema
+                        type: string
+                    required:
+                    - provider
+                    - version
+                    type: object
+                  secret:
+                    description: Secret defines the name of the secret to connect
+                      to the target
                     type: string
-                  name:
-                    description: Name of the referent.
+                  syncProfile:
+                    description: SyncProfile define the profile used to sync to the
+                      target config once discovered
+                    type: string
+                  tlsSecret:
+                    description: TLSSecret defines the name of the TLS secret to connect
+                      to the target
                     type: string
                 required:
-                - apiVersion
-                - kind
-                - name
+                - connectionProfile
+                - secret
+                - syncProfile
                 type: object
+              discover:
+                default: true
+                description: Discovery rule defines the profiles and templates generic
+                  to any discovery rule class/type Discover defines if discovery is
+                  enabled or not
+                type: boolean
+              discoveryProfile:
+                description: DiscoveryProfile define the profiles the discovery controller
+                  uses to discover targets
+                properties:
+                  connectionProfiles:
+                    description: ConnectionProfiles define the list of profiles the
+                      discovery controller uses to discover the target. The order
+                      in which they are specified is the order in which discovery
+                      is executed.
+                    items:
+                      type: string
+                    type: array
+                  secret:
+                    type: string
+                  tlsSecret:
+                    description: TLSSecret defines the name of the TLS secret to connect
+                      to the target
+                    type: string
+                required:
+                - connectionProfiles
+                - secret
+                type: object
+              kind:
+                default: ip
+                enum:
+                - unknown
+                - ip
+                - pod
+                - svc
+                type: string
               period:
                 default: 1m
                 description: Period defines the wait period between discovery rule
                   runs
                 type: string
-              profiles:
-                description: Profiles define the list of profiles the discovery controller
-                  uses to discover the target The order in which they are specified
-                  is maintained during discovery
+              prefixes:
+                description: IP Prefixes for which this discovery rule applies
                 items:
                   properties:
-                    connectionProfile:
-                      description: ConnectionProfile defines the profile used to connect
-                        to the target
+                    excludes:
+                      description: IP Prefixes to be excluded
+                      items:
+                        type: string
+                      type: array
+                    hostName:
+                      description: HostName of the ip prefix; used for /32 or /128
+                        addresses with discovery disabled
                       type: string
-                    syncProfile:
-                      description: SyncProfile defines the profile used to sync the
-                        config from the target
+                    prefix:
+                      description: Prefix of the target/target(s)
                       type: string
                   required:
-                  - connectionProfile
-                  - syncProfile
+                  - prefix
                   type: object
                 type: array
-              secret:
-                description: Secret defines the name of the secret to connect to the
-                  target
-                type: string
+              selector:
+                description: Selector defines the selector used to select which POD/SVC
+                  are subject to this discovery rule
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: A label selector requirement is a selector that
+                        contains values, a key, and an operator that relates the key
+                        and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: operator represents a key's relationship to
+                            a set of values. Valid operators are In, NotIn, Exists
+                            and DoesNotExist.
+                          type: string
+                        values:
+                          description: values is an array of string values. If the
+                            operator is In or NotIn, the values array must be non-empty.
+                            If the operator is Exists or DoesNotExist, the values
+                            array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: matchLabels is a map of {key,value} pairs. A single
+                      {key,value} in the matchLabels map is equivalent to an element
+                      of matchExpressions, whose key field is "key", the operator
+                      is "In", and the values array contains only "value". The requirements
+                      are ANDed.
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
               targetTemplate:
-                description: TargetTemplate defines the template we use to create
-                  the targets as a result of the discovery
+                description: TargetTemplate defines the template the discovery controller
+                  uses to create the targets as a result of the discovery
                 properties:
                   annotations:
                     additionalProperties:
@@ -110,14 +215,10 @@ spec:
                     - message: nameTemplate is immutable
                       rule: self == oldSelf
                 type: object
-              tlsSecret:
-                description: TLSSecret defines the name of the TLS secret to connect
-                  to the target
-                type: string
             required:
-            - discoveryRuleRef
+            - connectivityProfile
+            - kind
             - period
-            - secret
             type: object
           status:
             description: DiscoveryRuleStatus defines the observed state of DiscoveryRule
@@ -186,31 +287,6 @@ spec:
                 description: StartTime identifies when the dr got started
                 format: date-time
                 type: string
-              usedReferences:
-                description: UsedReferences track the resource used to reconcile the
-                  cr
-                properties:
-                  discoveryRuleRefResourceVersion:
-                    type: string
-                  profiles:
-                    items:
-                      properties:
-                        connectionProfileResourceVersion:
-                          type: string
-                        syncProfileResourceVersion:
-                          type: string
-                      required:
-                      - connectionProfileResourceVersion
-                      - syncProfileResourceVersion
-                      type: object
-                    type: array
-                  secretResourceVersion:
-                    type: string
-                  tlsSecretResourceVersion:
-                    type: string
-                required:
-                - discoveryRuleRefResourceVersion
-                type: object
             type: object
         type: object
     served: true

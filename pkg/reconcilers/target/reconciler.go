@@ -98,6 +98,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	cr = cr.DeepCopy()
+
 	if !cr.GetDeletionTimestamp().IsZero() {
 		// check if this is the last one -> if so stop the client to the dataserver
 		targetCtx, err := r.targetStore.Get(ctx, key)
@@ -194,10 +196,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		//return ctrl.Result{}, nil
 	}
 	// target not ready so we can wait till the target goes to ready state
-	cr.Status.UsedReferences = nil
-	cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-
+	if cr.GetCondition(invv1alpha1.ConditionTypeDSReady).Status == metav1.ConditionTrue {
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	// if the Ready state is false and we dont have a true status in DSReady state
+	// we dont update the target -> otherwise we get to many reconcile events and updates fail
+	return ctrl.Result{}, nil
 }
 
 func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, dsKey store.Key, targetKey store.Key) {
@@ -331,6 +337,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 	}
 	// datastore does not exist -> create datastore
+	log.Info("create datastore", "req name", req.Name, "schema", req.GetSchema(), "target", req.GetTarget(), "sync", req.GetSync())
 	changed = true
 	rsp, err := targetCtx.Client.CreateDataStore(ctx, req)
 	if err != nil {
@@ -439,7 +446,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	if err != nil {
 		return nil, nil, err
 	}
-	usedReferences.SyncProfileResourceVersion = syncProfile.ResourceVersion
+	usedReferences.SyncProfileResourceVersion = syncProfile.GetResourceVersion()
 	connProfile, err := r.getConnProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.ConnectionProfile})
 	if err != nil {
 		return nil, nil, err
@@ -468,12 +475,12 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 
 	// check if the discovery info is complete
 	if cr.Status.DiscoveryInfo == nil ||
-		cr.Status.DiscoveryInfo.Type == "" ||
-		cr.Status.DiscoveryInfo.Vendor == "" ||
+		cr.Status.DiscoveryInfo.Provider == "" ||
 		cr.Status.DiscoveryInfo.Version == "" {
 		return nil, nil, fmt.Errorf("target not discovered, discovery incomplete, got: %v", cr.Status.DiscoveryInfo)
 	}
 
+	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
 	return &sdcpb.CreateDataStoreRequest{
 		Name: store.GetNSNKey(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
@@ -488,8 +495,9 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
-			Name:    cr.Status.DiscoveryInfo.Type,
-			Vendor:  cr.Status.DiscoveryInfo.Vendor,
+			//Name: cr.Status.DiscoveryInfo.Provider,
+			Name:    name,
+			Vendor:  vendor,
 			Version: cr.Status.DiscoveryInfo.Version,
 		},
 	}, usedReferences, nil
