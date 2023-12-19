@@ -486,8 +486,10 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
 	
 	protocol := string(connProfile.Spec.Protocol)
+	address := cr.Spec.Address
 	if protocol == "netconf" {
 		protocol = "nc"
+		address = strings.Split(address, ":")[0]
 	}
 	
 	return &sdcpb.CreateDataStoreRequest{
