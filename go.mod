@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
-	github.com/iptecharch/sdc-protos v0.0.14
+	github.com/iptecharch/sdc-protos v0.0.15
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnmic/pkg/api v0.1.1
 	github.com/openconfig/gnmic/pkg/path v0.1.1
