@@ -75,16 +75,19 @@ func (r *TargetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
 	}
 	for _, dr := range drs.GetItems() {
 		// check if the connection profile is referenced in the discoveryProfile
-		for _, connProfile := range dr.GetDiscoveryParameters().DiscoveryProfile.ConnectionProfiles {
-			if connProfile == cr.GetName() {
-				key := types.NamespacedName{
-					Namespace: dr.GetNamespace(),
-					Name:      dr.GetName()}
-				log.Info("event requeue target", "key", key.String())
-				queue.Add(reconcile.Request{NamespacedName: key})
-				continue
+		if dr.GetDiscoveryParameters().DiscoveryProfile != nil {
+			for _, connProfile := range dr.GetDiscoveryParameters().DiscoveryProfile.ConnectionProfiles {
+				if connProfile == cr.GetName() {
+					key := types.NamespacedName{
+						Namespace: dr.GetNamespace(),
+						Name:      dr.GetName()}
+					log.Info("event requeue target", "key", key.String())
+					queue.Add(reconcile.Request{NamespacedName: key})
+					continue
+				}
 			}
 		}
+
 		// check if the connection profile is referenced in the ConnectivityProfile
 		if dr.GetDiscoveryParameters().ConnectivityProfile.ConnectionProfile == cr.GetName() {
 			key := types.NamespacedName{
