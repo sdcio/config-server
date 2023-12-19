@@ -481,6 +481,12 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	}
 
 	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
+	
+	protocol := string(connProfile.Spec.Protocol)
+	if protocol == "netconf" {
+		protocol = "nc"
+	}
+	
 	return &sdcpb.CreateDataStoreRequest{
 		Name: store.GetNSNKey(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{

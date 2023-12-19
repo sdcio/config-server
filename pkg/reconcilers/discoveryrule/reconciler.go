@@ -200,49 +200,74 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 	log := log.FromContext(ctx)
 
 	// if the resource version changed the config has changed
-	log.Info("HasChanged",
-		"CR RV", fmt.Sprintf("%s/%s",
-			newDRConfig.CR.GetResourceVersion(),
-			currentDRConfig.CR.GetResourceVersion(),
-		),
-		"DiscoveryProfile Secret RV", fmt.Sprintf("%s/%s",
-			newDRConfig.DiscoveryProfile.SecretResourceVersion,
-			currentDRConfig.DiscoveryProfile.SecretResourceVersion,
-		),
-		"DiscoveryProfile Conn Profile len", fmt.Sprintf("%d/%d",
-			len(newDRConfig.DiscoveryProfile.Connectionprofiles),
-			len(currentDRConfig.DiscoveryProfile.Connectionprofiles),
-		),
-		"ConnectivityProfile Secret RV", fmt.Sprintf("%s/%s",
-			newDRConfig.ConnectivityProfile.SecretResourceVersion,
-			currentDRConfig.ConnectivityProfile.SecretResourceVersion,
-		),
-		"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-			newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-			currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-		),
-		"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-			newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
-			currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
-		),
-	)
+
+	if newDRConfig.DiscoveryProfile != nil {
+		log.Info("HasChanged",
+			"CR RV", fmt.Sprintf("%s/%s",
+				newDRConfig.CR.GetResourceVersion(),
+				currentDRConfig.CR.GetResourceVersion(),
+			),
+			"DiscoveryProfile Secret RV", fmt.Sprintf("%s/%s",
+				newDRConfig.DiscoveryProfile.SecretResourceVersion,
+				currentDRConfig.DiscoveryProfile.SecretResourceVersion,
+			),
+			"DiscoveryProfile Conn Profile len", fmt.Sprintf("%d/%d",
+				len(newDRConfig.DiscoveryProfile.Connectionprofiles),
+				len(currentDRConfig.DiscoveryProfile.Connectionprofiles),
+			),
+			"ConnectivityProfile Secret RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.SecretResourceVersion,
+				currentDRConfig.ConnectivityProfile.SecretResourceVersion,
+			),
+			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
+				currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
+			),
+			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
+				currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
+			),
+		)
+	} else {
+		log.Info("HasChanged",
+			"CR RV", fmt.Sprintf("%s/%s",
+				newDRConfig.CR.GetResourceVersion(),
+				currentDRConfig.CR.GetResourceVersion(),
+			),
+			"ConnectivityProfile Secret RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.SecretResourceVersion,
+				currentDRConfig.ConnectivityProfile.SecretResourceVersion,
+			),
+			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
+				currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
+			),
+			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
+				newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
+				currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
+			),
+		)
+	}
 	if newDRConfig.CR.GetResourceVersion() != currentDRConfig.CR.GetResourceVersion() {
 		return true
 	}
 
-	// Validate Discovery profile
-	if newDRConfig.DiscoveryProfile.SecretResourceVersion != currentDRConfig.DiscoveryProfile.SecretResourceVersion {
-		return true
-	}
-	// check if a reference has changed
-	if len(newDRConfig.DiscoveryProfile.Connectionprofiles) != len(currentDRConfig.DiscoveryProfile.Connectionprofiles) {
-		return true
-	}
-	for idx, newConnProfile := range newDRConfig.DiscoveryProfile.Connectionprofiles {
-		if newConnProfile.ResourceVersion != currentDRConfig.DiscoveryProfile.Connectionprofiles[idx].ResourceVersion {
+	if newDRConfig.DiscoveryProfile != nil {
+		// Validate Discovery profile
+		if newDRConfig.DiscoveryProfile.SecretResourceVersion != currentDRConfig.DiscoveryProfile.SecretResourceVersion {
 			return true
 		}
+		// check if a reference has changed
+		if len(newDRConfig.DiscoveryProfile.Connectionprofiles) != len(currentDRConfig.DiscoveryProfile.Connectionprofiles) {
+			return true
+		}
+		for idx, newConnProfile := range newDRConfig.DiscoveryProfile.Connectionprofiles {
+			if newConnProfile.ResourceVersion != currentDRConfig.DiscoveryProfile.Connectionprofiles[idx].ResourceVersion {
+				return true
+			}
+		}
 	}
+
 	// Validate Connection profile
 	if newDRConfig.ConnectivityProfile.SecretResourceVersion != currentDRConfig.ConnectivityProfile.SecretResourceVersion {
 		return true
