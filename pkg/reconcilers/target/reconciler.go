@@ -490,7 +490,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	return &sdcpb.CreateDataStoreRequest{
 		Name: store.GetNSNKey(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
-			Type:    string(connProfile.Spec.Protocol),
+			Type:    protocol,
 			Address: cr.Spec.Address,
 			Credentials: &sdcpb.Credentials{
 				Username: string(secret.Data["username"]),
