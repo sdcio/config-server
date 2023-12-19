@@ -65,6 +65,12 @@ spec:
                 x-kubernetes-validations:
                 - message: insecure is immutable
                   rule: self == oldSelf
+              operationWithNS:
+                default: false
+                type: boolean
+                x-kubernetes-validations:
+                - message: operationWithNS is immutable
+                  rule: self == oldSelf
               port:
                 default: 57400
                 description: Port defines the port on which the scan runs
@@ -88,6 +94,12 @@ spec:
                 type: boolean
                 x-kubernetes-validations:
                 - message: skipVerify is immutable
+                  rule: self == oldSelf
+              useOperationRemove:
+                default: false
+                type: boolean
+                x-kubernetes-validations:
+                - message: UseOperationRemove is immutable
                   rule: self == oldSelf
             required:
             - encoding
