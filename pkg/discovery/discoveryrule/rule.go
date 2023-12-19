@@ -95,6 +95,7 @@ func (r *dr) run(ctx context.Context) error {
 				log := log.With("ip", h.Addr.String())
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
+					log.Info("disovery disabled")
 					// No discovery this is a static target
 					if err := r.applyStaticTarget(ctx, h, targets); err != nil {
 						// TODO reapply if update failed
@@ -109,6 +110,7 @@ func (r *dr) run(ctx context.Context) error {
 					}
 					return
 				}
+				log.Info("disovery enabled")
 				// Discovery
 				if err := r.discover(ctx, h, targets); err != nil {
 					//if status.Code(err) == codes.Canceled {
