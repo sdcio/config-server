@@ -500,7 +500,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 				Password: string(secret.Data["password"]),
 			},
 			Tls:       tls,
-			//IncludeNs: connProfile.Spec.IncludeNS,
+			IncludeNs: connProfile.Spec.IncludeNS,
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
