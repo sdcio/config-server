@@ -73,6 +73,7 @@ func (r *watcher) listAndWatch(ctx context.Context, c *cfg, options *metainterna
 		log.Info("sending error to watch stream", "error", err)
 		ev := watch.Event{
 			Type: watch.Error,
+			Object: &configv1alpha1.Config{},
 		}
 		r.resultChan <- ev
 	}
