@@ -31,7 +31,6 @@ import (
 	"github.com/iptecharch/config-server/apis/generated/openapi"
 	"github.com/iptecharch/config-server/pkg/config"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
-	_ "github.com/iptecharch/config-server/pkg/discovery/discoveryrule/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	_ "github.com/iptecharch/config-server/pkg/reconcilers/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
