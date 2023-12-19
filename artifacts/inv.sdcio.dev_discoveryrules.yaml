@@ -86,7 +86,6 @@ spec:
                 - syncProfile
                 type: object
               discover:
-                default: true
                 description: Discovery rule defines the profiles and templates generic
                   to any discovery rule class/type Discover defines if discovery is
                   enabled or not
@@ -217,6 +216,7 @@ spec:
                 type: object
             required:
             - connectivityProfile
+            - discover
             - kind
             - period
             type: object

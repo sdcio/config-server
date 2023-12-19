@@ -46,9 +46,8 @@ type DiscoveryRuleSpec struct {
 
 type DiscoveryParameters struct {
 	// Discovery rule defines the profiles and templates generic to any discovery rule class/type
-	// +kubebuilder:default:=true
 	// Discover defines if discovery is enabled or not
-	Discover bool `json:"discover,omitempty" yaml:"discover,omitempty"`
+	Discover bool `json:"discover" yaml:"discover"`
 	// DiscoveryProfile define the profiles the discovery controller uses to discover targets
 	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty"`
 	// ConnectivityProfile define the profile the discovery controller uses to connect to targets
