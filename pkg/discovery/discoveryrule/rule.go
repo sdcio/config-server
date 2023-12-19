@@ -100,7 +100,7 @@ func (r *dr) run(ctx context.Context) error {
 					if err := r.applyStaticTarget(ctx, h, targets); err != nil {
 						// TODO reapply if update failed
 						if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-							// we will rety once
+							// we will rety once, sometimes we get an error
 							if err := r.applyStaticTarget(ctx, h, targets); err != nil {
 								log.Info("static target creation retry failed", "error", err)
 							}
