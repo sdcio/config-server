@@ -501,8 +501,10 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 				Username: string(secret.Data["username"]),
 				Password: string(secret.Data["password"]),
 			},
-			Tls:       tls,
-			IncludeNs: connProfile.Spec.IncludeNS,
+			Tls:                tls,
+			IncludeNs:          connProfile.Spec.IncludeNS,
+			OperationWithNs:    connProfile.Spec.OperationWithNS,
+			UseOperationRemove: connProfile.Spec.UseOperationRemove,
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{

@@ -67,6 +67,12 @@ type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
 	// +kubebuilder:default:=false
 	IncludeNS bool `json:"includeNS,omitempty" yaml:"include-ns,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
+	// +kubebuilder:default:=false
+	OperationWithNS bool `json:"operationWithNS,omitempty" yaml:"operation-with-ns,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
+	// +kubebuilder:default:=false
+	UseOperationRemove bool `json:"useOperationRemove,omitempty" yaml:"use-operation-remove,omitempty"`
 }
 
 // +kubebuilder:object:root=true
