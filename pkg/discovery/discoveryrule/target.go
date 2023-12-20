@@ -61,10 +61,12 @@ func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
-		Secret:   r.cfg.CR.GetDiscoveryParameters().ConnectivityProfile.Secret,
-		// TODO TLSSecret:
-		ConnectionProfile: r.cfg.CR.GetDiscoveryParameters().ConnectivityProfile.ConnectionProfile,
-		SyncProfile:       r.cfg.CR.GetDiscoveryParameters().ConnectivityProfile.SyncProfile,
+		TargetProfile: invv1alpha1.TargetProfile{
+			Credentials: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].Credentials,
+			// TODO TLSSecret:
+			ConnectionProfile: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].ConnectionProfile,
+			SyncProfile:       r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile,
+		},
 	}
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
@@ -169,7 +171,7 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 		"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
 		"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
 		"SyncProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.SyncProfile, newTargetCR.Spec.SyncProfile),
-		"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Secret, newTargetCR.Spec.Secret),
+		"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
 		//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
 	)
 
@@ -177,7 +179,7 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 		curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
 		curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
 		curTargetCR.Spec.SyncProfile != newTargetCR.Spec.SyncProfile ||
-		curTargetCR.Spec.Secret != newTargetCR.Spec.Secret { // TODO TLS Secret
+		curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
 		return true
 	}
 

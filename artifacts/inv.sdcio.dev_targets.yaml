@@ -63,30 +63,29 @@ spec:
                 description: Address defines the address to connect to the target
                 type: string
               connectionProfile:
-                description: ConnectionProfile defines the profile used to connect
-                  to the target
+                description: ConnectionProfile define the profile used to connect
+                  to the target once discovered
+                type: string
+              credentials:
+                description: Credentials defines the name of the secret that holds
+                  the credentials to connect to the target
                 type: string
               provider:
                 description: Provider specifies the provider using this target.
                 type: string
-              secret:
-                description: Secret defines the name of the secret to connect to the
-                  target
-                type: string
               syncProfile:
-                description: SyncProfile defines the profile used to sync the config
-                  from the target
+                description: SyncProfile define the profile used to sync to the target
+                  config once discovered
                 type: string
               tlsSecret:
                 description: TLSSecret defines the name of the TLS secret to connect
-                  to the target
+                  to the target if mtls is used
                 type: string
             required:
             - address
             - connectionProfile
+            - credentials
             - provider
-            - secret
-            - syncProfile
             type: object
           status:
             description: TargetStatus defines the observed state of Target

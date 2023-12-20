@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"reflect"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,6 +47,10 @@ const (
 
 // TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile
 type TargetConnectionProfileSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectRetry is immutable"
+	ConnectRetry time.Duration `json:"connectRetry" yaml:"connectRetry"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="timeout is immutable"
+	Timeout time.Duration `json:"timeout" yaml:"timeout"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
@@ -58,6 +63,10 @@ type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding" yaml:"encoding"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
+	// +kubebuilder:validation:Enum="1.0";"1.1";
+	// +kubebuilder:default:="1.0"
+	PreferredNetconfVersion string `json:"preferredNetconfVersion" yaml:"preferredNetconfVersion"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="insecure is immutable"
 	// +kubebuilder:default:=false
 	Insecure bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`

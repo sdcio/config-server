@@ -73,7 +73,7 @@ func (r *targetSyncProfileEventHandler) add(obj runtime.Object, queue adder) {
 		return
 	}
 	for _, target := range targets.Items {
-		if target.Spec.SyncProfile == cr.GetName() {
+		if *target.Spec.SyncProfile == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}

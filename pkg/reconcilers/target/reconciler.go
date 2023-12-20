@@ -442,7 +442,7 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *invv1alpha1.TargetStatusUsedReferences, error) {
 	usedReferences := &invv1alpha1.TargetStatusUsedReferences{}
 
-	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.SyncProfile})
+	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *cr.Spec.SyncProfile})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -452,7 +452,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		return nil, nil, err
 	}
 	usedReferences.ConnectionProfileResourceVersion = connProfile.ResourceVersion
-	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.Secret})
+	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.Credentials})
 	if err != nil {
 		return nil, nil, err
 	}

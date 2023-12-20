@@ -52,6 +52,9 @@ type TargetSyncProfileSpec struct {
 // TargetSyncProfileSync defines the desired state of TargetSyncProfileSync
 type TargetSyncProfileSync struct {
 	Name string `json:"name" yaml:"name"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
+	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
+	// +kubebuilder:default:="gnmi"
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
 	// +kubebuilder:validation:MaxItems=10
 	Paths []string `json:"paths" yaml:"paths"`

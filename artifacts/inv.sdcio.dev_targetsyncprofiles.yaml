@@ -78,7 +78,16 @@ spec:
                       maxItems: 10
                       type: array
                     protocol:
+                      default: gnmi
+                      enum:
+                      - unknown
+                      - gnmi
+                      - netconf
+                      - noop
                       type: string
+                      x-kubernetes-validations:
+                      - message: protocol is immutable
+                        rule: self == oldSelf
                   required:
                   - encoding
                   - interval

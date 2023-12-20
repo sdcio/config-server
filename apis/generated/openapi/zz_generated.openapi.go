@@ -40,7 +40,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConnectivityProfile":                schema_config_server_apis_inv_v1alpha1_ConnectivityProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryParameters":                schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile":                   schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
@@ -57,10 +56,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile":                  schema_config_server_apis_inv_v1alpha1_TargetConnProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetList":                         schema_config_server_apis_inv_v1alpha1_TargetList(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile":                      schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSpec":                         schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatus":                       schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":         schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
@@ -561,58 +562,6 @@ func schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref common.Referen
 	}
 }
 
-func schema_config_server_apis_inv_v1alpha1_ConnectivityProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"secret": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Secret defines the name of the secret to connect to the target",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tlsSecret": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TLSSecret defines the name of the TLS secret to connect to the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"connectionProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"syncProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SyncProfile define the profile used to sync to the target config once discovered",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"defaultSchema": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DefaultSchema define the default schema used to connect to a target Used typically without discovery",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
-						},
-					},
-				},
-				Required: []string{"secret", "connectionProfile", "syncProfile"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"},
-	}
-}
-
 func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -707,6 +656,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 					"discover": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Discovery rule defines the profiles and templates generic to any discovery rule class/type Discover defines if discovery is enabled or not",
+							Default:     false,
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -717,11 +667,18 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
 						},
 					},
-					"connectivityProfile": {
+					"targetConnectionProfiles": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConnectivityProfile define the profile the discovery controller uses to connect to targets once discovered",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.ConnectivityProfile"),
+							Description: "TargetConnectionProfiles define the profile the discovery controller uses to create targets once discovered",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile"),
+									},
+								},
+							},
 						},
 					},
 					"targetTemplate": {
@@ -745,11 +702,11 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"connectivityProfile", "period"},
+				Required: []string{"discover", "targetConnectionProfiles", "period"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConnectivityProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -759,16 +716,17 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref common.Referenc
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"secret": {
+					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"tlsSecret": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TLSSecret defines the name of the TLS secret to connect to the target",
+							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -789,7 +747,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"secret", "connectionProfiles"},
+				Required: []string{"credentials", "connectionProfiles"},
 			},
 		},
 	}
@@ -971,6 +929,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 					"discover": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Discovery rule defines the profiles and templates generic to any discovery rule class/type Discover defines if discovery is enabled or not",
+							Default:     false,
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -981,11 +940,18 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
 						},
 					},
-					"connectivityProfile": {
+					"targetConnectionProfiles": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConnectivityProfile define the profile the discovery controller uses to connect to targets once discovered",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.ConnectivityProfile"),
+							Description: "TargetConnectionProfiles define the profile the discovery controller uses to create targets once discovered",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile"),
+									},
+								},
+							},
 						},
 					},
 					"targetTemplate": {
@@ -1009,11 +975,11 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 						},
 					},
 				},
-				Required: []string{"kind", "connectivityProfile", "period"},
+				Required: []string{"kind", "discover", "targetConnectionProfiles", "period"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConnectivityProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1419,6 +1385,57 @@ func schema_config_server_apis_inv_v1alpha1_Target(ref common.ReferenceCallback)
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_TargetConnProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"connectionProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncProfile define the profile used to sync to the target config once discovered",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"defaultSchema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DefaultSchema define the default schema used to connect to a target Used when discovery is disabled or when discovery is unsuccessful.",
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
+						},
+					},
+				},
+				Required: []string{"credentials", "connectionProfile"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1516,6 +1533,20 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 				Description: "TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"connectRetry": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
 					"protocol": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
@@ -1532,6 +1563,13 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 						},
 					},
 					"encoding": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"preferredNetconfVersion": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -1556,8 +1594,20 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 							Format: "",
 						},
 					},
+					"operationWithNS": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"useOperationRemove": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
-				Required: []string{"protocol", "port", "encoding"},
+				Required: []string{"connectRetry", "timeout", "protocol", "port", "encoding", "preferredNetconfVersion"},
 			},
 		},
 	}
@@ -1612,6 +1662,49 @@ func schema_config_server_apis_inv_v1alpha1_TargetList(ref common.ReferenceCallb
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_TargetProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"connectionProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncProfile define the profile used to sync to the target config once discovered",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"credentials", "connectionProfile"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_TargetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1635,9 +1728,9 @@ func schema_config_server_apis_inv_v1alpha1_TargetSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"secret": {
+					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Secret defines the name of the secret to connect to the target",
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1645,14 +1738,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetSpec(ref common.ReferenceCallb
 					},
 					"tlsSecret": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TLSSecret defines the name of the TLS secret to connect to the target",
+							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"connectionProfile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConnectionProfile defines the profile used to connect to the target",
+							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1660,14 +1753,13 @@ func schema_config_server_apis_inv_v1alpha1_TargetSpec(ref common.ReferenceCallb
 					},
 					"syncProfile": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SyncProfile defines the profile used to sync the config from the target",
-							Default:     "",
+							Description: "SyncProfile define the profile used to sync to the target config once discovered",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
-				Required: []string{"provider", "address", "secret", "connectionProfile", "syncProfile"},
+				Required: []string{"provider", "address", "credentials", "connectionProfile"},
 			},
 		},
 	}

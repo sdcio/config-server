@@ -26,15 +26,19 @@ import (
 func (r DiscoveryParameters) Validate() error {
 	var errm error
 	if !r.Discover {
+		if len(r.TargetConnectionProfiles) != 1 {
+			errm = errors.Join(errm, fmt.Errorf("a default schema is required when discovery is disabled"))
+			return errm
+		}
 		// no discovery
-		if r.ConnectivityProfile.DefaultSchema == nil {
+		if r.TargetConnectionProfiles[0].DefaultSchema == nil {
 			errm = errors.Join(errm, fmt.Errorf("a default schema is required when discovery is disabled"))
 		} else {
-			if r.ConnectivityProfile.DefaultSchema.Provider == "" ||
-				r.ConnectivityProfile.DefaultSchema.Version == "" {
+			if r.TargetConnectionProfiles[0].DefaultSchema.Provider == "" ||
+				r.TargetConnectionProfiles[0].DefaultSchema.Version == "" {
 				errm = errors.Join(errm, fmt.Errorf("a default schema needs a provider and version, got provider: %s, version: %s",
-					r.ConnectivityProfile.DefaultSchema.Provider,
-					r.ConnectivityProfile.DefaultSchema.Version,
+					r.TargetConnectionProfiles[0].DefaultSchema.Provider,
+					r.TargetConnectionProfiles[0].DefaultSchema.Version,
 				))
 			}
 		}
@@ -42,7 +46,7 @@ func (r DiscoveryParameters) Validate() error {
 		if r.DiscoveryProfile == nil {
 			errm = errors.Join(errm, fmt.Errorf("cannot discover without a discovery profile"))
 		} else {
-			if r.DiscoveryProfile.Secret == "" {
+			if r.DiscoveryProfile.Credentials == "" {
 				errm = errors.Join(errm, fmt.Errorf("cannot discover without a secret in the discovery profile"))
 			}
 			if len(r.DiscoveryProfile.ConnectionProfiles) == 0 {
