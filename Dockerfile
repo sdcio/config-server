@@ -30,9 +30,10 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ca
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 #FROM gcr.io/distroless/static:nonroot
-FROM alpine:latest
+#FROM alpine:latest
+FROM scratch
 WORKDIR /
-COPY --from=builder /workspace/capis .
+COPY --from=builder /workspace/capis /app/
 USER 65532:65532
 
-ENTRYPOINT ["/capis"]
+ENTRYPOINT ["/app/capis"]

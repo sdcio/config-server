@@ -54,7 +54,7 @@ import (
 
 const (
 	dataServerAddress = "localhost:56000"
-	schemaBaseDir     = "schemas"
+	schemaBaseDir     = "/schemas"
 )
 
 func main() {
