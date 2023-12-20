@@ -109,7 +109,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err == nil {
 			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
-			}); err == nil {
+			}); err != nil {
 				log.Error(err, "cannot delete schema from schemaserver")
 				cr.SetConditions(invv1alpha1.Failed(err.Error()))
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
