@@ -15,7 +15,7 @@ import (
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
-	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/iptecharch/config-server/pkg/schema"
@@ -55,7 +55,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, err
 	}
 
-	cfg.DataServerStore.List(ctx, func(ctx context.Context, key store.Key, dsCtx dsctx.Context) {
+	cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key store.Key, dsCtx sdcctx.SSContext) {
 		r.schemaclient = dsCtx.SSClient
 	})
 	if r.schemaclient == nil {
