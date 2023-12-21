@@ -61,6 +61,7 @@ spec:
                       - config
                       type: string
                     interval:
+                      default: 0
                       format: int64
                       type: integer
                     mode:
@@ -85,12 +86,7 @@ spec:
                       - netconf
                       - noop
                       type: string
-                      x-kubernetes-validations:
-                      - message: protocol is immutable
-                        rule: self == oldSelf
                   required:
-                  - encoding
-                  - interval
                   - mode
                   - name
                   - paths
@@ -99,7 +95,7 @@ spec:
                 maxItems: 10
                 type: array
                 x-kubernetes-validations:
-                - message: sync is immutable
+                - message: sync may only be added
                   rule: oldSelf.all(x, x in self)
               validate:
                 default: true
@@ -114,11 +110,6 @@ spec:
                 x-kubernetes-validations:
                 - message: workers is immutable
                   rule: self == oldSelf
-            required:
-            - buffer
-            - sync
-            - validate
-            - workers
             type: object
             x-kubernetes-validations:
             - message: sync is required once set

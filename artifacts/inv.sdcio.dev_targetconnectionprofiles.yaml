@@ -40,6 +40,7 @@ spec:
               TargetConnectionProfile
             properties:
               connectRetry:
+                default: 0
                 description: A Duration represents the elapsed time between two instants
                   as an int64 nanosecond count. The representation limits the largest
                   representable duration to approximately 290 years.
@@ -114,6 +115,7 @@ spec:
                 - message: skipVerify is immutable
                   rule: self == oldSelf
               timeout:
+                default: 10
                 description: A Duration represents the elapsed time between two instants
                   as an int64 nanosecond count. The representation limits the largest
                   representable duration to approximately 290 years.
@@ -129,12 +131,8 @@ spec:
                 - message: UseOperationRemove is immutable
                   rule: self == oldSelf
             required:
-            - connectRetry
-            - encoding
             - port
-            - preferredNetconfVersion
             - protocol
-            - timeout
             type: object
         type: object
     served: true

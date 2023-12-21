@@ -37,22 +37,22 @@ const (
 type TargetSyncProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="validate is immutable"
 	// +kubebuilder:default:=true
-	Validate bool `json:"validate" yaml:"validate"`
+	Validate bool `json:"validate,omitempty" yaml:"validate,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="buffer is immutable"
 	// +kubebuilder:default:=0
-	Buffer int64 `json:"buffer" yaml:"buffer"`
+	Buffer int64 `json:"buffer,omitempty" yaml:"buffer,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="workers is immutable"
 	// +kubebuilder:default:=10
-	Workers int64 `json:"workers" yaml:"workers"`
+	Workers int64 `json:"workers,omitempty" yaml:"workers,omitempty"`
 	// +kubebuilder:validation:MaxItems=10
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync is immutable"
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync may only be added"
 	Sync []TargetSyncProfileSync `json:"sync" yaml:"sync"`
 }
 
 // TargetSyncProfileSync defines the desired state of TargetSyncProfileSync
 type TargetSyncProfileSync struct {
 	Name string `json:"name" yaml:"name"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
@@ -62,8 +62,9 @@ type TargetSyncProfileSync struct {
 	Mode SyncMode `json:"mode" yaml:"mode"`
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
-	Encoding Encoding `json:"encoding" yaml:"encoding"`
-	Interval uint64 `json:"interval" yaml:"interval"`
+	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	// +kubebuilder:default:=0
+	Interval uint64 `json:"interval,omitempty" yaml:"interval,omitempty"`
 }
 
 // +kubebuilder:object:root=true

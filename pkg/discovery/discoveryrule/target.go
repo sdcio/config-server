@@ -14,22 +14,24 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+
+// TODO based on the TargetConnectionProfile we might have to create a new Target
 func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *targets) error {
 	if h.hostName == "" {
 		return fmt.Errorf("cannot create a static target w/o a hostname")
 	}
-	if r.cfg.ConnectivityProfile == nil {
+	if len(r.cfg.TargetConnectionProfiles) == 0 {
 		return fmt.Errorf("cannot create a static target w/o a connectivity profile")
 	}
-	if r.cfg.ConnectivityProfile.DefaultSchema == nil {
+	if r.cfg.TargetConnectionProfiles[0].DefaultSchema == nil {
 		return fmt.Errorf("cannot create a static target w/o a default schema")
 	}
 	ip := h.Addr.String()
-	provider := r.cfg.ConnectivityProfile.DefaultSchema.Provider
-	version := r.cfg.ConnectivityProfile.DefaultSchema.Version
+	provider := r.cfg.TargetConnectionProfiles[0].DefaultSchema.Provider
+	version := r.cfg.TargetConnectionProfiles[0].DefaultSchema.Version
 	address := fmt.Sprintf("%s:%d",
 		ip,
-		r.cfg.ConnectivityProfile.Connectionprofile.Spec.Port,
+		r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
 	)
 	di := &invv1alpha1.DiscoveryInfo{
 		Protocol: "static",
@@ -52,6 +54,7 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *target
 	}
 	return nil
 }
+
 
 func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetName := di.HostName
@@ -166,21 +169,23 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 		return true
 	}
 
-	log.Info("validateDataStoreChanges",
-		"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
-		"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
-		"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
-		"SyncProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.SyncProfile, newTargetCR.Spec.SyncProfile),
-		"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
-		//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
-	)
+	if curTargetCR.Spec.SyncProfile != nil && newTargetCR.Spec.SyncProfile != nil {
+		log.Info("validateDataStoreChanges",
+			"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
+			"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
+			"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
+			"SyncProfile", fmt.Sprintf("%s/%s", *curTargetCR.Spec.SyncProfile, *newTargetCR.Spec.SyncProfile),
+			"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
+			//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
+		)
 
-	if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
-		curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
-		curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
-		curTargetCR.Spec.SyncProfile != newTargetCR.Spec.SyncProfile ||
-		curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
-		return true
+		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
+			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
+			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
+			curTargetCR.Spec.SyncProfile != newTargetCR.Spec.SyncProfile ||
+			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
+			return true
+		}
 	}
 
 	if curTargetCR.Status.DiscoveryInfo == nil {
