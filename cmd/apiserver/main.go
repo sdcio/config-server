@@ -33,8 +33,8 @@ import (
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	_ "github.com/iptecharch/config-server/pkg/reconcilers/all"
-	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	ssclient "github.com/iptecharch/config-server/pkg/sdc/schemaserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
@@ -53,8 +53,8 @@ import (
 )
 
 const (
-	dataServerAddress = "localhost:56000"
-	schemaBaseDir     = "/schemas"
+	localDataServerAddress = "localhost:56000"
+	schemaBaseDir          = "/schemas"
 )
 
 func main() {
@@ -78,15 +78,18 @@ func main() {
 	//configStore := memstore.NewStore[runtime.Object]()
 
 	targetStore := memstore.NewStore[target.Context]()
-	// TODO dataServer -> this should be decoupled in a scaled out environment
+	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
 	time.Sleep(5 * time.Second)
-	dataServerStore := memstore.NewStore[dsctx.Context]()
-	dsCtx, err := createDataServer(ctx, dataServerStore)
-	if err != nil {
+	dataServerStore := memstore.NewStore[sdcctx.DSContext]()
+	if err := createDataServer(ctx, dataServerStore); err != nil {
 		log.Error("cannot create data server", "error", err.Error())
 		os.Exit(1)
 	}
-	dataServerStore.Create(ctx, store.GetNameKey(dataServerAddress), *dsCtx)
+	schemaServerStore := memstore.NewStore[sdcctx.SSContext]()
+	if err := createSchemaServer(ctx, schemaServerStore); err != nil {
+		log.Error("cannot create schema server", "error", err.Error())
+		os.Exit(1)
+	}
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
@@ -108,6 +111,7 @@ func main() {
 		//ConfigStore:     configStore,
 		TargetStore:     targetStore,
 		DataServerStore: dataServerStore,
+		SchemaServerStore: schemaServerStore,
 		SchemaDir:       schemaBaseDir,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
@@ -155,8 +159,13 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 	return false
 }
 
-func createDataServer(ctx context.Context, dataServerStore store.Storer[dsctx.Context]) (*dsctx.Context, error) {
+func createDataServer(ctx context.Context, dataServerStore store.Storer[sdcctx.DSContext]) error {
 	log := log.FromContext(ctx)
+
+	dataServerAddress := localDataServerAddress
+	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
+		dataServerAddress = address
+	}
 
 	// TODO the population of the dataservers in the store should become dynamic, through a controller
 	// right now it is static since all of this happens in the same pod and we dont have scaled out dataservers
@@ -166,34 +175,59 @@ func createDataServer(ctx context.Context, dataServerStore store.Storer[dsctx.Co
 	dsClient, err := dsclient.New(dsConfig)
 	if err != nil {
 		log.Error("cannot create dsclient to dataserver", "err", err)
-		return nil, err
+		return err
 	}
 	if err := dsClient.Start(ctx); err != nil {
 		log.Error("cannot start dsclient to dataserver", "err", err)
-		return nil, err
+		return err
 	}
-	ssConfig := &ssclient.Config{
-		Address: dataServerAddress,
-	}
-	ssClient, err := ssclient.New(ssConfig)
-	if err != nil {
-		log.Error("cannot create schemaclient to dataserver", "err", err)
-		return nil, err
-	}
-	if err := ssClient.Start(ctx); err != nil {
-		log.Error("cannot start schemaclient to dataserver", "err", err)
-		return nil, err
-	}
-	dsCtx := dsctx.Context{
+	dsCtx := sdcctx.DSContext{
 		Config:   dsConfig,
 		Targets:  sets.New[string](),
 		DSClient: dsClient,
-		SSClient: ssClient,
 	}
 	if err := dataServerStore.Create(ctx, store.GetNameKey(dataServerAddress), dsCtx); err != nil {
 		log.Error("cannot store dataserver", "err", err)
-		return nil, err
+		return err
 	}
 	log.Info("created dataserver")
-	return &dsCtx, nil
+	return nil
+}
+
+func createSchemaServer(ctx context.Context, schemaServerStore store.Storer[sdcctx.SSContext]) error {
+	log := log.FromContext(ctx)
+
+	// For the schema server we first check if the SDC_SCHEMA_SERVER was et if not we could also use
+	// the SDC_DATA_SERVER as fallback. If none are set it is the default address (localhost)
+	schemaServerAddress := localDataServerAddress
+	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
+		schemaServerAddress = address
+	} else {
+		if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
+			schemaServerAddress = address
+		}
+	}
+
+	ssConfig := &ssclient.Config{
+		Address: schemaServerAddress,
+	}
+	ssClient, err := ssclient.New(ssConfig)
+	if err != nil {
+		log.Error("cannot create schemaclient to schemaserver", "err", err)
+		return err
+	}
+	if err := ssClient.Start(ctx); err != nil {
+		log.Error("cannot start schemaclient to schemaserver", "err", err)
+		return err
+	}
+	dsCtx := sdcctx.SSContext{
+		Config:   ssConfig,
+		SSClient: ssClient,
+	}
+	if err := schemaServerStore.Create(ctx, store.GetNameKey(schemaServerAddress), dsCtx); err != nil {
+		log.Error("cannot store schema context in schemaserver", "err", err)
+		return err
+	}
+	log.Info("created schemaserver")
+	return nil
 }

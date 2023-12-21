@@ -21,7 +21,7 @@ import (
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
-	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
@@ -79,7 +79,7 @@ type reconciler struct {
 
 	//configStore     store.Storer[runtime.Object]
 	targetStore     store.Storer[target.Context]
-	dataServerStore store.Storer[dsctx.Context]
+	dataServerStore store.Storer[sdcctx.DSContext]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -235,12 +235,12 @@ func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey store.Key,
 
 // selectDataServerContext selects a dataserver for a particalur target based on
 // least amount of targets assigned to a dataserver
-func (r *reconciler) selectDataServerContext(ctx context.Context) (*dsctx.Context, error) {
+func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSContext, error) {
 	log := log.FromContext(ctx)
 	var err error
-	selectedDSctx := &dsctx.Context{}
+	selectedDSctx := &sdcctx.DSContext{}
 	minTargets := 9999
-	r.dataServerStore.List(ctx, func(ctx context.Context, k store.Key, dsctx dsctx.Context) {
+	r.dataServerStore.List(ctx, func(ctx context.Context, k store.Key, dsctx sdcctx.DSContext) {
 		if dsctx.Targets.Len() == 0 || dsctx.Targets.Len() < minTargets {
 			selectedDSctx = &dsctx
 			minTargets = dsctx.Targets.Len()

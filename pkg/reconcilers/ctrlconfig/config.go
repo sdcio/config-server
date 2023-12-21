@@ -17,14 +17,15 @@ limitations under the License.
 package ctrlconfig
 
 import (
-	"github.com/iptecharch/config-server/pkg/reconcilers/context/dsctx"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
 )
 
 type ControllerConfig struct {
 	//ConfigStore     store.Storer[runtime.Object]
-	TargetStore     store.Storer[target.Context]
-	DataServerStore store.Storer[dsctx.Context]
-	SchemaDir       string
+	TargetStore       store.Storer[target.Context]
+	DataServerStore   store.Storer[sdcctx.DSContext]
+	SchemaServerStore store.Storer[sdcctx.SSContext]
+	SchemaDir         string
 }
