@@ -34,6 +34,5 @@ FROM alpine:latest
 #FROM scratch
 WORKDIR /
 COPY --from=builder /workspace/capis /app/
-USER 65532:65532
 
 ENTRYPOINT ["/app/capis"]
