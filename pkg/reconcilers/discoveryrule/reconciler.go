@@ -215,36 +215,12 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 				len(newDRConfig.DiscoveryProfile.Connectionprofiles),
 				len(currentDRConfig.DiscoveryProfile.Connectionprofiles),
 			),
-			"ConnectivityProfile Secret RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.SecretResourceVersion,
-				currentDRConfig.ConnectivityProfile.SecretResourceVersion,
-			),
-			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-				currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-			),
-			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
-				currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
-			),
 		)
 	} else {
 		log.Info("HasChanged",
 			"CR RV", fmt.Sprintf("%s/%s",
 				newDRConfig.CR.GetResourceVersion(),
 				currentDRConfig.CR.GetResourceVersion(),
-			),
-			"ConnectivityProfile Secret RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.SecretResourceVersion,
-				currentDRConfig.ConnectivityProfile.SecretResourceVersion,
-			),
-			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-				currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion,
-			),
-			"ConnectivityProfile Syncprofile RV", fmt.Sprintf("%s/%s",
-				newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
-				currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion,
 			),
 		)
 	}
@@ -268,15 +244,20 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		}
 	}
 
-	// Validate Connection profile
-	if newDRConfig.ConnectivityProfile.SecretResourceVersion != currentDRConfig.ConnectivityProfile.SecretResourceVersion {
+	if len(newDRConfig.TargetConnectionProfiles) != len(currentDRConfig.TargetConnectionProfiles) {
 		return true
 	}
-	if newDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion != currentDRConfig.ConnectivityProfile.Connectionprofile.ResourceVersion {
-		return true
-	}
-	if newDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion != currentDRConfig.ConnectivityProfile.Syncprofile.ResourceVersion {
-		return true
+	for i := range newDRConfig.TargetConnectionProfiles {
+		// Validate Target Connetcion profiles profile
+		if newDRConfig.TargetConnectionProfiles[i].SecretResourceVersion != currentDRConfig.TargetConnectionProfiles[i].SecretResourceVersion {
+			return true
+		}
+		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion {
+			return true
+		}
+		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion {
+			return true
+		}
 	}
 
 	return false

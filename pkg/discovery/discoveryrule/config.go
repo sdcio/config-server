@@ -17,7 +17,7 @@ type DiscoveryRuleConfig struct {
 	// DiscoveryProfile contains the profile data from the k8s api-server
 	DiscoveryProfile *DiscoveryProfile
 	// ConnectivityProfile contains the profile data from the k8s api-server
-	ConnectivityProfile *ConnectivityProfile
+	TargetConnectionProfiles []TargetConnectionProfile
 	// TargetTemplate defines the template to expand the target
 	TargetTemplate *invv1alpha1.TargetTemplate
 }
@@ -30,7 +30,7 @@ type DiscoveryProfile struct {
 	Connectionprofiles       []*invv1alpha1.TargetConnectionProfile
 }
 
-type ConnectivityProfile struct {
+type TargetConnectionProfile struct {
 	Secret                   string
 	SecretResourceVersion    string // used to validate a profile change + provide the version to the target if provisioned
 	TLSSecret                string

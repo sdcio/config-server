@@ -50,9 +50,9 @@ type DiscoveryParameters struct {
 	Discover bool `json:"discover" yaml:"discover"`
 	// DiscoveryProfile define the profiles the discovery controller uses to discover targets
 	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty"`
-	// ConnectivityProfile define the profile the discovery controller uses to connect to targets
+	// TargetConnectionProfiles define the profile the discovery controller uses to create targets
 	// once discovered
-	ConnectivityProfile ConnectivityProfile `json:"connectivityProfile" yaml:"connectivityProfile"`
+	TargetConnectionProfiles []TargetConnProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles"`
 	// TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
 	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
 	// +kubebuilder:default:="1m"
@@ -73,25 +73,31 @@ type DiscoveryRulePrefix struct {
 }
 
 type DiscoveryProfile struct {
-	Secret string `json:"secret" yaml:"secret"`
-	// TLSSecret defines the name of the TLS secret to connect to the target
+	// Credentials defines the name of the secret that holds the credentials to connect to the target
+	Credentials string `json:"credentials" yaml:"credentials"`
+	// TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
 	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty"`
 	// ConnectionProfiles define the list of profiles the discovery controller uses to discover the target.
 	// The order in which they are specified is the order in which discovery is executed.
 	ConnectionProfiles []string `json:"connectionProfiles" yaml:"connectionProfiles"`
 }
 
-type ConnectivityProfile struct {
-	// Secret defines the name of the secret to connect to the target
-	Secret string `json:"secret" yaml:"secret"`
-	// TLSSecret defines the name of the TLS secret to connect to the target
+
+type TargetProfile struct {
+	// Credentials defines the name of the secret that holds the credentials to connect to the target
+	Credentials string `json:"credentials" yaml:"credentials"`
+	// TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
 	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty"`
 	// ConnectionProfile define the profile used to connect to the target once discovered
 	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
 	// SyncProfile define the profile used to sync to the target config once discovered
-	SyncProfile string `json:"syncProfile" yaml:"syncProfile"`
+	SyncProfile *string `json:"syncProfile,omitempty" yaml:"syncProfile,omitempty"`
+} 
+
+type TargetConnProfile struct {
+	TargetProfile `json:",inline" yaml:",inline"`
 	// DefaultSchema define the default schema used to connect to a target
-	// Used typically without discovery
+	// Used when discovery is disabled or when discovery is unsuccessful.
 	DefaultSchema *SchemaKey `json:"defaultSchema,omitempty" yaml:"defaultSchema,omitempty"`
 }
 

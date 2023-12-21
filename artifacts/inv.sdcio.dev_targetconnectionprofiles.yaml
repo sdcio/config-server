@@ -39,6 +39,16 @@ spec:
             description: TargetConnectionProfileSpec defines the desired state of
               TargetConnectionProfile
             properties:
+              connectRetry:
+                default: 0
+                description: A Duration represents the elapsed time between two instants
+                  as an int64 nanosecond count. The representation limits the largest
+                  representable duration to approximately 290 years.
+                format: int64
+                type: integer
+                x-kubernetes-validations:
+                - message: connectRetry is immutable
+                  rule: self == oldSelf
               encoding:
                 default: ASCII
                 enum:
@@ -78,6 +88,15 @@ spec:
                 x-kubernetes-validations:
                 - message: port is immutable
                   rule: self == oldSelf
+              preferredNetconfVersion:
+                default: "1.0"
+                enum:
+                - "1.0"
+                - "1.1"
+                type: string
+                x-kubernetes-validations:
+                - message: preferredNetconfVersion is immutable
+                  rule: self == oldSelf
               protocol:
                 default: gnmi
                 enum:
@@ -95,6 +114,16 @@ spec:
                 x-kubernetes-validations:
                 - message: skipVerify is immutable
                   rule: self == oldSelf
+              timeout:
+                default: 10
+                description: A Duration represents the elapsed time between two instants
+                  as an int64 nanosecond count. The representation limits the largest
+                  representable duration to approximately 290 years.
+                format: int64
+                type: integer
+                x-kubernetes-validations:
+                - message: timeout is immutable
+                  rule: self == oldSelf
               useOperationRemove:
                 default: false
                 type: boolean
@@ -102,7 +131,6 @@ spec:
                 - message: UseOperationRemove is immutable
                   rule: self == oldSelf
             required:
-            - encoding
             - port
             - protocol
             type: object

@@ -75,7 +75,7 @@ func (r *TargetSyncProfileEventHandler) add(obj runtime.Object, queue adder) {
 	}
 	for _, dr := range drs.GetItems() {
 		// check if the sync profile is referenced in the ConnectivityProfile
-		if dr.GetDiscoveryParameters().ConnectivityProfile.SyncProfile == cr.GetName() {
+		if *dr.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}

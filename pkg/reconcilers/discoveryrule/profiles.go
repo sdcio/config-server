@@ -23,7 +23,7 @@ func (r *reconciler) getDRConfig(ctx context.Context, cr *invv1alpha1.DiscoveryR
 		}
 	}
 
-	connProfile, err := r.getConnectivityProfile(ctx, cr)
+	targetConnProfiles, err := r.getTargetConnectionProfile(ctx, cr)
 	if err != nil {
 		errm = errors.Join(errm, err)
 	}
@@ -32,12 +32,12 @@ func (r *reconciler) getDRConfig(ctx context.Context, cr *invv1alpha1.DiscoveryR
 	}
 
 	return &discoveryrule.DiscoveryRuleConfig{
-		CR:                  cr,
-		Discovery:           cr.GetDiscoveryParameters().Discover,
-		Prefixes:            cr.Spec.Prefixes,
-		DiscoveryProfile:    discProfile,
-		ConnectivityProfile: connProfile,
-		TargetTemplate:      cr.Spec.TargetTemplate.DeepCopy(),
+		CR:                       cr,
+		Discovery:                cr.GetDiscoveryParameters().Discover,
+		Prefixes:                 cr.Spec.Prefixes,
+		DiscoveryProfile:         discProfile,
+		TargetConnectionProfiles: targetConnProfiles,
+		TargetTemplate:           cr.Spec.TargetTemplate.DeepCopy(),
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func (r *reconciler) getDiscoveryProfile(ctx context.Context, cr *invv1alpha1.Di
 	}
 
 	var errm error
-	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.DiscoveryProfile.Secret})
+	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.DiscoveryProfile.Credentials})
 	if err != nil {
 		errm = errors.Join(errm, err)
 	}
@@ -64,40 +64,52 @@ func (r *reconciler) getDiscoveryProfile(ctx context.Context, cr *invv1alpha1.Di
 		return nil, errm
 	}
 	return &discoveryrule.DiscoveryProfile{
-		Secret:                cr.Spec.DiscoveryProfile.Secret,
+		Secret:                cr.Spec.DiscoveryProfile.Credentials,
 		SecretResourceVersion: secret.GetResourceVersion(),
 		// TODO TLS secret
 		Connectionprofiles: connProfiles,
 	}, nil
 }
 
-func (r *reconciler) getConnectivityProfile(ctx context.Context, cr *invv1alpha1.DiscoveryRule) (*discoveryrule.ConnectivityProfile, error) {
+func (r *reconciler) getTargetConnectionProfile(ctx context.Context, cr *invv1alpha1.DiscoveryRule) ([]discoveryrule.TargetConnectionProfile, error) {
 	var errm error
-	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.ConnectivityProfile.Secret})
-	if err != nil {
-		errm = errors.Join(errm, err)
-	}
+	targetConnProfiles := make([]discoveryrule.TargetConnectionProfile, len(cr.Spec.TargetConnectionProfiles))
+	for i, targetConnProfile := range cr.Spec.TargetConnectionProfiles {
+		secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: targetConnProfile.Credentials})
+		if err != nil {
+			errm = errors.Join(errm, err)
+		}
 
-	connProfile, err := r.getConnProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.ConnectivityProfile.ConnectionProfile})
-	if err != nil {
-		errm = errors.Join(errm, err)
-	}
-	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.ConnectivityProfile.SyncProfile})
-	if err != nil {
-		errm = errors.Join(errm, err)
+		connProfile, err := r.getConnProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: targetConnProfile.ConnectionProfile})
+		if err != nil {
+			errm = errors.Join(errm, err)
+		}
+		connProfile = connProfile.DeepCopy()
+		var syncProfile *invv1alpha1.TargetSyncProfile
+		if targetConnProfile.SyncProfile != nil {
+			syncProfile, err = r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *targetConnProfile.SyncProfile})
+			if err != nil {
+				errm = errors.Join(errm, err)
+			}
+			syncProfile = syncProfile.DeepCopy()
+		}
+
+		if errm != nil {
+			continue
+		}
+		targetConnProfiles[i] = discoveryrule.TargetConnectionProfile{
+			Secret:                targetConnProfile.Credentials,
+			SecretResourceVersion: secret.GetResourceVersion(),
+			// TODO TLS secret
+			Connectionprofile: connProfile,
+			Syncprofile:       syncProfile,
+			DefaultSchema:     targetConnProfile.DefaultSchema.DeepCopy(),
+		}
 	}
 	if errm != nil {
 		return nil, errm
 	}
-
-	return &discoveryrule.ConnectivityProfile{
-		Secret:                cr.Spec.ConnectivityProfile.Secret,
-		SecretResourceVersion: secret.GetResourceVersion(),
-		// TODO TLS secret
-		Connectionprofile: connProfile.DeepCopy(),
-		Syncprofile:       syncProfile.DeepCopy(),
-		DefaultSchema:     cr.Spec.ConnectivityProfile.DefaultSchema.DeepCopy(),
-	}, nil
+	return targetConnProfiles, nil
 }
 
 func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*corev1.Secret, error) {

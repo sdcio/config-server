@@ -145,6 +145,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
+	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
 		if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
 			log.Error(err, "cannot add finalizer")
@@ -442,7 +443,7 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *invv1alpha1.TargetStatusUsedReferences, error) {
 	usedReferences := &invv1alpha1.TargetStatusUsedReferences{}
 
-	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.SyncProfile})
+	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *cr.Spec.SyncProfile})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -452,7 +453,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		return nil, nil, err
 	}
 	usedReferences.ConnectionProfileResourceVersion = connProfile.ResourceVersion
-	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.Secret})
+	secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.Spec.Credentials})
 	if err != nil {
 		return nil, nil, err
 	}

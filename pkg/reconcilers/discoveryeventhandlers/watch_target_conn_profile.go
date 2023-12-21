@@ -89,7 +89,7 @@ func (r *TargetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
 		}
 
 		// check if the connection profile is referenced in the ConnectivityProfile
-		if dr.GetDiscoveryParameters().ConnectivityProfile.ConnectionProfile == cr.GetName() {
+		if *dr.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile== cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}

@@ -29,22 +29,16 @@ type TargetSpec struct {
 	Provider string `json:"provider" yaml:"provider"`
 	// Address defines the address to connect to the target
 	Address string `json:"address" yaml:"address"`
-	// Secret defines the name of the secret to connect to the target
-	Secret string `json:"secret" yaml:"secret"`
-	// TLSSecret defines the name of the TLS secret to connect to the target
-	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecre,omitempty"`
-	// ConnectionProfile defines the profile used to connect to the target
-	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
-	// SyncProfile defines the profile used to sync the config from the target
-	SyncProfile string `json:"syncProfile" yaml:"syncProfile"`
+	// TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
+	TargetProfile `json:",inline" yaml:",inline"`
 }
 
 // TargetStatus defines the observed state of Target
 type TargetStatus struct {
 	// ConditionedStatus provides the status of the Target using conditions
 	// 2 conditions are used:
-	// - a condition for the reconcilation status
 	// - a condition for the ready status
+	// - a condition for the datastore status
 	// if both are true the other attributes in the status are meaningful
 	ConditionedStatus `json:",inline" yaml:",inline"`
 	// Discovery info defines the information retrieved during discovery
