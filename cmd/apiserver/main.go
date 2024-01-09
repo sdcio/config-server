@@ -161,6 +161,8 @@ func main() {
 	}
 }
 
+// IsReconcilerEnabled checks if an environment variable `ENABLE_<reconcilerName>` exists
+// return "true" if the var is set and is not equal to "false".
 func IsReconcilerEnabled(reconcilerName string) bool {
 	if val, found := os.LookupEnv(fmt.Sprintf("ENABLE_%s", strings.ToUpper(reconcilerName))); found {
 		if strings.ToLower(val) != "false" {
