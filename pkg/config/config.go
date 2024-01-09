@@ -247,10 +247,10 @@ func (r *cfg) List(
 			for _, req := range options.FieldSelector.Requirements() {
 				filtered = true
 				log.Info("list", "fieldselector", "not nil",
-					 "Operator", req.Operator,
-					 "Field", req.Field,
-					 "Value", req.Value,
-					)
+					"Operator", req.Operator,
+					"Field", req.Field,
+					"Value", req.Value,
+				)
 				switch req.Operator {
 				case selection.Equals:
 					if req.Field == "metadata.name" {
@@ -516,6 +516,19 @@ func (r *cfg) Delete(
 		return nil, false, apierrors.NewInternalError(err)
 	}
 	if err := tctx.DeleteIntent(ctx, targetKey, newConfig); err != nil {
+		if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
+			log.Info("delete intent from target failed, ignoring error and delete from cache", "error", err)
+			if err := r.store.Delete(ctx, key); err != nil {
+				return nil, false, apierrors.NewInternalError(err)
+			}
+			log.Info("delete intent from store succeeded")
+
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Deleted,
+				Object: newConfig,
+			})
+			return newConfig, true, nil
+		}
 		return nil, false, apierrors.NewInternalError(err)
 	}
 	log.Info("delete intent from target succeeded")
