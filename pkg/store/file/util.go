@@ -108,7 +108,7 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 			namespace = pathSplit[len(pathSplit)-2]
 		}
 		fmt.Println("namespace", namespace)
-		key := store.GetNSNKey(types.NamespacedName{
+		key := store.KeyFromNSN(types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,
 		})

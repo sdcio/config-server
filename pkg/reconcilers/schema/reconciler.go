@@ -15,10 +15,10 @@ import (
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
-	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/iptecharch/config-server/pkg/schema"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	ssclient "github.com/iptecharch/config-server/pkg/sdc/schemaserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"

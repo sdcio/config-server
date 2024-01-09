@@ -19,11 +19,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 )
+
 type Key struct {
 	//schema.GroupVersionKind
 	types.NamespacedName
 }
 
+// String returns the
 func (r Key) String() string {
 	if r.Namespace == "" {
 		return r.Name
@@ -31,13 +33,17 @@ func (r Key) String() string {
 	return fmt.Sprintf("%s.%s", r.Namespace, r.Name)
 }
 
-func GetNSNKey(nsn types.NamespacedName) Key {
+// KeyFromNSN takes a types.NamespacedName and returns it
+// wrapped in the Key struct.
+func KeyFromNSN(nsn types.NamespacedName) Key {
 	return Key{
 		NamespacedName: nsn,
 	}
 }
 
-func GetNameKey(name string) Key {
+// ToKey takes a resource name and returns a types.NamespacedName initialized with the name.
+// The namespace attribute however is uninitialized.
+func ToKey(name string) Key {
 	return Key{
 		NamespacedName: types.NamespacedName{Name: name},
 	}

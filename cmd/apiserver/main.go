@@ -199,7 +199,7 @@ func createDataServerClient(ctx context.Context, dataServerStore store.Storer[sd
 		Targets:  sets.New[string](),
 		DSClient: dsClient,
 	}
-	if err := dataServerStore.Create(ctx, store.GetNameKey(dataServerAddress), dsCtx); err != nil {
+	if err := dataServerStore.Create(ctx, store.ToKey(dataServerAddress), dsCtx); err != nil {
 		log.Error("cannot store datastore context in dataserver", "err", err)
 		return err
 	}
@@ -237,7 +237,7 @@ func createSchemaServerClient(ctx context.Context, schemaServerStore store.Store
 		Config:   ssConfig,
 		SSClient: ssClient,
 	}
-	if err := schemaServerStore.Create(ctx, store.GetNameKey(schemaServerAddress), ssCtx); err != nil {
+	if err := schemaServerStore.Create(ctx, store.ToKey(schemaServerAddress), ssCtx); err != nil {
 		log.Error("cannot store schema context in schemaserver", "err", err)
 		return err
 	}

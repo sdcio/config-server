@@ -85,7 +85,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx).WithValues("req", req)
 	log.Info("reconcile")
 
-	key := store.GetNSNKey(req.NamespacedName)
+	key := store.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.DiscoveryRule{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
