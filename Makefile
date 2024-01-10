@@ -17,11 +17,11 @@ all: codegen fmt vet lint test tidy
 
 docker:
 	GOOS=linux GOARCH=arm64 go build -o install/bin/apiserver
-	docker build install --tag apiserver-caas:v0.0.0
+	docker build install --tag apiserver-caas:v0.0.0 --ssh default=$(SSH_AUTH_SOCK)
 
 .PHONY:
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build . -t ${IMG} --ssh default=$(SSH_AUTH_SOCK)
 
 .PHONY: docker-push
 docker-push:  docker-build ## Push docker image with the manager.
