@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package configserver
 
 import (
 	"context"
@@ -22,18 +22,21 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apiserver/pkg/registry/rest"
 )
 
 // implements the watchermanager Watcher interface
 // implenents the k8s watch.Interface interface
 type watcher struct {
 	// interfce to the observer
-	cancel     func()
-	resultChan chan watch.Event
+	cancel         func()
+	resultChan     chan watch.Event
+	watcherManager watchermanager.WatcherManager
 
 	// protection against concurrent access
 	m             sync.Mutex
@@ -65,14 +68,14 @@ func (r *watcher) OnChange(eventType watch.EventType, obj runtime.Object) bool {
 	return r.eventCallback(eventType, obj)
 }
 
-func (r *watcher) listAndWatch(ctx context.Context, c *cfg, options *metainternalversion.ListOptions) {
+func (r *watcher) listAndWatch(ctx context.Context, l rest.Lister, options *metainternalversion.ListOptions) {
 	log := log.FromContext(ctx)
-	if err := r.innerListAndWatch(ctx, c, options); err != nil {
+	if err := r.innerListAndWatch(ctx, l, options); err != nil {
 		// TODO: We need to populate the object on this error
 		// Most likely happens when we cancel a context, stop a watch
 		log.Info("sending error to watch stream", "error", err)
 		ev := watch.Event{
-			Type: watch.Error,
+			Type:   watch.Error,
 			Object: &configv1alpha1.Config{},
 		}
 		r.resultChan <- ev
@@ -84,7 +87,7 @@ func (r *watcher) listAndWatch(ctx context.Context, c *cfg, options *metainterna
 // innerListAndWatch provides the callback handler
 // 1. add a callback handler to receive any event we get while collecting the list of existing resources
 // 2.
-func (r *watcher) innerListAndWatch(ctx context.Context, c *cfg, options *metainternalversion.ListOptions) error {
+func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options *metainternalversion.ListOptions) error {
 	log := log.FromContext(ctx)
 
 	errorResult := make(chan error)
@@ -110,14 +113,14 @@ func (r *watcher) innerListAndWatch(ctx context.Context, c *cfg, options *metain
 	// we add the watcher to the watchermanager and start building a backlog for intermediate changes
 	// the backlog will be replayed
 	log.Info("starting watch")
-	if err := c.watcherManager.Add(ctx, options, r); err != nil {
+	if err := r.watcherManager.Add(ctx, options, r); err != nil {
 		return err
 	}
 
 	// options.Watch means watch only no listing
 	if !options.Watch {
 		log.Info("starting list watch")
-		obj, err := c.List(ctx, options)
+		obj, err := l.List(ctx, options)
 		if err != nil {
 			r.setDone()
 			return err

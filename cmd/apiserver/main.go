@@ -28,8 +28,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
-	"github.com/iptecharch/config-server/apis/generated/openapi"
-	"github.com/iptecharch/config-server/pkg/config"
+	"github.com/iptecharch/config-server/pkg/configserver"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	_ "github.com/iptecharch/config-server/pkg/reconcilers/all"
@@ -61,7 +60,7 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	l := log.NewLogger(&log.HandlerOptions{Name: "caas-logger", AddSource: false})
+	l := log.NewLogger(&log.HandlerOptions{Name: "config-server-logger", AddSource: false})
 	slog.SetDefault(l)
 	ctx := log.IntoContext(context.Background(), l)
 	log := log.FromContext(ctx)
@@ -109,10 +108,10 @@ func main() {
 	}
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		//ConfigStore:     configStore,
-		TargetStore:     targetStore,
-		DataServerStore: dataServerStore,
+		TargetStore:       targetStore,
+		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
-		SchemaDir:       schemaBaseDir,
+		SchemaDir:         schemaBaseDir,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -124,11 +123,18 @@ func main() {
 			}
 		}
 	}
+	configCtx, err := configserver.NewConfig(ctx, mgr.GetClient(), runScheme, targetStore)
+	if err != nil {
+		log.Error("cannot create config store", "err", err.Error())
+		os.Exit(1)
+	}
+
 	go func() {
 		if err := builder.APIServer.
-			WithOpenAPIDefinitions("Config", "v0.0.0", openapi.GetOpenAPIDefinitions).
+			//WithOpenAPIDefinitions("Config", "v0.0.0", openapi.GetOpenAPIDefinitions).
 			//WithResourceAndHandler(&v1alpha1.Config{}, filepath.NewJSONFilepathStorageProvider(&v1alpha1.Config{}, "data")).
-			WithResourceAndHandler(&v1alpha1.Config{}, config.NewProvider(ctx, &v1alpha1.Config{}, targetStore)).
+			WithResourceAndHandler(&v1alpha1.Config{}, configserver.NewConfigProvider(ctx, &v1alpha1.Config{}, configCtx)).
+			WithResourceAndHandler(&v1alpha1.ConfigSet{}, configserver.NewConfigSetProvider(ctx, &v1alpha1.ConfigSet{}, configCtx)).
 			WithoutEtcd().
 			WithLocalDebugExtension().
 			Execute(); err != nil {

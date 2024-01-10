@@ -149,7 +149,6 @@ spec:
                 - message: version is immutable
                   rule: self == oldSelf
             required:
-            - dirs
             - kind
             - provider
             - ref

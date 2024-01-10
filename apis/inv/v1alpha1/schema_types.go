@@ -42,6 +42,7 @@ type SchemaSpec struct {
 	// Version defines the version of the schema
 	Version string `json:"version" yaml:"version"`
 	// +kubebuilder:validation:Enum=branch;tag;
+	// +kubebuilder:default:=tag
 	// Kind defines the that the BranchOrTag string is a repository branch or a tag
 	Kind BranchTagKind `json:"kind" yaml:"kind"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ref is immutable"
@@ -52,7 +53,7 @@ type SchemaSpec struct {
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="dirs is immutable"
 	// Dirs defines the list of directories that identified the provider schema in src/dst pairs
 	// relative within the repository
-	Dirs []SrcDstPath `json:"dirs" yaml:"dirs"`
+	Dirs []SrcDstPath `json:"dirs,omitempty" yaml:"dirs,omitempty"`
 
 	// Schema provides the details of which files must be used for the models and which files/directories
 	// cana be excludes

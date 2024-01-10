@@ -53,6 +53,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=config.sdcio.dev, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("configs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().Configs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("configsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigSets().Informer()}, nil
 
 		// Group=inv.sdcio.dev, Version=v1alpha1
 	case invv1alpha1.SchemeGroupVersion.WithResource("discoveryrules"):

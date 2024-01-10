@@ -149,7 +149,7 @@ func Ready() Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
+		//LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReady),
 	}}
 }
@@ -160,7 +160,7 @@ func Unknown() Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
+		//LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonUnknown),
 	}}
 }
@@ -171,7 +171,7 @@ func Failed(msg string) Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
+		//LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}

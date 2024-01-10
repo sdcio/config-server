@@ -34,10 +34,15 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Config":                          schema_config_server_apis_config_v1alpha1_Config(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob":                      schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigList":                      schema_config_server_apis_config_v1alpha1_ConfigList(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet":                       schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetList":                   schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec":                   schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus":                 schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
@@ -341,6 +346,182 @@ func schema_config_server_apis_config_v1alpha1_ConfigList(ref common.ReferenceCa
 	}
 }
 
+func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "\tConfigSet is the Schema for the ConfigSet API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetList contains a list of ConfigSets",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Config"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.Config", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetSpec defines the desired state of Config",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the targets on which this configSet applies",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Target"),
+						},
+					},
+					"lifecycle": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle"),
+						},
+					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Priority defines the priority of this config",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config defines the configuration to be applied to a target device",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"target", "config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle", "github.com/iptecharch/config-server/apis/config/v1alpha1.Target"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetStatus defines the observed state of Config",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -469,6 +650,26 @@ func schema_config_server_apis_config_v1alpha1_Lifecycle(ref common.ReferenceCal
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetSelector defines the selector used to select the targets to which the config applies",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1535,16 +1736,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 				Properties: map[string]spec.Schema{
 					"connectRetry": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"protocol": {
@@ -1564,16 +1763,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 					},
 					"encoding": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"preferredNetconfVersion": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"insecure": {
@@ -1607,7 +1804,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 						},
 					},
 				},
-				Required: []string{"connectRetry", "timeout", "protocol", "port", "encoding", "preferredNetconfVersion"},
+				Required: []string{"protocol", "port"},
 			},
 		},
 	}
@@ -1944,23 +2141,20 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"validate": {
 						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 					"buffer": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"workers": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"sync": {
@@ -1977,7 +2171,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 						},
 					},
 				},
-				Required: []string{"validate", "buffer", "workers", "sync"},
+				Required: []string{"sync"},
 			},
 		},
 		Dependencies: []string{
@@ -2029,20 +2223,18 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 					},
 					"encoding": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 				},
-				Required: []string{"name", "protocol", "paths", "mode", "encoding", "interval"},
+				Required: []string{"name", "protocol", "paths", "mode"},
 			},
 		},
 	}
