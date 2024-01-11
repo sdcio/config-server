@@ -27,14 +27,15 @@ import (
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme, targetStore store.Storer[target.Context]) (*Config, error) {
-	configStore, err := createStore(ctx, &configv1alpha1.Config{}, scheme, "config")
+	configStore, err := createStore(ctx, configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}), scheme, "config")
 	if err != nil {
 		return nil, err
 	}
-	configSetStore, err := createStore(ctx, &configv1alpha1.ConfigSet{}, scheme, "configset")
+	configSetStore, err := createStore(ctx,configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}), scheme, "configset")
 	if err != nil {
 		return nil, err
 	}

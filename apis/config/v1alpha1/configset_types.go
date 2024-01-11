@@ -77,7 +77,11 @@ type ConfigSet struct {
 type ConfigSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Config `json:"items"`
+	Items           []ConfigSet `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
 }
 
 // Config type metadata.
@@ -87,3 +91,4 @@ var (
 	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
 	//ConfigGroupVersionKind = GroupVersion.WithKind(ConfigKind)
 )
+

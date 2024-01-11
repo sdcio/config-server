@@ -21,7 +21,6 @@ import (
 	v1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -33,9 +32,9 @@ type FakeTargetSyncProfiles struct {
 	ns   string
 }
 
-var targetsyncprofilesResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "targetsyncprofiles"}
+var targetsyncprofilesResource = v1alpha1.SchemeGroupVersion.WithResource("targetsyncprofiles")
 
-var targetsyncprofilesKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "TargetSyncProfile"}
+var targetsyncprofilesKind = v1alpha1.SchemeGroupVersion.WithKind("TargetSyncProfile")
 
 // Get takes name of the targetSyncProfile, and returns the corresponding targetSyncProfile object, and an error if there is any.
 func (c *FakeTargetSyncProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetSyncProfile, err error) {

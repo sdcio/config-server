@@ -21,7 +21,6 @@ import (
 	v1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -33,9 +32,9 @@ type FakeSchemas struct {
 	ns   string
 }
 
-var schemasResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "schemas"}
+var schemasResource = v1alpha1.SchemeGroupVersion.WithResource("schemas")
 
-var schemasKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "Schema"}
+var schemasKind = v1alpha1.SchemeGroupVersion.WithKind("Schema")
 
 // Get takes name of the schema, and returns the corresponding schema object, and an error if there is any.
 func (c *FakeSchemas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Schema, err error) {

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel/trace"
@@ -41,7 +42,7 @@ var _ rest.TableConvertor = &configset{}
 func NewConfigSetProvider(ctx context.Context, obj resource.Object, cfg *Config) builderrest.ResourceHandlerProvider {
 	return func(scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gr := obj.GetGroupVersionResource().GroupResource()
-		return NewConfigREST(
+		return NewConfigSetREST(
 			ctx,
 			cfg,
 			gr,
@@ -60,7 +61,7 @@ func NewConfigSetREST(
 	newFunc func() runtime.Object,
 	newListFunc func() runtime.Object,
 ) rest.Storage {
-	c := &config{
+	c := &configset{
 		configCommon: configCommon{
 			client:         cfg.client,
 			configStore:    cfg.configStore,
@@ -111,6 +112,8 @@ func (r *configset) Get(
 	ctx, span := tracer.Start(ctx, "configsets::Get", trace.WithAttributes())
 	defer span.End()
 
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
+
 	return r.get(ctx, name, options)
 }
 
@@ -122,6 +125,8 @@ func (r *configset) List(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configsets::List", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	return r.list(ctx, options)
 }
@@ -136,6 +141,8 @@ func (r *configset) Create(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configsets::Create", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
 	obj, err := r.createConfigSet(ctx, runtimeObject, createValidation, options)
@@ -162,6 +169,8 @@ func (r *configset) Update(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configsets::Update", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	obj, create, err := r.updateConfigSet(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 	if err != nil {
@@ -192,6 +201,8 @@ func (r *configset) Delete(
 	ctx, span := tracer.Start(ctx, "configsets::Delete", trace.WithAttributes())
 	defer span.End()
 
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
+
 	obj, asyncDelete, err := r.deleteConfigSet(ctx, name, deleteValidation, options)
 	if err != nil {
 		return obj, asyncDelete, err
@@ -213,6 +224,8 @@ func (r *configset) DeleteCollection(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configsets::DeleteCollection", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
 	log := log.FromContext(ctx)
@@ -246,6 +259,8 @@ func (r *configset) Watch(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configsets::Watch", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
 	log := log.FromContext(ctx)

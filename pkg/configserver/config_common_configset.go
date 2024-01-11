@@ -351,13 +351,27 @@ func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, config
 }
 
 func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, target types.NamespacedName) *configv1alpha1.Config {
+	labels := configSet.Labels
+	if len(labels) == 0 {
+		labels = map[string]string{}
+	}
+	labels[targetNameKey] = target.Name
+	labels[targetNamespaceKey] = target.Namespace
+	
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", configSet.Name, target),
 			Namespace: configSet.Namespace,
-			Labels: map[string]string{
-				targetNameKey:      target.Name,
-				targetNamespaceKey: target.Namespace,
+			Labels: labels,
+			Annotations: configSet.Annotations,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: configSet.APIVersion,
+					Kind: configSet.Kind,
+					Name: configSet.Name,
+					UID: configSet.UID,
+					Controller: pointer.Bool(true),
+				},
 			},
 		},
 		configv1alpha1.ConfigSpec{

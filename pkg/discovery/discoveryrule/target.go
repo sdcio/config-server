@@ -14,7 +14,6 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-
 // TODO based on the TargetConnectionProfile we might have to create a new Target
 func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *targets) error {
 	if h.hostName == "" {
@@ -23,14 +22,13 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *target
 	if len(r.cfg.TargetConnectionProfiles) == 0 {
 		return fmt.Errorf("cannot create a static target w/o a connectivity profile")
 	}
-	if r.cfg.TargetConnectionProfiles[0].DefaultSchema == nil {
+	if r.cfg.DefaultSchema == nil {
 		return fmt.Errorf("cannot create a static target w/o a default schema")
 	}
-	ip := h.Addr.String()
-	provider := r.cfg.TargetConnectionProfiles[0].DefaultSchema.Provider
-	version := r.cfg.TargetConnectionProfiles[0].DefaultSchema.Version
+	provider := r.cfg.DefaultSchema.Provider
+	version := r.cfg.DefaultSchema.Version
 	address := fmt.Sprintf("%s:%d",
-		ip,
+		h.Address,
 		r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
 	)
 	di := &invv1alpha1.DiscoveryInfo{
@@ -54,7 +52,6 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *target
 	}
 	return nil
 }
-
 
 func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetName := di.HostName

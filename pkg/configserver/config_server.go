@@ -17,6 +17,7 @@ package configserver
 import (
 	"context"
 
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/store"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
@@ -119,6 +120,8 @@ func (r *config) Get(
 	ctx, span := tracer.Start(ctx, "configs::Get", trace.WithAttributes())
 	defer span.End()
 
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+
 	return r.get(ctx, name, options)
 }
 
@@ -130,6 +133,8 @@ func (r *config) List(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configs::List", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
 
 	return r.list(ctx, options)
 }
@@ -144,6 +149,8 @@ func (r *config) Create(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configs::Create", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
 
 	// logger
 	obj, err := r.createConfig(ctx, runtimeObject, createValidation, options)
@@ -170,6 +177,8 @@ func (r *config) Update(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configs::Update", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
 
 	obj, create, err := r.updateConfig(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 	if err != nil {
@@ -200,6 +209,8 @@ func (r *config) Delete(
 	ctx, span := tracer.Start(ctx, "configs::Delete", trace.WithAttributes())
 	defer span.End()
 
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+
 	obj, asyncDelete, err := r.deleteConfig(ctx, name, deleteValidation, options)
 	if err != nil {
 		return obj, asyncDelete, err
@@ -221,6 +232,8 @@ func (r *config) DeleteCollection(
 	// Start OTEL tracer
 	ctx, span := tracer.Start(ctx, "configs::DeleteCollection", trace.WithAttributes())
 	defer span.End()
+
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
 
 	// logger
 	log := log.FromContext(ctx)
@@ -255,6 +268,8 @@ func (r *config) Watch(
 	ctx, span := tracer.Start(ctx, "configs::Watch", trace.WithAttributes())
 	defer span.End()
 
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+
 	// logger
 	log := log.FromContext(ctx)
 
@@ -275,8 +290,8 @@ func (r *config) Watch(
 	ctx, cancel := context.WithCancel(ctx)
 
 	w := &watcher{
-		cancel:     cancel,
-		resultChan: make(chan watch.Event),
+		cancel:         cancel,
+		resultChan:     make(chan watch.Event),
 		watcherManager: r.watcherManager,
 	}
 

@@ -27,6 +27,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
 	"github.com/iptecharch/config-server/pkg/configserver"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
@@ -97,7 +98,15 @@ func main() {
 		os.Exit(1)
 	}
 	// add the core object to the scheme
-	clientgoscheme.AddToScheme(runScheme)
+	for _, api := range (runtime.SchemeBuilder{
+		clientgoscheme.AddToScheme,
+		configv1alpha1.AddToScheme,
+	}) {
+		if err := api(runScheme); err != nil {
+			log.Error("cannot add scheme", "err", err)
+			os.Exit(1)
+		}
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: runScheme,

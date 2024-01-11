@@ -34,7 +34,7 @@ func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ConfigPlural,
+		Resource: ConfigSetPlural,
 	}
 }
 
@@ -96,4 +96,17 @@ func (r *ConfigSet) GetTarget() string {
 // GetListMeta returns the ListMeta
 func (r *ConfigSetList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
+}
+
+// BuildConfig returns a reource from a client Object a Spec/Status
+func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSetStatus) *ConfigSet {
+	return &ConfigSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			Kind:       ConfigSetKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+		Status:     status,
+	}
 }

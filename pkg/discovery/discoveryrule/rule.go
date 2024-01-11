@@ -67,7 +67,7 @@ func (r *dr) Run(ctx context.Context) error {
 
 func (r *dr) run(ctx context.Context) error {
 	log := log.FromContext(ctx)
-	hi, err := r.getHosts(ctx)
+	iter, err := r.getHosts(ctx)
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
@@ -83,7 +83,7 @@ func (r *dr) run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		h, ok := hi.Next()
+		h, ok := iter.Next()
 		if !ok {
 			break
 		}
@@ -92,7 +92,7 @@ func (r *dr) run(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			go func(h *hostInfo, targets *targets) {
-				log := log.With("ip", h.Addr.String())
+				log := log.With("address", h.Address)
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
 					log.Info("disovery disabled")
@@ -123,7 +123,7 @@ func (r *dr) run(ctx context.Context) error {
 				}
 			}(h, t)
 			// delete the target since we processed it
-			t.del(h.Addr.String())
+			t.del(h.Address)
 		}
 	}
 	// any target that was not processed we can delete as the ip rules dont cover this any longer

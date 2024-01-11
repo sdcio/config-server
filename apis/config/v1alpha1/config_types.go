@@ -82,6 +82,10 @@ type ConfigList struct {
 	Items           []Config `json:"items"`
 }
 
+func init() {
+	SchemeBuilder.Register(&Config{}, &ConfigList{})
+}
+
 // Config type metadata.
 var (
 	ConfigKind = reflect.TypeOf(Config{}).Name()

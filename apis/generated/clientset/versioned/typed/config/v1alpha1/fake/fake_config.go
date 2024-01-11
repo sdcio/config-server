@@ -21,7 +21,6 @@ import (
 	v1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -33,9 +32,9 @@ type FakeConfigs struct {
 	ns   string
 }
 
-var configsResource = schema.GroupVersionResource{Group: "config.sdcio.dev", Version: "v1alpha1", Resource: "configs"}
+var configsResource = v1alpha1.SchemeGroupVersion.WithResource("configs")
 
-var configsKind = schema.GroupVersionKind{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"}
+var configsKind = v1alpha1.SchemeGroupVersion.WithKind("Config")
 
 // Get takes name of the config, and returns the corresponding config object, and an error if there is any.
 func (c *FakeConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Config, err error) {
