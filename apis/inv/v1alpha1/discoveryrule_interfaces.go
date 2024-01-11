@@ -138,11 +138,8 @@ func (r *DiscoveryRule) Validate() error {
 		return err
 	}
 	var errm error
-	// when discovery is diabled
-	// 1. the prefix need to be a /32 or /128
-	// 2. a hostname is needed
-	if r.Spec.DiscoveryParameters.DefaultSchema == nil {
-		// discovery disabled
+	if r.Spec.DiscoveryParameters.DefaultSchema != nil {
+		// discovery disabled -> prefix based discovery cannot be supported
 		if kind == DiscoveryRuleSpecKindPrefix {
 			errm = errors.Join(errm, fmt.Errorf("prefix based discovery cannot have discovery disabled, remove the default schema for prefix based discovery"))
 		}

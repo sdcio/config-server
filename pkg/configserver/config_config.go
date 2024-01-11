@@ -21,21 +21,28 @@ import (
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
 	"github.com/iptecharch/config-server/pkg/target"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+
+
 func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme, targetStore store.Storer[target.Context]) (*Config, error) {
-	configStore, err := createStore(ctx, configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}), scheme, "config")
+	newConfigFn := func() runtime.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
+	newConfigSetFn := func() runtime.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
+	newCfgFn := func() resource.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
+	newCfgSetFn := func() resource.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
+
+	configStore, err := createStore(ctx, newConfigFn, newCfgFn, scheme, "config")
 	if err != nil {
 		return nil, err
 	}
-	configSetStore, err := createStore(ctx,configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}), scheme, "config")
+	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, "config")
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +61,11 @@ type Config struct {
 	targetStore    store.Storer[target.Context]
 }
 
-func createStore(ctx context.Context, obj resource.Object, scheme *runtime.Scheme, rootPath string) (store.Storer[runtime.Object], error) {
+type newObjFn func() runtime.Object
+type newResFn func() resource.Object
+
+func createStore(ctx context.Context, newObjFn newObjFn, newResFn newResFn, scheme *runtime.Scheme, rootPath string) (store.Storer[runtime.Object], error) {
+	obj := newResFn()
 	gr := obj.GetGroupVersionResource().GroupResource()
 	codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
 		StorageMediaType:  runtime.ContentTypeJSON,
@@ -67,10 +78,10 @@ func createStore(ctx context.Context, obj resource.Object, scheme *runtime.Schem
 	if err != nil {
 		return nil, err
 	}
-	return file.NewStore[runtime.Object](&file.Config{
+	return file.NewStore[runtime.Object](&file.Config[runtime.Object]{
 		GroupResource: gr,
 		RootPath:      rootPath,
 		Codec:         codec,
-		NewFunc:       func() runtime.Object { return obj },
+		NewFunc:       newObjFn,
 	})
 }

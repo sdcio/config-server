@@ -99,6 +99,8 @@ func (r *configCommon) list(
 	}
 
 	listFunc := func(ctx context.Context, key store.Key, obj runtime.Object) {
+		// client copy required since this could be a pointer object
+		//obj = obj.DeepCopyObject()
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
 			log.Error("cannot get meta from object", "error", err.Error())
