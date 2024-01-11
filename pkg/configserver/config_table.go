@@ -25,6 +25,7 @@ func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
 	return tableConvertor{
 		resource: gr,
 		cells: func(obj runtime.Object) []interface{} {
+			obj = obj
 			config, ok := obj.(*configv1alpha1.Config)
 			if !ok {
 				return nil
@@ -34,7 +35,7 @@ func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
 				config.GetCondition(configv1alpha1.ConditionTypeReady).Status,
 				config.GetTarget(),
 				config.GetLastKnownGoodSchema().String(),
-				config.ObjectMeta.CreationTimestamp,
+				//config.ObjectMeta.CreationTimestamp,
 			}
 		},
 		columns: []metav1.TableColumnDefinition{
@@ -42,7 +43,7 @@ func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
 			{Name: "Ready", Type: "string"},
 			{Name: "Target", Type: "string"},
 			{Name: "Schema", Type: "string"},
-			{Name: "Created at", Type: "string"},
+			//{Name: "Created at", Type: "string"},
 		},
 	}
 }

@@ -35,7 +35,7 @@ func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme
 	if err != nil {
 		return nil, err
 	}
-	configSetStore, err := createStore(ctx,configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}), scheme, "configset")
+	configSetStore, err := createStore(ctx,configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}), scheme, "config")
 	if err != nil {
 		return nil, err
 	}

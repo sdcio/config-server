@@ -25,6 +25,7 @@ func NewConfigSetTableConvertor(gr schema.GroupResource) tableConvertor {
 	return tableConvertor{
 		resource: gr,
 		cells: func(obj runtime.Object) []interface{} {
+			obj = obj
 			config, ok := obj.(*configv1alpha1.ConfigSet)
 			if !ok {
 				return nil
@@ -32,13 +33,15 @@ func NewConfigSetTableConvertor(gr schema.GroupResource) tableConvertor {
 			return []interface{}{
 				config.Name,
 				config.GetCondition(configv1alpha1.ConditionTypeReady).Status,
-				config.ObjectMeta.CreationTimestamp,
+				len(config.Status.Targets),
+				//config.ObjectMeta.CreationTimestamp,
 			}
 		},
 		columns: []metav1.TableColumnDefinition{
 			{Name: "Name", Type: "string"},
 			{Name: "Ready", Type: "string"},
-			{Name: "Created at", Type: "string"},
+			{Name: "Targets", Type: "integer"},
+			//{Name: "Created at", Type: "string"},
 		},
 	}
 }

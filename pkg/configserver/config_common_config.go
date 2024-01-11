@@ -260,6 +260,12 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 	if err := tctx.SetIntent(ctx, targetKey, config); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+	config.Status.SetConditions(configv1alpha1.Ready())
+	config.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    tctx.DataStore.Schema.Name,
+		Vendor:  tctx.DataStore.Schema.Vendor,
+		Version: tctx.DataStore.Schema.Version,
+	}
 	if err := r.configStore.Create(ctx, key, config); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}

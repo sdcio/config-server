@@ -85,16 +85,16 @@ func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
 }
 
 func (r *Config) GetTarget() string {
-	if len(r.Labels) == 0 {
+	if len(r.GetLabels()) == 0 {
 		return ""
 	}
 	var sb strings.Builder
-	targetNamespace, ok := r.Labels["targetNamespace"]
+	targetNamespace, ok := r.GetLabels()["targetNamespace"]
 	if ok {
 		sb.WriteString(targetNamespace)
 		sb.WriteString("/")
 	}
-	targetName, ok := r.Labels["targetName"]
+	targetName, ok := r.GetLabels()["targetName"]
 	if ok {
 		sb.WriteString(targetName)
 	}

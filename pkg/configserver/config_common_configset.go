@@ -360,7 +360,7 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 	
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", configSet.Name, target),
+			Name:      fmt.Sprintf("%s-%s", configSet.Name, target.Name),
 			Namespace: configSet.Namespace,
 			Labels: labels,
 			Annotations: configSet.Annotations,
