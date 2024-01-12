@@ -26,33 +26,36 @@ import (
 type DiscoveryRuleSpecKind string
 
 const (
-	DiscoveryRuleSpecKindIP  DiscoveryRuleSpecKind = "ip"
-	DiscoveryRuleSpecKindPOD DiscoveryRuleSpecKind = "pod"
-	DiscoveryRuleSpecKindSVC DiscoveryRuleSpecKind = "svc"
+	DiscoveryRuleSpecKindPrefix  DiscoveryRuleSpecKind = "prefix"
+	DiscoveryRuleSpecKindAddress DiscoveryRuleSpecKind = "address"
+	DiscoveryRuleSpecKindPod     DiscoveryRuleSpecKind = "pod"
+	DiscoveryRuleSpecKindSvc     DiscoveryRuleSpecKind = "svc"
+	DiscoveryRuleSpecKindUnknown DiscoveryRuleSpecKind = "unknown"
 )
 
 // DiscoveryRuleSpec defines the desired state of DiscoveryRule
 type DiscoveryRuleSpec struct {
-	// +kubebuilder:validation:Enum=unknown;ip;pod;svc;
-	// +kubebuilder:default:=ip
-	Kind DiscoveryRuleSpecKind `json:"kind" yaml:"kind"`
 	// IP Prefixes for which this discovery rule applies
 	Prefixes []DiscoveryRulePrefix `json:"prefixes,omitempty" yaml:"prefixes,omitempty"`
-	// Selector defines the selector used to select which POD/SVC are subject to this discovery rule
-	Selector *metav1.LabelSelector `json:"selector,omitempty" yaml:"selector,omitempty"`
+	// IP Prefixes for which this discovery rule applies
+	Addresses []DiscoveryRuleAddress `json:"addresses,omitempty" yaml:"addresses,omitempty"`
+	// PodSelector defines the pod selector for which this discovery rule applies
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty" yaml:"podSelector,omitempty"`
+	// ServiceSelector defines the service selector for which this discovery rule applies
+	ServiceSelector *metav1.LabelSelector `json:"serviceSelector,omitempty" yaml:"serviceSelector,omitempty"`
 	// Discovery defines the generic parameters of the discovery rule
 	DiscoveryParameters `json:",inline" yaml:",inline"`
 }
 
 type DiscoveryParameters struct {
-	// Discovery rule defines the profiles and templates generic to any discovery rule class/type
-	// Discover defines if discovery is enabled or not
-	Discover bool `json:"discover" yaml:"discover"`
+	// DefaultSchema define the default schema used to connect to a target
+	// Indicates that discovery is disable; cannot be used for prefix based discovery rules
+	DefaultSchema *SchemaKey `json:"defaultSchema,omitempty" yaml:"defaultSchema,omitempty"`
 	// DiscoveryProfile define the profiles the discovery controller uses to discover targets
 	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty"`
 	// TargetConnectionProfiles define the profile the discovery controller uses to create targets
 	// once discovered
-	TargetConnectionProfiles []TargetConnProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles"`
+	TargetConnectionProfiles []TargetProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles"`
 	// TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
 	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
 	// +kubebuilder:default:="1m"
@@ -66,10 +69,15 @@ type DiscoveryParameters struct {
 type DiscoveryRulePrefix struct {
 	// Prefix of the target/target(s)
 	Prefix string `json:"prefix" yaml:"prefix"`
-	// HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled
-	HostName string `json:"hostName,omitempty" yaml:"hostName,omitempty"`
 	// IP Prefixes to be excluded
 	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
+}
+
+type DiscoveryRuleAddress struct {
+	// Address (specified as IP or DNS name) of the target/target(s)
+	Address string `json:"address" yaml:"address"`
+	// HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled
+	HostName string `json:"hostName,omitempty" yaml:"hostName,omitempty"`
 }
 
 type DiscoveryProfile struct {
@@ -82,7 +90,6 @@ type DiscoveryProfile struct {
 	ConnectionProfiles []string `json:"connectionProfiles" yaml:"connectionProfiles"`
 }
 
-
 type TargetProfile struct {
 	// Credentials defines the name of the secret that holds the credentials to connect to the target
 	Credentials string `json:"credentials" yaml:"credentials"`
@@ -92,13 +99,6 @@ type TargetProfile struct {
 	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
 	// SyncProfile define the profile used to sync to the target config once discovered
 	SyncProfile *string `json:"syncProfile,omitempty" yaml:"syncProfile,omitempty"`
-} 
-
-type TargetConnProfile struct {
-	TargetProfile `json:",inline" yaml:",inline"`
-	// DefaultSchema define the default schema used to connect to a target
-	// Used when discovery is disabled or when discovery is unsuccessful.
-	DefaultSchema *SchemaKey `json:"defaultSchema,omitempty" yaml:"defaultSchema,omitempty"`
 }
 
 // TargetTemplate defines the template of the target
@@ -132,20 +132,6 @@ type DiscoveryRuleStatus struct {
 	// StartTime identifies when the dr got started
 	StartTime metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty"`
 }
-
-/*
-type DiscoveryRuleStatusUsedReferences struct {
-	SecretResourceVersion             string                   `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty"`
-	TLSSecretResourceVersion          string                   `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty"`
-	Profiles                          []DiscoveryRuleProfile `json:"profiles,omitempty" yaml:"profiles,omitempty"`
-	DiscoveryRuleRefResourceVersion string                   `json:"DiscoveryRuleRefResourceVersion" yaml:"DiscoveryRuleRefResourceVersion"`
-}
-
-type DiscoveryRuleProfile struct {
-	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion"`
-	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion"`
-}
-*/
 
 // +kubebuilder:object:root=true
 // +genclient

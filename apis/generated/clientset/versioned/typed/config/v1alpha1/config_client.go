@@ -26,6 +26,7 @@ import (
 type ConfigV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ConfigsGetter
+	ConfigSetsGetter
 }
 
 // ConfigV1alpha1Client is used to interact with features provided by the config.sdcio.dev group.
@@ -35,6 +36,10 @@ type ConfigV1alpha1Client struct {
 
 func (c *ConfigV1alpha1Client) Configs(namespace string) ConfigInterface {
 	return newConfigs(c, namespace)
+}
+
+func (c *ConfigV1alpha1Client) ConfigSets(namespace string) ConfigSetInterface {
+	return newConfigSets(c, namespace)
 }
 
 // NewForConfig creates a new ConfigV1alpha1Client for the given config.

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"path/filepath"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,75 +25,68 @@ import (
 	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
 )
 
-const ConfigPlural = "configs"
+const ConfigSetPlural = "configsets"
 
-var _ resource.Object = &Config{}
-var _ resource.ObjectList = &ConfigList{}
+var _ resource.Object = &ConfigSet{}
+var _ resource.ObjectList = &ConfigSetList{}
 
-func (Config) GetGroupVersionResource() schema.GroupVersionResource {
+func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ConfigPlural,
+		Resource: ConfigSetPlural,
 	}
 }
 
 // IsStorageVersion returns true -- v1alpha1.Config is used as the internal version.
 // IsStorageVersion implements resource.Object.
-func (Config) IsStorageVersion() bool {
+func (ConfigSet) IsStorageVersion() bool {
 	return true
 }
 
 // GetObjectMeta implements resource.Object
-func (r *Config) GetObjectMeta() *metav1.ObjectMeta {
+func (r *ConfigSet) GetObjectMeta() *metav1.ObjectMeta {
 	return &r.ObjectMeta
 }
 
 // NamespaceScoped returns true to indicate Fortune is a namespaced resource.
 // NamespaceScoped implements resource.Object.
-func (Config) NamespaceScoped() bool {
+func (ConfigSet) NamespaceScoped() bool {
 	return true
 }
 
 // New implements resource.Object
-func (Config) New() runtime.Object {
-	return &Config{}
+func (ConfigSet) New() runtime.Object {
+	return &ConfigSet{}
 }
 
 // NewList implements resource.Object
-func (Config) NewList() runtime.Object {
-	return &ConfigList{}
+func (ConfigSet) NewList() runtime.Object {
+	return &ConfigSetList{}
 }
 
 // GetCondition returns the condition based on the condition kind
-func (r *Config) GetCondition(t ConditionType) Condition {
+func (r *ConfigSet) GetCondition(t ConditionType) Condition {
 	return r.Status.GetCondition(t)
 }
 
 // SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
 // to be set at once
-func (r *Config) SetConditions(c ...Condition) {
+func (r *ConfigSet) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
-func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
-	if r.Status.LastKnownGoodSchema == nil {
-		return &ConfigStatusLastKnownGoodSchema{}
-	}
-	return r.Status.LastKnownGoodSchema
-}
-
-func (r *Config) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
+func (r *ConfigSet) GetTarget() string {
+	if len(r.Labels) == 0 {
 		return ""
 	}
 	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()["targetNamespace"]
+	targetNamespace, ok := r.Labels["targetNamespace"]
 	if ok {
 		sb.WriteString(targetNamespace)
 		sb.WriteString("/")
 	}
-	targetName, ok := r.GetLabels()["targetName"]
+	targetName, ok := r.Labels["targetName"]
 	if ok {
 		sb.WriteString(targetName)
 	}
@@ -102,20 +94,16 @@ func (r *Config) GetTarget() string {
 }
 
 // GetListMeta returns the ListMeta
-func (r *ConfigList) GetListMeta() *metav1.ListMeta {
+func (r *ConfigSetList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
 
-func (r *ConfigStatusLastKnownGoodSchema) String() string {
-	return filepath.Join(r.Type, r.Vendor, r.Version)
-}
-
 // BuildConfig returns a reource from a client Object a Spec/Status
-func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *Config {
-	return &Config{
+func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSetStatus) *ConfigSet {
+	return &ConfigSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
-			Kind:       ConfigKind,
+			Kind:       ConfigSetKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,

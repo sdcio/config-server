@@ -36,10 +36,6 @@ const (
 	errUpdateStatus    = "cannot update status"
 )
 
-type adder interface {
-	Add(item interface{})
-}
-
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=schemas,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=schemas/status,verbs=get;update;patch
 

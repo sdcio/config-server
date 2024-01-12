@@ -13,8 +13,8 @@ import (
 func (r *dr) discover(ctx context.Context, h *hostInfo, targets *targets) error {
 	// this is a dynamic target; was it alreaady discovered?
 	// if discovery was already done use the same initial discovery protocol
-	ip := h.Addr.String()
-	log := log.FromContext(ctx).With("ip", ip)
+	address := h.Address
+	log := log.FromContext(ctx).With("address", address)
 
 	var err error
 	for _, connProfile := range r.getDiscoveryProfiles(ctx, h, targets) {
@@ -24,7 +24,7 @@ func (r *dr) discover(ctx context.Context, h *hostInfo, targets *targets) error 
 			err = errors.Join(err, fmt.Errorf("unsupported protocol :%s", string(connProfile.Spec.Protocol)))
 			continue
 		}
-		if derr := discover(ctx, ip, connProfile); derr != nil {
+		if derr := discover(ctx, address, connProfile); derr != nil {
 			log.Info("discovery failed", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, derr)
 			continue
@@ -41,11 +41,11 @@ func (r *dr) discover(ctx context.Context, h *hostInfo, targets *targets) error 
 // this function returns the discovery connection profile list and the order is changed based on the fact discovery
 // was already done
 func (r *dr) getDiscoveryProfiles(ctx context.Context, h *hostInfo, targets *targets) []*v1alpha1.TargetConnectionProfile {
-	ip := h.Addr.String()
+	address := h.Address
 
 	found := false // represent the status of the fact that we found the initial discovery profile
 	discoveryProfiles := make([]*invv1alpha1.TargetConnectionProfile, 0, len(r.cfg.DiscoveryProfile.Connectionprofiles))
-	t, ok := targets.get(ip)
+	t, ok := targets.get(address)
 	if ok {
 		// target exsists
 		if t.Status.DiscoveryInfo != nil { // safety

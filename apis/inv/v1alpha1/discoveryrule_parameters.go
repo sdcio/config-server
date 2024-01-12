@@ -25,22 +25,13 @@ import (
 
 func (r DiscoveryParameters) Validate() error {
 	var errm error
-	if !r.Discover {
-		if len(r.TargetConnectionProfiles) != 1 {
-			errm = errors.Join(errm, fmt.Errorf("a default schema is required when discovery is disabled"))
-			return errm
-		}
-		// no discovery
-		if r.TargetConnectionProfiles[0].DefaultSchema == nil {
-			errm = errors.Join(errm, fmt.Errorf("a default schema is required when discovery is disabled"))
-		} else {
-			if r.TargetConnectionProfiles[0].DefaultSchema.Provider == "" ||
-				r.TargetConnectionProfiles[0].DefaultSchema.Version == "" {
-				errm = errors.Join(errm, fmt.Errorf("a default schema needs a provider and version, got provider: %s, version: %s",
-					r.TargetConnectionProfiles[0].DefaultSchema.Provider,
-					r.TargetConnectionProfiles[0].DefaultSchema.Version,
-				))
-			}
+	if r.DefaultSchema != nil {
+		if r.DefaultSchema.Provider == "" ||
+			r.DefaultSchema.Version == "" {
+			errm = errors.Join(errm, fmt.Errorf("a default schema needs a provider and version, got provider: %s, version: %s",
+				r.DefaultSchema.Provider,
+				r.DefaultSchema.Version,
+			))
 		}
 	} else {
 		if r.DiscoveryProfile == nil {

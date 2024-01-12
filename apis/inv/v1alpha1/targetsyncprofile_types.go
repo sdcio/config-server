@@ -63,8 +63,8 @@ type TargetSyncProfileSync struct {
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
-	// +kubebuilder:default:=0
-	Interval uint64 `json:"interval,omitempty" yaml:"interval,omitempty"`
+	// +kubebuilder:default:="60s"
+	Interval metav1.Duration `json:"interval,omitempty" yaml:"interval,omitempty"`
 }
 
 // +kubebuilder:object:root=true

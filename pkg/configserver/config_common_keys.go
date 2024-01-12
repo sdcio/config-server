@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package configserver
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
-func (r *cfg) getKey(ctx context.Context, name string) (store.Key, error) {
+func (r *configCommon) getKey(ctx context.Context, name string) (store.Key, error) {
 	ns, namespaced := genericapirequest.NamespaceFrom(ctx)
 	if namespaced != r.isNamespaced {
 		return store.Key{}, fmt.Errorf("namespace mismatch got %t, want %t", namespaced, r.isNamespaced)
@@ -38,19 +38,7 @@ func (r *cfg) getKey(ctx context.Context, name string) (store.Key, error) {
 	}, nil
 }
 
-func getTargetKey(labels map[string]string) (store.Key, error) {
-	var targetName, targetNamespace string
-	if labels != nil {
-		targetName = labels[targetNameKey]
-		targetNamespace = labels[targetNamespaceKey]
-	}
-	if targetName == "" || targetNamespace == "" {
-		return store.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
-	}
-	return store.Key{NamespacedName: types.NamespacedName{Namespace: targetNamespace, Name: targetName}}, nil
-}
-
-func (r *cfg) getKeys(ctx context.Context, obj runtime.Object) (store.Key, store.Key, error) {
+func (r *configCommon) getKeys(ctx context.Context, obj runtime.Object) (store.Key, store.Key, error) {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return store.Key{}, store.Key{}, err
@@ -66,4 +54,16 @@ func (r *cfg) getKeys(ctx context.Context, obj runtime.Object) (store.Key, store
 		return store.Key{}, store.Key{}, err
 	}
 	return key, targetKey, nil
+}
+
+func getTargetKey(labels map[string]string) (store.Key, error) {
+	var targetName, targetNamespace string
+	if labels != nil {
+		targetName = labels[targetNameKey]
+		targetNamespace = labels[targetNamespaceKey]
+	}
+	if targetName == "" || targetNamespace == "" {
+		return store.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
+	}
+	return store.Key{NamespacedName: types.NamespacedName{Namespace: targetNamespace, Name: targetName}}, nil
 }

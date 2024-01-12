@@ -32,14 +32,14 @@ const (
 	NotFound = "not found"
 )
 
-type Config struct {
+type Config[T1 any] struct {
 	GroupResource schema.GroupResource
 	RootPath      string
 	Codec         runtime.Codec
 	NewFunc       func() runtime.Object
 }
 
-func NewStore[T1 any](cfg *Config) (store.Storer[T1], error) {
+func NewStore[T1 any](cfg *Config[T1]) (store.Storer[T1], error) {
 	objRootPath := filepath.Join(cfg.RootPath, cfg.GroupResource.Group, cfg.GroupResource.Resource)
 	if err := ensureDir(objRootPath); err != nil {
 		return nil, fmt.Errorf("unable to write data dir: %s", err)
@@ -66,6 +66,7 @@ func (r *file[T1]) Get(ctx context.Context, key store.Key) (T1, error) {
 
 func (r *file[T1]) List(ctx context.Context, visitorFunc func(ctx context.Context, key store.Key, obj T1)) {
 	log := log.FromContext(ctx)
+
 	if err := r.visitDir(ctx, visitorFunc); err != nil {
 		log.Error("cannot list visiting dir failed", "error", err.Error())
 	}

@@ -21,7 +21,6 @@ import (
 	v1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -33,9 +32,9 @@ type FakeDiscoveryRules struct {
 	ns   string
 }
 
-var discoveryrulesResource = schema.GroupVersionResource{Group: "inv.sdcio.dev", Version: "v1alpha1", Resource: "discoveryrules"}
+var discoveryrulesResource = v1alpha1.SchemeGroupVersion.WithResource("discoveryrules")
 
-var discoveryrulesKind = schema.GroupVersionKind{Group: "inv.sdcio.dev", Version: "v1alpha1", Kind: "DiscoveryRule"}
+var discoveryrulesKind = v1alpha1.SchemeGroupVersion.WithKind("DiscoveryRule")
 
 // Get takes name of the discoveryRule, and returns the corresponding discoveryRule object, and an error if there is any.
 func (c *FakeDiscoveryRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DiscoveryRule, err error) {

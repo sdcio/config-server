@@ -9,29 +9,39 @@ import (
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 )
 
-func (r *dr) getHosts(ctx context.Context) (*hostIterator, error) {
-	switch r.cfg.CR.GetDiscoveryKind() {
-	case invv1alpha1.DiscoveryRuleSpecKindIP:
+type Iterator interface {
+	Next() (*hostInfo, bool)
+}
 
+func (r *dr) getHosts(ctx context.Context) (Iterator, error) {
+	kind, err := r.cfg.CR.GetDiscoveryKind()
+	if err != nil {
+		return nil, err
+	}
+	switch kind {
+	case invv1alpha1.DiscoveryRuleSpecKindPrefix:
 		prefixes, err := getPrefixes(r.cfg.CR.GetPrefixes())
 		if err != nil {
 			return nil, err
 		}
 		return newHostIterator(prefixes), nil
-	case invv1alpha1.DiscoveryRuleSpecKindPOD:
+	case invv1alpha1.DiscoveryRuleSpecKindAddress:
+		return newIterator(r.cfg.CR.GetAddresses(), r.cfg.CR.GetDefaultSchema()), nil
+	case invv1alpha1.DiscoveryRuleSpecKindPod:
 		// TODO list svc based on selector
 		// add the prefixes
 		// return host selector
-	case invv1alpha1.DiscoveryRuleSpecKindSVC:
+	case invv1alpha1.DiscoveryRuleSpecKindSvc:
 		// TODO list svc based on selector
 		// add the prefixes
 		// return host selector
 	default:
 		return nil, fmt.Errorf("unsupported discovery rule kind, supporting %v, got %s",
 			[]string{
-				string(invv1alpha1.DiscoveryRuleSpecKindIP),
-				string(invv1alpha1.DiscoveryRuleSpecKindSVC),
-				string(invv1alpha1.DiscoveryRuleSpecKindPOD),
+				string(invv1alpha1.DiscoveryRuleSpecKindPrefix),
+				string(invv1alpha1.DiscoveryRuleSpecKindAddress),
+				string(invv1alpha1.DiscoveryRuleSpecKindSvc),
+				string(invv1alpha1.DiscoveryRuleSpecKindPod),
 			},
 			r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
 		)
@@ -51,7 +61,7 @@ func getHosts(drPrefixes []invv1alpha1.DiscoveryRulePrefix) ([]string, error) {
 		if !ok {
 			break
 		}
-		hosts = append(hosts, a.String())
+		hosts = append(hosts, a.Address)
 	}
 	return hosts, nil
 }
@@ -90,8 +100,9 @@ type prefixIterator struct {
 }
 
 type hostInfo struct {
-	netip.Addr
-	hostName string
+	defaultSchema *invv1alpha1.SchemaKey
+	Address       string
+	hostName      string
 }
 
 func (r *hostIterator) Next() (*hostInfo, bool) {
@@ -118,8 +129,9 @@ func (r *prefixIterator) Next() (*hostInfo, bool) {
 			return r.Next()
 		}
 		return &hostInfo{
-			Addr:     r.curAddr,
-			hostName: r.hostName}, true
+			Address:  r.curAddr.String(),
+			hostName: r.hostName,
+		}, true
 	}
 	return &hostInfo{}, false
 }
@@ -151,25 +163,42 @@ func getPrefixes(drPrefixes []invv1alpha1.DiscoveryRulePrefix) ([]prefix, error)
 		prefixes = append(prefixes, prefix{
 			Prefix:   pi,
 			excludes: excludes,
-			hostName: drPrefix.HostName,
 		})
 	}
 	return prefixes, nil
 }
 
-/*
-type IP struct {
-	DRPrefixes []invv1alpha1.DiscoveryRuleIPPrefix
+type iterator struct {
+	defaultSchema *invv1alpha1.SchemaKey
+	addresses     []invv1alpha1.DiscoveryRuleAddress
+	index         int
 }
 
-func (r *IP) getHosts() (Hosts, error) {
-	for _, drPrefix := range r.DRPrefixes {
-		p, err := iputil.New(drPrefix.Prefix)
-		if err != nil {
-			return nil, err
-		}
-
+func newIterator(addresses []invv1alpha1.DiscoveryRuleAddress, defaultSchema *invv1alpha1.SchemaKey) Iterator {
+	return &iterator{
+		defaultSchema: defaultSchema,
+		addresses:     addresses,
+		index:         -1, // start before the first element
 	}
-
 }
-*/
+
+func (r *iterator) Next() (*hostInfo, bool) {
+	r.index++
+	if r.index < len(r.addresses) {
+		hostName := r.addresses[r.index].HostName
+		if hostName == "" {
+			if _, err := netip.ParseAddr(hostName); err != nil {
+				hostName = r.addresses[r.index].Address // dns
+			} else {
+				// TODO transform IP to a k8s compatible name
+				hostName = r.addresses[r.index].Address
+			}
+		}
+		return &hostInfo{
+			defaultSchema: r.defaultSchema,
+			Address:       r.addresses[r.index].Address,
+			hostName:      hostName,
+		}, true
+	}
+	return nil, false
+}

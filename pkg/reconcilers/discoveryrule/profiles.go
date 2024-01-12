@@ -15,7 +15,7 @@ func (r *reconciler) getDRConfig(ctx context.Context, cr *invv1alpha1.DiscoveryR
 	var errm error
 
 	var discProfile *discoveryrule.DiscoveryProfile
-	if cr.GetDiscoveryParameters().Discover {
+	if cr.Discovery() {
 		var err error
 		discProfile, err = r.getDiscoveryProfile(ctx, cr)
 		if err != nil {
@@ -33,8 +33,8 @@ func (r *reconciler) getDRConfig(ctx context.Context, cr *invv1alpha1.DiscoveryR
 
 	return &discoveryrule.DiscoveryRuleConfig{
 		CR:                       cr,
-		Discovery:                cr.GetDiscoveryParameters().Discover,
-		Prefixes:                 cr.Spec.Prefixes,
+		Discovery:                cr.Discovery(),
+		DefaultSchema:            cr.Spec.DefaultSchema,
 		DiscoveryProfile:         discProfile,
 		TargetConnectionProfiles: targetConnProfiles,
 		TargetTemplate:           cr.Spec.TargetTemplate.DeepCopy(),
@@ -103,7 +103,6 @@ func (r *reconciler) getTargetConnectionProfile(ctx context.Context, cr *invv1al
 			// TODO TLS secret
 			Connectionprofile: connProfile,
 			Syncprofile:       syncProfile,
-			DefaultSchema:     targetConnProfile.DefaultSchema.DeepCopy(),
 		}
 	}
 	if errm != nil {

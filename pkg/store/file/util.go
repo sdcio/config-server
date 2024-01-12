@@ -99,9 +99,7 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 		}
 		// this is a json file by now
 		// next step is find the key (namespace and name)
-		fmt.Println("path", path)
 		name := strings.TrimSuffix(filepath.Base(path), ".json")
-		fmt.Println("name", name)
 		namespace := ""
 		pathSplit := strings.Split(path, "/")
 		if len(pathSplit) > (len(strings.Split(r.objRootPath, "/")) + 1) {

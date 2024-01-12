@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"reflect"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,11 +47,11 @@ const (
 // TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile
 type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectRetry is immutable"
-	// +kubebuilder:default:=0
-	ConnectRetry time.Duration `json:"connectRetry,omitempty" yaml:"connectRetry,omitempty"`
+	// +kubebuilder:default:="10s"
+	ConnectRetry metav1.Duration `json:"connectRetry,omitempty" yaml:"connectRetry,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="timeout is immutable"
-	// +kubebuilder:default:=10
-	Timeout time.Duration `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+	// +kubebuilder:default:="10s"
+	Timeout metav1.Duration `json:"timeout,omitempty" yaml:"timeout,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
