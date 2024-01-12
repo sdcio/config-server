@@ -64,19 +64,33 @@ func (r *SchemaSpec) GetSchema() *sdcpb.Schema {
 func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 	basePath = r.GetBasePath(basePath)
 
+	// when no models are supplied we use the base dir
+	models := initSlice(r.Schema.Models, ".")
+	includes := initSlice(r.Schema.Includes, "")
+	excludes := initSlice(r.Schema.Excludes, "")
+
 	return SchemaSpecSchema{
-		Models:   getNewBase(basePath, r.Schema.Models),
-		Includes: getNewBase(basePath, r.Schema.Includes),
-		Excludes: r.Schema.Excludes,
+		Models:   getNewBase(basePath, models),
+		Includes: getNewBase(basePath, includes),
+		Excludes: excludes,
 	}
+}
+
+func initSlice(in []string, init string) []string {
+	if len(in) == 0 {
+		if init != "" {
+			return []string{init}
+		} else {
+			return []string{}
+		}
+	}
+	return in
 }
 
 func getNewBase(basePath string, in []string) []string {
 	str := make([]string, 0, len(in))
 	for _, s := range in {
-
 		str = append(str, path.Join(basePath, s))
-		//str = append(str, fmt.Sprintf("./%s", path.Join(basePath, s)))
 	}
 	return str
 }
