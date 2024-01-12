@@ -202,7 +202,10 @@ func (r *configCommon) deleteConfigSet(
 	}
 
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
+	log.Info("delete existingConfigs", "total", len(existingConfigs))
+
 	for nsn, existingConfig := range existingConfigs {
+		log.Info("delete existingConfigs", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
 			TypeMeta:           existingConfig.TypeMeta,
 			GracePeriodSeconds: pointer.Int64(0), // force delete
@@ -357,19 +360,19 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 	}
 	labels[targetNameKey] = target.Name
 	labels[targetNamespaceKey] = target.Namespace
-	
+
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", configSet.Name, target.Name),
-			Namespace: configSet.Namespace,
-			Labels: labels,
+			Name:        fmt.Sprintf("%s-%s", configSet.Name, target.Name),
+			Namespace:   configSet.Namespace,
+			Labels:      labels,
 			Annotations: configSet.Annotations,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: configSet.APIVersion,
-					Kind: configSet.Kind,
-					Name: configSet.Name,
-					UID: configSet.UID,
+					Kind:       configSet.Kind,
+					Name:       configSet.Name,
+					UID:        configSet.UID,
 					Controller: pointer.Bool(true),
 				},
 			},
