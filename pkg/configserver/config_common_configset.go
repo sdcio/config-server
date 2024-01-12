@@ -269,7 +269,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		// delete the config from the map as it is updated
 		delete(existingConfigs, types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
 
-		key := store.GetNSNKey(types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		key := store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
 		isCreate := false
 		obj, err := r.configStore.Get(ctx, key)
 		if err != nil {
@@ -295,8 +295,8 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 
 		_, _, err = r.upsertTargetConfig(
 			ctx,
-			store.GetNSNKey(types.NamespacedName{Namespace: config.Namespace, Name: config.Name}),
-			store.GetNSNKey(target),
+			store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name}),
+			store.KeyFromNSN(target),
 			config,
 			isCreate,
 		)
