@@ -74,15 +74,15 @@ type SchemaSpecSchema struct {
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="models is immutable"
 	// Models defines the list of files/directories to be used as a model
-	Models []string `json:"models" yaml:"models"`
+	Models []string `json:"models,omitempty" yaml:"models,omitempty"`
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="includes is immutable"
 	// Excludes defines the list of files/directories to be excluded
-	Includes []string `json:"includes" yaml:"includes"`
+	Includes []string `json:"includes,omitempty" yaml:"includes,omitempty"`
 	// +kubebuilder:validation:MaxItems=64
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="excludes is immutable"
 	// Excludes defines the list of files/directories to be excluded
-	Excludes []string `json:"excludes" yaml:"excludes"`
+	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
 }
 
 // SchemaStatus defines the observed state of Schema
