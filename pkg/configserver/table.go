@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package configserver
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,8 +38,9 @@ func (c tableConvertor) ConvertToTable(ctx context.Context, object runtime.Objec
 	var table metav1.Table
 
 	fn := func(obj runtime.Object) error {
+		obj = obj
 		cells := c.cells(obj)
-		if cells == nil || len(cells) == 0 {
+		if len(cells) == 0 {
 			return errNotAcceptable{resource: c.resource}
 		}
 		table.Rows = append(table.Rows, metav1.TableRow{
@@ -96,31 +96,5 @@ func (e errNotAcceptable) Status() metav1.Status {
 		Code:    http.StatusNotAcceptable,
 		Reason:  metav1.StatusReason("NotAcceptable"),
 		Message: e.Error(),
-	}
-}
-
-func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
-	return tableConvertor{
-		resource: gr,
-		cells: func(obj runtime.Object) []interface{} {
-			config, ok := obj.(*configv1alpha1.Config)
-			if !ok {
-				return nil
-			}
-			return []interface{}{
-				config.Name,
-				config.GetCondition(configv1alpha1.ConditionTypeReady).Status,
-				config.GetTarget(),
-				config.GetLastKnownGoodSchema().String(),
-				config.ObjectMeta.CreationTimestamp,
-			}
-		},
-		columns: []metav1.TableColumnDefinition{
-			{Name: "Name", Type: "string"},
-			{Name: "Ready", Type: "string"},
-			{Name: "Target", Type: "string"},
-			{Name: "Schema", Type: "string"},
-			{Name: "Created at", Type: "string"},
-		},
 	}
 }

@@ -34,16 +34,23 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Config":                          schema_config_server_apis_config_v1alpha1_Config(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob":                      schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigList":                      schema_config_server_apis_config_v1alpha1_ConfigList(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet":                       schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetList":                   schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec":                   schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus":                 schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryParameters":                schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile":                   schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule":                      schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
+		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix":                schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
@@ -56,7 +63,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile":                  schema_config_server_apis_inv_v1alpha1_TargetConnProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
@@ -341,6 +347,196 @@ func schema_config_server_apis_config_v1alpha1_ConfigList(ref common.ReferenceCa
 	}
 }
 
+func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "\tConfigSet is the Schema for the ConfigSet API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetList contains a list of ConfigSets",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetSpec defines the desired state of Config",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the targets on which this configSet applies",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Target"),
+						},
+					},
+					"lifecycle": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle"),
+						},
+					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Priority defines the priority of this config",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config defines the configuration to be applied to a target device",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"target", "config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle", "github.com/iptecharch/config-server/apis/config/v1alpha1.Target"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigSetStatus defines the observed state of Config",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"targets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the status of the configSet resource on the respective target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus"},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -469,6 +665,94 @@ func schema_config_server_apis_config_v1alpha1_Lifecycle(ref common.ReferenceCal
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetSelector defines the selector used to select the targets to which the config applies",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type of condition in CamelCase or in foo.example.com/CamelCase.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status of the condition, one of True, False, Unknown.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "message is a human readable message indicating details about the transition. This may be an empty string.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "type", "status", "lastTransitionTime", "reason", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -653,12 +937,10 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"discover": {
+					"defaultSchema": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Discovery rule defines the profiles and templates generic to any discovery rule class/type Discover defines if discovery is enabled or not",
-							Default:     false,
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "DefaultSchema define the default schema used to connect to a target Indicates that discovery is disable; cannot be used for prefix based discovery rules",
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
 						},
 					},
 					"discoveryProfile": {
@@ -675,7 +957,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile"),
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile"),
 									},
 								},
 							},
@@ -702,11 +984,11 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"discover", "targetConnectionProfiles", "period"},
+				Required: []string{"targetConnectionProfiles", "period"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -800,6 +1082,34 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref common.ReferenceCa
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Address (specified as IP or DNS name) of the target/target(s)",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hostName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"address"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -863,13 +1173,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref common.Refer
 							Format:      "",
 						},
 					},
-					"hostName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"excludes": {
 						SchemaProps: spec.SchemaProps{
 							Description: "IP Prefixes to be excluded",
@@ -899,13 +1202,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 				Description: "DiscoveryRuleSpec defines the desired state of DiscoveryRule",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
 					"prefixes": {
 						SchemaProps: spec.SchemaProps{
 							Description: "IP Prefixes for which this discovery rule applies",
@@ -920,18 +1216,36 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							},
 						},
 					},
-					"selector": {
+					"addresses": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Selector defines the selector used to select which POD/SVC are subject to this discovery rule",
+							Description: "IP Prefixes for which this discovery rule applies",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress"),
+									},
+								},
+							},
+						},
+					},
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSelector defines the pod selector for which this discovery rule applies",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
-					"discover": {
+					"serviceSelector": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Discovery rule defines the profiles and templates generic to any discovery rule class/type Discover defines if discovery is enabled or not",
-							Default:     false,
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "ServiceSelector defines the service selector for which this discovery rule applies",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+					"defaultSchema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DefaultSchema define the default schema used to connect to a target Indicates that discovery is disable; cannot be used for prefix based discovery rules",
+							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
 						},
 					},
 					"discoveryProfile": {
@@ -948,7 +1262,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile"),
+										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile"),
 									},
 								},
 							},
@@ -975,11 +1289,11 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 						},
 					},
 				},
-				Required: []string{"kind", "discover", "targetConnectionProfiles", "period"},
+				Required: []string{"targetConnectionProfiles", "period"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1213,7 +1527,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"repoURL", "provider", "version", "kind", "ref", "dirs", "schema"},
+				Required: []string{"repoURL", "provider", "version", "kind", "ref", "schema"},
 			},
 		},
 		Dependencies: []string{
@@ -1385,57 +1699,6 @@ func schema_config_server_apis_inv_v1alpha1_Target(ref common.ReferenceCallback)
 	}
 }
 
-func schema_config_server_apis_inv_v1alpha1_TargetConnProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"credentials": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tlsSecret": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"connectionProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"syncProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SyncProfile define the profile used to sync to the target config once discovered",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"defaultSchema": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DefaultSchema define the default schema used to connect to a target Used when discovery is disabled or when discovery is unsuccessful.",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
-						},
-					},
-				},
-				Required: []string{"credentials", "connectionProfile"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"},
-	}
-}
-
 func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1535,16 +1798,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 				Properties: map[string]spec.Schema{
 					"connectRetry": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"protocol": {
@@ -1564,16 +1825,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 					},
 					"encoding": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"preferredNetconfVersion": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"insecure": {
@@ -1607,7 +1866,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 						},
 					},
 				},
-				Required: []string{"connectRetry", "timeout", "protocol", "port", "encoding", "preferredNetconfVersion"},
+				Required: []string{"protocol", "port"},
 			},
 		},
 	}
@@ -1944,23 +2203,20 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"validate": {
 						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
 					"buffer": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"workers": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 					"sync": {
@@ -1977,7 +2233,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 						},
 					},
 				},
-				Required: []string{"validate", "buffer", "workers", "sync"},
+				Required: []string{"sync"},
 			},
 		},
 		Dependencies: []string{
@@ -2029,20 +2285,18 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 					},
 					"encoding": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
+							Type:   []string{"integer"},
+							Format: "int64",
 						},
 					},
 				},
-				Required: []string{"name", "protocol", "paths", "mode", "encoding", "interval"},
+				Required: []string{"name", "protocol", "paths", "mode"},
 			},
 		},
 	}
@@ -2654,7 +2908,7 @@ func schema_pkg_apis_meta_v1_CreateOptions(ref common.ReferenceCallback) common.
 					},
 					"fieldValidation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields, provided that the `ServerSideFieldValidation` feature gate is also enabled. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23 and is the default behavior when the `ServerSideFieldValidation` feature gate is disabled. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default when the `ServerSideFieldValidation` feature gate is enabled. - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3064,12 +3318,6 @@ func schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref common.ReferenceCallba
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"key": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-patch-merge-key": "key",
-								"x-kubernetes-patch-strategy":  "merge",
-							},
-						},
 						SchemaProps: spec.SchemaProps{
 							Description: "key is the label key that the selector applies to.",
 							Default:     "",
@@ -3283,6 +3531,13 @@ func schema_pkg_apis_meta_v1_ListOptions(ref common.ReferenceCallback) common.Op
 							Format:      "",
 						},
 					},
+					"sendInitialEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`sendInitialEvents=true` may be set together with `watch=true`. In that case, the watch stream will begin with synthetic events to produce the current state of objects in the collection. Once all such events have been sent, a synthetic \"Bookmark\" event  will be sent. The bookmark will report the ResourceVersion (RV) corresponding to the set of objects, and be marked with `\"k8s.io/initial-events-end\": \"true\"` annotation. Afterwards, the watch stream will proceed as usual, sending watch events corresponding to changes (subsequent to the RV) to objects watched.\n\nWhen `sendInitialEvents` option is set, we require `resourceVersionMatch` option to also be set. The semantic of the watch request is as following: - `resourceVersionMatch` = NotOlderThan\n  is interpreted as \"data at least as new as the provided `resourceVersion`\"\n  and the bookmark event is send when the state is synced\n  to a `resourceVersion` at least as fresh as the one provided by the ListOptions.\n  If `resourceVersion` is unset, this is interpreted as \"consistent read\" and the\n  bookmark event is send when the state is synced at least to the moment\n  when request started being processed.\n- `resourceVersionMatch` set to any other value or unset\n  Invalid error is returned.\n\nDefaults to true if `resourceVersion=\"\"` or `resourceVersion=\"0\"` (for backward compatibility reasons) and to false otherwise.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -3372,7 +3627,7 @@ func schema_pkg_apis_meta_v1_ObjectMeta(ref common.ReferenceCallback) common.Ope
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+							Description: "Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3386,7 +3641,7 @@ func schema_pkg_apis_meta_v1_ObjectMeta(ref common.ReferenceCallback) common.Ope
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.\n\nMust be a DNS_LABEL. Cannot be updated. More info: http://kubernetes.io/docs/user-guide/namespaces",
+							Description: "Namespace defines the space within which each name must be unique. An empty namespace is equivalent to the \"default\" namespace, but \"default\" is the canonical representation. Not all objects are required to be scoped to a namespace - the value of this field for those objects will be empty.\n\nMust be a DNS_LABEL. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3400,7 +3655,7 @@ func schema_pkg_apis_meta_v1_ObjectMeta(ref common.ReferenceCallback) common.Ope
 					},
 					"uid": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.\n\nPopulated by the system. Read-only. More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+							Description: "UID is the unique in time and space value for this object. It is typically generated by the server on successful creation of a resource and is not allowed to change on PUT operations.\n\nPopulated by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3441,7 +3696,7 @@ func schema_pkg_apis_meta_v1_ObjectMeta(ref common.ReferenceCallback) common.Ope
 					},
 					"labels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels",
+							Description: "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -3457,7 +3712,7 @@ func schema_pkg_apis_meta_v1_ObjectMeta(ref common.ReferenceCallback) common.Ope
 					},
 					"annotations": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations",
+							Description: "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -3558,7 +3813,7 @@ func schema_pkg_apis_meta_v1_OwnerReference(ref common.ReferenceCallback) common
 					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#names",
+							Description: "Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3566,7 +3821,7 @@ func schema_pkg_apis_meta_v1_OwnerReference(ref common.ReferenceCallback) common
 					},
 					"uid": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UID of the referent. More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+							Description: "UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3748,7 +4003,7 @@ func schema_pkg_apis_meta_v1_PatchOptions(ref common.ReferenceCallback) common.O
 					},
 					"fieldValidation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields, provided that the `ServerSideFieldValidation` feature gate is also enabled. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23 and is the default behavior when the `ServerSideFieldValidation` feature gate is disabled. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default when the `ServerSideFieldValidation` feature gate is enabled. - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3979,7 +4234,7 @@ func schema_pkg_apis_meta_v1_StatusDetails(ref common.ReferenceCallback) common.
 					},
 					"uid": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UID of the resource. (when there is a single resource which can be described). More info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+							Description: "UID of the resource. (when there is a single resource which can be described). More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4375,7 +4630,7 @@ func schema_pkg_apis_meta_v1_UpdateOptions(ref common.ReferenceCallback) common.
 					},
 					"fieldValidation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields, provided that the `ServerSideFieldValidation` feature gate is also enabled. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23 and is the default behavior when the `ServerSideFieldValidation` feature gate is disabled. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default when the `ServerSideFieldValidation` feature gate is enabled. - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
+							Description: "fieldValidation instructs the server on how to handle objects in the request (POST/PUT/PATCH) containing unknown or duplicate fields. Valid values are: - Ignore: This will ignore any unknown fields that are silently dropped from the object, and will ignore all but the last duplicate field that the decoder encounters. This is the default behavior prior to v1.23. - Warn: This will send a warning via the standard warning response header for each unknown field that is dropped from the object, and for each duplicate field that is encountered. The request will still succeed if there are no other errors, and will only persist the last of any duplicate fields. This is the default in v1.23+ - Strict: This will fail the request with a BadRequest error if any unknown fields would be dropped from the object, or if any duplicate fields are present. The error returned from the server will contain all unknown and duplicate fields encountered.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4471,13 +4726,6 @@ func schema_k8sio_apimachinery_pkg_runtime_Unknown(ref common.ReferenceCallback)
 							Format: "",
 						},
 					},
-					"Raw": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Raw will hold the complete serialized object which couldn't be matched with a registered type. Most likely, nothing should be done with this except for passing it through the system.",
-							Type:        []string{"string"},
-							Format:      "byte",
-						},
-					},
 					"ContentEncoding": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ContentEncoding is encoding used to encode 'Raw' data. Unspecified means no encoding.",
@@ -4495,7 +4743,7 @@ func schema_k8sio_apimachinery_pkg_runtime_Unknown(ref common.ReferenceCallback)
 						},
 					},
 				},
-				Required: []string{"Raw", "ContentEncoding", "ContentType"},
+				Required: []string{"ContentEncoding", "ContentType"},
 			},
 		},
 	}

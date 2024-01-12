@@ -138,6 +138,9 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 
 	provVersionBasePath := spec.GetBasePath(r.schemaDir)
 
+	if len(spec.Dirs) == 0 {
+		spec.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
+	}
 	for i, dir := range spec.Dirs {
 		// build the source path
 		src := path.Join(repoPath, dir.Src)

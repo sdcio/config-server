@@ -35,7 +35,7 @@ func GetSyncProfile(syncProfile *TargetSyncProfile) *sdcpb.Sync {
 			Path:     syncConfig.Paths,
 			Mode:     getSyncMode(syncConfig.Mode),
 			Encoding: getEncoding(syncConfig.Encoding),
-			Interval: syncConfig.Interval,
+			Interval: uint64(syncConfig.Interval.Nanoseconds()),
 		})
 	}
 	return sync

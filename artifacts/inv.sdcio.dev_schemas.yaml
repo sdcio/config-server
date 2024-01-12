@@ -78,6 +78,7 @@ spec:
                 - message: dirs is immutable
                   rule: oldSelf.all(x, x in self)
               kind:
+                default: tag
                 description: Kind defines the that the BranchOrTag string is a repository
                   branch or a tag
                 enum:
@@ -149,7 +150,6 @@ spec:
                 - message: version is immutable
                   rule: self == oldSelf
             required:
-            - dirs
             - kind
             - provider
             - ref

@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM alpine:latest
 #FROM scratch
 WORKDIR /
-COPY --from=builder /workspace/capis /app/
+COPY --from=builder /workspace/config-server /app/
 #USER 65532:65532
 
-ENTRYPOINT ["/app/capis"]
+ENTRYPOINT ["/app/config-server"]

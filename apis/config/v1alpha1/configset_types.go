@@ -20,11 +20,12 @@ import (
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// ConfigSpec defines the desired state of Config
-type ConfigSpec struct {
+// ConfigSetSpec defines the desired state of Config
+type ConfigSetSpec struct {
+	// Targets defines the targets on which this configSet applies
+	Target Target `json:"target" yaml:"target"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
 	Lifecycle Lifecycle `json:"lifecycle,omitempty" yaml:"lifecycle,omitempty"`
@@ -35,61 +36,59 @@ type ConfigSpec struct {
 	Config []ConfigBlob `json:"config" yaml:"config"`
 }
 
-type ConfigBlob struct {
-	// Path defines the path relative to which the value is applicable
-	Path string `json:"path,omitempty" yaml:"path,omitempty"`
-	//+kubebuilder:pruning:PreserveUnknownFields
-	Value runtime.RawExtension `json:"value" yaml:"value"`
+type Target struct {
+	// TargetSelector defines the selector used to select the targets to which the config applies
+	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty" yaml:"targetSelector,omitempty"`
 }
 
-// ConfigStatus defines the observed state of Config
-type ConfigStatus struct {
+// ConfigSetStatus defines the observed state of Config
+type ConfigSetStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
 	ConditionedStatus `json:",inline" yaml:",inline"`
-	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
-	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" yaml:"lastKnownGoodSchema,omitempty"`
+	// Targets defines the status of the configSet resource on the respective target
+	Targets []TargetStatus `json:"targets,omitempty" yaml:"targets,omitempty"`
 }
 
-type ConfigStatusLastKnownGoodSchema struct {
-	// Schema Type
-	Type string `json:"type,omitempty" yaml:"type,omitempty"`
-	// Schema Vendor
-	Vendor string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
-	// Schema Version
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+type TargetStatus struct {
+	Name string `json:"name" yaml:"name"`
+	// right now we assume the namespace of the config and target are aligned
+	//NameSpace string `json:"namespace" yaml:"namespace"`
+	// Condition of the configCR status
+	Condition `json:",inline" yaml:",inline"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	Config is the Schema for the Config API
+//	ConfigSet is the Schema for the ConfigSet API
 //
 // +k8s:openapi-gen=true
-type Config struct {
+type ConfigSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ConfigSpec   `json:"spec,omitempty"`
-	Status ConfigStatus `json:"status,omitempty"`
+	Spec   ConfigSetSpec   `json:"spec,omitempty"`
+	Status ConfigSetStatus `json:"status,omitempty"`
 }
 
-// ConfigList contains a list of Configs
+// ConfigSetList contains a list of ConfigSets
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type ConfigList struct {
+type ConfigSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Config `json:"items"`
+	Items           []ConfigSet `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Config{}, &ConfigList{})
+	SchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
 }
 
 // Config type metadata.
 var (
-	ConfigKind = reflect.TypeOf(Config{}).Name()
+	ConfigSetKind = reflect.TypeOf(ConfigSet{}).Name()
 	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
 	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
 	//ConfigGroupVersionKind = GroupVersion.WithKind(ConfigKind)
 )
+

@@ -30,10 +30,14 @@ type DiscoveryObject interface {
 	client.Object
 	GetCondition(t ConditionType) Condition
 	SetConditions(c ...Condition)
+	Discovery() bool
 	GetDiscoveryParameters() DiscoveryParameters
-	GetDiscoveryKind() DiscoveryRuleSpecKind
+	GetDiscoveryKind() (DiscoveryRuleSpecKind, error)
 	GetPrefixes() []DiscoveryRulePrefix
-	GetLabelSelectors() metav1.LabelSelector
+	GetAddresses() []DiscoveryRuleAddress
+	GetPodSelector() metav1.LabelSelector
+	GetSvcSelector() metav1.LabelSelector
+	GetDefaultSchema() *SchemaKey
 }
 
 // +k8s:deepcopy-gen=false
@@ -69,70 +73,84 @@ func (r *DiscoveryRule) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
+func (r *DiscoveryRule) Discovery() bool {
+	return r.Spec.DiscoveryParameters.DefaultSchema == nil
+}
+
+func (r *DiscoveryRule) GetDefaultSchema() *SchemaKey {
+	return r.Spec.DiscoveryParameters.DefaultSchema
+}
+
 // Returns the generic discovery rule
 func (r *DiscoveryRule) GetDiscoveryParameters() DiscoveryParameters {
 	return r.Spec.DiscoveryParameters
 }
 
-func (r *DiscoveryRule) GetDiscoveryKind() DiscoveryRuleSpecKind {
-	return r.Spec.Kind
+func (r *DiscoveryRule) GetDiscoveryKind() (DiscoveryRuleSpecKind, error) {
+	kinds := []DiscoveryRuleSpecKind{}
+	if len(r.Spec.Addresses) != 0 {
+		kinds = append(kinds, DiscoveryRuleSpecKindAddress)
+	}
+	if len(r.Spec.Prefixes) != 0 {
+		kinds = append(kinds, DiscoveryRuleSpecKindPrefix)
+	}
+	if r.Spec.PodSelector != nil {
+		kinds = append(kinds, DiscoveryRuleSpecKindPod)
+	}
+	if r.Spec.ServiceSelector != nil {
+		kinds = append(kinds, DiscoveryRuleSpecKindSvc)
+	}
+	if len(kinds) == 0 {
+		return DiscoveryRuleSpecKindUnknown, fmt.Errorf("a discovery rule need specify either addresses, prefixes, podSelector or serviceSelector, got neither of them")
+	}
+	if len(kinds) != 1 {
+		return DiscoveryRuleSpecKindUnknown, fmt.Errorf("a discovery rule can only have 1 discovery kind, got: %v", kinds)
+	}
+	return kinds[0], nil
 }
 
 func (r *DiscoveryRule) GetPrefixes() []DiscoveryRulePrefix {
 	return r.Spec.Prefixes
 }
 
-func (r *DiscoveryRule) GetLabelSelectors() metav1.LabelSelector {
-	if r.Spec.Selector == nil {
+func (r *DiscoveryRule) GetAddresses() []DiscoveryRuleAddress {
+	return r.Spec.Addresses
+}
+
+func (r *DiscoveryRule) GetPodSelector() metav1.LabelSelector {
+	if r.Spec.PodSelector == nil {
 		return metav1.LabelSelector{}
 	}
-	return *r.Spec.Selector
-}	
+	return *r.Spec.PodSelector
+}
+
+func (r *DiscoveryRule) GetSvcSelector() metav1.LabelSelector {
+	if r.Spec.PodSelector == nil {
+		return metav1.LabelSelector{}
+	}
+	return *r.Spec.ServiceSelector
+}
 
 func (r *DiscoveryRule) Validate() error {
+
+	kind, err := r.GetDiscoveryKind()
+	if err != nil {
+		return err
+	}
 	var errm error
-	// when discovery is diabled
-	// 1. the prefix need to be a /32 or /128
-	// 2. a hostname is needed
-	if !r.Spec.DiscoveryParameters.Discover {
-		for _, p := range r.Spec.Prefixes {
-			if p.HostName == "" {
-				errm = errors.Join(errm, fmt.Errorf("when discovery is disabled, the prefix %s need to have a hostname", p.Prefix))
-			}
-			ipp, err := iputil.New(p.Prefix)
-			if err != nil {
-				errm = errors.Join(errm, fmt.Errorf("parsing prefix %s failed %s", p.Prefix, err.Error()))
-				continue
-			}
-			if !ipp.IsAddressPrefix() {
-				errm = errors.Join(errm, fmt.Errorf("when discovery is disabled, the prefix need to be an address, got: %s", p.Prefix))
-			}
-		}
-	} else {
-		for _, p := range r.Spec.Prefixes {
-			_, err := iputil.New(p.Prefix)
-			if err != nil {
-				errm = errors.Join(errm, fmt.Errorf("parsing prefix %s failed %s", p.Prefix, err.Error()))
-				continue
-			}
+	if r.Spec.DiscoveryParameters.DefaultSchema != nil {
+		// discovery disabled -> prefix based discovery cannot be supported
+		if kind == DiscoveryRuleSpecKindPrefix {
+			errm = errors.Join(errm, fmt.Errorf("prefix based discovery cannot have discovery disabled, remove the default schema for prefix based discovery"))
 		}
 	}
-
-	switch r.Spec.Kind {
-	case DiscoveryRuleSpecKindIP:
-		if len(r.Spec.Prefixes) == 0 {
-			errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without ip prefixes", string(r.Spec.Kind)))
+	// prefixes need a valid ip
+	for _, p := range r.Spec.Prefixes {
+		_, err := iputil.New(p.Prefix)
+		if err != nil {
+			errm = errors.Join(errm, fmt.Errorf("parsing prefix %s failed %s", p.Prefix, err.Error()))
+			continue
 		}
-	case DiscoveryRuleSpecKindPOD, DiscoveryRuleSpecKindSVC:
-		if r.Spec.Selector == nil {
-			errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without a selector", string(r.Spec.Kind)))
-		} else {
-			if len(r.Spec.Selector.MatchExpressions) == 0 && len(r.Spec.Selector.MatchLabels) == 0 {
-				errm = errors.Join(errm, fmt.Errorf("an %s discovery kind cannot discover without selector criteria", string(r.Spec.Kind)))
-			}
-		}
-	default:
-		errm = errors.Join(errm, fmt.Errorf("unsupported discovery kind, got: %s", string(r.Spec.Kind)))
 	}
 
 	if err := r.Spec.DiscoveryParameters.Validate(); err != nil {

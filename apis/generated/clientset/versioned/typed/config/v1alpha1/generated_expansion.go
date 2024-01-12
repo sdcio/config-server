@@ -16,3 +16,5 @@
 package v1alpha1
 
 type ConfigExpansion interface{}
+
+type ConfigSetExpansion interface{}

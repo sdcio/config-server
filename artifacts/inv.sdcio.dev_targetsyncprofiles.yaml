@@ -61,9 +61,8 @@ spec:
                       - config
                       type: string
                     interval:
-                      default: 0
-                      format: int64
-                      type: integer
+                      default: 60s
+                      type: string
                     mode:
                       enum:
                       - unknown
