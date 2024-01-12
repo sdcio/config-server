@@ -20,6 +20,7 @@ import (
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
+	"github.com/iptecharch/config-server/pkg/store/memory"
 	"github.com/iptecharch/config-server/pkg/target"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,19 +31,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+func NewConfig(
+	ctx context.Context,
+	rootPath string,
+	kind string,
+	client client.Client,
+	scheme *runtime.Scheme,
+	targetStore store.Storer[target.Context],
+) (*Config, error) {
+	newConfigFn := func() runtime.Object {
+		return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{})
+	}
+	newConfigSetFn := func() runtime.Object {
+		return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{})
+	}
+	newCfgFn := func() resource.Object {
+		return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{})
+	}
+	newCfgSetFn := func() resource.Object {
+		return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{})
+	}
 
-
-func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme, targetStore store.Storer[target.Context]) (*Config, error) {
-	newConfigFn := func() runtime.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
-	newConfigSetFn := func() runtime.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
-	newCfgFn := func() resource.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
-	newCfgSetFn := func() resource.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
-
-	configStore, err := createStore(ctx, newConfigFn, newCfgFn, scheme, "config")
+	configStore, err := createStore(ctx, newConfigFn, newCfgFn, scheme, rootPath, kind)
 	if err != nil {
 		return nil, err
 	}
-	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, "config")
+	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, rootPath, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +78,10 @@ type Config struct {
 type newObjFn func() runtime.Object
 type newResFn func() resource.Object
 
-func createStore(ctx context.Context, newObjFn newObjFn, newResFn newResFn, scheme *runtime.Scheme, rootPath string) (store.Storer[runtime.Object], error) {
+func createStore(ctx context.Context, newObjFn newObjFn, newResFn newResFn, scheme *runtime.Scheme, rootPath, kind string) (store.Storer[runtime.Object], error) {
+	if kind == "mem" { // used for testing
+		return memory.NewStore[runtime.Object](), nil
+	}
 	obj := newResFn()
 	gr := obj.GetGroupVersionResource().GroupResource()
 	codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
