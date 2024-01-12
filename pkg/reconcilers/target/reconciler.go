@@ -21,9 +21,9 @@ import (
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
-	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
+	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
@@ -86,7 +86,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx).WithValues("req", req)
 	log.Info("reconcile")
 
-	key := store.GetNSNKey(req.NamespacedName)
+	key := store.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.Target{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -115,7 +115,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// delete the mapping in the dataserver cache, which keeps track of all targets per dataserver
-		r.deleteTargetFromDataServer(ctx, store.GetNameKey(targetCtx.Client.GetAddress()), key)
+		r.deleteTargetFromDataServer(ctx, store.ToKey(targetCtx.Client.GetAddress()), key)
 		// delete the datastore
 		if targetCtx.DataStore != nil {
 			log.Info("deleting datastore", "key", key.String())
@@ -130,7 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// delete the target from the target store
-		r.targetStore.Delete(ctx, store.GetNSNKey(req.NamespacedName))
+		r.targetStore.Delete(ctx, store.KeyFromNSN(req.NamespacedName))
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			log.Error(err, "cannot remove finalizer")
@@ -166,14 +166,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			// add the target to the DS
-			r.addTargetToDataServer(ctx, store.GetNameKey(selectedDSctx.DSClient.GetAddress()), key)
+			r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), key)
 			// create the target in the target store
 			r.targetStore.Create(ctx, key, target.Context{
 				Client: selectedDSctx.DSClient,
 			})
 		} else {
 			// safety
-			r.addTargetToDataServer(ctx, store.GetNameKey(currentTargetCtx.Client.GetAddress()), key)
+			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), key)
 		}
 		// Now that the target store is up to date and we have an assigned dataserver
 		// we will create/update the datastore for the target
@@ -265,7 +265,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 }
 
 func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv1alpha1.Target) error {
-	key := store.GetNSNKey(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
+	key := store.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).WithValues("targetkey", key.String())
 
 	// this should always succeed
@@ -299,7 +299,7 @@ func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv
 // 2. delete/update the datastore if changes were detected
 // 3. do nothing if no changes were detected.
 func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1alpha1.Target) (bool, *invv1alpha1.TargetStatusUsedReferences, error) {
-	key := store.GetNSNKey(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
+	key := store.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).WithValues("targetkey", key.String())
 	changed := false
 	req, usedRefs, err := r.getCreateDataStoreRequest(ctx, cr)
@@ -487,7 +487,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
 
 	return &sdcpb.CreateDataStoreRequest{
-		Name: store.GetNSNKey(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
+		Name: store.KeyFromNSN(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
 			Type:    string(connProfile.Spec.Protocol),
 			Address: cr.Spec.Address,

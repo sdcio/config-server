@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/watch"
-	"github.com/henderiw/logger/log"
 	//metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 )
 
@@ -83,7 +83,7 @@ func (r *mem[T1]) Create(ctx context.Context, key store.Key, data T1) error {
 	return nil
 }
 
-// Upsert creates or updates the entry in the cache
+// Update creates or updates the entry in the cache
 func (r *mem[T1]) Update(ctx context.Context, key store.Key, data T1) error {
 	exists := true
 	oldd, err := r.Get(ctx, key)
