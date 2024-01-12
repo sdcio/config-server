@@ -59,19 +59,24 @@ generate: controller-gen
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/inv/..." output:crd:artifacts:config=artifacts
 
+.PHONY:
 fix:
 	go fix ./...
 
+.PHONY:
 fmt:
 	test -z $(go fmt ./tools/...)
 
+.PHONY:
 tidy:
 	go mod tidy
 
+.PHONY:
 lint:
 	(which golangci-lint || go get github.com/golangci/golangci-lint/cmd/golangci-lint)
 	$(GOBIN)/golangci-lint run ./...
 
+.PHONY:
 test:
 	go test -cover ./...
 

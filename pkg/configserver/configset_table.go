@@ -25,7 +25,6 @@ func NewConfigSetTableConvertor(gr schema.GroupResource) tableConvertor {
 	return tableConvertor{
 		resource: gr,
 		cells: func(obj runtime.Object) []interface{} {
-			obj = obj
 			config, ok := obj.(*configv1alpha1.ConfigSet)
 			if !ok {
 				return nil

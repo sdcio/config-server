@@ -38,7 +38,6 @@ func (c tableConvertor) ConvertToTable(ctx context.Context, object runtime.Objec
 	var table metav1.Table
 
 	fn := func(obj runtime.Object) error {
-		obj = obj
 		cells := c.cells(obj)
 		if len(cells) == 0 {
 			return errNotAcceptable{resource: c.resource}
