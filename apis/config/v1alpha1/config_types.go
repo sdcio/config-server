@@ -91,5 +91,5 @@ var (
 	ConfigKind = reflect.TypeOf(Config{}).Name()
 	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
 	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
-	//ConfigGroupVersionKind = GroupVersion.WithKind(ConfigKind)
+	//ConfigGroupVersionKind = SchemeGroupVersion.WithKind(ConfigKind)
 )

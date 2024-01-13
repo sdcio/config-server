@@ -17,8 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
 	"strings"
 
+	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -109,4 +111,17 @@ func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSet
 		Spec:       spec,
 		Status:     status,
 	}
+}
+
+// GetConfigSetFromFile is a helper for tests to use the
+// examples and validate them in unit tests
+func GetConfigSetFromFile(path string) (*ConfigSet, error) {
+	addToScheme := AddToScheme
+	obj := &ConfigSet{}
+	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
+	// build object from file
+	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

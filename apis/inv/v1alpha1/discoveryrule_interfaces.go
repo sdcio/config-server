@@ -19,8 +19,10 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/henderiw/iputil"
+	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -157,4 +159,17 @@ func (r *DiscoveryRule) Validate() error {
 		errm = errors.Join(errm, err)
 	}
 	return errm
+}
+
+// GetConfigSetFromFile is a helper for tests to use the
+// examples and validate them in unit tests
+func GetDiscoveryRuleFromFile(path string) (*DiscoveryRule, error) {
+	addToScheme := AddToScheme
+	obj := &DiscoveryRule{}
+	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
+	// build object from file
+	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

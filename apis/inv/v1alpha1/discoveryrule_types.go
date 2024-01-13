@@ -167,5 +167,5 @@ var (
 	DiscoveryRuleKind             = reflect.TypeOf(DiscoveryRule{}).Name()
 	DiscoveryRuleGroupKind        = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: DiscoveryRuleKind}.String()
 	DiscoveryRuleKindAPIVersion   = DiscoveryRuleKind + "." + SchemeGroupVersion.String()
-	DiscoveryRuleGroupVersionKind = SchemeGroupVersion.WithKind(DiscoveryRuleKind)
+	//DiscoveryRuleGroupVersionKind = SchemeGroupVersion.WithKind(DiscoveryRuleKind)
 )
