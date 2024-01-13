@@ -17,72 +17,36 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"testing"
-
-	"k8s.io/utils/pointer"
 )
 
 func TestValidate(t *testing.T) {
 	cases := map[string]struct {
-		dr          *DiscoveryRule
+		path        string
 		expectedErr error
 	}{
 		"Static": {
-			dr: &DiscoveryRule{
-				Spec: DiscoveryRuleSpec{
-					Addresses: []DiscoveryRuleAddress{
-						{Address: "1.1.1.1", HostName: "dev1"},
-						{Address: "1.1.1.2", HostName: "dev2"},
-					},
-					DiscoveryParameters: DiscoveryParameters{
-						DefaultSchema: &SchemaKey{
-							Provider: "x.y.z",
-							Version:  "v1",
-						},
-						TargetConnectionProfiles: []TargetProfile{
-							{
-								Credentials:       "x",
-								ConnectionProfile: "a",
-								SyncProfile:       pointer.String("b"),
-							},
-						},
-					},
-				},
-			},
+			path:        "../../../example/discovery-rule/static.yaml",
 			expectedErr: nil,
 		},
 		"Dynamic": {
-			dr: &DiscoveryRule{
-				Spec: DiscoveryRuleSpec{
-					Prefixes: []DiscoveryRulePrefix{
-						{Prefix: "1.1.1.0/24"},
-					},
-					DiscoveryParameters: DiscoveryParameters{
-						DiscoveryProfile: &DiscoveryProfile{
-							Credentials:        "x",
-							ConnectionProfiles: []string{"a"},
-						},
-						TargetConnectionProfiles: []TargetProfile{
-							{
-								Credentials:       "x",
-								ConnectionProfile: "a",
-								SyncProfile:       pointer.String("b"),
-							},
-						},
-					},
-				},
-			},
+			path:        "../../../example/discovery-rule/dynamic.yaml",
 			expectedErr: nil,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.dr.Validate()
-
+			dr, err := GetDiscoveryRuleFromFile(tc.path)
+			if err != nil {
+				t.Errorf("unexpected error\n%s", err.Error())
+			}
+			fmt.Println(name, dr)
+			err = dr.Validate()
 			if err != nil {
 				if tc.expectedErr == nil {
-					t.Errorf("%sunexpected error\n%s", name, err.Error())
+					t.Errorf("unexpected error\n%s", err.Error())
 				}
 				return
 			}
