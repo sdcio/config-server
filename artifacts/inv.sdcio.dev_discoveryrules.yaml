@@ -263,7 +263,6 @@ spec:
                       rule: self == oldSelf
                 type: object
             required:
-            - period
             - targetConnectionProfiles
             type: object
           status:

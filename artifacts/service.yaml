@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: capis
+  name: config-server
   namespace: network-system
 spec:
   ports:
@@ -9,4 +9,4 @@ spec:
     protocol: TCP
     targetPort: 6443
   selector:
-    config-apiserver: "true"
+    config-server: "true"

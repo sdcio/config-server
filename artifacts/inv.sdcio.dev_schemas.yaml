@@ -138,10 +138,6 @@ spec:
                     x-kubernetes-validations:
                     - message: models is immutable
                       rule: oldSelf.all(x, x in self)
-                required:
-                - excludes
-                - includes
-                - models
                 type: object
               version:
                 description: Version defines the version of the schema
