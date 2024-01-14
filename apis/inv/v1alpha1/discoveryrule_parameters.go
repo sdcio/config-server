@@ -21,6 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"text/template"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (r DiscoveryParameters) Validate() error {
@@ -46,6 +49,20 @@ func (r DiscoveryParameters) Validate() error {
 		}
 	}
 	return errm
+}
+
+func (r DiscoveryParameters) GetPeriod() metav1.Duration {
+	if r.Period.Duration == 0 {
+		return metav1.Duration{Duration: 1 * time.Minute}
+	}
+	return r.Period
+}
+
+func (r DiscoveryParameters) GetConcurrentScans() int64 {
+	if r.ConcurrentScans == 0 {
+		return 10
+	}
+	return r.ConcurrentScans
 }
 
 func (r DiscoveryParameters) GetTargetLabels(name string) (map[string]string, error) {

@@ -58,10 +58,8 @@ type DiscoveryParameters struct {
 	TargetConnectionProfiles []TargetProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles"`
 	// TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
 	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
-	// +kubebuilder:default:="1m"
 	// Period defines the wait period between discovery rule runs
 	Period metav1.Duration `json:"period,omitempty" yaml:"period,omitempty"`
-	// +kubebuilder:default:=10
 	// number of concurrent IP scan
 	ConcurrentScans int64 `json:"concurrentScans,omitempty" yaml:"concurrentScans,omitempty"`
 }
