@@ -9,5 +9,5 @@ roleRef:
   name: extension-apiserver-authentication-reader
 subjects:
 - kind: ServiceAccount
-  name: config-apiserver
+  name: config-server
   namespace: network-system

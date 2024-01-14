@@ -1,5 +1,5 @@
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: config-apiserver
+  name: config-server
   namespace: network-system

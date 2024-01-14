@@ -60,7 +60,7 @@ type DiscoveryParameters struct {
 	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
 	// +kubebuilder:default:="1m"
 	// Period defines the wait period between discovery rule runs
-	Period metav1.Duration `json:"period" yaml:"period"`
+	Period metav1.Duration `json:"period,omitempty" yaml:"period,omitempty"`
 	// +kubebuilder:default:=10
 	// number of concurrent IP scan
 	ConcurrentScans int64 `json:"concurrentScans,omitempty" yaml:"concurrentScans,omitempty"`
