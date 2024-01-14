@@ -134,7 +134,7 @@ func (r *DiscoveryRule) GetSvcSelector() metav1.LabelSelector {
 }
 
 func (r *DiscoveryRule) Validate() error {
-
+	// kind identifies if this is a prefix, address, svc or pod kind
 	kind, err := r.GetDiscoveryKind()
 	if err != nil {
 		return err

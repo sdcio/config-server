@@ -79,7 +79,7 @@ func CreateTarget(ctx context.Context, address string, secret *corev1.Secret, co
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
-	if connProfile.Spec.Insecure == true {
+	if connProfile.Spec.Insecure  {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
 		tOpts = append(tOpts, api.SkipVerify(true))

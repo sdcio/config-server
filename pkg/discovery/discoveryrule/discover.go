@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 )
 
@@ -40,7 +39,7 @@ func (r *dr) discover(ctx context.Context, h *hostInfo, targets *targets) error 
 // retruns the profiles used for discovery; if discovery was already done we retry with the same profile first
 // this function returns the discovery connection profile list and the order is changed based on the fact discovery
 // was already done
-func (r *dr) getDiscoveryProfiles(ctx context.Context, h *hostInfo, targets *targets) []*v1alpha1.TargetConnectionProfile {
+func (r *dr) getDiscoveryProfiles(ctx context.Context, h *hostInfo, targets *targets) []*invv1alpha1.TargetConnectionProfile {
 	address := h.Address
 
 	found := false // represent the status of the fact that we found the initial discovery profile

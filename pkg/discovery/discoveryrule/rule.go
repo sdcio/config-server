@@ -59,7 +59,7 @@ func (r *dr) Run(ctx context.Context) error {
 				time.Sleep(5 * time.Second)
 			} else {
 				log.Info("discovery rule finished, waiting for next run")
-				time.Sleep(r.cfg.CR.GetDiscoveryParameters().Period.Duration)
+				time.Sleep(r.cfg.CR.GetDiscoveryParameters().GetPeriod().Duration)
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func (r *dr) run(ctx context.Context) error {
 		return err // happens only of the apiserver is unresponsive
 	}
 
-	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().ConcurrentScans)
+	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().GetConcurrentScans())
 	for {
 		// Blocks until a next resource comes available
 		err = sem.Acquire(ctx, 1)

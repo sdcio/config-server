@@ -57,7 +57,6 @@ spec:
                   type: object
                 type: array
               concurrentScans:
-                default: 10
                 description: number of concurrent IP scan
                 format: int64
                 type: integer
@@ -101,7 +100,6 @@ spec:
                 - credentials
                 type: object
               period:
-                default: 1m
                 description: Period defines the wait period between discovery rule
                   runs
                 type: string
