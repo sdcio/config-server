@@ -1,0 +1,34 @@
+project_name: config-server
+builds:
+  - id: config-server
+    binary: config-server
+    main: ./cmd/apiserver/main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+dockers:
+  - goos: linux
+    goarch: amd64
+    ids:
+      - config-server
+    image_templates:
+      - "ghcr.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "ghcr.io/iptecharch/config-server:v0.0.0-dev-latest"
+    dockerfile: goreleaser.dockerfile
+    skip_push: false
+  - goos: linux
+    goarch: amd64
+    ids:
+      - config-server
+    image_templates:
+      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-dev-latest"
+    dockerfile: goreleaser.dockerfile
+    skip_push: false
+    push_flags:
+      - --tls-verify=false
+release:
+  disable: true
