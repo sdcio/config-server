@@ -17,6 +17,8 @@ dockers:
     image_templates:
       - "ghcr.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
       - "ghcr.io/iptecharch/config-server:v0.0.0-dev-latest"
+      - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-dev-latest"
     dockerfile: goreleaser.dockerfile
     skip_push: false
     build_flag_templates:

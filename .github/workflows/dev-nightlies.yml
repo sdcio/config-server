@@ -33,10 +33,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Login to Private k8s Container Registry
+      - name: Login to Hans' Private k8s Container Registry
         uses: docker/login-action@v3
         with:
           registry: registry.k8s.hans.io
+          username: iptecharch-builder
+          password: ${{ secrets.K8S_REGISTRY_HANS }}
+
+      - name: Login to Karim's Private k8s Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.kmrd.dev
           username: iptecharch-builder
           password: ${{ secrets.K8S_REGISTRY_HANS }}
 
