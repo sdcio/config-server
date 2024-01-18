@@ -49,6 +49,7 @@ const (
 	ConditionReasonUnknown  ConditionReason = "Unknown"
 	ConditionReasonNotReady ConditionReason = "NotReady"
 	ConditionReasonAction   ConditionReason = "Action"
+	ConditionReasonLoading  ConditionReason = "Loading"
 )
 
 // Reasons a resource is synced or not
@@ -213,6 +214,18 @@ func NotReady(msg string) Condition {
 
 // Failed returns a condition that indicates the resource
 // failed to get reconciled.
+func Loading() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonLoading),
+		Message:            "loading",
+	}}
+}
+
+// Failed returns a condition that indicates the resource
+// failed to get reconciled.
 func Failed(msg string) Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
@@ -246,110 +259,6 @@ func ReconcileError(err error) Condition {
 	}}
 }
 
-// Wired returns a condition indicating that the wiring
-// was successfull
-func Wired() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeWired),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonWireSuccess),
-	}}
-}
-
-// Wired returns a condition indicating that the wiring
-// failed
-func WiringFailed(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeWired),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonWireFailure),
-		Message:            msg,
-	}}
-}
-
-// WiringUknown returns a condition indicating that the wiring
-// is unknown
-func WiringUknown() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeWired),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonWireUnknown),
-	}}
-}
-
-// Wiring returns a condition indicating that the wiring
-// is unknown
-func Wiring(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeWired),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonWireWiring),
-		Message:            msg,
-	}}
-}
-
-// EPReady returns a condition that indicates the resource is
-// ready for use.
-func EPReady() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeEPReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
-	}}
-}
-
-// Unknown returns a condition that indicates the resource is in an
-// unknown status.
-func EPUnknown() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeEPReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonUnknown),
-	}}
-}
-
-// EPAction returns a condition that indicates the resource is in an
-// action status.
-func EPAction(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeEPReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonAction),
-		Message:            msg,
-	}}
-}
-
-// EPNotReady returns a condition that indicates the resource is in an
-// not ready status.
-func EPNotReady(msg string) Condition {
-	return Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeEPReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonNotReady),
-		Message:            msg,
-	}}
-}
-
-// Failed returns a condition that indicates the resource
-// failed to get reconciled.
-func EPFailed(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeEPReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
 // not ready status.
 func DSReady() Condition {
 	return Condition{metav1.Condition{
@@ -359,6 +268,7 @@ func DSReady() Condition {
 		Reason:             string(ConditionReasonReady),
 	}}
 }
+
 // Failed returns a condition that indicates the resource
 // failed to get reconciled.
 func DSFailed(msg string) Condition {
