@@ -138,6 +138,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// we just insert the schema again
+	log.Info("schema", "key", spec.GetKey())
 	r.schemaLoader.AddRef(ctx, spec)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
@@ -147,6 +148,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !dirExists {
+		// we set the loading condition to know loading started
+		cr.SetConditions(invv1alpha1.Loading())
+		if err := r.Status().Update(ctx, cr); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+
 		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
 			log.Error(err, "cannot load schema")
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
