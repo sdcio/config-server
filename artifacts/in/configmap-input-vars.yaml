@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: context
+data: 
+  dataServerImage: "europe-docker.pkg.dev/srlinux/eu.gcr.io/data-server:latest"
+  configServerImage: "europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest"
