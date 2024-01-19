@@ -126,11 +126,6 @@ func (r *configCommon) updateConfig(
 		log.Info("update failed to construct UpdatedObject", "error", err.Error())
 		return nil, false, err
 	}
-	accessor, err := meta.Accessor(newObj)
-	if err != nil {
-		return nil, false, apierrors.NewBadRequest(err.Error())
-	}
-	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
 	newConfig, ok := newObj.(*configv1alpha1.Config)
@@ -148,6 +143,12 @@ func (r *configCommon) updateConfig(
 		// deleted
 		return newConfig, false, nil
 	}
+
+	accessor, err := meta.Accessor(newObj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	accessor.SetResourceVersion(generateRandomString(6))
 
 	targetKey, err := getTargetKey(newConfig.GetLabels())
 	if err != nil {
