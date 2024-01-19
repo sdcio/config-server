@@ -119,11 +119,6 @@ func (r *configCommon) updateConfigSet(
 		log.Info("update failed to construct UpdatedObject", "error", err.Error())
 		return nil, false, err
 	}
-	accessor, err := meta.Accessor(newObj)
-	if err != nil {
-		return nil, false, apierrors.NewBadRequest(err.Error())
-	}
-	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
 	newConfigSet, ok := newObj.(*configv1alpha1.ConfigSet)
@@ -141,14 +136,27 @@ func (r *configCommon) updateConfigSet(
 		return newConfigSet, false, nil
 	}
 
+	accessor, err := meta.Accessor(newObj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	accessor.SetResourceVersion(generateRandomString(6))
+
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
 		return newConfigSet, false, err
 	}
 	// update the store
-	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
-		return nil, false, apierrors.NewInternalError(err)
+	if isCreate {
+		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+			return nil, false, apierrors.NewInternalError(err)
+		}
+	} else {
+		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
+			return nil, false, apierrors.NewInternalError(err)
+		}
 	}
+
 
 	return newConfigSet, isCreate, nil
 }
