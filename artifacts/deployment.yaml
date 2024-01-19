@@ -18,8 +18,7 @@ spec:
       serviceAccountName: config-server
       containers:
       - name: config-server
-        image: $input.context.
-        #image: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
+        image: input.context[0].data.configServerImage
         imagePullPolicy: Always
         command:
         - /app/config-server
@@ -66,23 +65,23 @@ spec:
         - name: schema-store
           mountPath: /schemas
       - name: data-server
-        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/data-server:latest
+        image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
         command:
         - /app/data-server
         args:
         - "--config=/config/data-server.yaml"
         volumeMounts:
-        - name: dataserver-config
+        - name: data-server-config
           mountPath: /config
         - name: cache
           mountPath: /cached/caches
         - name: schema-store
           mountPath: /schemas
       volumes:
-      - name: dataserver-config
+      - name: data-server-config
         configMap:
-          name: dataserver
+          name: data-server
       - name: apiserver-certs
         secret:
           secretName: config-server
