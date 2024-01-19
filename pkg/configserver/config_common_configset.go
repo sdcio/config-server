@@ -109,9 +109,9 @@ func (r *configCommon) updateConfigSet(
 		}
 	}
 	// get the data of the runtime object
-	oldConfig, ok := oldObj.(*configv1alpha1.Config)
+	oldConfigSet, ok := oldObj.(*configv1alpha1.ConfigSet)
 	if !ok {
-		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfig))
+		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfigSet))
 	}
 
 	newObj, err := objInfo.UpdatedObject(ctx, oldObj)
@@ -130,10 +130,10 @@ func (r *configCommon) updateConfigSet(
 	if !ok {
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", newObj))
 	}
-	if oldConfig.GetResourceVersion() != newConfigSet.GetResourceVersion() {
-		return nil, false, apierrors.NewConflict(configv1alpha1.Resource("configs"), oldConfig.GetName(), fmt.Errorf(OptimisticLockErrorMsg))
+	if oldConfigSet.GetResourceVersion() != newConfigSet.GetResourceVersion() {
+		return nil, false, apierrors.NewConflict(configv1alpha1.Resource("configs"), oldConfigSet.GetName(), fmt.Errorf(OptimisticLockErrorMsg))
 	}
-	if oldConfig.DeletionTimestamp != nil && len(newConfigSet.Finalizers) == 0 {
+	if oldConfigSet.DeletionTimestamp != nil && len(newConfigSet.Finalizers) == 0 {
 		if err := r.configSetStore.Delete(ctx, key); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
