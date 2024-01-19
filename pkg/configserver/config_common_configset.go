@@ -98,7 +98,7 @@ func (r *configCommon) updateConfigSet(
 	// isCreate tracks whether this is an update that creates an object (this happens in server-side apply)
 	isCreate := false
 
-	oldObj, err := r.configStore.Get(ctx, key)
+	oldObj, err := r.configSetStore.Get(ctx, key)
 	if err != nil {
 		log.Info("update", "err", err.Error())
 		if forceAllowCreate && strings.Contains(err.Error(), "not found") {
