@@ -16,7 +16,6 @@ package watch
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -60,7 +59,6 @@ func (r *Watchers[T1]) Add(w *WatchCtx[T1]) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("added watcher", w.id)
 	r.watchers[w.id] = w
 	return nil
 }
