@@ -180,6 +180,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 		if err != nil {
+
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -459,6 +460,7 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 }
 
 func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) (bool, string, error) {
+	log := log.FromContext(ctx)
 	schemaList := &invv1alpha1.SchemaList{}
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
@@ -471,6 +473,7 @@ func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) 
 	if err := r.List(ctx, schemaList, opts...); err != nil {
 		return false, "", err
 	}
+	log.Info("is schema ready", "schemaList", schemaList)
 	if len(schemaList.Items) != 1 {
 		return false, "", fmt.Errorf("schema not ready, returned: %d schema's", len(schemaList.Items))
 	}
