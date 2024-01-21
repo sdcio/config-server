@@ -7,7 +7,6 @@ import (
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
-	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,7 +16,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
 var (
@@ -93,7 +91,6 @@ func (c completedConfig) New(ctx context.Context, client client.Client, targetSt
 		return nil, err
 	}
 
-
 	configGroup, err := NewRESTStorage(ctx, Scheme, Codecs, client, targetStore)
 	if err != nil {
 		return nil, err
@@ -112,53 +109,14 @@ func (c completedConfig) New(ctx context.Context, client client.Client, targetSt
 }
 
 func NewRESTStorage(ctx context.Context, scheme *runtime.Scheme, codecs serializer.CodecFactory, client client.Client, targetStore store.Storer[target.Context]) (genericapiserver.APIGroupInfo, error) {
-	newConfigFn := func() runtime.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
-	newConfigSetFn := func() runtime.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
-	newCfgFn := func() resource.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
-	newCfgSetFn := func() resource.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
-
-	configStore, err := createStore(ctx, newConfigFn, newCfgFn, scheme, "config")
+	config, err := NewConfigFileProvider(ctx, &configv1alpha1.Config{}, scheme, client, targetStore)
 	if err != nil {
 		return genericapiserver.APIGroupInfo{}, err
 	}
-	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, "configset")
+	configset, err := NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, scheme, client, config.GetStore())
 	if err != nil {
 		return genericapiserver.APIGroupInfo{}, err
 	}
-	
-	grCfg := configv1alpha1.Resource("configs")
-	config := &config{
-		TableConvertor: NewConfigTableConvertor(grCfg),
-		watcherManager: watchermanager.New(32),
-		configCommon: configCommon{
-			client:         client,
-			configStore:    configStore,
-			configSetStore: configSetStore,
-			targetStore:    targetStore,
-			gr:             grCfg,
-			isNamespaced:   true,
-			newFunc:        func() runtime.Object { return &configv1alpha1.Config{} },
-			newListFunc:    func() runtime.Object { return &configv1alpha1.ConfigList{} },
-		},
-	}
-	go config.watcherManager.Start(ctx)
-
-	grCfgSet := configv1alpha1.Resource("configsets")
-	configset := &configset{
-		TableConvertor: NewConfigSetTableConvertor(grCfgSet),
-		watcherManager: watchermanager.New(32),
-		configCommon: configCommon{
-			client:         client,
-			configStore:    configStore,
-			configSetStore: configSetStore,
-			targetStore:    targetStore,
-			gr:             grCfgSet,
-			isNamespaced:   true,
-			newFunc:        func() runtime.Object { return &configv1alpha1.ConfigSet{} },
-			newListFunc:    func() runtime.Object { return &configv1alpha1.ConfigSetList{} },
-		},
-	}
-	go configset.watcherManager.Start(ctx)
 
 	group := genericapiserver.NewDefaultAPIGroupInfo(configv1alpha1.SchemeGroupVersion.Group, scheme, metav1.ParameterCodec, codecs)
 

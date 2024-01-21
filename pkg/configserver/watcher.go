@@ -92,6 +92,7 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options 
 
 	errorResult := make(chan error)
 
+	// backlog logs the events during startup
 	var backlog []watch.Event
 	// Make sure we hold the lock when setting the eventCallback, as it
 	// will be read by other goroutines when events happen.
@@ -111,7 +112,7 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options 
 	r.m.Unlock()
 
 	// we add the watcher to the watchermanager and start building a backlog for intermediate changes
-	// the backlog will be replayed
+	// while we startup, the backlog will be replayed once synced
 	log.Info("starting watch")
 	if err := r.watcherManager.Add(ctx, options, r); err != nil {
 		return err

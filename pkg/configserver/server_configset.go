@@ -16,7 +16,9 @@ package configserver
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
@@ -26,14 +28,75 @@ import (
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
+
+const (
+	configSetFilePath = "configset"
+)
+
+func NewConfigSetProviderHandler(ctx context.Context, s ResourceProvider) builderrest.ResourceHandlerProvider {
+	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
+		return s, nil
+	}
+}
+
+func NewConfigSetFileProvider(
+	ctx context.Context,
+	obj resource.Object,
+	scheme *runtime.Scheme,
+	client client.Client,
+	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+
+	configSetStore, err := createFileStore(ctx, obj, scheme, configSetFilePath)
+	if err != nil {
+		return nil, err
+	}
+	return newConfigSetProvider(ctx, obj, configSetStore, client, configStore)
+}
+
+func NewConfigSetMemProvider(
+	ctx context.Context,
+	obj resource.Object,
+	scheme *runtime.Scheme,
+	client client.Client,
+	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+
+	return newConfigSetProvider(ctx, obj, createMemStore(ctx), client, configStore)
+}
+
+func newConfigSetProvider(
+	ctx context.Context,
+	obj resource.Object,
+	configSetStore store.Storer[runtime.Object],
+	client client.Client,
+	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+	// create the backend store
+
+	// initialie the rest storage object
+	gr := obj.GetGroupVersionResource().GroupResource()
+	c := &configset{
+		configCommon: configCommon{
+			// target store is not needed for configSet, looks up targets from the cache
+			client:         client,
+			configStore:    configStore,
+			configSetStore: configSetStore,
+			gr:             gr,
+			isNamespaced:   obj.NamespaceScoped(),
+			newFunc:        obj.New,
+			newListFunc:    obj.NewList,
+		},
+		TableConvertor: NewConfigSetTableConvertor(gr),
+		watcherManager: watchermanager.New(32),
+	}
+	go c.watcherManager.Start(ctx)
+	return c, nil
+}
 
 var _ rest.StandardStorage = &configset{}
 var _ rest.Scoper = &configset{}
@@ -41,53 +104,20 @@ var _ rest.Storage = &configset{}
 var _ rest.TableConvertor = &configset{}
 var _ rest.SingularNameProvider = &configset{}
 
-func NewConfigSetProvider(ctx context.Context, obj resource.Object, cfg *Cfg) builderrest.ResourceHandlerProvider {
-	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
-		gr := obj.GetGroupVersionResource().GroupResource()
-		return NewConfigSetREST(
-			ctx,
-			cfg,
-			gr,
-			obj.NamespaceScoped(),
-			obj.New,
-			obj.NewList,
-		), nil
-	}
-}
-
-func NewConfigSetREST(
-	ctx context.Context,
-	cfg *Cfg,
-	gr schema.GroupResource,
-	isNamespaced bool,
-	newFunc func() runtime.Object,
-	newListFunc func() runtime.Object,
-) rest.Storage {
-	c := &configset{
-		configCommon: configCommon{
-			client:         cfg.client,
-			configStore:    cfg.configStore,
-			configSetStore: cfg.configSetStore,
-			targetStore:    cfg.targetStore,
-			gr:             gr,
-			isNamespaced:   isNamespaced,
-			newFunc:        newFunc,
-			newListFunc:    newListFunc,
-		},
-		TableConvertor: NewConfigSetTableConvertor(gr),
-		watcherManager: watchermanager.New(32),
-	}
-	go c.watcherManager.Start(ctx)
-	// start watching target changes
-	targetWatcher := targetWatcher{targetStore: cfg.targetStore}
-	targetWatcher.Watch(ctx)
-	return c
-}
-
 type configset struct {
 	configCommon
 	rest.TableConvertor
 	watcherManager watchermanager.WatcherManager
+}
+
+func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
+
+func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) {
+	r.configSetStore.Update(ctx, key, obj)
+}
+
+func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
+	return fmt.Errorf("UpdateTarget not supported for confgisets")
 }
 
 func (r *configset) Destroy() {}
