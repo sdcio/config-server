@@ -178,13 +178,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), key)
 		}
 
-		schemaIsReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
+		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 		if err != nil {
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		if !schemaIsReady {
+		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+		if !isSchemaReady {
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DSSchemaNotReady(schemaMsg))
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)

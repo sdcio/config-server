@@ -50,7 +50,9 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
-        - name: ENABLE_TARGET
+        - name: ENABLE_TARGETDATASTORE
+          value: "true"
+        - name: ENABLE_TARGETCONFIGSERVER
           value: "true"
         - name: ENABLE_DISCOVERYRULE
           value: "true"
