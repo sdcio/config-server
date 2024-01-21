@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 func init() {
@@ -56,13 +55,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Named("DiscoveryRuleIPController").
 		For(&invv1alpha1.DiscoveryRule{}).
 		//Owns(&invv1alpha1.DiscoveryRule{}).
-		Watches(&source.Kind{
-			Type: &invv1alpha1.TargetConnectionProfile{}},
+		Watches(&invv1alpha1.TargetConnectionProfile{},
 			&discoveryeventhandler.TargetConnProfileEventHandler{
 				Client:  mgr.GetClient(),
 				ObjList: &invv1alpha1.DiscoveryRuleList{},
 			}).
-		Watches(&source.Kind{Type: &invv1alpha1.TargetSyncProfile{}},
+		Watches(&invv1alpha1.TargetSyncProfile{},
 			&discoveryeventhandler.TargetSyncProfileEventHandler{
 				Client:  mgr.GetClient(),
 				ObjList: &invv1alpha1.DiscoveryRuleList{},
