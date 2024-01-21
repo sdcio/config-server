@@ -26,13 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 
 
-func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme, targetStore store.Storer[target.Context]) (*Config, error) {
+func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme, targetStore store.Storer[target.Context]) (*Cfg, error) {
 	newConfigFn := func() runtime.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
 	newConfigSetFn := func() runtime.Object { return configv1alpha1.BuildConfigSet(metav1.ObjectMeta{}, configv1alpha1.ConfigSetSpec{}, configv1alpha1.ConfigSetStatus{}) }
 	newCfgFn := func() resource.Object { return configv1alpha1.BuildConfig(metav1.ObjectMeta{}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{}) }
@@ -42,11 +42,11 @@ func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme
 	if err != nil {
 		return nil, err
 	}
-	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, "config")
+	configSetStore, err := createStore(ctx, newConfigSetFn, newCfgSetFn, scheme, "configset")
 	if err != nil {
 		return nil, err
 	}
-	return &Config{
+	return &Cfg{
 		client:         client,
 		configStore:    configStore,
 		configSetStore: configSetStore,
@@ -54,7 +54,7 @@ func NewConfig(ctx context.Context, client client.Client, scheme *runtime.Scheme
 	}, nil
 }
 
-type Config struct {
+type Cfg struct {
 	client         client.Client
 	configStore    store.Storer[runtime.Object]
 	configSetStore store.Storer[runtime.Object]

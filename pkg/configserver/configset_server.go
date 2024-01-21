@@ -30,17 +30,19 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
-	builderrest "sigs.k8s.io/apiserver-runtime/pkg/builder/rest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+
+	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
 var _ rest.StandardStorage = &configset{}
 var _ rest.Scoper = &configset{}
 var _ rest.Storage = &configset{}
 var _ rest.TableConvertor = &configset{}
+var _ rest.SingularNameProvider = &configset{}
 
-func NewConfigSetProvider(ctx context.Context, obj resource.Object, cfg *Config) builderrest.ResourceHandlerProvider {
-	return func(scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
+func NewConfigSetProvider(ctx context.Context, obj resource.Object, cfg *Cfg) builderrest.ResourceHandlerProvider {
+	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gr := obj.GetGroupVersionResource().GroupResource()
 		return NewConfigSetREST(
 			ctx,
@@ -55,7 +57,7 @@ func NewConfigSetProvider(ctx context.Context, obj resource.Object, cfg *Config)
 
 func NewConfigSetREST(
 	ctx context.Context,
-	cfg *Config,
+	cfg *Cfg,
 	gr schema.GroupResource,
 	isNamespaced bool,
 	newFunc func() runtime.Object,
@@ -100,6 +102,10 @@ func (r *configset) NewList() runtime.Object {
 
 func (r *configset) NamespaceScoped() bool {
 	return r.isNamespaced
+}
+
+func (r *configset) GetSingularName() string {
+	return "configset"
 }
 
 func (r *configset) Get(

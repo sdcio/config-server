@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
@@ -68,8 +67,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named("TargetDataStoreController").
 		For(&invv1alpha1.Target{}).
-		Watches(&source.Kind{Type: &invv1alpha1.TargetConnectionProfile{}}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
-		Watches(&source.Kind{Type: &invv1alpha1.TargetSyncProfile{}}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
+		//Watches(&source.Kind{Type: &invv1alpha1.TargetConnectionProfile{}}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
+		//Watches(&source.Kind{Type: &invv1alpha1.TargetSyncProfile{}}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
+		Watches(&invv1alpha1.TargetConnectionProfile{}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
+		Watches(&invv1alpha1.TargetSyncProfile{}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
 		Complete(r)
 }
 

@@ -17,8 +17,8 @@ package configserver
 import (
 	"context"
 
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel"
@@ -31,8 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
-	builderrest "sigs.k8s.io/apiserver-runtime/pkg/builder/rest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+
+	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
 var tracer = otel.Tracer("config-server")
@@ -46,9 +47,10 @@ var _ rest.StandardStorage = &config{}
 var _ rest.Scoper = &config{}
 var _ rest.Storage = &config{}
 var _ rest.TableConvertor = &config{}
+var _ rest.SingularNameProvider = &config{}
 
-func NewConfigProvider(ctx context.Context, obj resource.Object, cfg *Config) builderrest.ResourceHandlerProvider {
-	return func(scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
+func NewConfigProvider(ctx context.Context, obj resource.Object, cfg *Cfg) builderrest.ResourceHandlerProvider {
+	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gr := obj.GetGroupVersionResource().GroupResource()
 		return NewConfigREST(
 			ctx,
@@ -63,7 +65,7 @@ func NewConfigProvider(ctx context.Context, obj resource.Object, cfg *Config) bu
 
 func NewConfigREST(
 	ctx context.Context,
-	cfg *Config,
+	cfg *Cfg,
 	gr schema.GroupResource,
 	isNamespaced bool,
 	newFunc func() runtime.Object,
@@ -107,7 +109,11 @@ func (r *config) NewList() runtime.Object {
 }
 
 func (r *config) NamespaceScoped() bool {
-	return r.isNamespaced
+	return true
+}
+
+func (r *config) GetSingularName() string {
+	return "config"
 }
 
 func (r *config) Get(

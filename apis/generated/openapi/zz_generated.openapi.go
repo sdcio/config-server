@@ -972,7 +972,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 					"period": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Period defines the wait period between discovery rule runs",
-							Default:     0,
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
@@ -984,7 +983,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"targetConnectionProfiles", "period"},
+				Required: []string{"targetConnectionProfiles"},
 			},
 		},
 		Dependencies: []string{
@@ -1277,7 +1276,6 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 					"period": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Period defines the wait period between discovery rule runs",
-							Default:     0,
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
@@ -1289,7 +1287,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 						},
 					},
 				},
-				Required: []string{"targetConnectionProfiles", "period"},
+				Required: []string{"targetConnectionProfiles"},
 			},
 		},
 		Dependencies: []string{
@@ -1587,7 +1585,6 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref common.Referenc
 						},
 					},
 				},
-				Required: []string{"models", "includes", "excludes"},
 			},
 		},
 	}
@@ -1798,14 +1795,12 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 				Properties: map[string]spec.Schema{
 					"connectRetry": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 					"protocol": {
@@ -1869,6 +1864,8 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 				Required: []string{"protocol", "port"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -2291,14 +2288,15 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 					},
 					"interval": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 				},
 				Required: []string{"name", "protocol", "paths", "mode"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 

@@ -34,32 +34,32 @@ type TargetConnProfileEventHandler struct {
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *TargetConnProfileEventHandler) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	r.add(evt.Object, q)
+func (r *TargetConnProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *TargetConnProfileEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	r.add(evt.ObjectOld, q)
-	r.add(evt.ObjectNew, q)
+func (r *TargetConnProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	r.add(ctx, evt.ObjectOld, q)
+	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *TargetConnProfileEventHandler) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	r.add(evt.Object, q)
+func (r *TargetConnProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *TargetConnProfileEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	r.add(evt.Object, q)
+func (r *TargetConnProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	r.add(ctx, evt.Object, q)
 }
 
-func (r *TargetConnProfileEventHandler) add(obj runtime.Object, queue adder) {
+func (r *TargetConnProfileEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*invv1alpha1.TargetConnectionProfile)
 	if !ok {
 		return
 	}
-	ctx := context.Background()
+	//ctx := context.Background()
 	log := log.FromContext(ctx)
 	log.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
