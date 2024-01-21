@@ -141,12 +141,24 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
+	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, runScheme, mgr.GetClient(), targetStore)
+	if err != nil {
+		log.Error("cannot create config rest storage", "err", err)
+		os.Exit(1)
+	}
+	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, runScheme, mgr.GetClient(), configProvider.GetStore())
+	if err != nil {
+		log.Error("cannot create config rest storage", "err", err)
+		os.Exit(1)
+	}
+
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		//ConfigStore:     configStore,
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
+		ConfigProvider:    configProvider,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -159,19 +171,13 @@ func main() {
 		}
 	}
 
-	configCtx, err := configserver.NewConfig(ctx, mgr.GetClient(), runScheme, targetStore)
-	if err != nil {
-		log.Error("cannot create config store", "err", err.Error())
-		os.Exit(1)
-	}
-
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProvider(ctx, &configv1alpha1.Config{}, configCtx)).
-			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProvider(ctx, &configv1alpha1.ConfigSet{}, configCtx)).
+			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
+			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start caas")
@@ -383,8 +389,6 @@ func (o ConfigServerOptions) RunConfigServer(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	genericapiserver.NewEmptyDelegate()
 
 	server, err := config.Complete().New(ctx, o.Client, o.TargetStore)
 	if err != nil {

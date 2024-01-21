@@ -16,9 +16,6 @@ package store
 
 import (
 	"context"
-
-	"github.com/iptecharch/config-server/pkg/store/watch"
-	//metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 )
 
 // Storer defines the interface for a generic storage system.
@@ -39,5 +36,5 @@ type Storer[T1 any] interface {
 	Delete(ctx context.Context, key Key) error
 
 	// Watch watches change
-	Watch(ctx context.Context) (watch.Interface[T1], error)
+	//Watch(ctx context.Context) (watch.Interface[T1], error)
 }

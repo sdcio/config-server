@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package target
+package targetdatastore
 
 import (
 	"context"
@@ -28,33 +28,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetConnProfileEventHandler struct {
+type targetSyncProfileEventHandler struct {
 	client client.Client
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *targetSyncProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent,q workqueue.RateLimitingInterface) {
+func (r *targetSyncProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Delete(ctx context.Context,evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *targetSyncProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Generic(ctx context.Context,evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *targetSyncProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *targetConnProfileEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.TargetConnectionProfile)
+func (r *targetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+	cr, ok := obj.(*invv1alpha1.TargetSyncProfile)
 	if !ok {
 		return
 	}
@@ -73,7 +73,7 @@ func (r *targetConnProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 		return
 	}
 	for _, target := range targets.Items {
-		if target.Spec.ConnectionProfile == cr.GetName() {
+		if *target.Spec.SyncProfile == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}

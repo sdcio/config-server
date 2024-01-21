@@ -53,7 +53,7 @@ func (r *watcherManager) WatchChan() chan watch.Event {
 	return r.watchCh
 }
 
-// Add adds the a watcher to the watcherManager and allocates a uuid per watcher to make the delete
+// Add adds a watcher to the watcherManager and allocates a uuid per watcher to make the delete
 // easier, the uuid is used only internally
 func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.ListOptions, callback Watcher) error {
 	ok := r.sem.TryAcquire(1)

@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -30,6 +32,24 @@ func (r *Target) GetCondition(t ConditionType) Condition {
 // to be set at once
 func (r *Target) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *Target) IsReady() bool {
+	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue
+}
+
+func (r *Target) NotReadyReason() string {
+	readyCondition := r.GetCondition(ConditionTypeReady)
+	dsreadyCondition := r.GetCondition(ConditionTypeDSReady)
+	return fmt.Sprintf("ready: %v, reason: %s, msg: %s dsready: %v, reason: %s, msg: %s",
+		readyCondition.Status,
+		readyCondition.Reason,
+		readyCondition.Message,
+		dsreadyCondition.Status,
+		dsreadyCondition.Reason,
+		dsreadyCondition.Message,
+	)
 }
 
 func (r *TargetList) GetItems() []client.Object {
