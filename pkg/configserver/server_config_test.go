@@ -133,6 +133,7 @@ func TestNewConfigProviderBasic(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			scheme := getTestScheme()
 
 			targets := map[string]bool{}
@@ -175,7 +176,6 @@ func TestNewConfigProviderBasic(t *testing.T) {
 					t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 				}
 			}
-			cancel()
 		})
 	}
 }
@@ -246,6 +246,7 @@ func TestNewConfigProviderList(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			scheme := getTestScheme()
 			targets := map[string]bool{}
 			for _, targetName := range tc.configs {
@@ -291,8 +292,6 @@ func TestNewConfigProviderList(t *testing.T) {
 				t.Errorf("%s expecting a configlist, got\n%s", name, reflect.TypeOf(obj).Name())
 				return
 			}
-
-			cancel()
 		})
 	}
 }

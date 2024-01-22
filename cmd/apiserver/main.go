@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder"
+	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	clientset "github.com/iptecharch/config-server/apis/generated/clientset/versioned"
@@ -141,12 +142,13 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
-	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, runScheme, mgr.GetClient(), targetStore)
+	
+	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
 	if err != nil {
 		log.Error("cannot create config rest storage", "err", err)
 		os.Exit(1)
 	}
-	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, runScheme, mgr.GetClient(), configProvider.GetStore())
+	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore())
 	if err != nil {
 		log.Error("cannot create config rest storage", "err", err)
 		os.Exit(1)
@@ -196,7 +198,7 @@ func main() {
 			}
 		*/
 		/*
-			options := NewConfigServerOptions(os.Stdout, os.Stderr, mgr.GetClient(), targetStore)
+			options := NewConfigServerOptions(mgr.GetClient(), targetStore)
 			cmd := NewCommandStartConfigServer(ctx, options)
 			cmd.Execute()
 		*/
@@ -313,7 +315,7 @@ type ConfigServerOptions struct {
 	StdErr io.Writer
 }
 
-func NewConfigServerOptions(out, errOut io.Writer, client client.Client, targetStore store.Storer[target.Context]) *ConfigServerOptions {
+func NewConfigServerOptions(client client.Client, targetStore store.Storer[target.Context]) *ConfigServerOptions {
 	versions := schema.GroupVersions{
 		configv1alpha1.SchemeGroupVersion,
 	}
@@ -325,8 +327,8 @@ func NewConfigServerOptions(out, errOut io.Writer, client client.Client, targetS
 		),
 		Client:      client,
 		TargetStore: targetStore,
-		StdOut:      out,
-		StdErr:      errOut,
+		StdOut:      os.Stdout,
+		StdErr:      os.Stderr,
 	}
 	o.RecommendedOptions.Etcd.StorageConfig.EncodeVersioner = versions
 	o.RecommendedOptions.Etcd = nil
