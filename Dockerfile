@@ -11,6 +11,10 @@ WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
+
+RUN apt-get update && apt-get install -y ca-certificates git-core ssh
+RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
+RUN git config --global url.ssh://git@github.com/.insteadOf https://github.com/
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 RUN --mount=type=cache,target=/root/.cache/go-build \
