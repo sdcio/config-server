@@ -78,7 +78,7 @@ func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.L
 // Start is a blocking function that handles Change events from a server implementation
 // and sends them to the watchers it is managing
 // The events are send via callback fn in a concurrent waitGroup to handle concurrent operation
-// when an error or the callback signals the
+// when an error or the callback signals the delete
 func (r *watcherManager) Start(ctx context.Context) {
 	ctx, r.cancel = context.WithCancel(ctx)
 	log := log.FromContext(ctx)
