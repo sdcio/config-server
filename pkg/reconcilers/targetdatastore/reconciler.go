@@ -180,7 +180,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 		if err != nil {
-
+			log.Error("cannot get schema ready state", "error", err.Error())
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
