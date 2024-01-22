@@ -46,51 +46,48 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 			if err := r.List(ctx, targetList); err != nil {
 				log.Error(err, "cannot get target list")
 			}
-			// we make a map for faster lookup
-			targets := make(map[string]*invv1alpha1.Target, len(targetList.Items))
+
 			for _, target := range targetList.Items {
-				targets[store.KeyFromNSN(types.NamespacedName{
-					Namespace: target.GetNamespace(),
-					Name:      target.GetName(),
-				}).String()] = &target
-			}
+				key := store.KeyFromNSN(types.NamespacedName{Namespace: target.GetNamespace(), Name: target.GetName()})
 
-			// check target status of the datastore
-			r.targetStore.List(ctx, func(ctx context.Context, key store.Key, tctx target.Context) {
-				if tctx.Client != nil {
-					_, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
-					if err != nil {
-						log.Error(err, "cannot get target from the datastore", "key", key.String())
-					}
-					target, ok := targets[key.String()]
-					if !ok {
-						log.Error(err, "target in the datastore does not have a corresponsing target in the k8s api", "key", key.String())
-					}
-					condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
-					if err != nil {
-						if condition.Status == metav1.ConditionTrue {
-							target.SetConditions(invv1alpha1.Failed(err.Error()))
-							if err := r.Status().Update(ctx, target); err != nil {
-								log.Error(err, "cannot update target status", "key", key.String())
-							}
-							log.Info("target status changed true -> false", "key", key.String())
-							return
-						}
-					} else {
-						// ready
-						if condition.Status == metav1.ConditionFalse {
-							target.SetConditions(invv1alpha1.Ready())
-							if err := r.Status().Update(ctx, target); err != nil {
-								log.Error(err, "cannot update target status", "key", key.String())
-							}
-							log.Info("target status changed false -> true", "key", key.String())
-							return
-						}
-					}
-					log.Info("target no change", "key", key.String())
+				tctx, err := r.targetStore.Get(ctx, key)
+				if err != nil {
+					// not found
+					log.Error(err, "k8s target does not have a corresponding k8s ctx", "key", key.String())
+					continue
 				}
-			})
-
+				if tctx.Client == nil {
+					log.Error(err, "k8s target does not have a corresponding dataserver client", "key", key.String())
+					continue
+				}
+				resp, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
+				if err != nil {
+					log.Error(err, "cannot get target from the datastore", "key", key.String())
+				}
+				condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
+				if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
+					// Target is not connected
+					if condition.Status == metav1.ConditionTrue {
+						target.SetConditions(invv1alpha1.Failed(resp.Target.StatusDetails))
+						if err := r.Status().Update(ctx, &target); err != nil {
+							log.Error(err, "cannot update target status", "key", key.String())
+						}
+						log.Info("target status changed true -> false", "key", key.String())
+						continue
+					}
+				} else {
+					// Target is connected
+					if condition.Status == metav1.ConditionFalse {
+						target.SetConditions(invv1alpha1.Ready())
+						if err := r.Status().Update(ctx, &target); err != nil {
+							log.Error(err, "cannot update target status", "key", key.String())
+						}
+						log.Info("target status changed false -> true", "key", key.String())
+						continue
+					}
+				}
+				log.Info("target no change", "key", key.String())
+			}
 			log.Info("target status check finished, waiting for the next run")
 			time.Sleep(1 * time.Minute)
 		}
