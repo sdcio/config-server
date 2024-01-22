@@ -74,6 +74,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 								log.Error(err, "cannot update target status", "key", key.String())
 							}
 							log.Info("target status changed true -> false", "key", key.String())
+							return
 						}
 					} else {
 						// ready
@@ -83,8 +84,10 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 								log.Error(err, "cannot update target status", "key", key.String())
 							}
 							log.Info("target status changed false -> true", "key", key.String())
+							return
 						}
 					}
+					log.Info("target no change", "key", key.String())
 				}
 			})
 
