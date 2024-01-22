@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
 	"github.com/iptecharch/config-server/pkg/store/memory"
@@ -39,7 +40,17 @@ type ResourceProvider interface {
 	UpdateTarget(context.Context, store.Key, store.Key, runtime.Object) error
 }
 
-func createFileStore(ctx context.Context, obj resource.Object, scheme *runtime.Scheme, rootPath string) (store.Storer[runtime.Object], error) {
+func createFileStore(ctx context.Context, obj resource.Object, rootPath string) (store.Storer[runtime.Object], error) {
+	scheme := runtime.NewScheme()
+	// add the core object to the scheme
+	for _, api := range (runtime.SchemeBuilder{
+		configv1alpha1.AddToScheme,
+	}) {
+		if err := api(scheme); err != nil {
+			return nil, err
+		}
+	}
+
 	gr := obj.GetGroupVersionResource().GroupResource()
 	codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
 		StorageMediaType:  runtime.ContentTypeJSON,

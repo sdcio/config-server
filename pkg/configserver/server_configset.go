@@ -53,7 +53,7 @@ func NewConfigSetFileProvider(
 	client client.Client,
 	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
 
-	configSetStore, err := createFileStore(ctx, obj, scheme, configSetFilePath)
+	configSetStore, err := createFileStore(ctx, obj, configSetFilePath)
 	if err != nil {
 		return nil, err
 	}

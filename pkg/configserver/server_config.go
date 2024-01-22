@@ -54,7 +54,7 @@ func NewConfigFileProvider(
 	scheme *runtime.Scheme,
 	client client.Client,
 	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
-	configStore, err := createFileStore(ctx, obj, scheme, configFilePath)
+	configStore, err := createFileStore(ctx, obj, configFilePath)
 	if err != nil {
 		return nil, err
 	}
