@@ -32,6 +32,12 @@ import (
 
 var tracer = otel.Tracer("config-server")
 
+const (
+	// this is the root directory where the files are stored; the same path is used for both config and configset
+	// since the derived path is based on GVR
+	rootConfigFilePath = "config" 
+)
+
 type ResourceProvider interface {
 	rest.Storage
 	rest.StandardStorage

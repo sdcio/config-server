@@ -38,9 +38,7 @@ import (
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
-const (
-	configFilePath = "config"
-)
+
 
 func NewConfigProviderHandler(ctx context.Context, p ResourceProvider) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
@@ -54,7 +52,7 @@ func NewConfigFileProvider(
 	scheme *runtime.Scheme,
 	client client.Client,
 	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
-	configStore, err := createFileStore(ctx, obj, configFilePath)
+	configStore, err := createFileStore(ctx, obj, rootConfigFilePath)
 	if err != nil {
 		return nil, err
 	}

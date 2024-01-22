@@ -37,10 +37,6 @@ import (
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
-const (
-	configSetFilePath = "configset"
-)
-
 func NewConfigSetProviderHandler(ctx context.Context, s ResourceProvider) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		return s, nil
@@ -55,7 +51,7 @@ func NewConfigSetFileProvider(
 	configStore store.Storer[runtime.Object],
 	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 
-	configSetStore, err := createFileStore(ctx, obj, configSetFilePath)
+	configSetStore, err := createFileStore(ctx, obj, rootConfigFilePath)
 	if err != nil {
 		return nil, err
 	}
