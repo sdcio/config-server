@@ -148,7 +148,7 @@ func main() {
 		log.Error("cannot create config rest storage", "err", err)
 		os.Exit(1)
 	}
-	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore())
+	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
 	if err != nil {
 		log.Error("cannot create config rest storage", "err", err)
 		os.Exit(1)

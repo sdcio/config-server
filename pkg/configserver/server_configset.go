@@ -22,6 +22,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/iptecharch/config-server/pkg/target"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel/trace"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -51,13 +52,14 @@ func NewConfigSetFileProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 
 	configSetStore, err := createFileStore(ctx, obj, configSetFilePath)
 	if err != nil {
 		return nil, err
 	}
-	return newConfigSetProvider(ctx, obj, configSetStore, client, configStore)
+	return newConfigSetProvider(ctx, obj, configSetStore, client, configStore, targetStore)
 }
 
 func NewConfigSetMemProvider(
@@ -65,9 +67,10 @@ func NewConfigSetMemProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 
-	return newConfigSetProvider(ctx, obj, createMemStore(ctx), client, configStore)
+	return newConfigSetProvider(ctx, obj, createMemStore(ctx), client, configStore, targetStore)
 }
 
 func newConfigSetProvider(
@@ -75,7 +78,8 @@ func newConfigSetProvider(
 	obj resource.Object,
 	configSetStore store.Storer[runtime.Object],
 	client client.Client,
-	configStore store.Storer[runtime.Object]) (ResourceProvider, error) {
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 	// create the backend store
 
 	// initialie the rest storage object

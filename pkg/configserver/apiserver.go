@@ -113,7 +113,7 @@ func NewRESTStorage(ctx context.Context, scheme *runtime.Scheme, codecs serializ
 	if err != nil {
 		return genericapiserver.APIGroupInfo{}, err
 	}
-	configset, err := NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, scheme, client, config.GetStore())
+	configset, err := NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, scheme, client, config.GetStore(), targetStore)
 	if err != nil {
 		return genericapiserver.APIGroupInfo{}, err
 	}
