@@ -64,6 +64,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.targetStore = cfg.TargetStore
 	r.dataServerStore = cfg.DataServerStore
 
+	targetDSWatcher := newTargetDataStoreWatcher(mgr.GetClient(), cfg.TargetStore)
+	go targetDSWatcher.Start(ctx)
+
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named("TargetDataStoreController").
 		For(&invv1alpha1.Target{}).

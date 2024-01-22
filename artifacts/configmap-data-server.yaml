@@ -6,61 +6,26 @@ metadata:
 data: 
   data-server.yaml: |
     grpc-server:
-      # gRPC listening address
-      # address: ":56000"
-
-      ## TLS config
-      # tls:
-      #   ca:
-      #   cert:
-      #   key:
-      #   skip-verify:
-      #   client-auth:
-
-      # expose local schema store over gRPC
       schema-server:
-        # enables the schema gRPC server
         enabled: true
-        # directory to store the uploaded schemas
         schemas-directory: ./schemas
 
-      # data-server attributes
       data-server:
-        # max number of candidates per DS
         max-candidates: 16
 
-      # max message size in bytes the server can receive.
-      # If this is not set, it defaults to 4 * 1024 * 1024 (4MB)
       max-recv-msg-size: 25165824 # 24 * 1024 * 1024 (24MB)
 
     datastores: # this specifies MAIN datastores
 
-    schemas: []
+    schema-store:
+      # type is either memory or persistent (default)
+      type: persistent
+      path: "/schemadb"
 
-    # remote schema server
-    # schema-server:
-    #   address: localhost:55000
-      # TLS config
-      # tls:
-      #   ca:
-      #   cert:
-      #   key:
-      #   skip-verify:
-
-    # cache config, defaults to
-    # type: local
-    # store-type: badgerdb
-    # dir: ./cached/caches
     cache: 
-      # type: remote
       type: local
-      # store-type if type == local
-      store-type: badgerdbsingle
-      # local directory for caches if type == local
-      dir: "./cached/caches"
-      # remote cache address, if type == remote
-      # address: localhost:50100
+      store-type: badgerdb
+      dir: "/cached/caches"
 
-    # expose a prometheus server with cpu, mem and grpc metrics
     prometheus:
       address: ":56090"

@@ -135,7 +135,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.targetStore.Update(ctx, crKey, cr.IsReady())
 
 	if transition {
-		// is this too much, how to find if the target status changed?
+		log.Info("target status changed", "transition", fmt.Sprintf("%t->%t", wasReady, cr.IsReady()))
 		configList, err := r.listTargetConfigs(ctx, cr)
 		if err != nil {
 			return ctrl.Result{Requeue: true}, err
