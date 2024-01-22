@@ -98,6 +98,7 @@ func (r *watcherManager) Start(ctx context.Context) {
 					if err := w.isDone(); err != nil {
 						log.Info("stopping watcher due to error", "key", w.key)
 						r.watchers.del(w.key)
+						r.sem.Release(1)
 						return
 					}
 
@@ -107,6 +108,7 @@ func (r *watcherManager) Start(ctx context.Context) {
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {
 						log.Info("stopping watcher due to !keepGoing", "key", w.key)
 						r.watchers.del(w.key)
+						r.sem.Release(1)
 						return
 					}
 					log.Info("watch callback done", "key", w.key)
