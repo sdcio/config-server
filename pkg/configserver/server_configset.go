@@ -86,10 +86,10 @@ func newConfigSetProvider(
 	gr := obj.GetGroupVersionResource().GroupResource()
 	c := &configset{
 		configCommon: configCommon{
-			// target store is not needed for configSet, looks up targets from the cache
 			client:         client,
 			configStore:    configStore,
 			configSetStore: configSetStore,
+			targetStore:    targetStore, // needed as we handle configs from configsets
 			gr:             gr,
 			isNamespaced:   obj.NamespaceScoped(),
 			newFunc:        obj.New,
