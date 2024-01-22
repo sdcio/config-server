@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -460,25 +459,24 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 }
 
 func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) (bool, string, error) {
-	log := log.FromContext(ctx)
+	//log := log.FromContext(ctx)
 	schemaList := &invv1alpha1.SchemaList{}
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
-		client.MatchingFieldsSelector{Selector: fields.SelectorFromSet(map[string]string{
-			"spec.provider": cr.Status.DiscoveryInfo.Provider,
-			"spec.version":  cr.Status.DiscoveryInfo.Version,
-		})},
 	}
 
 	if err := r.List(ctx, schemaList, opts...); err != nil {
 		return false, "", err
 	}
-	log.Info("is schema ready", "schemaList", schemaList)
-	if len(schemaList.Items) != 1 {
-		return false, "", fmt.Errorf("schema not ready, returned: %d schema's", len(schemaList.Items))
+
+	for _, schema := range schemaList.Items {
+		if schema.Spec.Provider == cr.Status.DiscoveryInfo.Provider &&
+			schema.Spec.Version == cr.Status.DiscoveryInfo.Version {
+			schemaCondition := schemaList.Items[0].GetCondition(invv1alpha1.ConditionTypeReady)
+			return schemaCondition.Status == metav1.ConditionTrue, schemaCondition.Message, nil
+		}
 	}
-	schemaCondition := schemaList.Items[0].GetCondition(invv1alpha1.ConditionTypeReady)
-	return schemaCondition.Status == metav1.ConditionTrue, schemaCondition.Message, nil
+	return false, "schema referenced by target not found", nil
 
 }
 
