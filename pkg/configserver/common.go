@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -92,6 +92,11 @@ func (r *configCommon) list(
 		return nil, fmt.Errorf("namespace mismatch got %t, want %t", namespaced, r.isNamespaced)
 	}
 
+	configFilter, err := parseFieldSelector(options.FieldSelector)
+	if err != nil {
+		return nil, err
+	}
+
 	newListObj := r.newListFunc()
 	v, err := getListPrt(newListObj)
 	if err != nil {
@@ -107,30 +112,37 @@ func (r *configCommon) list(
 			return
 		}
 
-		filtered := false
-		if options.FieldSelector == nil {
-			log.Info("list", "fieldselector", "nil")
-		} else {
-			log.Info("list", "fieldselector", "not nil")
-			for _, req := range options.FieldSelector.Requirements() {
-				filtered = true
-				log.Info("list", "fieldselector", "not nil",
-					"Operator", req.Operator,
-					"Field", req.Field,
-					"Value", req.Value,
-				)
-				switch req.Operator {
-				case selection.Equals:
-					if req.Field == "metadata.name" {
-						if req.Value == accessor.GetName() {
-							appendItem(v, obj)
-						}
+		if options.LabelSelector != nil || configFilter != nil {
+			filter := true
+			if options.LabelSelector != nil {
+				if options.LabelSelector.Matches(labels.Set(accessor.GetLabels())) {
+					filter = false
+				}
+			} else {
+				// if not labels selector is present don't filter
+				filter = false
+			}
+			// if filtered we dont have to run this section since the label requirement was not met
+			if configFilter != nil && !filter {
+				if configFilter.Name != "" {
+					if accessor.GetName() == configFilter.Name {
+						filter = false
+					} else {
+						filter = true
+					}
+				}
+				if configFilter.Namespace != "" {
+					if accessor.GetNamespace() == configFilter.Namespace {
+						filter = false
+					} else {
+						filter = true
 					}
 				}
 			}
-		}
-
-		if !filtered {
+			if !filter {
+				appendItem(v, obj)
+			}
+		} else {
 			appendItem(v, obj)
 		}
 	}

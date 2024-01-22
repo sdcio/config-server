@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,8 +60,8 @@ func (r *configCommon) getKeys(ctx context.Context, obj runtime.Object) (store.K
 func getTargetKey(labels map[string]string) (store.Key, error) {
 	var targetName, targetNamespace string
 	if labels != nil {
-		targetName = labels[targetNameKey]
-		targetNamespace = labels[targetNamespaceKey]
+		targetName = labels[configv1alpha1.TargetNameKey]
+		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
 	}
 	if targetName == "" || targetNamespace == "" {
 		return store.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)

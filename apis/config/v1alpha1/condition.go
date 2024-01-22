@@ -29,8 +29,8 @@ type ConditionType string
 const (
 	// ConditionTypeReady represents the resource ready condition
 	ConditionTypeReady ConditionType = "Ready"
-	// ConditionTypePorchRepoReady represents the resource porch repo ready condition
-	//ConditionTypePorchRepoReady ConditionType = "PorchRepoReady"
+	// ConditionTypeTargetReady represents the resource target ready condition
+	ConditionTypeTargetReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -38,9 +38,11 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady   ConditionReason = "Ready"
-	ConditionReasonFailed  ConditionReason = "Failed"
-	ConditionReasonUnknown ConditionReason = "Unknown"
+	ConditionReasonReady         ConditionReason = "Ready"
+	ConditionReasonNotReady      ConditionReason = "NotReady"
+	ConditionReasonFailed        ConditionReason = "Failed"
+	ConditionReasonUnknown       ConditionReason = "Unknown"
+	ConditionReasonTargetDeleted ConditionReason = "Target Deleted"
 )
 
 type Condition struct {
@@ -149,7 +151,7 @@ func Ready() Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionTrue,
-		//LastTransitionTime: metav1.Now(),
+		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReady),
 	}}
 }
@@ -160,7 +162,7 @@ func Unknown() Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
-		//LastTransitionTime: metav1.Now(),
+		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonUnknown),
 	}}
 }
@@ -171,9 +173,42 @@ func Failed(msg string) Condition {
 	return Condition{metav1.Condition{
 		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
-		//LastTransitionTime: metav1.Now(),
+		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}
+}
 
+// TargetDeleted returns a condition that indicates the resource
+// target is deleted
+func TargetDeleted() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonTargetDeleted),
+	}}
+}
+
+// TargetReady returns a condition that indicates the resource
+// target is ready.
+func TargetReady() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+	}}
+}
+
+// TargetNotReady returns a condition that indicates the resource
+// target is NOT ready.
+func TargetNotReady(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonNotReady),
+		Message:            msg,
+	}}
 }

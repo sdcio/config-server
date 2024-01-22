@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/henderiw/logger/log"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 )

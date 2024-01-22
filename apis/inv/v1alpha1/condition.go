@@ -44,12 +44,13 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady    ConditionReason = "Ready"
-	ConditionReasonFailed   ConditionReason = "Failed"
-	ConditionReasonUnknown  ConditionReason = "Unknown"
-	ConditionReasonNotReady ConditionReason = "NotReady"
-	ConditionReasonAction   ConditionReason = "Action"
-	ConditionReasonLoading  ConditionReason = "Loading"
+	ConditionReasonReady          ConditionReason = "Ready"
+	ConditionReasonFailed         ConditionReason = "Failed"
+	ConditionReasonUnknown        ConditionReason = "Unknown"
+	ConditionReasonNotReady       ConditionReason = "NotReady"
+	ConditionReasonAction         ConditionReason = "Action"
+	ConditionReasonLoading        ConditionReason = "Loading"
+	ConditionReasonSchemaNotReady ConditionReason = "SchemaNotReady"
 )
 
 // Reasons a resource is synced or not
@@ -277,6 +278,18 @@ func DSFailed(msg string) Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+// Failed returns a condition that indicates the resource
+// failed to get reconciled.
+func DSSchemaNotReady(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeDSReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonSchemaNotReady),
 		Message:            msg,
 	}}
 }

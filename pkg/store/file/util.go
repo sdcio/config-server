@@ -105,7 +105,6 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 		if len(pathSplit) > (len(strings.Split(r.objRootPath, "/")) + 1) {
 			namespace = pathSplit[len(pathSplit)-2]
 		}
-		fmt.Println("namespace", namespace)
 		key := store.KeyFromNSN(types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,

@@ -1,4 +1,4 @@
-package target
+package targetdatastore
 
 import (
 	"context"
@@ -29,11 +29,11 @@ import (
 )
 
 func init() {
-	reconcilers.Register("target", &reconciler{})
+	reconcilers.Register("targetdatastore", &reconciler{})
 }
 
 const (
-	finalizer = "target.inv.sdcio.dev/finalizer"
+	finalizer = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -176,6 +176,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// safety
 			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), key)
 		}
+
+		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
+		if err != nil {
+			log.Error(err, "cannot get schema ready state")
+			cr.Status.UsedReferences = nil
+			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+		if !isSchemaReady {
+			cr.Status.UsedReferences = nil
+			cr.SetConditions(invv1alpha1.DSSchemaNotReady(schemaMsg))
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+
 		// Now that the target store is up to date and we have an assigned dataserver
 		// we will create/update the datastore for the target
 		// Target is ready
@@ -265,6 +280,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	return selectedDSctx, nil
 }
 
+/*
 func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv1alpha1.Target) error {
 	key := store.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).WithValues("targetkey", key.String())
@@ -294,6 +310,7 @@ func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv
 	}
 	return nil
 }
+*/
 
 // updateDataStore will do 1 of 3 things
 // 1. create a datastore if none exists
@@ -439,6 +456,28 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 		return nil, err
 	}
 	return secret, nil
+}
+
+func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) (bool, string, error) {
+	//log := log.FromContext(ctx)
+	schemaList := &invv1alpha1.SchemaList{}
+	opts := []client.ListOption{
+		client.InNamespace(cr.Namespace),
+	}
+
+	if err := r.List(ctx, schemaList, opts...); err != nil {
+		return false, "", err
+	}
+
+	for _, schema := range schemaList.Items {
+		if schema.Spec.Provider == cr.Status.DiscoveryInfo.Provider &&
+			schema.Spec.Version == cr.Status.DiscoveryInfo.Version {
+			schemaCondition := schemaList.Items[0].GetCondition(invv1alpha1.ConditionTypeReady)
+			return schemaCondition.Status == metav1.ConditionTrue, schemaCondition.Message, nil
+		}
+	}
+	return false, "schema referenced by target not found", nil
+
 }
 
 func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *invv1alpha1.TargetStatusUsedReferences, error) {

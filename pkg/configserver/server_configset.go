@@ -16,136 +16,158 @@ package configserver
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/iptecharch/config-server/pkg/target"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
-var tracer = otel.Tracer("config-server")
-
-const (
-	targetNameKey      = "targetName"
-	targetNamespaceKey = "targetNamespace"
-)
-
-var _ rest.StandardStorage = &config{}
-var _ rest.Scoper = &config{}
-var _ rest.Storage = &config{}
-var _ rest.TableConvertor = &config{}
-var _ rest.SingularNameProvider = &config{}
-
-func NewConfigProvider(ctx context.Context, obj resource.Object, cfg *Cfg) builderrest.ResourceHandlerProvider {
+func NewConfigSetProviderHandler(ctx context.Context, s ResourceProvider) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
-		gr := obj.GetGroupVersionResource().GroupResource()
-		return NewConfigREST(
-			ctx,
-			cfg,
-			gr,
-			obj.NamespaceScoped(),
-			obj.New,
-			obj.NewList,
-		), nil
+		return s, nil
 	}
 }
 
-func NewConfigREST(
+func NewConfigSetFileProvider(
 	ctx context.Context,
-	cfg *Cfg,
-	gr schema.GroupResource,
-	isNamespaced bool,
-	newFunc func() runtime.Object,
-	newListFunc func() runtime.Object,
-) rest.Storage {
-	c := &config{
+	obj resource.Object,
+	scheme *runtime.Scheme,
+	client client.Client,
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+
+	configSetStore, err := createFileStore(ctx, obj, rootConfigFilePath)
+	if err != nil {
+		return nil, err
+	}
+	return newConfigSetProvider(ctx, obj, configSetStore, client, configStore, targetStore)
+}
+
+func NewConfigSetMemProvider(
+	ctx context.Context,
+	obj resource.Object,
+	scheme *runtime.Scheme,
+	client client.Client,
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+
+	return newConfigSetProvider(ctx, obj, createMemStore(ctx), client, configStore, targetStore)
+}
+
+func newConfigSetProvider(
+	ctx context.Context,
+	obj resource.Object,
+	configSetStore store.Storer[runtime.Object],
+	client client.Client,
+	configStore store.Storer[runtime.Object],
+	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	// create the backend store
+
+	// initialie the rest storage object
+	gr := obj.GetGroupVersionResource().GroupResource()
+	c := &configset{
 		configCommon: configCommon{
-			client:         cfg.client,
-			configStore:    cfg.configStore,
-			configSetStore: cfg.configSetStore,
-			targetStore:    cfg.targetStore,
+			client:         client,
+			configStore:    configStore,
+			configSetStore: configSetStore,
+			targetStore:    targetStore, // needed as we handle configs from configsets
 			gr:             gr,
-			isNamespaced:   isNamespaced,
-			newFunc:        newFunc,
-			newListFunc:    newListFunc,
+			isNamespaced:   obj.NamespaceScoped(),
+			newFunc:        obj.New,
+			newListFunc:    obj.NewList,
 		},
-		TableConvertor: NewConfigTableConvertor(gr),
+		TableConvertor: NewConfigSetTableConvertor(gr),
 		watcherManager: watchermanager.New(32),
 	}
 	go c.watcherManager.Start(ctx)
-	// start watching target changes
-	targetWatcher := targetWatcher{targetStore: cfg.targetStore}
-	targetWatcher.Watch(ctx)
-	return c
+	return c, nil
 }
 
-type config struct {
+var _ rest.StandardStorage = &configset{}
+var _ rest.Scoper = &configset{}
+var _ rest.Storage = &configset{}
+var _ rest.TableConvertor = &configset{}
+var _ rest.SingularNameProvider = &configset{}
+
+type configset struct {
 	configCommon
 	rest.TableConvertor
 	watcherManager watchermanager.WatcherManager
 }
 
-func (r *config) Destroy() {}
+func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
 
-func (r *config) New() runtime.Object {
+func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) {
+	r.configSetStore.Update(ctx, key, obj)
+}
+
+func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
+	return fmt.Errorf("UpdateTarget not supported for confgisets")
+}
+
+func (r *configset) Destroy() {}
+
+func (r *configset) New() runtime.Object {
 	return r.newFunc()
 }
 
-func (r *config) NewList() runtime.Object {
+func (r *configset) NewList() runtime.Object {
 	return r.newListFunc()
 }
 
-func (r *config) NamespaceScoped() bool {
-	return true
+func (r *configset) NamespaceScoped() bool {
+	return r.isNamespaced
 }
 
-func (r *config) GetSingularName() string {
-	return "config"
+func (r *configset) GetSingularName() string {
+	return "configset"
 }
 
-func (r *config) Get(
+func (r *configset) Get(
 	ctx context.Context,
 	name string,
 	options *metav1.GetOptions,
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Get", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::Get", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	return r.get(ctx, name, options)
 }
 
-func (r *config) List(
+func (r *configset) List(
 	ctx context.Context,
 	options *metainternalversion.ListOptions,
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::List", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::List", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	return r.list(ctx, options)
 }
 
-func (r *config) Create(
+func (r *configset) Create(
 	ctx context.Context,
 	runtimeObject runtime.Object,
 	createValidation rest.ValidateObjectFunc,
@@ -153,13 +175,13 @@ func (r *config) Create(
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Create", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::Create", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
-	obj, err := r.createConfig(ctx, runtimeObject, createValidation, options)
+	obj, err := r.createConfigSet(ctx, runtimeObject, createValidation, options)
 	if err != nil {
 		return obj, err
 	}
@@ -170,7 +192,7 @@ func (r *config) Create(
 	return obj, nil
 }
 
-func (r *config) Update(
+func (r *configset) Update(
 	ctx context.Context,
 	name string,
 	objInfo rest.UpdatedObjectInfo,
@@ -181,12 +203,12 @@ func (r *config) Update(
 ) (runtime.Object, bool, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Update", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::Update", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
-	obj, create, err := r.updateConfig(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
+	obj, create, err := r.updateConfigSet(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 	if err != nil {
 		return obj, create, err
 	}
@@ -204,7 +226,7 @@ func (r *config) Update(
 	return obj, create, nil
 }
 
-func (r *config) Delete(
+func (r *configset) Delete(
 	ctx context.Context,
 	name string,
 	deleteValidation rest.ValidateObjectFunc,
@@ -212,12 +234,12 @@ func (r *config) Delete(
 ) (runtime.Object, bool, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Delete", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::Delete", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
-	obj, asyncDelete, err := r.deleteConfig(ctx, name, deleteValidation, options)
+	obj, asyncDelete, err := r.deleteConfigSet(ctx, name, deleteValidation, options)
 	if err != nil {
 		return obj, asyncDelete, err
 	}
@@ -228,7 +250,7 @@ func (r *config) Delete(
 	return obj, asyncDelete, nil
 }
 
-func (r *config) DeleteCollection(
+func (r *configset) DeleteCollection(
 	ctx context.Context,
 	deleteValidation rest.ValidateObjectFunc,
 	options *metav1.DeleteOptions,
@@ -236,10 +258,10 @@ func (r *config) DeleteCollection(
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::DeleteCollection", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::DeleteCollection", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
 	log := log.FromContext(ctx)
@@ -266,15 +288,15 @@ func (r *config) DeleteCollection(
 	return newListObj, nil
 }
 
-func (r *config) Watch(
+func (r *configset) Watch(
 	ctx context.Context,
 	options *metainternalversion.ListOptions,
 ) (watch.Interface, error) {
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Watch", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "configsets::Watch", trace.WithAttributes())
 	defer span.End()
 
-	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
+	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
 	// logger
 	log := log.FromContext(ctx)
@@ -306,7 +328,7 @@ func (r *config) Watch(
 	return w, nil
 }
 
-func (r *config) notifyWatcher(ctx context.Context, event watch.Event) {
+func (r *configset) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
 	log.Info("notify watcherManager")
 

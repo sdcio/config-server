@@ -58,7 +58,9 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
+	if len(newConfig.Spec.Config) > 0 {
+		log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
+	}
 
 	// interact with the data server
 	tctx, err := r.targetStore.Get(ctx, targetKey)

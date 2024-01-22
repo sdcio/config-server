@@ -62,7 +62,9 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
+	if len(newConfigSet.Spec.Config) > 0 {
+		log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
+	}
 
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
@@ -209,16 +211,17 @@ func (r *configCommon) deleteConfigSet(
 		return newConfigSet, false, nil
 	}
 
-	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
-	log.Info("delete existingConfigs", "total", len(existingConfigs))
 
-	for nsn, existingConfig := range existingConfigs {
-		log.Info("delete existingConfigs", "nsn", nsn)
+	existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
+	log.Info("delete existingConfigs", "total", len(existingChildConfigs))
+
+	for nsn, existingChildConfig := range existingChildConfigs {
+		log.Info("delete existingChildConfig", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
-			TypeMeta:           existingConfig.TypeMeta,
+			TypeMeta:           existingChildConfig.TypeMeta,
 			GracePeriodSeconds: pointer.Int64(0), // force delete
 		}); err != nil {
-			log.Error("delete existing intent failed", "error", err)
+			log.Error("delete existing childConfig failed", "error", err)
 		}
 	}
 
@@ -339,6 +342,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 	return configSet, nil
 }
 
+// getOrphanConfigsFromConfigSet returns the children owned by this configSet
 func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, configSet *configv1alpha1.ConfigSet) map[types.NamespacedName]*configv1alpha1.Config {
 	log := log.FromContext(ctx)
 	existingConfigs := map[types.NamespacedName]*configv1alpha1.Config{}
@@ -366,8 +370,8 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 	if len(labels) == 0 {
 		labels = map[string]string{}
 	}
-	labels[targetNameKey] = target.Name
-	labels[targetNamespaceKey] = target.Namespace
+	labels[configv1alpha1.TargetNameKey] = target.Name
+	labels[configv1alpha1.TargetNamespaceKey] = target.Namespace
 
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{

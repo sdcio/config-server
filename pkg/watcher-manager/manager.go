@@ -53,7 +53,7 @@ func (r *watcherManager) WatchChan() chan watch.Event {
 	return r.watchCh
 }
 
-// Add adds the a watcher to the watcherManager and allocates a uuid per watcher to make the delete
+// Add adds a watcher to the watcherManager and allocates a uuid per watcher to make the delete
 // easier, the uuid is used only internally
 func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.ListOptions, callback Watcher) error {
 	ok := r.sem.TryAcquire(1)
@@ -78,7 +78,7 @@ func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.L
 // Start is a blocking function that handles Change events from a server implementation
 // and sends them to the watchers it is managing
 // The events are send via callback fn in a concurrent waitGroup to handle concurrent operation
-// when an error or the callback signals the
+// when an error or the callback signals the delete
 func (r *watcherManager) Start(ctx context.Context) {
 	ctx, r.cancel = context.WithCancel(ctx)
 	log := log.FromContext(ctx)
@@ -98,6 +98,7 @@ func (r *watcherManager) Start(ctx context.Context) {
 					if err := w.isDone(); err != nil {
 						log.Info("stopping watcher due to error", "key", w.key)
 						r.watchers.del(w.key)
+						r.sem.Release(1)
 						return
 					}
 
@@ -107,6 +108,7 @@ func (r *watcherManager) Start(ctx context.Context) {
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {
 						log.Info("stopping watcher due to !keepGoing", "key", w.key)
 						r.watchers.del(w.key)
+						r.sem.Release(1)
 						return
 					}
 					log.Info("watch callback done", "key", w.key)

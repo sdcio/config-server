@@ -21,9 +21,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
+const (
+	Group   = "config.sdcio.dev"
+	Version = "v1alpha1"
+)
+
 var (
 	// SchemeGroupVersion contains the API group and version information for the types in this package.
-	SchemeGroupVersion = schema.GroupVersion{Group: "config.sdcio.dev", Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 	// AddToScheme applies all the stored functions to the scheme. A non-nil error
 	// indicates that one function failed and the attempt was abandoned.
 	AddToScheme = SchemeBuilder.AddToScheme
