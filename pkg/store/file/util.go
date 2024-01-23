@@ -57,7 +57,7 @@ func (r *file[T1]) readFile(ctx context.Context, key store.Key) (T1, error) {
 func convert(obj any) (runtime.Object, error) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
-		return nil, fmt.Errorf("Unsupported type: %v", reflect.TypeOf(obj))
+		return nil, fmt.Errorf("unsupported type: %v", reflect.TypeOf(obj))
 	}
 	return runtimeObj, nil
 }
@@ -74,7 +74,7 @@ func (r *file[T1]) writeFile(ctx context.Context, key store.Key, obj T1) error {
 	if err := r.codec.Encode(runtimeObj, buf); err != nil {
 		return err
 	}
-	log.Info("write file", "fileName", r.filename(key), "data", string(buf.Bytes()))
+	log.Info("write file", "fileName", r.filename(key), "data", buf.String())
 	if err := ensureDir(filepath.Dir(r.filename(key))); err != nil {
 		return err
 	}
@@ -105,7 +105,6 @@ func (r *file[T1]) visitDir(ctx context.Context, visitorFunc func(ctx context.Co
 		if len(pathSplit) > (len(strings.Split(r.objRootPath, "/")) + 1) {
 			namespace = pathSplit[len(pathSplit)-2]
 		}
-		fmt.Println("namespace", namespace)
 		key := store.KeyFromNSN(types.NamespacedName{
 			Name:      name,
 			Namespace: namespace,

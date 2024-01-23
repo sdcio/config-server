@@ -1,6 +1,6 @@
 VERSION ?= latest
 REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
-PROJECT ?= config-server-x86
+PROJECT ?= config-server
 IMG ?= $(REGISTRY)/${PROJECT}:$(VERSION)
 
 REPO = github.com/iptecharch/config-server
@@ -8,6 +8,8 @@ REPO = github.com/iptecharch/config-server
 ## Tool Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 CONTROLLER_TOOLS_VERSION ?= v0.12.1
+KFORM ?= $(LOCALBIN)/kform
+KFORM_VERSION ?= v0.0.2
 
 .PHONY: codegen fix fmt vet lint test tidy
 
@@ -56,8 +58,9 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/inv/..."
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: controller-gen kform ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/inv/..." output:crd:artifacts:config=artifacts
+	$(KFORM) apply artifacts -i artifacts/in/configmap-input-vars.yaml -o artifacts/out/artifacts.yaml
 
 .PHONY:
 fix:
@@ -95,3 +98,8 @@ $(LOCALBIN):
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: kform
+kform: $(KFORM) ## Download kform locally if necessary.
+$(KFORM): $(LOCALBIN)
+	test -s $(LOCALBIN)/kform || GOBIN=$(LOCALBIN) go install github.com/kform-dev/kform/cmd/kform@$(KFORM_VERSION)

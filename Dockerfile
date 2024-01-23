@@ -7,6 +7,11 @@ FROM golang:1.21 as builder
 ARG TARGETOS
 ARG TARGETARCH
 
+RUN apt-get update && apt-get install -y ca-certificates git-core ssh
+RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts
+COPY keys /root/.ssh
+RUN git config --global url.ssh://git@github.com/.insteadOf https://github.com/
+
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod

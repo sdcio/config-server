@@ -67,7 +67,18 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 
-	return r.applyTarget(ctx, newTargetCr)
+	if err := r.applyTarget(ctx, newTargetCr); err != nil {
+		// TODO reapply if update failed
+		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
+			// we will rety once, sometimes we get an error
+			if err := r.applyTarget(ctx, newTargetCr); err != nil {
+				log.Info("dynamic target creation retry failed", "error", err)
+			}
+		} else {
+			log.Info("dynamic target creation failed", "error", err)
+		}
+	}
+	return nil
 }
 
 func CreateTarget(ctx context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
@@ -79,7 +90,7 @@ func CreateTarget(ctx context.Context, address string, secret *corev1.Secret, co
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
-	if connProfile.Spec.Insecure  {
+	if connProfile.Spec.Insecure {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
 		tOpts = append(tOpts, api.SkipVerify(true))

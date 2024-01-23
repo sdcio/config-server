@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: context-default
+  name: context
   namespace: network-system
   annotations:
     kform.dev/block-type: input
-    kform.dev/resource-name: context ## this serves as a way to add default and manage the merge 
-    kform.dev/default: true
+    kform.dev/resource-id: context ## this serves as a way to add default and manage the merge 
+    kform.dev/default: "true"
 data: 
-  data-server-image: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
-  config-server-image: europe-docker.pkg.dev/srlinux/eu.gcr.io/data-server:latest
+  dataServerImage: "europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest"
+  configServerImage: "europe-docker.pkg.dev/srlinux/eu.gcr.io/data-server:latest"

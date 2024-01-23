@@ -6,6 +6,8 @@ metadata:
   labels:
     config-server: "true"
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -18,8 +20,7 @@ spec:
       serviceAccountName: config-server
       containers:
       - name: config-server
-        image: $input.context.
-        #image: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
+        image: input.context[0].data.configServerImage
         imagePullPolicy: Always
         command:
         - /app/config-server
@@ -51,7 +52,9 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
-        - name: ENABLE_TARGET
+        - name: ENABLE_TARGETDATASTORE
+          value: "true"
+        - name: ENABLE_TARGETCONFIGSERVER
           value: "true"
         - name: ENABLE_DISCOVERYRULE
           value: "true"
@@ -66,23 +69,25 @@ spec:
         - name: schema-store
           mountPath: /schemas
       - name: data-server
-        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/data-server:latest
+        image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
         command:
         - /app/data-server
         args:
         - "--config=/config/data-server.yaml"
         volumeMounts:
-        - name: dataserver-config
+        - name: data-server-config
           mountPath: /config
         - name: cache
           mountPath: /cached/caches
         - name: schema-store
           mountPath: /schemas
+        - name: schema-db
+          mountPath: /schemadb
       volumes:
-      - name: dataserver-config
+      - name: data-server-config
         configMap:
-          name: dataserver
+          name: data-server
       - name: apiserver-certs
         secret:
           secretName: config-server
@@ -92,6 +97,9 @@ spec:
       - name: config-store
         persistentVolumeClaim:
           claimName: pvc-config-store
-      - name: schema-store
+      - name: schema-store # yang file from git
         persistentVolumeClaim:
           claimName: pvc-schema-store
+      - name: schema-db # persistent schema obj from the parsed yang files
+        persistentVolumeClaim:
+          claimName: pvc-schema-db

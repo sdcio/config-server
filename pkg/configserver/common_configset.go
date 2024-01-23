@@ -62,7 +62,9 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
+	if len(newConfigSet.Spec.Config) > 0 {
+		log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
+	}
 
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
@@ -98,7 +100,7 @@ func (r *configCommon) updateConfigSet(
 	// isCreate tracks whether this is an update that creates an object (this happens in server-side apply)
 	isCreate := false
 
-	oldObj, err := r.configStore.Get(ctx, key)
+	oldObj, err := r.configSetStore.Get(ctx, key)
 	if err != nil {
 		log.Info("update", "err", err.Error())
 		if forceAllowCreate && strings.Contains(err.Error(), "not found") {
@@ -109,9 +111,9 @@ func (r *configCommon) updateConfigSet(
 		}
 	}
 	// get the data of the runtime object
-	oldConfig, ok := oldObj.(*configv1alpha1.Config)
+	oldConfigSet, ok := oldObj.(*configv1alpha1.ConfigSet)
 	if !ok {
-		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfig))
+		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected old Config object, got %T", oldConfigSet))
 	}
 
 	newObj, err := objInfo.UpdatedObject(ctx, oldObj)
@@ -119,21 +121,16 @@ func (r *configCommon) updateConfigSet(
 		log.Info("update failed to construct UpdatedObject", "error", err.Error())
 		return nil, false, err
 	}
-	accessor, err := meta.Accessor(newObj)
-	if err != nil {
-		return nil, false, apierrors.NewBadRequest(err.Error())
-	}
-	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
 	newConfigSet, ok := newObj.(*configv1alpha1.ConfigSet)
 	if !ok {
 		return nil, false, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", newObj))
 	}
-	if oldConfig.GetResourceVersion() != newConfigSet.GetResourceVersion() {
-		return nil, false, apierrors.NewConflict(configv1alpha1.Resource("configs"), oldConfig.GetName(), fmt.Errorf(OptimisticLockErrorMsg))
+	if oldConfigSet.GetResourceVersion() != newConfigSet.GetResourceVersion() {
+		return nil, false, apierrors.NewConflict(configv1alpha1.Resource("configs"), oldConfigSet.GetName(), fmt.Errorf(OptimisticLockErrorMsg))
 	}
-	if oldConfig.DeletionTimestamp != nil && len(newConfigSet.Finalizers) == 0 {
+	if oldConfigSet.DeletionTimestamp != nil && len(newConfigSet.Finalizers) == 0 {
 		if err := r.configSetStore.Delete(ctx, key); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
@@ -141,14 +138,27 @@ func (r *configCommon) updateConfigSet(
 		return newConfigSet, false, nil
 	}
 
+	accessor, err := meta.Accessor(newObj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	accessor.SetResourceVersion(generateRandomString(6))
+
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
 		return newConfigSet, false, err
 	}
 	// update the store
-	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
-		return nil, false, apierrors.NewInternalError(err)
+	if isCreate {
+		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+			return nil, false, apierrors.NewInternalError(err)
+		}
+	} else {
+		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
+			return nil, false, apierrors.NewInternalError(err)
+		}
 	}
+
 
 	return newConfigSet, isCreate, nil
 }
@@ -201,16 +211,17 @@ func (r *configCommon) deleteConfigSet(
 		return newConfigSet, false, nil
 	}
 
-	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
-	log.Info("delete existingConfigs", "total", len(existingConfigs))
 
-	for nsn, existingConfig := range existingConfigs {
-		log.Info("delete existingConfigs", "nsn", nsn)
+	existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
+	log.Info("delete existingConfigs", "total", len(existingChildConfigs))
+
+	for nsn, existingChildConfig := range existingChildConfigs {
+		log.Info("delete existingChildConfig", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
-			TypeMeta:           existingConfig.TypeMeta,
+			TypeMeta:           existingChildConfig.TypeMeta,
 			GracePeriodSeconds: pointer.Int64(0), // force delete
 		}); err != nil {
-			log.Error("delete existing intent failed", "error", err)
+			log.Error("delete existing childConfig failed", "error", err)
 		}
 	}
 
@@ -331,6 +342,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 	return configSet, nil
 }
 
+// getOrphanConfigsFromConfigSet returns the children owned by this configSet
 func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, configSet *configv1alpha1.ConfigSet) map[types.NamespacedName]*configv1alpha1.Config {
 	log := log.FromContext(ctx)
 	existingConfigs := map[types.NamespacedName]*configv1alpha1.Config{}
@@ -358,8 +370,8 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 	if len(labels) == 0 {
 		labels = map[string]string{}
 	}
-	labels[targetNameKey] = target.Name
-	labels[targetNamespaceKey] = target.Namespace
+	labels[configv1alpha1.TargetNameKey] = target.Name
+	labels[configv1alpha1.TargetNamespaceKey] = target.Namespace
 
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{

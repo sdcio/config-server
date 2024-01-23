@@ -21,6 +21,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -58,9 +59,18 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
+	if len(newConfig.Spec.Config) > 0 {
+		log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
+	}
 
-	// interact with the data server
+	// interact with the data server if the targets are ready
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, apierrors.NewInternalError(err)
+	}
+	if !target.IsReady() {
+		return nil, apierrors.NewInternalError(fmt.Errorf("target not ready"))
+	}
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		return nil, apierrors.NewInternalError(errors.Wrap(err, "target not found"))
@@ -126,11 +136,6 @@ func (r *configCommon) updateConfig(
 		log.Info("update failed to construct UpdatedObject", "error", err.Error())
 		return nil, false, err
 	}
-	accessor, err := meta.Accessor(newObj)
-	if err != nil {
-		return nil, false, apierrors.NewBadRequest(err.Error())
-	}
-	accessor.SetResourceVersion(generateRandomString(6))
 
 	// get the data of the runtime object
 	newConfig, ok := newObj.(*configv1alpha1.Config)
@@ -148,6 +153,12 @@ func (r *configCommon) updateConfig(
 		// deleted
 		return newConfig, false, nil
 	}
+
+	accessor, err := meta.Accessor(newObj)
+	if err != nil {
+		return nil, false, apierrors.NewBadRequest(err.Error())
+	}
+	accessor.SetResourceVersion(generateRandomString(6))
 
 	targetKey, err := getTargetKey(newConfig.GetLabels())
 	if err != nil {
@@ -209,7 +220,14 @@ func (r *configCommon) deleteConfig(
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
 
-	// interact with the data server
+	// interact with the data server if the target is ready
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, false, apierrors.NewInternalError(err)
+	}
+	if !target.IsReady() {
+		return nil, false, apierrors.NewInternalError(fmt.Errorf("target not ready"))
+	}
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		return nil, false, apierrors.NewInternalError(err)
@@ -236,7 +254,14 @@ func (r *configCommon) deleteConfig(
 }
 
 func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey store.Key, config *configv1alpha1.Config, isCreate bool) (*configv1alpha1.Config, bool, error) {
-	// interact with the data server
+	// interact with the data server if the target is ready
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, false, apierrors.NewInternalError(err)
+	}
+	if !target.IsReady() {
+		return nil, false, apierrors.NewInternalError(fmt.Errorf("target not ready"))
+	}
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		return nil, false, apierrors.NewInternalError(err)

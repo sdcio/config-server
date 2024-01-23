@@ -17,13 +17,9 @@ package memory
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 
-	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/store/watch"
-	//metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 )
 
 const (
@@ -33,15 +29,13 @@ const (
 
 func NewStore[T1 any]() store.Storer[T1] {
 	return &mem[T1]{
-		db:       map[store.Key]T1{},
-		watchers: watch.NewWatchers[T1](32),
+		db: map[store.Key]T1{},
 	}
 }
 
 type mem[T1 any] struct {
-	m        sync.RWMutex
-	db       map[store.Key]T1
-	watchers *watch.Watchers[T1]
+	m  sync.RWMutex
+	db map[store.Key]T1
 }
 
 // Get return the type
@@ -76,38 +70,32 @@ func (r *mem[T1]) Create(ctx context.Context, key store.Key, data T1) error {
 	r.update(ctx, key, data)
 
 	// notify watchers
-	r.watchers.NotifyWatchers(ctx, watch.Event[T1]{
-		Type:   watch.Added,
-		Object: data,
-	})
 	return nil
 }
 
 // Update creates or updates the entry in the cache
 func (r *mem[T1]) Update(ctx context.Context, key store.Key, data T1) error {
-	exists := true
-	oldd, err := r.Get(ctx, key)
-	if err != nil {
-		exists = false
-	}
+	/*
+		exists := true
+		oldd, err := r.Get(ctx, key)
+		if err != nil {
+			exists = false
+		}
+	*/
 
 	// update the cache before calling the callback since the cb fn will use this data
 	r.update(ctx, key, data)
 
 	// // notify watchers based on the fact the data got modified or not
-	if exists {
-		if !reflect.DeepEqual(oldd, data) {
-			r.watchers.NotifyWatchers(ctx, watch.Event[T1]{
-				Type:   watch.Modified,
-				Object: data,
-			})
+	/*
+		if exists {
+			if !reflect.DeepEqual(oldd, data) {
+				// notify watchers
+			}
+		} else {
+			// notify watchers
 		}
-	} else {
-		r.watchers.NotifyWatchers(ctx, watch.Event[T1]{
-			Type:   watch.Added,
-			Object: data,
-		})
-	}
+	*/
 	return nil
 }
 
@@ -127,23 +115,22 @@ func (r *mem[T1]) delete(ctx context.Context, key store.Key) {
 func (r *mem[T1]) Delete(ctx context.Context, key store.Key) error {
 	// only if an exisitng object gets deleted we
 	// call the registered callbacks
-	exists := true
-	obj, err := r.Get(ctx, key)
-	if err != nil {
+	//exists := true
+	if _, err := r.Get(ctx, key); err != nil {
 		return nil
 	}
 	// if exists call the callback
-	if exists {
-		r.watchers.NotifyWatchers(ctx, watch.Event[T1]{
-			Type:   watch.Deleted,
-			Object: obj,
-		})
-	}
+	/*
+		if exists {
+			// notify watchers
+		}
+	*/
 	// delete the entry to ensure the cb uses the proper data
 	r.delete(ctx, key)
 	return nil
 }
 
+/*
 func (r *mem[T1]) Watch(ctx context.Context) (watch.Interface[T1], error) {
 	//r.m.Lock()
 	//defer r.m.Unlock()
@@ -177,3 +164,4 @@ func (r *mem[T1]) Watch(ctx context.Context) (watch.Interface[T1], error) {
 	log.Info("watcher added")
 	return w, nil
 }
+*/
