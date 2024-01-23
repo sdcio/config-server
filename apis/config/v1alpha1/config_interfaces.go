@@ -21,11 +21,11 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
 const ConfigPlural = "configs"
@@ -91,16 +91,24 @@ func (r *Config) GetTarget() string {
 		return ""
 	}
 	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()["targetNamespace"]
+	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
 	if ok {
 		sb.WriteString(targetNamespace)
 		sb.WriteString("/")
 	}
-	targetName, ok := r.GetLabels()["targetName"]
+	targetName, ok := r.GetLabels()[TargetNameKey]
 	if ok {
 		sb.WriteString(targetName)
 	}
 	return sb.String()
+}
+
+// IsTransacting return true if a create/update or delete is ongoing on the config object
+func (r *Config) IsTransacting() bool {
+	condition := r.GetCondition(ConditionTypeReady)
+	return condition.Reason == string(ConditionReasonCreating) ||
+		condition.Reason == string(ConditionReasonUpdating) ||
+		condition.Reason == string(ConditionReasonDeleting)
 }
 
 // GetListMeta returns the ListMeta

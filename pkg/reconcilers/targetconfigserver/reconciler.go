@@ -143,13 +143,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		for _, config := range configList.Items {
 			// target is ready
 			if cr.IsReady() {
-				// todo sort based on time
+				// TODO sort based on time
 				config.SetConditions(configv1alpha1.TargetReady())
 
 				r.configProvider.UpdateTarget(ctx, store.KeyFromNSN(types.NamespacedName{
 					Name:      config.GetName(),
 					Namespace: config.GetNamespace(),
-				}), crKey, &config)
+				}), crKey, &config, &config)
 
 			} else {
 				condition := config.GetCondition(configv1alpha1.ConditionTypeTargetReady)

@@ -113,12 +113,16 @@ func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Obj
 	r.configStore.Update(ctx, key, obj)
 }
 
-func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
-	config, ok := obj.(*configv1alpha1.Config)
+func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+	oldConfig, ok := oldObj.(*configv1alpha1.Config)
 	if !ok {
-		return fmt.Errorf("UpdateTarget unexpected object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj).Name())
+		return fmt.Errorf("UpdateTarget unexpected old object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(oldObj).Name())
 	}
-	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, config, false)
+	newConfig, ok := oldObj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("UpdateTarget unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
+	}
+	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, false)
 	return err
 }
 

@@ -43,6 +43,9 @@ const (
 	ConditionReasonFailed        ConditionReason = "Failed"
 	ConditionReasonUnknown       ConditionReason = "Unknown"
 	ConditionReasonTargetDeleted ConditionReason = "Target Deleted"
+	ConditionReasonDeleting      ConditionReason = "Deleting"
+	ConditionReasonCreating      ConditionReason = "Creating"
+	ConditionReasonUpdating      ConditionReason = "Updating"
 )
 
 type Condition struct {
@@ -210,5 +213,38 @@ func TargetNotReady(msg string) Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonNotReady),
 		Message:            msg,
+	}}
+}
+
+// Creating returns a condition that indicates a create transaction
+// is ongoing
+func Creating() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonCreating),
+	}}
+}
+
+// Creating returns a condition that indicates a delete transaction
+// is ongoing
+func Deleting() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonDeleting),
+	}}
+}
+
+// Creating returns a condition that indicates a update transaction
+// is ongoing
+func Updating() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUpdating),
 	}}
 }

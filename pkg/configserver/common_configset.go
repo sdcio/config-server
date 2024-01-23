@@ -278,22 +278,24 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 	TargetsStatus := make([]configv1alpha1.TargetStatus, len(targets))
 	configSet.SetConditions(configv1alpha1.Ready())
 	for i, target := range targets {
-		config := buildConfig(ctx, configSet, target)
+		var oldConfig *configv1alpha1.Config
+		newConfig := buildConfig(ctx, configSet, target)
 
 		// delete the config from the map as it is updated
-		delete(existingConfigs, types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		delete(existingConfigs, types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
 
-		key := store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		key := store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
 		isCreate := false
-		obj, err := r.configStore.Get(ctx, key)
+		oldObj, err := r.configStore.Get(ctx, key)
 		if err != nil {
 			// create
 			isCreate = true
-			config.UID = uuid.NewUUID()
-			config.CreationTimestamp = metav1.Now()
-			config.ResourceVersion = generateRandomString(6)
+			newConfig.UID = uuid.NewUUID()
+			newConfig.CreationTimestamp = metav1.Now()
+			newConfig.ResourceVersion = generateRandomString(6)
 		} else {
-			oldConfig, ok := obj.(*configv1alpha1.Config)
+			var ok bool
+			oldConfig, ok = oldObj.(*configv1alpha1.Config)
 			if !ok {
 				TargetsStatus[i] = configv1alpha1.TargetStatus{
 					Name:      target.Name,
@@ -302,16 +304,17 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 				continue
 			}
 			// update -> copy UID/CreateTimestamp, generate new resourceVersion
-			config.UID = oldConfig.UID
-			config.CreationTimestamp = oldConfig.CreationTimestamp
-			config.ResourceVersion = generateRandomString(6)
+			newConfig.UID = oldConfig.UID
+			newConfig.CreationTimestamp = oldConfig.CreationTimestamp
+			newConfig.ResourceVersion = generateRandomString(6)
 		}
 
 		_, _, err = r.upsertTargetConfig(
 			ctx,
-			store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name}),
+			store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
 			store.KeyFromNSN(target),
-			config,
+			oldConfig,
+			newConfig,
 			isCreate,
 		)
 		if err != nil {
@@ -328,7 +331,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		}
 	}
 
-	// TBD: what to do with the delete error
+	// TODO: what to do with the delete error
 	for nsn, existingConfig := range existingConfigs {
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
 			TypeMeta:           existingConfig.TypeMeta,

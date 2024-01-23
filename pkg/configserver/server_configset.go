@@ -116,7 +116,7 @@ func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.
 	r.configSetStore.Update(ctx, key, obj)
 }
 
-func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
+func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
 	return fmt.Errorf("UpdateTarget not supported for confgisets")
 }
 
