@@ -8,7 +8,7 @@ data:
     grpc-server:
       schema-server:
         enabled: true
-        schemas-directory: /schemas
+        schemas-directory: ./schemas
 
       data-server:
         max-candidates: 16
