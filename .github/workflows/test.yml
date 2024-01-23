@@ -15,6 +15,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+            ssh-private-key: ${{ secrets.IPTECHARCH_SSH_KEY }}
+      - name: Setup Git config
+        run: |
+          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          mkdir -p -m 0700 /home/runner/.ssh && ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
+
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GOVER }}
