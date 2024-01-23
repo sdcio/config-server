@@ -16,6 +16,8 @@ spec:
         config-server: "true"
     spec:
       serviceAccountName: config-server
+      strategy:
+        type: Recreate
       containers:
       - name: config-server
         image: input.context[0].data.configServerImage
