@@ -101,7 +101,7 @@ func (r *configCommon) createConfig(ctx context.Context,
 			Vendor:  tctx.DataStore.Schema.Vendor,
 			Version: tctx.DataStore.Schema.Version,
 		}
-		if err := r.configStore.Create(ctx, key, newConfig); err != nil {
+		if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 			log.Info("cannot update store", "err", err.Error())
 		}
 	}()
@@ -328,7 +328,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 				Vendor:  tctx.DataStore.Schema.Vendor,
 				Version: tctx.DataStore.Schema.Version,
 			}
-			if err := r.configStore.Create(ctx, key, newConfig); err != nil {
+			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 				log.Info("cannot update store", "err", err.Error())
 			}
 		}()
