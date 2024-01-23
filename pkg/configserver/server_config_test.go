@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
@@ -171,9 +172,17 @@ func TestNewConfigProviderBasic(t *testing.T) {
 				// error is not expected
 				t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 			}
+			time.Sleep(1 * time.Second)
+			/*
+				if config, ok := obj.(*configv1alpha1.Config); ok {
+					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+						config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+						t.Errorf("%s expecting a ready condition, got\n%v", name, config)
+					}
+				}
+			*/
 			if config, ok := obj.(*configv1alpha1.Config); ok {
-				if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
-					config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+				if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 					t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 				}
 			}
@@ -274,12 +283,20 @@ func TestNewConfigProviderList(t *testing.T) {
 					// error is not expected
 					t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 				}
+				time.Sleep(1 * time.Second)
 				if config, ok := obj.(*configv1alpha1.Config); ok {
-					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
-						config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 						t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 					}
 				}
+				/*
+					if config, ok := obj.(*configv1alpha1.Config); ok {
+						if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+							config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+							t.Errorf("%s expecting a ready condition, got\n%v", name, config)
+						}
+					}
+				*/
 			}
 
 			obj, err := provider.List(ctx, buildOptions(tc.fieldSet, tc.labelSet))
