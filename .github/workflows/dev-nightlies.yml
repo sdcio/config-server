@@ -12,10 +12,6 @@ jobs:
   dev-release:
     runs-on: iptecharch-action-runners
     steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GOVER }}
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -25,13 +21,21 @@ jobs:
       - uses: webfactory/ssh-agent@v0.8.0
         with:
             ssh-private-key: ${{ secrets.IPTECHARCH_SSH_KEY }}
+      - name: Setup Git config
+        run: |
+          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          mkdir -p -m 0700 /home/runner/.ssh && ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOVER }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: iptecharch-builder
+          password: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
 
       - name: Login to Hans' Private k8s Container Registry
         uses: docker/login-action@v3
@@ -53,7 +57,6 @@ jobs:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           version: latest
-          args: release --clean -f .goreleaser.nightlies.yml
+          args: release --clean -f .goreleaser.nightlies.yml --skip=validate
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SSH_AUTH_SOCK: ${{ env.SSH_AUTH_SOCK }}
+          GITHUB_TOKEN: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
