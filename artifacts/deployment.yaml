@@ -6,6 +6,8 @@ metadata:
   labels:
     config-server: "true"
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -16,8 +18,6 @@ spec:
         config-server: "true"
     spec:
       serviceAccountName: config-server
-      strategy:
-        type: Recreate
       containers:
       - name: config-server
         image: input.context[0].data.configServerImage
