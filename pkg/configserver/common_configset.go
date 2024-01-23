@@ -293,6 +293,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 			newConfig.UID = uuid.NewUUID()
 			newConfig.CreationTimestamp = metav1.Now()
 			newConfig.ResourceVersion = generateRandomString(6)
+			oldConfig = newConfig // ensure the upsert call works
 		} else {
 			var ok bool
 			oldConfig, ok = oldObj.(*configv1alpha1.Config)
