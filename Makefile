@@ -23,6 +23,7 @@ docker:
 
 .PHONY:
 docker-build: ## Build docker image with the manager.
+	ssh-add ./keys/id_rsa 2>/dev/null; true
 	docker build . -t ${IMG} --ssh default=$(SSH_AUTH_SOCK)
 
 .PHONY: docker-push
