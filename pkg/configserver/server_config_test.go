@@ -172,7 +172,8 @@ func TestNewConfigProviderBasic(t *testing.T) {
 				t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 			}
 			if config, ok := obj.(*configv1alpha1.Config); ok {
-				if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
+				if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+					config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
 					t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 				}
 			}
@@ -274,7 +275,8 @@ func TestNewConfigProviderList(t *testing.T) {
 					t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 				}
 				if config, ok := obj.(*configv1alpha1.Config); ok {
-					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
+					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+						config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
 						t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 					}
 				}

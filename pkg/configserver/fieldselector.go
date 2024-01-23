@@ -42,8 +42,6 @@ func parseFieldSelector(fieldSelector fields.Selector) (*configFilter, error) {
 		default:
 			return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector operator %q for field %q", requirement.Operator, requirement.Field))
 		}
-		fmt.Println("requirement.Field", requirement.Field)
-		fmt.Println("requirement.Value", requirement.Value)
 
 		switch requirement.Field {
 		case "metadata.name":

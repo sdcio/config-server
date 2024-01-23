@@ -26,12 +26,16 @@ func TestValidate(t *testing.T) {
 		path        string
 		expectedErr error
 	}{
-		"Static": {
-			path:        "../../../example/discovery-rule/static.yaml",
+		"NoDiscovery": {
+			path:        "../../../example/discovery-rule/nodiscovery.yaml",
 			expectedErr: nil,
 		},
-		"Dynamic": {
-			path:        "../../../example/discovery-rule/dynamic.yaml",
+		"DiscoveryPrefix": {
+			path:        "../../../example/discovery-rule/discovery_prefix.yaml",
+			expectedErr: nil,
+		},
+		"DiscoveryAddress": {
+			path:        "../../../example/discovery-rule/discovery_prefix.yaml",
 			expectedErr: nil,
 		},
 	}
