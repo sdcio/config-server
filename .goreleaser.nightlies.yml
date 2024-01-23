@@ -1,0 +1,48 @@
+project_name: config-server
+builds:
+  - id: config-server
+    binary: config-server
+    main: ./cmd/apiserver/main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+dockers:
+  - goos: linux
+    goarch: amd64
+    ids:
+      - config-server
+    image_templates:
+      - "ghcr.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "ghcr.io/iptecharch/config-server:v0.0.0-dev-latest"
+      - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-dev-latest"
+    dockerfile: goreleaser.dockerfile
+    skip_push: false
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.source=https://github.com/iptecharch/{{.ProjectName}}"
+      - "--label=org.opencontainers.image.version=v{{.Version}}"
+  - goos: linux
+    goarch: amd64
+    ids:
+      - config-server
+    image_templates:
+      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-dev-latest"
+    dockerfile: goreleaser.dockerfile
+    skip_push: false
+    push_flags:
+      - --tls-verify=false
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.source=https://github.com/iptecharch/{{.ProjectName}}"
+      - "--label=org.opencontainers.image.version=v{{.Version}}"
+release:
+  disable: true

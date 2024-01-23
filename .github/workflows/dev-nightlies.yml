@@ -1,0 +1,62 @@
+name: dev-build-nightlies
+
+on:
+  schedule:
+    - cron: "5 20 * * *"
+  workflow_dispatch:
+
+env:
+    GOVER: 1.21.4
+
+jobs:
+  dev-release:
+    runs-on: iptecharch-action-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Make sure the @v0.8.0 matches the current version of the action
+      - uses: webfactory/ssh-agent@v0.8.0
+        with:
+            ssh-private-key: ${{ secrets.IPTECHARCH_SSH_KEY }}
+      - name: Setup Git config
+        run: |
+          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
+          mkdir -p -m 0700 /home/runner/.ssh && ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOVER }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: iptecharch-builder
+          password: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
+
+      - name: Login to Hans' Private k8s Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.k8s.hans.io
+          username: iptecharch-builder
+          password: ${{ secrets.K8S_REGISTRY_HANS }}
+
+      - name: Login to Karim's Private k8s Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.kmrd.dev
+          username: iptecharch-builder
+          password: ${{ secrets.K8S_REGISTRY_HANS }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro'
+          distribution: goreleaser
+          version: latest
+          args: release --clean -f .goreleaser.nightlies.yml --skip=validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
