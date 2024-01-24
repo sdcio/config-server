@@ -260,7 +260,7 @@ func (r *configCommon) deleteConfig(
 		return nil, false, apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Modified,
+		Type:   watch.Deleted,
 		Object: newConfig,
 	})
 
