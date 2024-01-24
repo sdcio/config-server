@@ -295,12 +295,10 @@ func (r *configCommon) deleteConfig(
 		if err := r.configStore.Delete(ctx, key); err != nil {
 			log.Info("cannot delete config from store", "err", err.Error())
 		}
-		/*
 		r.notifyWatcher(ctx, watch.Event{
 			Type:   watch.Deleted,
 			Object: newConfig,
 		})
-		*/
 		log.Info("delete config from store succeeded")
 	}()
 
