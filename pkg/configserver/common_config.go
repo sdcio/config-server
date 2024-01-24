@@ -336,7 +336,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 	// Here we keep the old config since the update might fail, as such we always
 	// can go back to the original state
 	oldConfig.Status.SetConditions(configv1alpha1.Updating())
-	if err := r.configStore.Create(ctx, key, oldConfig); err != nil {
+	if err := r.configStore.Update(ctx, key, oldConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
 
