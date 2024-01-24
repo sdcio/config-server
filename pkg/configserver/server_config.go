@@ -191,10 +191,12 @@ func (r *config) Create(
 	if err != nil {
 		return obj, err
 	}
+	/*
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Added,
 		Object: obj,
 	})
+	*/
 	return obj, nil
 }
 
@@ -218,6 +220,7 @@ func (r *config) Update(
 	if err != nil {
 		return obj, create, err
 	}
+	/*
 	if create {
 		r.notifyWatcher(ctx, watch.Event{
 			Type:   watch.Added,
@@ -229,6 +232,7 @@ func (r *config) Update(
 			Object: obj,
 		})
 	}
+	*/
 	return obj, create, nil
 }
 
@@ -249,10 +253,12 @@ func (r *config) Delete(
 	if err != nil {
 		return obj, asyncDelete, err
 	}
+	/*
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Deleted,
 		Object: obj,
 	})
+	*/
 	return obj, asyncDelete, nil
 }
 
