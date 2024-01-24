@@ -77,7 +77,7 @@ func (r *configCommon) get(ctx context.Context, name string, options *metav1.Get
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
 
-	log.Info("get succeeded", "obj", obj)
+	log.Info("get succeeded")
 	return obj, nil
 }
 
