@@ -38,8 +38,6 @@ import (
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
-
-
 func NewConfigProviderHandler(ctx context.Context, p ResourceProvider) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		return p, nil
@@ -122,7 +120,7 @@ func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey stor
 	if !ok {
 		return fmt.Errorf("UpdateTarget unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
 	}
-	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, false)
+	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, true)
 	return err
 }
 
