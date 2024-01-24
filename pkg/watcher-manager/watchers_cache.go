@@ -39,12 +39,14 @@ func (r *watchers) del(key string) {
 	delete(r.watchers, key)
 }
 
+/*
 func (r *watchers) get(key string) (*watcher, bool) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	w, ok := r.watchers[key]
 	return w, ok
 }
+*/
 
 func (r *watchers) len() int {
 	r.m.RLock()

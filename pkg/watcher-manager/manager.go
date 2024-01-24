@@ -56,6 +56,14 @@ func (r *watcherManager) WatchChan() chan watch.Event {
 // Add adds a watcher to the watcherManager and allocates a uuid per watcher to make the delete
 // easier, the uuid is used only internally
 func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.ListOptions, callback Watcher) error {
+	// see if we have to clean done watcher
+	for _, w := range r.watchers.list() {
+		if err := w.isDone(); err != nil {
+			r.watchers.del(w.key)
+			r.sem.Release(1)
+		}
+	}
+
 	ok := r.sem.TryAcquire(1)
 	if !ok {
 		return fmt.Errorf("max number of watchers reached")
@@ -64,10 +72,10 @@ func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.L
 	uuid := uuid.New().String()
 	// initialize the watcher
 	w := &watcher{
-		key:      uuid,
-		isDone:   ctx.Err, // handles watcher stop and deletion gracefully
-		callback: callback,
-		filterOptions:   options,
+		key:           uuid,
+		isDone:        ctx.Err, // handles watcher stop and deletion gracefully
+		callback:      callback,
+		filterOptions: options,
 	}
 
 	r.watchers.add(uuid, w)
@@ -101,8 +109,6 @@ func (r *watcherManager) Start(ctx context.Context) {
 						r.sem.Release(1)
 						return
 					}
-
-					// TBD: filtering
 
 					// the callback deals with filtering
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {
