@@ -270,6 +270,7 @@ func (r *configCommon) deleteConfig(
 			log.Info("delete transaction failed", "err", err.Error())
 			return
 		}
+		time.Sleep(2 *time.Second)
 		log.Info("delete transaction succeeded")
 		if err := r.configStore.Delete(ctx, key); err != nil {
 			log.Info("cannot delete config from store", "err", err.Error())
