@@ -75,7 +75,6 @@ func newConfigProvider(
 	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
-	watcherManager:= watchermanager.New(32)
 	c := &config{
 		configCommon: configCommon{
 			//configSetStore -> no needed for config, only used by configset
@@ -86,7 +85,7 @@ func newConfigProvider(
 			isNamespaced: obj.NamespaceScoped(),
 			newFunc:      obj.New,
 			newListFunc:  obj.NewList,
-			watcherManager: watcherManager,
+			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigTableConvertor(gr),
 		//watcherManager: watcherManager,

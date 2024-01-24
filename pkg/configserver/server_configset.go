@@ -80,7 +80,6 @@ func newConfigSetProvider(
 
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
-	watcherManager:= watchermanager.New(32)
 	c := &configset{
 		configCommon: configCommon{
 			client:         client,
@@ -91,12 +90,12 @@ func newConfigSetProvider(
 			isNamespaced:   obj.NamespaceScoped(),
 			newFunc:        obj.New,
 			newListFunc:    obj.NewList,
-			watcherManager: watcherManager,
+			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigSetTableConvertor(gr),
-		watcherManager: watcherManager,
+		//watcherManager: watcherManager,
 	}
-	go c.watcherManager.Start(ctx)
+	go c.configCommon.watcherManager.Start(ctx)
 	return c, nil
 }
 
@@ -109,7 +108,7 @@ var _ rest.SingularNameProvider = &configset{}
 type configset struct {
 	configCommon
 	rest.TableConvertor
-	watcherManager watchermanager.WatcherManager
+	//watcherManager watchermanager.WatcherManager
 }
 
 func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
