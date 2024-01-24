@@ -17,6 +17,10 @@ spec:
       labels:
         config-server: "true"
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 3000
       serviceAccountName: config-server
       containers:
       - name: config-server
