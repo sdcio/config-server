@@ -281,32 +281,7 @@ func (r *configset) Watch(
 
 	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
-	// logger
-	log := log.FromContext(ctx)
-
-	if options.FieldSelector == nil {
-		log.Info("watch", "options", *options, "fieldselector", "nil")
-	} else {
-		requirements := options.FieldSelector.Requirements()
-		log.Info("watch", "options", *options, "fieldselector", options.FieldSelector.Requirements())
-		for _, requirement := range requirements {
-			log.Info("watch requirement",
-				"Operator", requirement.Operator,
-				"Value", requirement.Value,
-				"Field", requirement.Field,
-			)
-		}
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-
-	w := &watcher{
-		cancel:         cancel,
-		resultChan:     make(chan watch.Event),
-		watcherManager: r.watcherManager,
-	}
-
-	go w.listAndWatch(ctx, r, options)
+	w := r.watch(ctx, options)
 
 	return w, nil
 }

@@ -163,9 +163,48 @@ func (r *configCommon) list(
 	return newListObj, nil
 }
 
+func (r *configCommon) watch(
+	ctx context.Context,
+	options *metainternalversion.ListOptions,
+) *watcher {
+
+	// logger
+	log := log.FromContext(ctx)
+
+	if options.FieldSelector == nil {
+		log.Info("watch", "options", *options, "fieldselector", "nil")
+	} else {
+		requirements := options.FieldSelector.Requirements()
+		log.Info("watch", "options", *options, "fieldselector", options.FieldSelector.Requirements())
+		for _, requirement := range requirements {
+			log.Info("watch requirement",
+				"Operator", requirement.Operator,
+				"Value", requirement.Value,
+				"Field", requirement.Field,
+			)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	w := &watcher{
+		cancel:         cancel,
+		resultChan:     make(chan watch.Event),
+		watcherManager: r.watcherManager,
+	}
+
+	go w.listAndWatch(ctx, r, options)
+
+	return w
+}
+
 func (r *configCommon) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
 	log.Info("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
+}
+
+type lister interface {
+	list(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) 
 }
