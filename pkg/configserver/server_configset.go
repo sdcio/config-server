@@ -80,6 +80,7 @@ func newConfigSetProvider(
 
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
+	watcherManager:= watchermanager.New(32)
 	c := &configset{
 		configCommon: configCommon{
 			client:         client,
@@ -90,9 +91,10 @@ func newConfigSetProvider(
 			isNamespaced:   obj.NamespaceScoped(),
 			newFunc:        obj.New,
 			newListFunc:    obj.NewList,
+			watcherManager: watcherManager,
 		},
 		TableConvertor: NewConfigSetTableConvertor(gr),
-		watcherManager: watchermanager.New(32),
+		watcherManager: watcherManager,
 	}
 	go c.watcherManager.Start(ctx)
 	return c, nil
@@ -185,10 +187,6 @@ func (r *configset) Create(
 	if err != nil {
 		return obj, err
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Added,
-		Object: obj,
-	})
 	return obj, nil
 }
 
@@ -212,17 +210,6 @@ func (r *configset) Update(
 	if err != nil {
 		return obj, create, err
 	}
-	if create {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Added,
-			Object: obj,
-		})
-	} else {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Modified,
-			Object: obj,
-		})
-	}
 	return obj, create, nil
 }
 
@@ -243,10 +230,6 @@ func (r *configset) Delete(
 	if err != nil {
 		return obj, asyncDelete, err
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Deleted,
-		Object: obj,
-	})
 	return obj, asyncDelete, nil
 }
 
@@ -328,9 +311,11 @@ func (r *configset) Watch(
 	return w, nil
 }
 
+/*
 func (r *configset) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
 	log.Info("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

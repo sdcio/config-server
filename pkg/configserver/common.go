@@ -22,6 +22,7 @@ import (
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
+	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -46,6 +48,7 @@ type configCommon struct {
 	isNamespaced   bool
 	newFunc        func() runtime.Object
 	newListFunc    func() runtime.Object
+	watcherManager watchermanager.WatcherManager
 }
 
 func (r *configCommon) get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
@@ -158,4 +161,11 @@ func (r *configCommon) list(
 	}
 
 	return newListObj, nil
+}
+
+func (r *configCommon) notifyWatcher(ctx context.Context, event watch.Event) {
+	log := log.FromContext(ctx).With("eventType", event.Type)
+	log.Info("notify watcherManager")
+
+	r.watcherManager.WatchChan() <- event
 }

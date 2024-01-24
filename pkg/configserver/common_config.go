@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
@@ -39,7 +40,6 @@ func (r *configCommon) createConfig(ctx context.Context,
 	options *metav1.CreateOptions) (runtime.Object, error) {
 
 	// logger
-	log := log.FromContext(ctx)
 	// setting a uid for the element
 	accessor, err := meta.Accessor(runtimeObject)
 	if err != nil {
@@ -53,7 +53,8 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if err != nil {
 		return nil, apierrors.NewBadRequest(err.Error())
 	}
-	log.Info("create", "key", key.String(), "targetKey", targetKey)
+	log := log.FromContext(ctx).With("key", key.String(), "targetKey", targetKey)
+	log.Info("create")
 
 	// get the data of the runtime object
 	newConfig, ok := runtimeObject.(*configv1alpha1.Config)
@@ -78,6 +79,10 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if err := r.configStore.Create(ctx, key, newConfig); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: newConfig,
+	})
 
 	go func() {
 		nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
@@ -101,6 +106,10 @@ func (r *configCommon) createConfig(ctx context.Context,
 		if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 			log.Info("cannot update store", "err", err.Error())
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfig,
+		})
 	}()
 
 	return newConfig, nil
@@ -250,6 +259,10 @@ func (r *configCommon) deleteConfig(
 	if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Modified,
+		Object: newConfig,
+	})
 
 	go func() {
 		nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
@@ -260,6 +273,10 @@ func (r *configCommon) deleteConfig(
 				if err := r.configStore.Delete(ctx, key); err != nil {
 					log.Info("cannot delete config from store", "err", err.Error())
 				}
+				r.notifyWatcher(ctx, watch.Event{
+					Type:   watch.Deleted,
+					Object: newConfig,
+				})
 				log.Info("delete intent from store succeeded")
 				return
 			}
@@ -267,14 +284,22 @@ func (r *configCommon) deleteConfig(
 			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 				log.Info("cannot update config in store", "err", err.Error())
 			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
 			log.Info("delete transaction failed", "err", err.Error())
 			return
 		}
-		time.Sleep(2 *time.Second)
+		time.Sleep(2 * time.Second)
 		log.Info("delete transaction succeeded")
 		if err := r.configStore.Delete(ctx, key); err != nil {
 			log.Info("cannot delete config from store", "err", err.Error())
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Deleted,
+			Object: newConfig,
+		})
 		log.Info("delete config from store succeeded")
 	}()
 
@@ -306,6 +331,10 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 		if err := r.configStore.Create(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Added,
+			Object: newConfig,
+		})
 
 		go func() {
 			nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
@@ -329,6 +358,10 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 				log.Info("cannot update store", "err", err.Error())
 			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
 		}()
 		return newConfig, false, nil
 	}
@@ -349,6 +382,10 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 				log.Info("cannot update store", "err", err.Error())
 			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
 			log.Info("update transaction failed", "err", err.Error())
 			return
 		}
@@ -363,6 +400,10 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 		if err := r.configStore.Update(ctx, key, newConfig); err != nil {
 			log.Info("cannot update store", "err", err.Error())
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfig,
+		})
 	}()
 	return newConfig, true, nil
 }

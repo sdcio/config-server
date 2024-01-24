@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,6 +72,10 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: newConfigSet,
+	})
 
 	return newConfigSet, nil
 }
@@ -150,12 +155,19 @@ func (r *configCommon) updateConfigSet(
 		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Added,
+			Object: newConfigSet,
+		})
 	} else {
 		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfigSet,
+		})
 	}
-
 
 	return newConfigSet, isCreate, nil
 }
@@ -208,7 +220,6 @@ func (r *configCommon) deleteConfigSet(
 		return newConfigSet, false, nil
 	}
 
-
 	existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
 	log.Info("delete existingConfigs", "total", len(existingChildConfigs))
 
@@ -225,6 +236,10 @@ func (r *configCommon) deleteConfigSet(
 	if err := r.configSetStore.Delete(ctx, key); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Deleted,
+		Object: newConfigSet,
+	})
 	log.Info("delete intent from store succeeded")
 	return newConfigSet, true, nil
 }

@@ -75,6 +75,7 @@ func newConfigProvider(
 	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
+	watcherManager:= watchermanager.New(32)
 	c := &config{
 		configCommon: configCommon{
 			//configSetStore -> no needed for config, only used by configset
@@ -85,9 +86,10 @@ func newConfigProvider(
 			isNamespaced: obj.NamespaceScoped(),
 			newFunc:      obj.New,
 			newListFunc:  obj.NewList,
+			watcherManager: watcherManager,
 		},
 		TableConvertor: NewConfigTableConvertor(gr),
-		watcherManager: watchermanager.New(32),
+		watcherManager: watcherManager,
 	}
 	go c.watcherManager.Start(ctx)
 	return c, nil
@@ -332,9 +334,3 @@ func (r *config) Watch(
 	return w, nil
 }
 
-func (r *config) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
-}

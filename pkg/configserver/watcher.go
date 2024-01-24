@@ -133,6 +133,11 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options 
 		}
 		for _, obj := range cfgList.Items {
 			obj := obj
+			// Due tp the async requirement, the objects that are in deleting state should
+			// be removed from a watch response for watches
+			if (&obj).GetCondition(configv1alpha1.ConditionTypeReady).Reason == string(configv1alpha1.ConditionReasonDeleting) {
+				continue
+			}
 			ev := watch.Event{
 				Type:   watch.Added,
 				Object: &obj,
