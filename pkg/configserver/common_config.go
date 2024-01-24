@@ -195,15 +195,15 @@ func (r *configCommon) deleteConfig(
 	deleteValidation rest.ValidateObjectFunc,
 	options *metav1.DeleteOptions,
 ) (runtime.Object, bool, error) {
-	// logger
-	log := log.FromContext(ctx)
 
 	// Get Key
 	key, err := r.getKey(ctx, name)
 	if err != nil {
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
-	log.Info("delete", "key", key.String())
+	// logger
+	log := log.FromContext(ctx).With("key", key.String())
+	log.Info("delete")
 
 	obj, err := r.configStore.Get(ctx, key)
 	if err != nil {
@@ -291,7 +291,6 @@ func (r *configCommon) deleteConfig(
 			log.Info("delete transaction failed", "err", err.Error())
 			return
 		}
-		time.Sleep(2 * time.Second)
 		log.Info("delete transaction succeeded")
 		if err := r.configStore.Delete(ctx, key); err != nil {
 			log.Info("cannot delete config from store", "err", err.Error())
