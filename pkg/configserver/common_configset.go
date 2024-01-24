@@ -62,9 +62,6 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	if len(newConfigSet.Spec.Config) > 0 {
-		log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
-	}
 
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {

@@ -74,7 +74,7 @@ func (r *file[T1]) writeFile(ctx context.Context, key store.Key, obj T1) error {
 	if err := r.codec.Encode(runtimeObj, buf); err != nil {
 		return err
 	}
-	log.Info("write file", "fileName", r.filename(key), "data", buf.String())
+	log.Info("write file", "fileName", r.filename(key))
 	if err := ensureDir(filepath.Dir(r.filename(key))); err != nil {
 		return err
 	}

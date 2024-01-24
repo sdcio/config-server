@@ -60,9 +60,6 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	if len(newConfig.Spec.Config) > 0 {
-		log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
-	}
 
 	// interact with the data server if the targets are ready
 	target := &invv1alpha1.Target{}
