@@ -38,8 +38,6 @@ import (
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 )
 
-
-
 func NewConfigProviderHandler(ctx context.Context, p ResourceProvider) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		return p, nil
@@ -87,11 +85,12 @@ func newConfigProvider(
 			isNamespaced: obj.NamespaceScoped(),
 			newFunc:      obj.New,
 			newListFunc:  obj.NewList,
+			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigTableConvertor(gr),
-		watcherManager: watchermanager.New(32),
+		//watcherManager: watcherManager,
 	}
-	go c.watcherManager.Start(ctx)
+	go c.configCommon.watcherManager.Start(ctx)
 	return c, nil
 }
 
@@ -104,7 +103,7 @@ var _ rest.SingularNameProvider = &config{}
 type config struct {
 	configCommon
 	rest.TableConvertor
-	watcherManager watchermanager.WatcherManager
+	//watcherManager watchermanager.WatcherManager
 }
 
 func (r *config) GetStore() store.Storer[runtime.Object] { return r.configStore }
@@ -113,12 +112,16 @@ func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Obj
 	r.configStore.Update(ctx, key, obj)
 }
 
-func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
-	config, ok := obj.(*configv1alpha1.Config)
+func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+	oldConfig, ok := oldObj.(*configv1alpha1.Config)
 	if !ok {
-		return fmt.Errorf("UpdateTarget unexpected object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj).Name())
+		return fmt.Errorf("UpdateTarget unexpected old object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(oldObj).Name())
 	}
-	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, config, false)
+	newConfig, ok := oldObj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("UpdateTarget unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
+	}
+	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, true)
 	return err
 }
 
@@ -187,10 +190,12 @@ func (r *config) Create(
 	if err != nil {
 		return obj, err
 	}
+	/*
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Added,
 		Object: obj,
 	})
+	*/
 	return obj, nil
 }
 
@@ -214,6 +219,7 @@ func (r *config) Update(
 	if err != nil {
 		return obj, create, err
 	}
+	/*
 	if create {
 		r.notifyWatcher(ctx, watch.Event{
 			Type:   watch.Added,
@@ -225,6 +231,7 @@ func (r *config) Update(
 			Object: obj,
 		})
 	}
+	*/
 	return obj, create, nil
 }
 
@@ -245,10 +252,12 @@ func (r *config) Delete(
 	if err != nil {
 		return obj, asyncDelete, err
 	}
+	/*
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Deleted,
 		Object: obj,
 	})
+	*/
 	return obj, asyncDelete, nil
 }
 
@@ -300,39 +309,8 @@ func (r *config) Watch(
 
 	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigKind}
 
-	// logger
-	log := log.FromContext(ctx)
-
-	if options.FieldSelector == nil {
-		log.Info("watch", "options", *options, "fieldselector", "nil")
-	} else {
-		requirements := options.FieldSelector.Requirements()
-		log.Info("watch", "options", *options, "fieldselector", options.FieldSelector.Requirements())
-		for _, requirement := range requirements {
-			log.Info("watch requirement",
-				"Operator", requirement.Operator,
-				"Value", requirement.Value,
-				"Field", requirement.Field,
-			)
-		}
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-
-	w := &watcher{
-		cancel:         cancel,
-		resultChan:     make(chan watch.Event),
-		watcherManager: r.watcherManager,
-	}
-
-	go w.listAndWatch(ctx, r, options)
+	w := r.watch(ctx, options)
 
 	return w, nil
 }
 
-func (r *config) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
-}

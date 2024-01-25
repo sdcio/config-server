@@ -37,6 +37,7 @@ func (r *file[T1]) filename(key store.Key) string {
 }
 
 func (r *file[T1]) readFile(ctx context.Context, key store.Key) (T1, error) {
+	log := log.FromContext(ctx)
 	var obj T1
 	content, err := os.ReadFile(filepath.Clean(r.filename(key)))
 	if err != nil {
@@ -45,6 +46,7 @@ func (r *file[T1]) readFile(ctx context.Context, key store.Key) (T1, error) {
 	newObj := r.newFunc()
 	decodeObj, _, err := r.codec.Decode(content, nil, newObj)
 	if err != nil {
+		log.Error("decoding failed", "errpr", err.Error())
 		return obj, err
 	}
 	obj, ok := decodeObj.(T1)
@@ -72,9 +74,10 @@ func (r *file[T1]) writeFile(ctx context.Context, key store.Key, obj T1) error {
 
 	buf := new(bytes.Buffer)
 	if err := r.codec.Encode(runtimeObj, buf); err != nil {
+		log.Error("encoding failed", "errpr", err.Error())
 		return err
 	}
-	log.Info("write file", "fileName", r.filename(key), "data", buf.String())
+	log.Info("write file", "fileName", r.filename(key))
 	if err := ensureDir(filepath.Dir(r.filename(key))); err != nil {
 		return err
 	}

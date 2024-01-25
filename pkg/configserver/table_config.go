@@ -32,6 +32,7 @@ func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
 			return []interface{}{
 				config.Name,
 				config.GetCondition(configv1alpha1.ConditionTypeReady).Status,
+				config.GetCondition(configv1alpha1.ConditionTypeReady).Reason,
 				config.GetTarget(),
 				config.GetLastKnownGoodSchema().String(),
 				//config.ObjectMeta.CreationTimestamp,
@@ -40,6 +41,7 @@ func NewConfigTableConvertor(gr schema.GroupResource) tableConvertor {
 		columns: []metav1.TableColumnDefinition{
 			{Name: "Name", Type: "string"},
 			{Name: "Ready", Type: "string"},
+			{Name: "Reason", Type: "string"},
 			{Name: "Target", Type: "string"},
 			{Name: "Schema", Type: "string"},
 			//{Name: "Created at", Type: "string"},

@@ -43,7 +43,7 @@ type ResourceProvider interface {
 	rest.StandardStorage
 	GetStore() store.Storer[runtime.Object]
 	UpdateStore(context.Context, store.Key, runtime.Object)
-	UpdateTarget(context.Context, store.Key, store.Key, runtime.Object) error
+	UpdateTarget(context.Context, store.Key, store.Key,  runtime.Object, runtime.Object) error
 }
 
 func createFileStore(ctx context.Context, obj resource.Object, rootPath string) (store.Storer[runtime.Object], error) {

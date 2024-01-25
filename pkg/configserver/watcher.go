@@ -27,7 +27,6 @@ import (
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apiserver/pkg/registry/rest"
 )
 
 // implements the watchermanager Watcher interface
@@ -68,7 +67,7 @@ func (r *watcher) OnChange(eventType watch.EventType, obj runtime.Object) bool {
 	return r.eventCallback(eventType, obj)
 }
 
-func (r *watcher) listAndWatch(ctx context.Context, l rest.Lister, options *metainternalversion.ListOptions) {
+func (r *watcher) listAndWatch(ctx context.Context, l lister, options *metainternalversion.ListOptions) {
 	log := log.FromContext(ctx)
 	if err := r.innerListAndWatch(ctx, l, options); err != nil {
 		// TODO: We need to populate the object on this error
@@ -87,7 +86,7 @@ func (r *watcher) listAndWatch(ctx context.Context, l rest.Lister, options *meta
 // innerListAndWatch provides the callback handler
 // 1. add a callback handler to receive any event we get while collecting the list of existing resources
 // 2.
-func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options *metainternalversion.ListOptions) error {
+func (r *watcher) innerListAndWatch(ctx context.Context, l lister, options *metainternalversion.ListOptions) error {
 	log := log.FromContext(ctx)
 
 	errorResult := make(chan error)
@@ -121,7 +120,7 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options 
 	// options.Watch means watch only no listing
 	if !options.Watch {
 		log.Info("starting list watch")
-		obj, err := l.List(ctx, options)
+		obj, err := l.list(ctx, options)
 		if err != nil {
 			r.setDone()
 			return err
@@ -133,6 +132,11 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.Lister, options 
 		}
 		for _, obj := range cfgList.Items {
 			obj := obj
+			// Due tp the async requirement, the objects that are in deleting state should
+			// be removed from a watch response for watches
+			if (&obj).GetCondition(configv1alpha1.ConditionTypeReady).Reason == string(configv1alpha1.ConditionReasonDeleting) {
+				continue
+			}
 			ev := watch.Event{
 				Type:   watch.Added,
 				Object: &obj,

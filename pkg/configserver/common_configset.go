@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,9 +63,6 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	if len(newConfigSet.Spec.Config) > 0 {
-		log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
-	}
 
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
@@ -74,6 +72,10 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: newConfigSet,
+	})
 
 	return newConfigSet, nil
 }
@@ -153,12 +155,19 @@ func (r *configCommon) updateConfigSet(
 		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Added,
+			Object: newConfigSet,
+		})
 	} else {
 		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfigSet,
+		})
 	}
-
 
 	return newConfigSet, isCreate, nil
 }
@@ -211,7 +220,6 @@ func (r *configCommon) deleteConfigSet(
 		return newConfigSet, false, nil
 	}
 
-
 	existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
 	log.Info("delete existingConfigs", "total", len(existingChildConfigs))
 
@@ -228,6 +236,10 @@ func (r *configCommon) deleteConfigSet(
 	if err := r.configSetStore.Delete(ctx, key); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Deleted,
+		Object: newConfigSet,
+	})
 	log.Info("delete intent from store succeeded")
 	return newConfigSet, true, nil
 }
@@ -278,22 +290,25 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 	TargetsStatus := make([]configv1alpha1.TargetStatus, len(targets))
 	configSet.SetConditions(configv1alpha1.Ready())
 	for i, target := range targets {
-		config := buildConfig(ctx, configSet, target)
+		var oldConfig *configv1alpha1.Config
+		newConfig := buildConfig(ctx, configSet, target)
 
 		// delete the config from the map as it is updated
-		delete(existingConfigs, types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		delete(existingConfigs, types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
 
-		key := store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		key := store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
 		isCreate := false
-		obj, err := r.configStore.Get(ctx, key)
+		oldObj, err := r.configStore.Get(ctx, key)
 		if err != nil {
 			// create
 			isCreate = true
-			config.UID = uuid.NewUUID()
-			config.CreationTimestamp = metav1.Now()
-			config.ResourceVersion = generateRandomString(6)
+			newConfig.UID = uuid.NewUUID()
+			newConfig.CreationTimestamp = metav1.Now()
+			newConfig.ResourceVersion = generateRandomString(6)
+			oldConfig = newConfig // ensure the upsert call works
 		} else {
-			oldConfig, ok := obj.(*configv1alpha1.Config)
+			var ok bool
+			oldConfig, ok = oldObj.(*configv1alpha1.Config)
 			if !ok {
 				TargetsStatus[i] = configv1alpha1.TargetStatus{
 					Name:      target.Name,
@@ -302,16 +317,17 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 				continue
 			}
 			// update -> copy UID/CreateTimestamp, generate new resourceVersion
-			config.UID = oldConfig.UID
-			config.CreationTimestamp = oldConfig.CreationTimestamp
-			config.ResourceVersion = generateRandomString(6)
+			newConfig.UID = oldConfig.UID
+			newConfig.CreationTimestamp = oldConfig.CreationTimestamp
+			newConfig.ResourceVersion = generateRandomString(6)
 		}
 
 		_, _, err = r.upsertTargetConfig(
 			ctx,
-			store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name}),
+			store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
 			store.KeyFromNSN(target),
-			config,
+			oldConfig,
+			newConfig,
 			isCreate,
 		)
 		if err != nil {
@@ -328,7 +344,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		}
 	}
 
-	// TBD: what to do with the delete error
+	// TODO: what to do with the delete error
 	for nsn, existingConfig := range existingConfigs {
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
 			TypeMeta:           existingConfig.TypeMeta,

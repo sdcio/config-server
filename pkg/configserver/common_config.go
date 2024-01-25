@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
@@ -29,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
@@ -38,7 +40,6 @@ func (r *configCommon) createConfig(ctx context.Context,
 	options *metav1.CreateOptions) (runtime.Object, error) {
 
 	// logger
-	log := log.FromContext(ctx)
 	// setting a uid for the element
 	accessor, err := meta.Accessor(runtimeObject)
 	if err != nil {
@@ -52,15 +53,13 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if err != nil {
 		return nil, apierrors.NewBadRequest(err.Error())
 	}
-	log.Info("create", "key", key.String(), "targetKey", targetKey)
+	log := log.FromContext(ctx).With("key", key.String(), "targetKey", targetKey)
+	log.Info("create")
 
 	// get the data of the runtime object
 	newConfig, ok := runtimeObject.(*configv1alpha1.Config)
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
-	}
-	if len(newConfig.Spec.Config) > 0 {
-		log.Info("create", "obj", string(newConfig.Spec.Config[0].Value.Raw))
 	}
 
 	// interact with the data server if the targets are ready
@@ -75,20 +74,43 @@ func (r *configCommon) createConfig(ctx context.Context,
 	if err != nil {
 		return nil, apierrors.NewInternalError(errors.Wrap(err, "target not found"))
 	}
-	if err := tctx.SetIntent(ctx, targetKey, newConfig); err != nil {
-		return nil, apierrors.NewInternalError(err)
-	}
-	log.Info("create intent succeeded")
-
-	newConfig.Status.SetConditions(configv1alpha1.Ready())
-	newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
-		Type:    tctx.DataStore.Schema.Name,
-		Vendor:  tctx.DataStore.Schema.Vendor,
-		Version: tctx.DataStore.Schema.Version,
-	}
+	log.Info("create intent validation succeeded, transacting async to the target")
+	newConfig.Status.SetConditions(configv1alpha1.Creating())
 	if err := r.configStore.Create(ctx, key, newConfig); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: newConfig,
+	})
+
+	go func() {
+		nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+		defer cancel()
+		if err := tctx.SetIntent(nctx, targetKey, newConfig); err != nil {
+			newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
+			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+				log.Info("cannot update store", "err", err.Error())
+			}
+			log.Info("create transaction failed", "err", err.Error())
+			return
+		}
+		log.Info("create transaction succeeded")
+
+		newConfig.Status.SetConditions(configv1alpha1.Ready())
+		newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+			Type:    tctx.DataStore.Schema.Name,
+			Vendor:  tctx.DataStore.Schema.Vendor,
+			Version: tctx.DataStore.Schema.Version,
+		}
+		if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+			log.Info("cannot update store", "err", err.Error())
+		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfig,
+		})
+	}()
 
 	return newConfig, nil
 }
@@ -164,7 +186,7 @@ func (r *configCommon) updateConfig(
 	if err != nil {
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
-	return r.upsertTargetConfig(ctx, key, targetKey, newConfig, isCreate)
+	return r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, isCreate)
 }
 
 func (r *configCommon) deleteConfig(
@@ -173,15 +195,15 @@ func (r *configCommon) deleteConfig(
 	deleteValidation rest.ValidateObjectFunc,
 	options *metav1.DeleteOptions,
 ) (runtime.Object, bool, error) {
-	// logger
-	log := log.FromContext(ctx)
 
 	// Get Key
 	key, err := r.getKey(ctx, name)
 	if err != nil {
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
-	log.Info("delete", "key", key.String())
+	// logger
+	log := log.FromContext(ctx).With("key", key.String())
+	log.Info("delete")
 
 	obj, err := r.configStore.Get(ctx, key)
 	if err != nil {
@@ -232,28 +254,63 @@ func (r *configCommon) deleteConfig(
 	if err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	if err := tctx.DeleteIntent(ctx, targetKey, newConfig); err != nil {
-		if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
-			log.Info("delete intent from target failed, ignoring error and delete from cache", "error", err)
-			if err := r.configStore.Delete(ctx, key); err != nil {
-				return nil, false, apierrors.NewInternalError(err)
+	log.Info("delete intent validation succeeded, transacting async to the target")
+	newConfig.Status.SetConditions(configv1alpha1.Deleting())
+	// This is a bit tricky but async config interaction with the k8s client is challenging
+	// the client by default has a wait option which has the following behavior
+	// watch (gets a modify event), client does a get (if a response is received) it does a new watch
+	// when the wait option is off it will just assume it is deleted
+	if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+		return nil, false, apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Modified,
+		Object: newConfig,
+	})
+
+	go func() {
+		nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+		defer cancel()
+		if err := tctx.DeleteIntent(nctx, targetKey, newConfig); err != nil {
+			if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
+				log.Info("delete transation failed, ignoring error, target config must be manually cleane dup", "error", err)
+				if err := r.configStore.Delete(ctx, key); err != nil {
+					log.Info("cannot delete config from store", "err", err.Error())
+				}
+				r.notifyWatcher(ctx, watch.Event{
+					Type:   watch.Deleted,
+					Object: newConfig,
+				})
+				log.Info("delete intent from store succeeded")
+				return
 			}
-			log.Info("delete intent from store succeeded")
-
-			return newConfig, true, nil
+			newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
+			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+				log.Info("cannot update config in store", "err", err.Error())
+			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
+			log.Info("delete transaction failed", "err", err.Error())
+			return
 		}
-		return nil, false, apierrors.NewInternalError(err)
-	}
-	log.Info("delete intent from target succeeded")
+		log.Info("delete transaction succeeded")
+		if err := r.configStore.Delete(ctx, key); err != nil {
+			log.Info("cannot delete config from store", "err", err.Error())
+		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Deleted,
+			Object: newConfig,
+		})
+		log.Info("delete config from store succeeded")
+	}()
 
-	if err := r.configStore.Delete(ctx, key); err != nil {
-		return nil, false, apierrors.NewInternalError(err)
-	}
-	log.Info("delete intent from store succeeded")
 	return newConfig, true, nil
 }
 
-func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey store.Key, config *configv1alpha1.Config, isCreate bool) (*configv1alpha1.Config, bool, error) {
+func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey store.Key, oldConfig, newConfig *configv1alpha1.Config, isCreate bool) (*configv1alpha1.Config, bool, error) {
+	log := log.FromContext(ctx)
 	// interact with the data server if the target is ready
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
@@ -266,34 +323,90 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 	if err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+
+	if newConfig.IsTransacting() {
+		return nil, false, apierrors.NewInternalError(fmt.Errorf("transacting ongoing"))
+	}
+
 	if !isCreate {
-		if err := tctx.SetIntent(ctx, targetKey, config); err != nil {
+		log.Info("create intent validation succeeded, transacting async to the target")
+		newConfig.Status.SetConditions(configv1alpha1.Creating())
+		if err := r.configStore.Create(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Added,
+			Object: newConfig,
+		})
 
-		config.Status.SetConditions(configv1alpha1.Ready())
-		config.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		go func() {
+			nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+			defer cancel()
+			if err := tctx.SetIntent(nctx, targetKey, newConfig); err != nil {
+				newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
+				if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+					log.Info("cannot update store", "err", err.Error())
+				}
+				log.Info("create transaction failed", "err", err.Error())
+				return
+			}
+			log.Info("create transaction succeeded")
+
+			newConfig.Status.SetConditions(configv1alpha1.Ready())
+			newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+				Type:    tctx.DataStore.Schema.Name,
+				Vendor:  tctx.DataStore.Schema.Vendor,
+				Version: tctx.DataStore.Schema.Version,
+			}
+			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+				log.Info("cannot update store", "err", err.Error())
+			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
+		}()
+		return newConfig, false, nil
+	}
+
+	log.Info("update config validation succeeded, transacting async to the target")
+	// Here we keep the old config since the update might fail, as such we always
+	// can go back to the original state
+	oldConfig.Status.SetConditions(configv1alpha1.Updating())
+	if err := r.configStore.Update(ctx, key, oldConfig); err != nil {
+		return nil, false, apierrors.NewInternalError(err)
+	}
+
+	go func() {
+		nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+		defer cancel()
+		if err := tctx.SetIntent(nctx, targetKey, newConfig); err != nil {
+			newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
+			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+				log.Info("cannot update store", "err", err.Error())
+			}
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: newConfig,
+			})
+			log.Info("update transaction failed", "err", err.Error())
+			return
+		}
+		log.Info("update transaction succeeded")
+
+		newConfig.Status.SetConditions(configv1alpha1.Ready())
+		newConfig.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
 			Type:    tctx.DataStore.Schema.Name,
 			Vendor:  tctx.DataStore.Schema.Vendor,
 			Version: tctx.DataStore.Schema.Version,
 		}
-		if err := r.configStore.Update(ctx, key, config); err != nil {
-			return nil, false, apierrors.NewInternalError(err)
+		if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+			log.Info("cannot update store", "err", err.Error())
 		}
-		return config, false, nil
-	}
-	if err := tctx.SetIntent(ctx, targetKey, config); err != nil {
-		return nil, false, apierrors.NewInternalError(err)
-	}
-	config.Status.SetConditions(configv1alpha1.Ready())
-	config.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
-		Type:    tctx.DataStore.Schema.Name,
-		Vendor:  tctx.DataStore.Schema.Vendor,
-		Version: tctx.DataStore.Schema.Version,
-	}
-	if err := r.configStore.Create(ctx, key, config); err != nil {
-		return nil, false, apierrors.NewInternalError(err)
-	}
-	return config, true, nil
-
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Modified,
+			Object: newConfig,
+		})
+	}()
+	return newConfig, true, nil
 }
