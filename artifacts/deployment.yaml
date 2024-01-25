@@ -19,8 +19,8 @@ spec:
     spec:
       securityContext:
         runAsUser: 1000
-        runAsGroup: 3000
-        fsGroup: 3000
+        runAsGroup: 1000
+        fsGroup: 1000
       serviceAccountName: config-server
       containers:
       - name: config-server
