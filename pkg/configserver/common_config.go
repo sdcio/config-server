@@ -256,7 +256,10 @@ func (r *configCommon) deleteConfig(
 	}
 	log.Info("delete intent validation succeeded, transacting async to the target")
 	newConfig.Status.SetConditions(configv1alpha1.Deleting())
-	if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+	// This is a bit tricky but async config interaction with the k8s client is challenging
+	// the client does a delete, watch and waits for delete event, after it does a get to validate
+	// if it is gone
+	if err := r.configStore.Delete(ctx, key); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
@@ -269,7 +272,8 @@ func (r *configCommon) deleteConfig(
 		defer cancel()
 		if err := tctx.DeleteIntent(nctx, targetKey, newConfig); err != nil {
 			if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
-				log.Info("delete config from target failed, ignoring error and delete from store", "error", err)
+				log.Info("delete transation failed, ignoring error, target config must be manually cleane dup", "error", err)
+				/*
 				if err := r.configStore.Delete(ctx, key); err != nil {
 					log.Info("cannot delete config from store", "err", err.Error())
 				}
@@ -278,10 +282,11 @@ func (r *configCommon) deleteConfig(
 					Object: newConfig,
 				})
 				log.Info("delete intent from store succeeded")
+				*/
 				return
 			}
 			newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
-			if err := r.configStore.Update(ctx, key, newConfig); err != nil {
+			if err := r.configStore.Create(ctx, key, newConfig); err != nil {
 				log.Info("cannot update config in store", "err", err.Error())
 			}
 			r.notifyWatcher(ctx, watch.Event{
@@ -292,6 +297,7 @@ func (r *configCommon) deleteConfig(
 			return
 		}
 		log.Info("delete transaction succeeded")
+		/*
 		if err := r.configStore.Delete(ctx, key); err != nil {
 			log.Info("cannot delete config from store", "err", err.Error())
 		}
@@ -300,6 +306,7 @@ func (r *configCommon) deleteConfig(
 			Object: newConfig,
 		})
 		log.Info("delete config from store succeeded")
+		*/
 	}()
 
 	return newConfig, true, nil
