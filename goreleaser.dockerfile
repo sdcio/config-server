@@ -17,7 +17,7 @@ FROM scratch
 # add-in our timezone data file
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 # add-in our nologin binary
-COPY --from-builder /usr/sbin/nologin /usr/sbin/nologin
+COPY --from=builder /usr/sbin/nologin /usr/sbin/nologin
 # add-in our unprivileged user
 COPY --from=builder /etc/passwd /etc/group /etc/shadow /etc/
 # add-in our ca certificates
