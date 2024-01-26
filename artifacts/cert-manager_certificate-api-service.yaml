@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: config-apiservice
+  namespace: network-system
+spec:
+  secretName: config-server
+  secretTemplate:
+    labels:
+      config-server: "true"
+  dnsNames:
+    - config-server.network-system.svc
+  issuerRef:
+    name: my-ca-issuer
