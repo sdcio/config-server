@@ -3,7 +3,7 @@ kind: APIService
 metadata:
   name: v1alpha1.config.sdcio.dev
   annotations:
-    cert-manager.io/inject-ca-from: network-system/config-server-cert
+    cert-manager.io/inject-ca-from: network-system/config-apiservice
 spec:
   group: config.sdcio.dev
   groupPriorityMinimum: 1000
