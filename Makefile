@@ -51,6 +51,7 @@ genclients:
 		-g informer-gen \
 		-g lister-gen \
 		-g openapi-gen \
+		#-g go-to-protobuf \
 		--module $(REPO) \
 		--versions $(REPO)/apis/config/v1alpha1,$(REPO)/apis/inv/v1alpha1
 

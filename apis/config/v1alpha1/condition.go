@@ -49,7 +49,7 @@ const (
 )
 
 type Condition struct {
-	metav1.Condition `json:",inline" yaml:",inline"`
+	metav1.Condition `json:",inline" protobuf:"bytes,1,opt,name=condition"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
@@ -73,7 +73,7 @@ func (c Condition) WithMessage(msg string) Condition {
 type ConditionedStatus struct {
 	// Conditions of the resource.
 	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
+	Conditions []Condition `json:"conditions,omitempty" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // NewConditionedStatus returns a stat with the supplied conditions set.

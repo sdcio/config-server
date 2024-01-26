@@ -84,6 +84,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 func doGen() error {
 	inputs := strings.Join(versions, ",")
+	protoInput := versions[0]
 
 	gen := map[string]bool{}
 	for _, g := range generators {
@@ -151,6 +152,15 @@ func doGen() error {
 		}
 	}
 
+	if gen["go-to-protobuf"] {
+		err := run(getCmd("go-to-protobuf",
+			"--packages", protoInput,
+			))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -165,7 +175,7 @@ var (
 func main() {
 	cmd.Flags().BoolVar(&clean, "clean", true, "Delete temporary directory for code generation.")
 
-	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen"}
+	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen", "go-to-protobuf"}
 	defaultGen := []string{"deepcopy-gen", "openapi-gen"}
 	cmd.Flags().StringSliceVarP(&generators, "generator", "g",
 		defaultGen, fmt.Sprintf("Code generator to install and run.  Options: %v.", options))
