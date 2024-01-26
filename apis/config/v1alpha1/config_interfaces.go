@@ -30,6 +30,7 @@ import (
 
 const ConfigPlural = "configs"
 
+// +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
 
