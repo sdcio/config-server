@@ -96,7 +96,7 @@ spec:
           name: data-server
       - name: apiserver-certs
         secret:
-          secretName: config-server
+          secretName: config-server-cert
       - name: cache
         emptyDir:
           sizeLimit: 10Gi

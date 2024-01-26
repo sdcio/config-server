@@ -5,4 +5,4 @@ metadata:
   namespace: network-system
 spec:
   ca:
-    secretName: root-secret
+    secretName: my-selfsigned-ca-secret

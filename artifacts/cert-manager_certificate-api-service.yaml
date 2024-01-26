@@ -4,7 +4,7 @@ metadata:
   name: config-apiservice
   namespace: network-system
 spec:
-  secretName: config-server
+  secretName: config-server-cert
   secretTemplate:
     labels:
       config-server: "true"
