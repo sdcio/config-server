@@ -171,7 +171,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if condition.Status == metav1.ConditionTrue {
 			configList, err := r.listTargetConfigs(ctx, cr)
 			if err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			for _, config := range configList.Items {
 				log.Info("update config status", "config", config)
@@ -190,7 +190,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
 func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
