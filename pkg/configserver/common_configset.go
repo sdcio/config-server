@@ -388,6 +388,10 @@ func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, config
 			}
 		}
 	})
+	for nsn, config := range existingConfigs {
+		log.Info("existing configs", "nsn", nsn, "config", config)
+	}
+
 	return existingConfigs
 }
 
