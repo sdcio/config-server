@@ -161,86 +161,84 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
-	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
-		// first check if the target has an assigned dataserver, if not allocate one
-		// update the target store with the updated information
-		currentTargetCtx, err := r.targetStore.Get(ctx, targetKey)
-		if err != nil || currentTargetCtx.Client == nil {
-			selectedDSctx, err := r.selectDataServerContext(ctx)
-			if err != nil {
-				log.Error(err, "cannot select a dataserver")
-				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-			}
-			// add the target to the DS
-			r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
-			// create the target in the target store
-			if currentTargetCtx.Client == nil {
-				currentTargetCtx.Client = selectedDSctx.DSClient
-				if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
-					cr.Status.UsedReferences = nil
-					cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-				}
-			} else {
-				if err := r.targetStore.Create(ctx, targetKey, target.Context{
-					Client: selectedDSctx.DSClient,
-				}); err != nil {
-					cr.Status.UsedReferences = nil
-					cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-				}
-			}
-		} else {
-			// safety
-			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
-		}
-
-		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
-		if err != nil {
-			log.Error(err, "cannot get schema ready state")
-			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
-		if !isSchemaReady {
-			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSSchemaNotReady(schemaMsg))
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-
-		// Now that the target store is up to date and we have an assigned dataserver
-		// we will create/update the datastore for the target
-		// Target is ready
-		changed, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
-		if err != nil {
-			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		// robustness avoid to update status when there is no change
-		// avoid retriggering reconcile
-		if changed {
-			cr.Status.UsedReferences = usedRefs
-			cr.SetConditions(invv1alpha1.DSReady())
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		cr.Status.UsedReferences = usedRefs
-		cr.SetConditions(invv1alpha1.DSReady())
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		//return ctrl.Result{}, nil
-	}
-	// target not ready so we can wait till the target goes to ready state
-	if cr.GetCondition(invv1alpha1.ConditionTypeDSReady).Status == metav1.ConditionTrue {
+	cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
+	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
+		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	// if the Ready state is false and we dont have a true status in DSReady state
-	// we dont update the target -> otherwise we get to many reconcile events and updates fail
-	return ctrl.Result{}, nil
+
+	// first check if the target has an assigned dataserver, if not allocate one
+	// update the target store with the updated information
+	currentTargetCtx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil || currentTargetCtx.Client == nil {
+		selectedDSctx, err := r.selectDataServerContext(ctx)
+		if err != nil {
+			log.Error(err, "cannot select a dataserver")
+			cr.Status.UsedReferences = nil
+			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		// add the target to the DS
+		r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
+		// create the target in the target store
+		if currentTargetCtx.Client == nil {
+			currentTargetCtx.Client = selectedDSctx.DSClient
+			if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
+				cr.Status.UsedReferences = nil
+				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+		} else {
+			if err := r.targetStore.Create(ctx, targetKey, target.Context{
+				Client: selectedDSctx.DSClient,
+			}); err != nil {
+				cr.Status.UsedReferences = nil
+				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+		}
+	} else {
+		// safety
+		r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
+	}
+
+	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
+	if err != nil {
+		log.Error(err, "cannot get schema ready state")
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+	if !isSchemaReady {
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DSSchemaNotReady(schemaMsg))
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	// Now that the target store is up to date and we have an assigned dataserver
+	// we will create/update the datastore for the target
+	// Target is ready
+	changed, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
+	if err != nil {
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	// robustness avoid to update status when there is no change
+	// avoid retriggering reconcile
+	if changed {
+		cr.Status.UsedReferences = usedRefs
+		cr.SetConditions(invv1alpha1.DSReady())
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	cr.Status.UsedReferences = usedRefs
+	cr.SetConditions(invv1alpha1.DSReady())
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	//return ctrl.Result{}, nil
+
 }
 
 func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, dsKey store.Key, targetKey store.Key) {
