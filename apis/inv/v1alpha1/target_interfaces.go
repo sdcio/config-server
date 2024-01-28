@@ -39,6 +39,12 @@ func (r *Target) IsReady() bool {
 		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue
 }
 
+func (r *Target) IsConfigReady() bool {
+	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue
+}
+
 func (r *Target) NotReadyReason() string {
 	readyCondition := r.GetCondition(ConditionTypeReady)
 	dsreadyCondition := r.GetCondition(ConditionTypeDSReady)

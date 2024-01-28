@@ -40,7 +40,7 @@ func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key
 	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
 		return nil, err
 	}
-	if !target.IsReady() {
+	if !target.IsConfigReady() {
 		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotReady))
 	}
 	tctx, err := r.targetStore.Get(ctx, targetKey)
