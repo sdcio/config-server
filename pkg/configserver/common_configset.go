@@ -215,7 +215,7 @@ func (r *configCommon) deleteConfigSet(
 		log.Info("delete existingChildConfig", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
 			TypeMeta:           existingChildConfig.TypeMeta,
-			GracePeriodSeconds: pointer.Int64(0), // force delete
+			//GracePeriodSeconds: pointer.Int64(0), // force delete
 		}); err != nil {
 			log.Error("delete existing childConfig failed", "error", err)
 		}
@@ -434,7 +434,7 @@ func (r *configCommon) storeCreateConfigSet(ctx context.Context, key store.Key, 
 }
 
 func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
-	if err := r.configStore.Update(ctx, key, configset); err != nil {
+	if err := r.configSetStore.Update(ctx, key, configset); err != nil {
 		return apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
@@ -445,7 +445,7 @@ func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, 
 }
 
 func (r *configCommon) storeDeleteConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
-	if err := r.configStore.Delete(ctx, key); err != nil {
+	if err := r.configSetStore.Delete(ctx, key); err != nil {
 		return apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
