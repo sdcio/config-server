@@ -19,7 +19,6 @@ package lease
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/henderiw/logger/log"
@@ -37,7 +36,7 @@ const (
 )
 
 type Lease interface {
-	AcquireLease(ctx context.Context, cr client.Object) error
+	AcquireLease(ctx context.Context, holderIdentity string) error
 }
 
 func New(c client.Client, leaseNSN types.NamespacedName) Lease {
@@ -55,14 +54,16 @@ type lease struct {
 	leaseNamespace string
 }
 
+/*
 func getHolderIdentity(cr client.Object) string {
 	return fmt.Sprintf("%s.%s.%s",
 		strings.ToLower(cr.GetObjectKind().GroupVersionKind().Kind),
 		strings.ToLower(cr.GetNamespace()),
 		strings.ToLower(cr.GetName()))
 }
+*/
 
-func (r *lease) getLease(cr client.Object) *coordinationv1.Lease {
+func (r *lease) getLease(holderIdentity string) *coordinationv1.Lease {
 	now := metav1.NowMicro()
 	return &coordinationv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -70,7 +71,7 @@ func (r *lease) getLease(cr client.Object) *coordinationv1.Lease {
 			Namespace: r.leaseNamespace,
 		},
 		Spec: coordinationv1.LeaseSpec{
-			HolderIdentity:       ptr.To[string](getHolderIdentity(cr)),
+			HolderIdentity:       ptr.To[string](holderIdentity),
 			LeaseDurationSeconds: ptr.To[int32](int32(defaultLeaseInterval / time.Second)),
 			AcquireTime:          &now,
 			RenewTime:            &now,
@@ -78,7 +79,7 @@ func (r *lease) getLease(cr client.Object) *coordinationv1.Lease {
 	}
 }
 
-func (r *lease) AcquireLease(ctx context.Context, cr client.Object) error {
+func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 	log := log.FromContext(ctx)
 	log.Info("attempting to acquire lease to update the resource", "lease", r.leasName)
 	interconnectLeaseNSN := types.NamespacedName{
@@ -93,7 +94,7 @@ func (r *lease) AcquireLease(ctx context.Context, cr client.Object) error {
 		}
 		log.Info("lease not found, creating it", "lease", r.leasName)
 
-		lease = r.getLease(cr)
+		lease = r.getLease(holderIdentity)
 		if err := r.Create(ctx, lease); err != nil {
 			return err
 		}
@@ -108,7 +109,7 @@ func (r *lease) AcquireLease(ctx context.Context, cr client.Object) error {
 	}
 
 	now := metav1.NowMicro()
-	if *lease.Spec.HolderIdentity != getHolderIdentity(cr) {
+	if *lease.Spec.HolderIdentity != holderIdentity {
 		// lease is held by another
 		log.Info("lease held by another identity", "identity", *lease.Spec.HolderIdentity)
 		if lease.Spec.RenewTime != nil {
@@ -123,7 +124,7 @@ func (r *lease) AcquireLease(ctx context.Context, cr client.Object) error {
 	// take over the lease or update the lease
 	log.Info("successfully acquired lease")
 	lease.Spec = coordinationv1.LeaseSpec{
-		HolderIdentity:       ptr.To[string](getHolderIdentity(cr)),
+		HolderIdentity:       ptr.To[string](holderIdentity),
 		LeaseDurationSeconds: ptr.To[int32](int32(defaultLeaseInterval / time.Second)),
 		AcquireTime:          &now,
 		RenewTime:            &now,

@@ -108,7 +108,7 @@ func (r *dr) run(ctx context.Context) error {
 						Name:      getTargetName(h.hostName),
 					}))
 
-					if err := lease.AcquireLease(ctx, r.cfg.CR); err != nil {
+					if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
 						log.Info("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
 						return
 					}
