@@ -63,7 +63,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key store.Key, config *co
 		if err != nil {
 			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
-		log.Info("setIntent", "configSpec", config.Value.Raw)
+		log.Info("setIntent", "configSpec", string(config.Value.Raw))
 		update = append(update, &sdcpb.Update{
 			Path: path,
 			Value: &sdcpb.TypedValue{
