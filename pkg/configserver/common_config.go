@@ -311,7 +311,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 
 func (r *configCommon) setIntent(ctx context.Context, key, targetKey store.Key, tctx *target.Context, newConfig *configv1alpha1.Config, spec bool) error {
 	log := log.FromContext(ctx)
-	log.Info("transacting with target")
+	log.Info("transacting with target", "config", newConfig, "spec", spec)
 	nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
 	defer cancel()
 	if err := tctx.SetIntent(nctx, targetKey, newConfig, spec); err != nil {
