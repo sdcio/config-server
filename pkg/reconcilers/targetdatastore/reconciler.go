@@ -178,11 +178,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// create the target in the target store
 			if currentTargetCtx.Client != nil {
 				currentTargetCtx.Client = selectedDSctx.DSClient
-				r.targetStore.Update(ctx, targetKey, currentTargetCtx)
+				if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
+					cr.Status.UsedReferences = nil
+					cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
 			} else {
-				r.targetStore.Create(ctx, targetKey, target.Context{
+				if err := r.targetStore.Create(ctx, targetKey, target.Context{
 					Client: selectedDSctx.DSClient,
-				})
+				}); err != nil {
+					cr.Status.UsedReferences = nil
+					cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
 			}
 		} else {
 			// safety
