@@ -122,9 +122,13 @@ func (r *lease) AcquireLease(ctx context.Context, cr client.Object) error {
 
 	// take over the lease or update the lease
 	log.Info("successfully acquired lease")
-	newLease := r.getLease(cr)
-	newLease.SetResourceVersion(lease.ResourceVersion)
-	if err := r.Update(ctx, newLease); err != nil {
+	lease.Spec = coordinationv1.LeaseSpec{
+		HolderIdentity:       ptr.To[string](getHolderIdentity(cr)),
+		LeaseDurationSeconds: ptr.To[int32](int32(defaultLeaseInterval / time.Second)),
+		AcquireTime:          &now,
+		RenewTime:            &now,
+	}
+	if err := r.Update(ctx, lease); err != nil {
 		return err
 	}
 	return nil
