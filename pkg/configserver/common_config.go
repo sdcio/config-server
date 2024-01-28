@@ -232,16 +232,19 @@ func (r *configCommon) deleteConfig(
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
 
+	// this is a forced delete - we delete irrespective if the target is available ot not
+	if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
+		log.Info("transation failed, ignoring error, target config must be manually cleaned up", "error", err)
+		if err := r.storeDeleteConfig(ctx, key, newConfig); err != nil {
+			log.Error("cannot delete config from store", "err", err.Error())
+			return newConfig, true, nil
+		}
+		return newConfig, true, nil
+	}
 	// get targetCtx is the target is ready, otherwise update the condition with the failure indication
 	// and store the config.
 	tctx, err := r.getTargetContext(ctx, targetKey)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			if err := r.storeDeleteConfig(ctx, key, newConfig); err != nil {
-				return nil, false, apierrors.NewInternalError(err)
-			}
-			return newConfig, false, nil
-		}
 		newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
 		if err := r.storeUpdateConfig(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
@@ -349,14 +352,6 @@ func (r *configCommon) deleteIntent(ctx context.Context, key, targetKey store.Ke
 	nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
 	defer cancel()
 	if err := tctx.DeleteIntent(nctx, targetKey, newConfig); err != nil {
-		if options.GracePeriodSeconds != nil && *options.GracePeriodSeconds == 0 {
-			log.Info("transation failed, ignoring error, target config must be manually cleaned up", "error", err)
-			if err := r.storeDeleteConfig(ctx, key, newConfig); err != nil {
-				log.Error("cannot delete config from store", "err", err.Error())
-				return err
-			}
-			return err
-		}
 		newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
 		if err := r.storeUpdateConfig(ctx, key, newConfig); err != nil {
 			log.Error("cannot update config in store", "err", err.Error())
