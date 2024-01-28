@@ -3,14 +3,17 @@ package discoveryrule
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
+	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	discoveryeventhandler "github.com/iptecharch/config-server/pkg/reconcilers/discoveryeventhandlers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
 	"github.com/iptecharch/config-server/pkg/store"
 	memstore "github.com/iptecharch/config-server/pkg/store/memory"
+	"github.com/iptecharch/config-server/pkg/target"
 	errors "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,12 +39,10 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
-	/*
-		cfg, ok := c.(*ctrlconfig.ControllerConfig)
-		if !ok {
-			return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
-		}
-	*/
+	cfg, ok := c.(*ctrlconfig.ControllerConfig)
+	if !ok {
+		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
+	}
 
 	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		return nil, err
@@ -50,6 +51,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
+	r.targetStore = cfg.TargetStore
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named("DiscoveryRuleIPController").
@@ -73,6 +75,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	discoveryStore store.Storer[discoveryrule.DiscoveryRule]
+	targetStore    store.Storer[target.Context]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -173,7 +176,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 	// create a new discoveryRule with the latest parameters
-	dr = discoveryrule.New(r.Client, newDRConfig)
+	dr = discoveryrule.New(r.Client, newDRConfig, r.targetStore)
 	// new discovery initialization -> create or update (we deleted the DRConfig before)
 	if err := r.discoveryStore.Create(ctx, key, dr); err != nil {
 		log.Error(err, "cannot add dr ")
@@ -256,3 +259,4 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 
 	return false
 }
+
