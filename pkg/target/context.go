@@ -83,6 +83,7 @@ func (r *Context) SetIntent(ctx context.Context, key store.Key, config *configv1
 	if err != nil {
 		return err
 	}
+	log.Info("SetIntent", "update", update)
 
 	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
