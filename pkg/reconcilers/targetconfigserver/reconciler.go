@@ -128,6 +128,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// handle transition
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
+	log.Info("readiness", "ready", ready)
 	if ready {
 		condition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
 		if condition.Status == metav1.ConditionFalse &&
@@ -139,6 +140,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+
+			for _, config := range priorityReApplyConfigs {
+				log.Info("target reapply config", "priority", config.Name)
+			}
+			for _, config := range priorityReApplyConfigs {
+				log.Info("target reapply config", "regular", config.Name)
 			}
 
 			// We need to restore the config on the target
@@ -164,6 +172,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					log.Error(err, "cannot apply config on target")
 				}
 			}
+		} else {
+			// config is ready
+
 		}
 
 	} else {
