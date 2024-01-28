@@ -13,6 +13,7 @@ import (
 	"github.com/iptecharch/config-server/pkg/discovery/discoverers"
 	"github.com/iptecharch/config-server/pkg/discovery/discoverers/nokia_srl"
 	"github.com/iptecharch/config-server/pkg/discovery/discoverers/nokia_sros"
+	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/target"
@@ -56,6 +57,15 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	}
 	b, _ := json.Marshal(di)
 	log.Info("discovery info", "info", string(b))
+
+	lease := r.getLease(ctx, store.KeyFromNSN(types.NamespacedName{
+		Namespace: r.cfg.CR.GetNamespace(),
+		Name:      getTargetName(di.HostName),
+	}))
+	if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
+		log.Info("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
+		return err
+	}
 
 	newTargetCr, err := r.newTargetCR(
 		ctx,
