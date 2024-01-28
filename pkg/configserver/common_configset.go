@@ -292,11 +292,13 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		changed := true
 		oldConfig, ok := existingConfigs[nsnKey]
 		if !ok { // config does not exist -> create it
+			log.Info("config does not exist", "nsn", nsnKey.String())
 			isCreate = true
 			newConfig.UID = uuid.NewUUID()
 			newConfig.CreationTimestamp = metav1.Now()
 			oldConfig = newConfig // ensure the upsert call works
 		} else {
+			log.Info("config exists", "nsn", nsnKey.String())
 			// TODO better logic to validate changes
 			newConfig = oldConfig.DeepCopy()
 			newSpec := configv1alpha1.ConfigSpec{
