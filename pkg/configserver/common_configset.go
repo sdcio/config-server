@@ -214,7 +214,7 @@ func (r *configCommon) deleteConfigSet(
 	for nsn, existingChildConfig := range existingChildConfigs {
 		log.Info("delete existingChildConfig", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
-			TypeMeta:           existingChildConfig.TypeMeta,
+			TypeMeta: existingChildConfig.TypeMeta,
 			//GracePeriodSeconds: pointer.Int64(0), // force delete
 		}); err != nil {
 			log.Error("delete existing childConfig failed", "error", err)
@@ -286,8 +286,6 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 
 		// delete the config from the existingConfigs map as it is updated
 		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
-		delete(existingConfigs, nsnKey)
-
 		isCreate := false
 		changed := true
 		oldConfig, ok := existingConfigs[nsnKey]
@@ -330,9 +328,11 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 				newConfig.Annotations[k] = v
 			}
 		}
-
+		// delete the config from the existing configs -> this list is emptied such that the remaining entries
+		// can be deleted
+		delete(existingConfigs, nsnKey)
 		if changed {
-			// this is now an async 
+			// this is now an async
 			if _, _, err := r.upsertTargetConfig(
 				ctx,
 				store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
