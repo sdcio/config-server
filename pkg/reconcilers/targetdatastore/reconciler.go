@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	"github.com/iptecharch/config-server/pkg/lease"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
@@ -87,7 +88,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx).WithValues("req", req)
 	log.Info("reconcile")
 
-	key := store.KeyFromNSN(req.NamespacedName)
+	targetKey := store.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.Target{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -103,7 +104,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !cr.GetDeletionTimestamp().IsZero() {
 		// check if this is the last one -> if so stop the client to the dataserver
-		targetCtx, err := r.targetStore.Get(ctx, key)
+		targetCtx, err := r.targetStore.Get(ctx, targetKey)
 		if err != nil {
 			// client does not exist
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
@@ -116,11 +117,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// delete the mapping in the dataserver cache, which keeps track of all targets per dataserver
-		r.deleteTargetFromDataServer(ctx, store.ToKey(targetCtx.Client.GetAddress()), key)
+		r.deleteTargetFromDataServer(ctx, store.ToKey(targetCtx.Client.GetAddress()), targetKey)
 		// delete the datastore
 		if targetCtx.DataStore != nil {
-			log.Info("deleting datastore", "key", key.String())
-			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: key.String()})
+			log.Info("deleting datastore", "key", targetKey.String())
+			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
 			if err != nil {
 				log.Error(err, "cannot delete datastore")
 				cr.Status.UsedReferences = nil
@@ -144,21 +145,27 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
+		log.Error(err, "cannot add finalizer")
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	l := r.getLease(ctx, targetKey)
+	if err := l.AcquireLease(ctx, cr); err != nil {
+		log.Error(err, "cannot acquire lease")
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
+	}
+
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue {
-		if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-			log.Error(err, "cannot add finalizer")
-			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-
 		// first check if the target has an assigned dataserver, if not allocate one
 		// update the target store with the updated information
-		currentTargetCtx, err := r.targetStore.Get(ctx, key)
-		if err != nil {
+		currentTargetCtx, err := r.targetStore.Get(ctx, targetKey)
+		if err != nil || currentTargetCtx.Client == nil {
 			selectedDSctx, err := r.selectDataServerContext(ctx)
 			if err != nil {
 				log.Error(err, "cannot select a dataserver")
@@ -167,14 +174,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			// add the target to the DS
-			r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), key)
+			r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
 			// create the target in the target store
-			r.targetStore.Create(ctx, key, target.Context{
-				Client: selectedDSctx.DSClient,
-			})
+			if currentTargetCtx.Client != nil {
+				currentTargetCtx.Client = selectedDSctx.DSClient
+				r.targetStore.Update(ctx, targetKey, currentTargetCtx)
+			} else {
+				r.targetStore.Create(ctx, targetKey, target.Context{
+					Client: selectedDSctx.DSClient,
+				})
+			}
 		} else {
 			// safety
-			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), key)
+			r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
 		}
 
 		isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
@@ -520,4 +532,20 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 			Version: cr.Status.DiscoveryInfo.Version,
 		},
 	}, usedReferences, nil
+}
+
+func (r *reconciler) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		lease := lease.New(r.Client, targetKey.NamespacedName)
+		r.targetStore.Create(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	if tctx.Lease == nil {
+		lease := lease.New(r.Client, targetKey.NamespacedName)
+		tctx.Lease = lease
+		r.targetStore.Update(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	return tctx.Lease
 }

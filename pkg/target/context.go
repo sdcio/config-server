@@ -20,6 +20,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	"github.com/iptecharch/config-server/pkg/lease"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
@@ -27,6 +28,7 @@ import (
 )
 
 type Context struct {
+	Lease     lease.Lease
 	Ready     bool
 	DataStore *sdcpb.CreateDataStoreRequest
 	Client    dsclient.Client

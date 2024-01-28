@@ -21,6 +21,7 @@ import (
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/configserver"
+	"github.com/iptecharch/config-server/pkg/lease"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
@@ -126,6 +127,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	l := r.getLease(ctx, targetKey)
+	if err := l.AcquireLease(ctx, cr); err != nil {
+		log.Error(err, "cannot acquire lease")
+		cr.SetConditions(invv1alpha1.ConfigFailed("acquiring lease"))
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
 	// handle transition
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
 	log.Info("readiness", "ready", ready)
@@ -172,9 +180,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					log.Error(err, "cannot apply config on target")
 				}
 			}
-		} else {
-			// config is ready
-
 		}
 
 	} else {
@@ -270,4 +275,20 @@ func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Targ
 	})
 
 	return priorityReApplyConfigs, reApplyConfigs, err
+}
+
+func (r *reconciler) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		lease := lease.New(r.Client, targetKey.NamespacedName)
+		r.targetStore.Create(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	if tctx.Lease == nil {
+		lease := lease.New(r.Client, targetKey.NamespacedName)
+		tctx.Lease = lease
+		r.targetStore.Update(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	return tctx.Lease
 }
