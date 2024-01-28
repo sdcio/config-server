@@ -129,9 +129,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	l := r.getLease(ctx, targetKey)
 	if err := l.AcquireLease(ctx, cr); err != nil {
-		log.Error(err, "cannot acquire lease")
-		cr.SetConditions(invv1alpha1.ConfigFailed("acquiring lease"))
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		log.Info("cannot acquire lease", "error", err.Error())
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
 	}
 
 	// handle transition
