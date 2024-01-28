@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
+	"crypto/sha1"
+	"encoding/json"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -26,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const ConfigPlural = "configs"
@@ -145,4 +149,15 @@ func GetConfigFromFile(path string) (*Config, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+// GetShaSum calculates the shasum of the confgiSpec
+func GetShaSum(ctx context.Context, spec *ConfigSpec) [20]byte {
+	log := log.FromContext(ctx)
+	appliedSpec, err := json.Marshal(spec)
+	if err != nil {
+		log.Error(err, "cannot marshal appliedConfig")
+		return [20]byte{}
+	}
+	return sha1.Sum(appliedSpec)
 }

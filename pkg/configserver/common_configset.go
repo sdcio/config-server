@@ -69,13 +69,9 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 		return newConfigSet, err
 	}
 	// update the store
-	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+	if err := r.storeCreateConfigSet(ctx, key, newConfigSet); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Added,
-		Object: newConfigSet,
-	})
 
 	return newConfigSet, nil
 }
@@ -152,21 +148,13 @@ func (r *configCommon) updateConfigSet(
 	}
 	// update the store
 	if isCreate {
-		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+		if err := r.storeCreateConfigSet(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Added,
-			Object: newConfigSet,
-		})
 	} else {
-		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
+		if err := r.storeUpdateConfigSet(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Modified,
-			Object: newConfigSet,
-		})
 	}
 
 	return newConfigSet, isCreate, nil
@@ -233,13 +221,10 @@ func (r *configCommon) deleteConfigSet(
 		}
 	}
 
-	if err := r.configSetStore.Delete(ctx, key); err != nil {
+	if err := r.storeDeleteConfigSet(ctx, key, newConfigSet); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Deleted,
-		Object: newConfigSet,
-	})
+
 	log.Info("delete intent from store succeeded")
 	return newConfigSet, true, nil
 }
@@ -254,6 +239,7 @@ func (r *configCommon) upsertConfigSet(ctx context.Context, configSet *configv1a
 	return r.ensureConfigs(ctx, configSet, targets)
 }
 
+// unrollDownstreamTargets list the targets
 func (r *configCommon) unrollDownstreamTargets(
 	ctx context.Context,
 	configSet *configv1alpha1.ConfigSet) ([]types.NamespacedName, error) {
@@ -273,7 +259,10 @@ func (r *configCommon) unrollDownstreamTargets(
 	}
 	targets := make([]types.NamespacedName, len(targetList.Items))
 	for i, target := range targetList.Items {
-		targets[i] = types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace}
+		// only add targets that are not in deleting state
+		if target.GetDeletionTimestamp().IsZero() {
+			targets[i] = types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace}
+		}
 	}
 	sort.Slice(targets, func(i, j int) bool {
 		return targets[i].Name < targets[j].Name
@@ -284,6 +273,8 @@ func (r *configCommon) unrollDownstreamTargets(
 func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alpha1.ConfigSet, targets []types.NamespacedName) (*configv1alpha1.ConfigSet, error) {
 	log := log.FromContext(ctx)
 
+	// get the exisiting configs to see if the config is present; if the configset's target is no
+	// longer applicable we will delete the config for this particular target
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 
 	// TODO run in parallel and/or try 1 first to see if the validation works or not
@@ -293,57 +284,74 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		var oldConfig *configv1alpha1.Config
 		newConfig := buildConfig(ctx, configSet, target)
 
-		// delete the config from the map as it is updated
-		delete(existingConfigs, types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
+		// delete the config from the existingConfigs map as it is updated
+		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
+		delete(existingConfigs, nsnKey)
 
-		key := store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name})
 		isCreate := false
-		oldObj, err := r.configStore.Get(ctx, key)
-		if err != nil {
-			// create
+		changed := true
+		oldConfig, ok := existingConfigs[nsnKey]
+		if !ok { // config does not exist -> create it
 			isCreate = true
 			newConfig.UID = uuid.NewUUID()
 			newConfig.CreationTimestamp = metav1.Now()
-			newConfig.ResourceVersion = generateRandomString(6)
 			oldConfig = newConfig // ensure the upsert call works
 		} else {
-			var ok bool
-			oldConfig, ok = oldObj.(*configv1alpha1.Config)
-			if !ok {
-				TargetsStatus[i] = configv1alpha1.TargetStatus{
-					Name:      target.Name,
-					Condition: configv1alpha1.Failed("unexpected object type"),
-				}
-				continue
+			// TODO better logic to validate changes
+			newConfig = oldConfig.DeepCopy()
+			newSpec := configv1alpha1.ConfigSpec{
+				Lifecycle: configSet.Spec.Lifecycle,
+				Priority:  configSet.Spec.Priority,
+				Config:    configSet.Spec.Config,
 			}
-			// update -> copy UID/CreateTimestamp, generate new resourceVersion
-			newConfig.UID = oldConfig.UID
-			newConfig.CreationTimestamp = oldConfig.CreationTimestamp
-			newConfig.ResourceVersion = generateRandomString(6)
+			// check if the spec changed
+			currentShaSum := configv1alpha1.GetShaSum(ctx, &oldConfig.Spec)
+			newShaSum := configv1alpha1.GetShaSum(ctx, &newSpec)
+			if currentShaSum != newShaSum {
+				newConfig.ResourceVersion = generateRandomString(6)
+				newConfig.Spec = newSpec
+			} else {
+				changed = false
+			}
+			if len(newConfig.GetLabels()) == 0 {
+				newConfig.Labels = make(map[string]string, len(configSet.GetLabels()))
+			}
+			for k, v := range configSet.GetLabels() {
+				newConfig.Labels[k] = v
+			}
+			if len(newConfig.GetAnnotations()) == 0 {
+				newConfig.Annotations = make(map[string]string, len(configSet.GetAnnotations()))
+			}
+			for k, v := range configSet.GetAnnotations() {
+				newConfig.Annotations[k] = v
+			}
 		}
 
-		_, _, err = r.upsertTargetConfig(
-			ctx,
-			store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
-			store.KeyFromNSN(target),
-			oldConfig,
-			newConfig,
-			isCreate,
-		)
-		if err != nil {
-			TargetsStatus[i] = configv1alpha1.TargetStatus{
-				Name:      target.Name,
-				Condition: configv1alpha1.Failed(err.Error()),
-			}
-			configSet.SetConditions(configv1alpha1.Failed("config not applied to all targets"))
-		} else {
-			TargetsStatus[i] = configv1alpha1.TargetStatus{
-				Name:      target.Name,
-				Condition: configv1alpha1.Ready(),
+		if changed {
+			// this is now an async 
+			if _, _, err := r.upsertTargetConfig(
+				ctx,
+				store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
+				store.KeyFromNSN(target),
+				oldConfig,
+				newConfig,
+				isCreate,
+			); err != nil {
+				TargetsStatus[i] = configv1alpha1.TargetStatus{
+					Name:      target.Name,
+					Condition: configv1alpha1.Failed(err.Error()),
+				}
+				configSet.SetConditions(configv1alpha1.Failed("config not applied to all targets"))
+			} else {
+				TargetsStatus[i] = configv1alpha1.TargetStatus{
+					Name:      target.Name,
+					Condition: configv1alpha1.Ready(),
+				}
 			}
 		}
 	}
 
+	// These configs no longer match a target
 	// TODO: what to do with the delete error
 	for nsn, existingConfig := range existingConfigs {
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
@@ -412,4 +420,37 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 		},
 		configv1alpha1.ConfigStatus{},
 	)
+}
+
+func (r *configCommon) storeCreateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configSetStore.Create(ctx, key, configset); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: configset,
+	})
+	return nil
+}
+
+func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configStore.Update(ctx, key, configset); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Modified,
+		Object: configset,
+	})
+	return nil
+}
+
+func (r *configCommon) storeDeleteConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configStore.Delete(ctx, key); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Deleted,
+		Object: configset,
+	})
+	return nil
 }

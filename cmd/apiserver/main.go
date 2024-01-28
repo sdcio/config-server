@@ -142,7 +142,6 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
-	
 	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
 	if err != nil {
 		log.Error("cannot create config rest storage", "err", err)
@@ -155,12 +154,12 @@ func main() {
 	}
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
-		//ConfigStore:     configStore,
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
 		ConfigProvider:    configProvider,
+		ConfigSetProvider: configSetProvider,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))

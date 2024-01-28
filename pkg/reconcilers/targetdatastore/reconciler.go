@@ -70,8 +70,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named("TargetDataStoreController").
 		For(&invv1alpha1.Target{}).
-		//Watches(&source.Kind{Type: &invv1alpha1.TargetConnectionProfile{}}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
-		//Watches(&source.Kind{Type: &invv1alpha1.TargetSyncProfile{}}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetConnectionProfile{}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetSyncProfile{}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
 		Complete(r)
@@ -81,7 +79,6 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	//configStore     store.Storer[runtime.Object]
 	targetStore     store.Storer[target.Context]
 	dataServerStore store.Storer[sdcctx.DSContext]
 }
@@ -282,38 +279,6 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	}
 	return selectedDSctx, nil
 }
-
-/*
-func (r *reconciler) updateDataStoreTargetNotReady(ctx context.Context, cr *invv1alpha1.Target) error {
-	key := store.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
-	log := log.FromContext(ctx).WithValues("targetkey", key.String())
-
-	// this should always succeed
-	targetCtx, err := r.targetStore.Get(ctx, key)
-	if err != nil {
-		log.Error(err, "cannot get datastore from store")
-		return err
-	}
-	// get the datastore from the dataserver
-	if _, err := targetCtx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()}); err != nil {
-		if !strings.Contains(err.Error(), "unknown datastore") {
-			log.Error(err, "cannot get datastore from dataserver")
-			return err
-		}
-		log.Info("datastore does not exist")
-		return nil
-	} else {
-		// datastore exists - > delete the datastore
-		rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: key.String()})
-		if err != nil {
-			log.Error(err, "cannot delete datstore in dataserver")
-			return err
-		}
-		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
-	}
-	return nil
-}
-*/
 
 // updateDataStore will do 1 of 3 things
 // 1. create a datastore if none exists

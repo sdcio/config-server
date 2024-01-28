@@ -49,6 +49,22 @@ type ConfigStatus struct {
 	ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
 	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
+	// AppliedConfig defines the config applied to the target
+	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
+	// Deviations identify the configuration deviation based on the last applied config
+	Deviations []Deviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
+}
+
+type Deviation struct {
+	// Path of the config this deviation belongs to
+	Path         string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+	// DesiredValue is the desired value of the config belonging to the path
+	DesiredValue string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
+	// ActualValue defines the actual value of the config belonging to the path 
+	// that is actually configured on the target
+	ActualValue  string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
+	// Reason defines the reason of the deviation
+	Reason       string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {
