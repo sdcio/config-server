@@ -308,9 +308,11 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 			currentShaSum := configv1alpha1.GetShaSum(ctx, &oldConfig.Spec)
 			newShaSum := configv1alpha1.GetShaSum(ctx, &newSpec)
 			if currentShaSum != newShaSum {
+				log.Info("ensureConfigs spec changed")
 				newConfig.ResourceVersion = generateRandomString(6)
 				newConfig.Spec = newSpec
 			} else {
+				log.Info("ensureConfigs spec did not change")
 				changed = false
 			}
 			if len(newConfig.GetLabels()) == 0 {
