@@ -274,7 +274,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 	}
 
 	// transacting with target
-	if !isCreate {
+	if isCreate {
 		newConfig.Status.SetConditions(configv1alpha1.Creating())
 		if err := r.storeCreateConfig(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
