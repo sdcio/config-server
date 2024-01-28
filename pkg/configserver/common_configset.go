@@ -257,11 +257,11 @@ func (r *configCommon) unrollDownstreamTargets(
 	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
-	targets := make([]types.NamespacedName, len(targetList.Items))
-	for i, target := range targetList.Items {
+	targets := make([]types.NamespacedName, 0, len(targetList.Items))
+	for _, target := range targetList.Items {
 		// only add targets that are not in deleting state
 		if target.GetDeletionTimestamp().IsZero() {
-			targets[i] = types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace}
+			targets = append(targets, types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace})
 		}
 	}
 	sort.Slice(targets, func(i, j int) bool {
