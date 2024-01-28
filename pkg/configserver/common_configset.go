@@ -331,7 +331,7 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 		// delete the config from the existing configs -> this list is emptied such that the remaining entries
 		// can be deleted
 		delete(existingConfigs, nsnKey)
-		if changed {
+		if changed || oldConfig.GetCondition(configv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
 			// this is now an async
 			if _, _, err := r.upsertTargetConfig(
 				ctx,
