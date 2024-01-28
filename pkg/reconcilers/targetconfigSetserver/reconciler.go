@@ -1,4 +1,4 @@
-package targetconfigserver
+package targetconfigsetserver
 
 import (
 	"context"

@@ -24,6 +24,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='DSReady')].status
       name: DATASTORE
       type: string
+    - jsonPath: .status.conditions[?(@.type=='ConfigReady')].status
+      name: CONFIG
+      type: string
     - jsonPath: .spec.provider
       name: PROVIDER
       type: string
