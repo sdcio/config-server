@@ -48,6 +48,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 			}
 
 			for _, target := range targetList.Items {
+				target := target
 				key := store.KeyFromNSN(types.NamespacedName{Namespace: target.GetNamespace(), Name: target.GetName()})
 
 				tctx, err := r.targetStore.Get(ctx, key)

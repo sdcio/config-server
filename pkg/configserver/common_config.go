@@ -274,7 +274,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 		return newConfig, false, nil
 	}
 
-	if newConfig.IsTransacting() {
+	if oldConfig.IsTransacting() {
 		return nil, false, apierrors.NewInternalError(fmt.Errorf("transacting ongoing"))
 	}
 
