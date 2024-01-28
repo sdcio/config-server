@@ -130,9 +130,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
 	log.Info("readiness", "ready", ready)
 	if ready {
-		condition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-		if condition.Status == metav1.ConditionFalse &&
-			condition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
+		cfgCondition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+		if cfgCondition.Status == metav1.ConditionFalse &&
+			cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
 
 			log.Info("target reapply config")
 			// we split the config in config that was successfully applied to config that was not yet
@@ -178,6 +178,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 	} else {
+		cr.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
 		condition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
 		if condition.Status == metav1.ConditionTrue {
 			configList, err := r.listTargetConfigs(ctx, cr)
