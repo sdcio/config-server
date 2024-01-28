@@ -61,11 +61,20 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					log.Error(err, "k8s target does not have a corresponding dataserver client", "key", key.String())
 					continue
 				}
+				condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
 				resp, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
 				if err != nil {
 					log.Error(err, "cannot get target from the datastore", "key", key.String())
+					if condition.Status == metav1.ConditionTrue {
+						target.SetConditions(invv1alpha1.Failed(resp.Target.StatusDetails))
+						if err := r.Status().Update(ctx, &target); err != nil {
+							log.Error(err, "cannot update target status", "key", key.String())
+						}
+						log.Info("target status changed true -> false", "key", key.String())
+						continue
+					}
+					continue
 				}
-				condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
 				if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 					// Target is not connected
 					if condition.Status == metav1.ConditionTrue {
