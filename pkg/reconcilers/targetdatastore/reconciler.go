@@ -316,6 +316,9 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		}
 		changed = true
 		log.Info("datastore exist -> changed")
+		targetCtx.Ready = false
+		targetCtx.DataStore = nil
+		r.targetStore.Update(ctx, key, targetCtx)
 		rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: key.String()})
 		if err != nil {
 			log.Error(err, "cannot delete datstore in dataserver")
@@ -332,6 +335,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		return changed, nil, err
 	}
 	targetCtx.DataStore = req
+	targetCtx.Ready = true
 	if err := r.targetStore.Update(ctx, key, targetCtx); err != nil {
 		log.Error(err, "cannot update datastore in store")
 		return changed, nil, err

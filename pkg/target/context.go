@@ -27,6 +27,7 @@ import (
 )
 
 type Context struct {
+	Ready     bool
 	DataStore *sdcpb.CreateDataStoreRequest
 	Client    dsclient.Client
 }
@@ -49,6 +50,7 @@ func (r *Context) Validate(ctx context.Context, key store.Key) error {
 }
 
 func (r *Context) getIntentUpdate(ctx context.Context, key store.Key, config *configv1alpha1.Config, spec bool) ([]*sdcpb.Update, error) {
+	log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(config.Spec.Config))
 	configSpec := config.Spec.Config
 	if !spec && config.Status.AppliedConfig != nil {
@@ -61,6 +63,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key store.Key, config *co
 		if err != nil {
 			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
+		log.Info("setIntent", "configSpec", config.Value.Raw)
 		update = append(update, &sdcpb.Update{
 			Path: path,
 			Value: &sdcpb.TypedValue{
