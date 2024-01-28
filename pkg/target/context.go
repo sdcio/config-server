@@ -20,6 +20,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	"github.com/iptecharch/config-server/pkg/lease"
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
@@ -27,6 +28,8 @@ import (
 )
 
 type Context struct {
+	Lease     lease.Lease
+	Ready     bool
 	DataStore *sdcpb.CreateDataStoreRequest
 	Client    dsclient.Client
 }
@@ -48,17 +51,21 @@ func (r *Context) Validate(ctx context.Context, key store.Key) error {
 	return nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(obj))
-	if err := r.Validate(ctx, key); err != nil {
-		return err
+func (r *Context) getIntentUpdate(ctx context.Context, key store.Key, config *configv1alpha1.Config, spec bool) ([]*sdcpb.Update, error) {
+	log := log.FromContext(ctx)
+	update := make([]*sdcpb.Update, 0, len(config.Spec.Config))
+	configSpec := config.Spec.Config
+	if !spec && config.Status.AppliedConfig != nil {
+		update = make([]*sdcpb.Update, 0, len(config.Status.AppliedConfig.Config))
+		configSpec = config.Status.AppliedConfig.Config
 	}
-	update := make([]*sdcpb.Update, 0, len(obj.Spec.Config))
-	for _, config := range obj.Spec.Config {
+
+	for _, config := range configSpec {
 		path, err := ParsePath(config.Path)
 		if err != nil {
-			return fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
+			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
+		log.Info("setIntent", "configSpec", string(config.Value.Raw))
 		update = append(update, &sdcpb.Update{
 			Path: path,
 			Value: &sdcpb.TypedValue{
@@ -68,11 +75,25 @@ func (r *Context) SetIntent(ctx context.Context, key store.Key, obj *configv1alp
 			},
 		})
 	}
+	return update, nil
+}
+
+func (r *Context) SetIntent(ctx context.Context, key store.Key, config *configv1alpha1.Config, spec bool) error {
+	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
+	if err := r.Validate(ctx, key); err != nil {
+		return err
+	}
+
+	update, err := r.getIntentUpdate(ctx, key, config, spec)
+	if err != nil {
+		return err
+	}
+	log.Info("SetIntent", "update", update)
 
 	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
-		Intent:   getGVKNSN(obj),
-		Priority: int32(obj.Spec.Priority),
+		Intent:   getGVKNSN(config),
+		Priority: int32(config.Spec.Priority),
 		Update:   update,
 	})
 	if err != nil {
@@ -83,16 +104,21 @@ func (r *Context) SetIntent(ctx context.Context, key store.Key, obj *configv1alp
 	return nil
 }
 
-func (r *Context) DeleteIntent(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(obj))
+func (r *Context) DeleteIntent(ctx context.Context, key store.Key, config *configv1alpha1.Config) error {
+	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if err := r.Validate(ctx, key); err != nil {
 		return err
 	}
 
+	if config.Status.AppliedConfig == nil {
+		log.Info("delete intent was never applied")
+		return nil
+	}
+
 	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
-		Intent:   getGVKNSN(obj),
-		Priority: int32(obj.Spec.Priority),
+		Intent:   getGVKNSN(config),
+		Priority: int32(config.Spec.Priority),
 		Delete:   true,
 	})
 	if err != nil {
@@ -102,196 +128,3 @@ func (r *Context) DeleteIntent(ctx context.Context, key store.Key, obj *configv1
 	log.Info("delete intent succeeded", "rsp", prototext.Format(rsp))
 	return nil
 }
-
-/*
-func (r *Context) Create(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	if err := r.Validate(ctx, key); err != nil {
-		return err
-	}
-	if err := r.CreateCandidate(ctx, key, obj); err != nil {
-		return err
-	}
-	if err := r.CreateData(ctx, key, obj); err != nil {
-		return err
-	}
-	if err := r.Commit(ctx, key, obj); err != nil {
-		return err
-	}
-	return nil
-}
-
-// TODO -> get old and new obj
-func (r *Context) Update(ctx context.Context, key store.Key, oldObj *configv1alpha1.Config, newObj *configv1alpha1.Config) error {
-	if err := r.Validate(ctx, key); err != nil {
-		return err
-	}
-	// TO BE UPDATE with the new intent api
-	if err := r.CreateCandidate(ctx, key, newObj); err != nil {
-		return err
-	}
-	if err := r.CreateData(ctx, key, newObj); err != nil {
-		return err
-	}
-	if err := r.Commit(ctx, key, newObj); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *Context) Delete(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	if err := r.Validate(ctx, key); err != nil {
-		return err
-	}
-	if err := r.CreateCandidate(ctx, key, obj); err != nil {
-		return err
-	}
-	if err := r.DeleteData(ctx, key, obj); err != nil {
-		return err
-	}
-	if err := r.Commit(ctx, key, obj); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *Context) CreateCandidate(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	rsp, err := r.Client.CreateDataStore(ctx, &sdcpb.CreateDataStoreRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(obj),
-	})
-	if err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return fmt.Errorf("create candidate failed for target %s", key.String())
-		}
-		log.Info("create candidate ds already exists", "rsp", prototext.Format(rsp), "error", err.Error())
-	} else {
-		log.Info("create candidate ds succeeded", "rsp", prototext.Format(rsp))
-	}
-	return nil
-}
-
-func (r *Context) DeleteCandidate(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	rsp, err := r.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(obj),
-	})
-	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("create candidate failed for target %s", key.String())
-		}
-		log.Info("create candidate ds not found", "rsp", prototext.Format(rsp), "error", err.Error())
-	} else {
-		log.Info("create candidate ds succeeded", "rsp", prototext.Format(rsp))
-	}
-	return nil
-}
-
-func (r *Context) CreateData(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-
-	req := &sdcpb.SetDataRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(obj),
-		Update:    []*sdcpb.Update{},
-	}
-
-	for _, config := range obj.Spec.Config {
-		path, err := ParsePath(config.Path)
-		if err != nil {
-			return fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
-		}
-		req.Update = append(req.Update, &sdcpb.Update{
-			Path: path,
-			Value: &sdcpb.TypedValue{
-				Value: &sdcpb.TypedValue_JsonVal{
-					JsonVal: config.Value.Raw,
-				},
-			},
-		})
-	}
-
-	rsp, err := r.Client.SetData(ctx, req)
-	if err != nil {
-		return fmt.Errorf("set data failed for target %s, err: %s", key.String(), err.Error())
-	}
-	log.Info("create set succeeded", "rsp", prototext.Format(rsp))
-
-	return nil
-}
-
-// TODO rework after the intent api changed
-func (r *Context) UpdateData(ctx context.Context, key store.Key, oldObj *configv1alpha1.Config, newObj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-
-	req := &sdcpb.SetDataRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(newObj),
-		Update:    []*sdcpb.Update{},
-	}
-
-	for _, config := range oldObj.Spec.Config {
-		path, err := ParsePath(config.Path)
-		if err != nil {
-			return fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
-		}
-		req.Update = append(req.Update, &sdcpb.Update{
-			Path: path,
-			Value: &sdcpb.TypedValue{
-				Value: &sdcpb.TypedValue_JsonVal{
-					JsonVal: config.Value.Raw,
-				},
-			},
-		})
-	}
-
-	rsp, err := r.Client.SetData(ctx, req)
-	if err != nil {
-		return fmt.Errorf("set data failed for target %s, err: %s", key.String(), err.Error())
-	}
-	log.Info("create set succeeded", "rsp", prototext.Format(rsp))
-
-	return nil
-}
-
-// TODO delete
-// TODO rework after the intent api changed
-func (r *Context) DeleteData(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-
-	req := &sdcpb.SetDataRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(obj),
-		Update:    []*sdcpb.Update{},
-	}
-
-	// TODO update
-
-	rsp, err := r.Client.SetData(ctx, req)
-	if err != nil {
-		return fmt.Errorf("set data failed for target %s, err: %s", key.String(), err.Error())
-	}
-	log.Info("create set succeeded", "rsp", prototext.Format(rsp))
-
-	return nil
-}
-
-func (r *Context) Commit(ctx context.Context, key store.Key, obj *configv1alpha1.Config) error {
-	log := log.FromContext(ctx).With("key", key.String())
-	rsp, err := r.Client.Commit(ctx, &sdcpb.CommitRequest{
-		Name:      key.String(),
-		Datastore: getCandidateDatastore(obj),
-		Rebase:    true,
-		Stay:      false,
-	})
-	if err != nil {
-		if err := r.DeleteCandidate(ctx, key, obj); err != nil {
-			return fmt.Errorf("commit failed for target %s, and subsequent candidate delete err: %s", key.String(), err.Error())
-		}
-		return fmt.Errorf("commit failed for target %s, err: %s", key.String(), err.Error())
-	}
-	log.Info("commit succeeded", "rsp", prototext.Format(rsp))
-	return nil
-}
-*/

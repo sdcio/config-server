@@ -30,4 +30,5 @@ type ControllerConfig struct {
 	SchemaServerStore store.Storer[sdcctx.SSContext]
 	SchemaDir         string
 	ConfigProvider    configserver.ResourceProvider
+	ConfigSetProvider configserver.ResourceProvider
 }

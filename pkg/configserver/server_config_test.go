@@ -54,11 +54,13 @@ func buildTestTarget(ctx context.Context, namespace, name string, ready bool) *i
 	conditions := []invv1alpha1.Condition{
 		{Condition: invv1alpha1.Ready().Condition},
 		{Condition: invv1alpha1.DSReady().Condition},
+		{Condition: invv1alpha1.ConfigReady().Condition},
 	}
 	if !ready {
 		conditions = []invv1alpha1.Condition{
 			{Condition: invv1alpha1.Ready().Condition},
 			{Condition: invv1alpha1.DSFailed("testNotReady").Condition},
+			{Condition: invv1alpha1.ConfigFailed("configNotReady").Condition},
 		}
 	}
 	return invv1alpha1.BuildTarget(
@@ -104,6 +106,7 @@ func initTargetDataStore(ctx context.Context, namespace string, targets map[stri
 	for targetName := range targets {
 		key := store.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: namespace})
 		targetStore.Create(ctx, key, target.Context{
+			Ready:  true,
 			Client: dsClient,
 			DataStore: &sdcpb.CreateDataStoreRequest{
 				Schema: &sdcpb.Schema{

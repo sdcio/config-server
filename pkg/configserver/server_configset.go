@@ -17,6 +17,7 @@ package configserver
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
@@ -113,12 +114,21 @@ type configset struct {
 
 func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
 
-func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) {
-	r.configSetStore.Update(ctx, key, obj)
+func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) error {
+	return r.configSetStore.Update(ctx, key, obj)
 }
 
-func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
-	return fmt.Errorf("UpdateTarget not supported for confgisets")
+func (r *configset) Apply(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+	newConfigSet, ok := newObj.(*configv1alpha1.ConfigSet)
+	if !ok {
+		return fmt.Errorf("apply unexpected new object, want: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(newObj).Name())
+	}
+	_, err := r.upsertConfigSet(ctx, newConfigSet)
+	return err
+}
+
+func (r *configset) SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error {
+	return fmt.Errorf("setIntent not supported for confgisets")
 }
 
 func (r *configset) Destroy() {}

@@ -78,13 +78,13 @@ func newConfigProvider(
 	c := &config{
 		configCommon: configCommon{
 			//configSetStore -> no needed for config, only used by configset
-			client:       client,
-			configStore:  configStore,
-			targetStore:  targetStore,
-			gr:           gr,
-			isNamespaced: obj.NamespaceScoped(),
-			newFunc:      obj.New,
-			newListFunc:  obj.NewList,
+			client:         client,
+			configStore:    configStore,
+			targetStore:    targetStore,
+			gr:             gr,
+			isNamespaced:   obj.NamespaceScoped(),
+			newFunc:        obj.New,
+			newListFunc:    obj.NewList,
 			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigTableConvertor(gr),
@@ -108,21 +108,33 @@ type config struct {
 
 func (r *config) GetStore() store.Storer[runtime.Object] { return r.configStore }
 
-func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) {
-	r.configStore.Update(ctx, key, obj)
+func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) error {
+	config, ok := obj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("expected Config object, got %T", obj)
+	}
+	return r.storeUpdateConfig(ctx, key, config)
 }
 
-func (r *config) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+func (r *config) Apply(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
 	oldConfig, ok := oldObj.(*configv1alpha1.Config)
 	if !ok {
-		return fmt.Errorf("UpdateTarget unexpected old object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(oldObj).Name())
+		return fmt.Errorf("apply unexpected old object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(oldObj).Name())
 	}
-	newConfig, ok := oldObj.(*configv1alpha1.Config)
+	newConfig, ok := newObj.(*configv1alpha1.Config)
 	if !ok {
-		return fmt.Errorf("UpdateTarget unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
+		return fmt.Errorf("apply unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
 	}
 	_, _, err := r.upsertTargetConfig(ctx, key, targetKey, oldConfig, newConfig, true)
 	return err
+}
+
+func (r *config) SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error {
+	newConfig, ok := newObj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("setIntent unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
+	}
+	return r.setIntent(ctx, key, targetKey, tctx, newConfig, false)
 }
 
 func (r *config) Destroy() {}
@@ -191,10 +203,10 @@ func (r *config) Create(
 		return obj, err
 	}
 	/*
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Added,
-		Object: obj,
-	})
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Added,
+			Object: obj,
+		})
 	*/
 	return obj, nil
 }
@@ -220,17 +232,17 @@ func (r *config) Update(
 		return obj, create, err
 	}
 	/*
-	if create {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Added,
-			Object: obj,
-		})
-	} else {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Modified,
-			Object: obj,
-		})
-	}
+		if create {
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Added,
+				Object: obj,
+			})
+		} else {
+			r.notifyWatcher(ctx, watch.Event{
+				Type:   watch.Modified,
+				Object: obj,
+			})
+		}
 	*/
 	return obj, create, nil
 }
@@ -253,10 +265,10 @@ func (r *config) Delete(
 		return obj, asyncDelete, err
 	}
 	/*
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Deleted,
-		Object: obj,
-	})
+		r.notifyWatcher(ctx, watch.Event{
+			Type:   watch.Deleted,
+			Object: obj,
+		})
 	*/
 	return obj, asyncDelete, nil
 }
@@ -313,4 +325,3 @@ func (r *config) Watch(
 
 	return w, nil
 }
-

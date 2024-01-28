@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation":                       schema_config_server_apis_config_v1alpha1_Deviation(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
@@ -608,11 +609,30 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
 						},
 					},
+					"appliedConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppliedConfig defines the config applied to the target",
+							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec"),
+						},
+					},
+					"deviations": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"},
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation"},
 	}
 }
 
@@ -641,6 +661,42 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(r
 							Description: "Schema Version",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"desiredValue": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"actualValue": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
