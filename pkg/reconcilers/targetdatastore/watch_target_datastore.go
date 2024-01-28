@@ -66,7 +66,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if err != nil {
 					log.Error(err, "cannot get target from the datastore", "key", key.String())
 					if condition.Status == metav1.ConditionTrue {
-						target.SetConditions(invv1alpha1.Failed(resp.Target.StatusDetails))
+						target.SetConditions(invv1alpha1.Failed(err.Error()))
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error(err, "cannot update target status", "key", key.String())
 						}
