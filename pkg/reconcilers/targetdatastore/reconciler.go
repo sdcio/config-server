@@ -176,7 +176,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// add the target to the DS
 			r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
 			// create the target in the target store
-			if currentTargetCtx.Client != nil {
+			if currentTargetCtx.Client == nil {
 				currentTargetCtx.Client = selectedDSctx.DSClient
 				if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
 					cr.Status.UsedReferences = nil
