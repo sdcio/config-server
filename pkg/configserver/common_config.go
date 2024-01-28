@@ -236,6 +236,12 @@ func (r *configCommon) deleteConfig(
 	// and store the config.
 	tctx, err := r.getTargetContext(ctx, targetKey)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			if err := r.storeDeleteConfig(ctx, key, newConfig); err != nil {
+				return nil, false, apierrors.NewInternalError(err)
+			}
+			return newConfig, false, nil
+		}
 		newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
 		if err := r.storeUpdateConfig(ctx, key, newConfig); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
