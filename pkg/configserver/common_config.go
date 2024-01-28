@@ -77,29 +77,34 @@ func (r *configCommon) createConfig(ctx context.Context,
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
 
-	// get targetCtx is the target is ready, otherwise update the condition with the failure indication
-	// and store the config.
-	tctx, err := r.getTargetContext(ctx, targetKey)
-	if err != nil {
-		newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
-		return newConfig, r.storeCreateConfig(ctx, key, newConfig)
-	}
+	newConfig, _, err = r.upsertTargetConfig(ctx, key, targetKey, newConfig, newConfig, true)
+	return newConfig, err
 
-	// ready to transact with the datastore
-	log.Info("transacting with target")
-	newConfig.Status.SetConditions(configv1alpha1.Creating())
-	if err := r.storeCreateConfig(ctx, key, newConfig); err != nil {
-		return newConfig, err
-	}
-	// async transaction to the datastore
-	go func() {
-		if err := r.setIntent(ctx, key, targetKey, tctx, newConfig, true); err != nil {
-			log.Error("transaction failed", "error", err)
+	/*
+		// get targetCtx is the target is ready, otherwise update the condition with the failure indication
+		// and store the config.
+		tctx, err := r.getTargetContext(ctx, targetKey)
+		if err != nil {
+			newConfig.SetConditions(configv1alpha1.Failed(err.Error()))
+			return newConfig, r.storeCreateConfig(ctx, key, newConfig)
 		}
-		log.Info("transaction succeeded", "error", err)
-	}()
 
-	return newConfig, nil
+		// ready to transact with the datastore
+		log.Info("transacting with target")
+		newConfig.Status.SetConditions(configv1alpha1.Creating())
+		if err := r.storeCreateConfig(ctx, key, newConfig); err != nil {
+			return newConfig, err
+		}
+		// async transaction to the datastore
+		go func() {
+			if err := r.setIntent(ctx, key, targetKey, tctx, newConfig, true); err != nil {
+				log.Error("transaction failed", "error", err)
+			}
+			log.Info("transaction succeeded", "error", err)
+		}()
+
+		return newConfig, nil
+	*/
 }
 
 func (r *configCommon) updateConfig(
