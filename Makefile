@@ -8,6 +8,7 @@ PROJECT ?= config-server
 IMG ?= $(REGISTRY)/${PROJECT}:$(VERSION)
 
 REPO = github.com/iptecharch/config-server
+USERID := 10000
 
 ## Tool Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
@@ -28,7 +29,7 @@ docker:
 .PHONY:
 docker-build: ## Build docker image with the manager.
 	ssh-add ./keys/id_rsa 2>/dev/null; true
-	docker build . -t ${IMG} --ssh default=$(SSH_AUTH_SOCK)
+	docker build --build-arg USERID=$(USERID) . -t ${IMG} --ssh default=$(SSH_AUTH_SOCK)
 
 .PHONY: docker-push
 docker-push:  docker-build ## Push docker image with the manager.
