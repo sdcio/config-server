@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
 	//"sigs.k8s.io/controller-runtime/pkg/log"
 	"github.com/henderiw/logger/log"
 )
@@ -61,9 +62,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		return nil, err
-	}
+	/*
+		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+			return nil, err
+		}
+	*/
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
@@ -276,4 +279,3 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 
 	return false
 }
-

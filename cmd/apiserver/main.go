@@ -31,6 +31,7 @@ import (
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
 	configopenapi "github.com/iptecharch/config-server/apis/generated/openapi"
+	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/configserver"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
@@ -101,6 +102,7 @@ func main() {
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
 		configv1alpha1.AddToScheme,
+		invv1alpha1.AddToScheme,
 	}) {
 		if err := api(runScheme); err != nil {
 			log.Error("cannot add scheme", "err", err)
