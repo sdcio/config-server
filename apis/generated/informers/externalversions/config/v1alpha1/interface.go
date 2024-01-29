@@ -25,6 +25,8 @@ type Interface interface {
 	Configs() ConfigInformer
 	// ConfigSets returns a ConfigSetInformer.
 	ConfigSets() ConfigSetInformer
+	// RunningConfigs returns a RunningConfigInformer.
+	RunningConfigs() RunningConfigInformer
 }
 
 type version struct {
@@ -46,4 +48,9 @@ func (v *version) Configs() ConfigInformer {
 // ConfigSets returns a ConfigSetInformer.
 func (v *version) ConfigSets() ConfigSetInformer {
 	return &configSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RunningConfigs returns a RunningConfigInformer.
+func (v *version) RunningConfigs() RunningConfigInformer {
+	return &runningConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

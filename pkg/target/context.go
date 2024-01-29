@@ -16,7 +16,9 @@ package target
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
@@ -25,6 +27,8 @@ import (
 	"github.com/iptecharch/config-server/pkg/store"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Context struct {
@@ -127,4 +131,56 @@ func (r *Context) DeleteIntent(ctx context.Context, key store.Key, config *confi
 	}
 	log.Info("delete intent succeeded", "rsp", prototext.Format(rsp))
 	return nil
+}
+
+func (r *Context) GetData(ctx context.Context, key store.Key) (*configv1alpha1.RunningConfig, error) {
+	log := log.FromContext(ctx).With("target", key.String())
+	if err := r.Validate(ctx, key); err != nil {
+		return nil, err
+	}
+	path, err := ParsePath("/")
+	if err != nil {
+		return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), "/")
+	}
+
+	stream, err := r.Client.GetData(ctx, &sdcpb.GetDataRequest{
+		Name:      key.String(),
+		Datastore: &sdcpb.DataStore{Type: sdcpb.Type_MAIN},
+		Path:      []*sdcpb.Path{path},
+		DataType:  sdcpb.DataType_CONFIG,
+		Encoding:  sdcpb.Encoding_JSON,
+	})
+	if err != nil {
+		log.Info("get data failed", "error", err.Error())
+		return nil, err
+	}
+
+	var b []byte
+	for {
+		rsp, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		b, err = json.Marshal(rsp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return configv1alpha1.BuildRunningConfig(
+		metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		configv1alpha1.RunningConfigSpec{},
+		configv1alpha1.RunningConfigStatus{
+			Value: runtime.RawExtension{
+				Raw: b,
+			},
+		},
+	), nil
 }

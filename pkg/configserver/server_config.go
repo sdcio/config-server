@@ -88,7 +88,6 @@ func newConfigProvider(
 			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigTableConvertor(gr),
-		//watcherManager: watcherManager,
 	}
 	go c.configCommon.watcherManager.Start(ctx)
 	return c, nil
@@ -103,7 +102,6 @@ var _ rest.SingularNameProvider = &config{}
 type config struct {
 	configCommon
 	rest.TableConvertor
-	//watcherManager watchermanager.WatcherManager
 }
 
 func (r *config) GetStore() store.Storer[runtime.Object] { return r.configStore }

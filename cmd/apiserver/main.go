@@ -149,7 +149,12 @@ func main() {
 	}
 	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
 	if err != nil {
-		log.Error("cannot create config rest storage", "err", err)
+		log.Error("cannot create configset rest storage", "err", err)
+		os.Exit(1)
+	}
+	runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
+	if err != nil {
+		log.Error("cannot create runningconfig rest storage", "err", err)
 		os.Exit(1)
 	}
 
@@ -179,6 +184,7 @@ func main() {
 			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
 			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
 			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
+			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start caas")

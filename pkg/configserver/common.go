@@ -16,10 +16,12 @@ package configserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
 	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
@@ -73,6 +75,19 @@ func (r *configCommon) get(ctx context.Context, name string, options *metav1.Get
 		if err != nil {
 			return nil, apierrors.NewNotFound(r.gr, name)
 		}
+	case configv1alpha1.RunningConfigKind:
+		target, tctx, err := r.getTargetRunningContext(ctx, key)
+		if err != nil {
+			return nil, apierrors.NewNotFound(r.gr, name)
+		}
+		rc, err := tctx.GetData(ctx, key)
+		if err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		rc.SetCreationTimestamp(target.CreationTimestamp)
+		rc.SetResourceVersion(target.ResourceVersion)
+		rc.SetAnnotations(target.Annotations)
+		rc.SetLabels(target.Labels)
 	default:
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
@@ -106,9 +121,7 @@ func (r *configCommon) list(
 		return nil, err
 	}
 
-	listFunc := func(ctx context.Context, key store.Key, obj runtime.Object) {
-		// client copy required since this could be a pointer object
-		//obj = obj.DeepCopyObject()
+	configListFunc := func(ctx context.Context, key store.Key, obj runtime.Object) {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
 			log.Error("cannot get meta from object", "error", err.Error())
@@ -150,12 +163,74 @@ func (r *configCommon) list(
 		}
 	}
 
+	runningConfigListFunc := func(ctx context.Context, key store.Key, tctx target.Context) {
+		target := &invv1alpha1.Target{}
+		if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
+			log.Error("cannot get target", "key", key.String(), "error", err.Error())
+			return
+		}
+
+		if options.LabelSelector != nil || configFilter != nil {
+			filter := true
+			if options.LabelSelector != nil {
+				if options.LabelSelector.Matches(labels.Set(target.GetLabels())) {
+					filter = false
+				}
+			} else {
+				// if not labels selector is present don't filter
+				filter = false
+			}
+			// if filtered we dont have to run this section since the label requirement was not met
+			if configFilter != nil && !filter {
+				if configFilter.Name != "" {
+					if target.GetName() == configFilter.Name {
+						filter = false
+					} else {
+						filter = true
+					}
+				}
+				if configFilter.Namespace != "" {
+					if target.GetNamespace() == configFilter.Namespace {
+						filter = false
+					} else {
+						filter = true
+					}
+				}
+			}
+			if !filter {
+				obj, err := tctx.GetData(ctx, key)
+				if err != nil {
+					log.Error("cannot get running config", "key", key.String(), "error", err.Error())
+					return
+				}
+				obj.SetCreationTimestamp(target.CreationTimestamp)
+				obj.SetResourceVersion(target.ResourceVersion)
+				obj.SetAnnotations(target.Annotations)
+				obj.SetLabels(target.Labels)
+				appendItem(v, obj)
+			}
+		} else {
+			obj, err := tctx.GetData(ctx, key)
+			if err != nil {
+				log.Error("cannot get running config", "key", key.String(), "error", err.Error())
+				return
+			}
+			obj.SetCreationTimestamp(target.CreationTimestamp)
+			obj.SetResourceVersion(target.ResourceVersion)
+			obj.SetAnnotations(target.Annotations)
+			obj.SetLabels(target.Labels)
+			appendItem(v, obj)
+		}
+	}
+
 	// get the data from the store
 	switch options.Kind {
 	case configv1alpha1.ConfigKind:
-		r.configStore.List(ctx, listFunc)
+		r.configStore.List(ctx, configListFunc)
 	case configv1alpha1.ConfigSetKind:
-		r.configSetStore.List(ctx, listFunc)
+		r.configSetStore.List(ctx, configListFunc)
+	case configv1alpha1.RunningConfigKind:
+		r.targetStore.List(ctx, runningConfigListFunc)
 	default:
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
@@ -206,5 +281,38 @@ func (r *configCommon) notifyWatcher(ctx context.Context, event watch.Event) {
 }
 
 type lister interface {
-	list(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) 
+	list(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error)
+}
+
+func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key) (*target.Context, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, err
+	}
+	if !target.IsConfigReady() {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotReady))
+	}
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotFound))
+	}
+	return &tctx, nil
+}
+
+func (r *configCommon) getTargetRunningContext(ctx context.Context, targetKey store.Key) (*invv1alpha1.Target, *target.Context, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+	}
+	if !target.DeletionTimestamp.IsZero() {
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+	}
+	if !target.IsReady() {
+		return nil, nil, apierrors.NewInternalError(fmt.Errorf("target not ready"))
+	}
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+	}
+	return target, &tctx, nil
 }
