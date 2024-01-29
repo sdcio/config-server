@@ -32,7 +32,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
@@ -94,7 +95,7 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithValues("req", req)
+	log := log.FromContext(ctx).With("req", req)
 	log.Info("reconcile")
 
 	targetKey := store.KeyFromNSN(req.NamespacedName)
@@ -103,7 +104,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(err, errGetCr)
+			log.Error(errGetCr, "error", err)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -131,7 +132,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error(err, "cannot remove finalizer")
+			log.Error("cannot remove finalizer", "error", err)
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		log.Info("Successfully deleted resource")
@@ -139,7 +140,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error(err, "cannot add finalizer")
+		log.Error("cannot add finalizer", "error", err)
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -192,7 +193,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					Name:      config.GetName(),
 					Namespace: config.GetNamespace(),
 				}), targetKey, config, config); err != nil {
-					log.Error(err, "cannot apply config on target")
+					log.Error("cannot apply config on target", "error", err)
 				}
 			}
 		}
@@ -216,7 +217,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 						Name:      config.GetName(),
 						Namespace: config.GetNamespace(),
 					}), &config); err != nil {
-						log.Error(err, "cannot update config store")
+						log.Error("cannot update config store", "error", err)
 					}
 				}
 			}

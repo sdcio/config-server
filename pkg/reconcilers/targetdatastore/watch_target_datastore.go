@@ -27,7 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 )
 
 type targetDataStoreWatcher struct {
@@ -51,7 +52,7 @@ func (r *targetDataStoreWatcher) Stop(ctx context.Context) {
 
 func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 	ctx, r.cancel = context.WithCancel(ctx)
-	log := log.FromContext(ctx).WithName("targetDataStoreWatcher")
+	log := log.FromContext(ctx).With("name", "targetDataStoreWatcher")
 	for {
 		select {
 		case <-ctx.Done():
@@ -60,7 +61,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 			// get target list
 			targetList := &invv1alpha1.TargetList{}
 			if err := r.List(ctx, targetList); err != nil {
-				log.Error(err, "cannot get target list")
+				log.Error("cannot get target list", "error", err)
 			}
 
 			for _, target := range targetList.Items {
@@ -70,21 +71,21 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				tctx, err := r.targetStore.Get(ctx, key)
 				if err != nil {
 					// not found
-					log.Error(err, "k8s target does not have a corresponding k8s ctx", "key", key.String())
+					log.Error("k8s target does not have a corresponding k8s ctx", "key", key.String(), "error", err)
 					continue
 				}
 				if tctx.Client == nil {
-					log.Error(err, "k8s target does not have a corresponding dataserver client", "key", key.String())
+					log.Error("k8s target does not have a corresponding dataserver client", "key", key.String(), "error", err)
 					continue
 				}
 				condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
 				resp, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
 				if err != nil {
-					log.Error(err, "cannot get target from the datastore", "key", key.String())
+					log.Error("cannot get target from the datastore", "key", key.String(), "error", err)
 					if condition.Status == metav1.ConditionTrue {
 						target.SetConditions(invv1alpha1.Failed(err.Error()))
 						if err := r.Status().Update(ctx, &target); err != nil {
-							log.Error(err, "cannot update target status", "key", key.String())
+							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
 						log.Info("target status changed true -> false", "key", key.String())
 						continue
@@ -96,7 +97,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					if condition.Status == metav1.ConditionTrue {
 						target.SetConditions(invv1alpha1.Failed(resp.Target.StatusDetails))
 						if err := r.Status().Update(ctx, &target); err != nil {
-							log.Error(err, "cannot update target status", "key", key.String())
+							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
 						log.Info("target status changed true -> false", "key", key.String())
 						continue
@@ -106,7 +107,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					if condition.Status == metav1.ConditionFalse {
 						target.SetConditions(invv1alpha1.Ready())
 						if err := r.Status().Update(ctx, &target); err != nil {
-							log.Error(err, "cannot update target status", "key", key.String())
+							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
 						log.Info("target status changed false -> true", "key", key.String())
 						continue

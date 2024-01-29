@@ -27,7 +27,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
@@ -99,14 +100,14 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithValues("req", req)
+	log := log.FromContext(ctx).With("req", req)
 	log.Info("reconcile")
 
 	cr := &invv1alpha1.Schema{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(err, errGetCr)
+			log.Error(errGetCr, "error", err)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -122,7 +123,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
-				log.Error(err, "cannot delete schema from schemaserver")
+				log.Error("cannot delete schema from schemaserver", "error", err)
 				cr.SetConditions(invv1alpha1.Failed(err.Error()))
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
@@ -130,13 +131,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		// delete the reference from disk
 		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
-			log.Error(err, "cannot delete schema from disk")
+			log.Error("cannot delete schema from disk", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error(err, "cannot remove finalizer")
+			log.Error("cannot remove finalizer", "error", err)
 			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
@@ -148,7 +149,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error(err, "cannot add finalizer")
+		log.Error("cannot add finalizer", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -158,7 +159,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.schemaLoader.AddRef(ctx, spec)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
-		log.Error(err, "cannot get schema")
+		log.Error("cannot get schema", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -171,7 +172,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
-			log.Error(err, "cannot load schema")
+			log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
@@ -193,7 +194,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			log.Error(err, "cannot load schema")
+			log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}

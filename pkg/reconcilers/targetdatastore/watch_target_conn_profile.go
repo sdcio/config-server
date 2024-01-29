@@ -26,7 +26,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -71,7 +72,7 @@ func (r *targetConnProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 	}
 	targets := &invv1alpha1.TargetList{}
 	if err := r.client.List(ctx, targets, opts...); err != nil {
-		log.Error(err, "cannot list links")
+		log.Error("cannot list links", "error", err)
 		return
 	}
 	for _, target := range targets.Items {

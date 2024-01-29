@@ -26,7 +26,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -72,7 +73,7 @@ func (r *TargetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 	}
 	drs := r.ObjList
 	if err := r.Client.List(ctx, drs, opts...); err != nil {
-		log.Error(err, "cannot list discovery rules")
+		log.Error("cannot list discovery rules", "error", err)
 		return
 	}
 	for _, dr := range drs.GetItems() {

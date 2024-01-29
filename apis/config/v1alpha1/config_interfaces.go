@@ -29,7 +29,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 )
 
 const ConfigPlural = "configs"
@@ -156,7 +157,7 @@ func GetShaSum(ctx context.Context, spec *ConfigSpec) [20]byte {
 	log := log.FromContext(ctx)
 	appliedSpec, err := json.Marshal(spec)
 	if err != nil {
-		log.Error(err, "cannot marshal appliedConfig")
+		log.Error("cannot marshal appliedConfig", "error", err)
 		return [20]byte{}
 	}
 	return sha1.Sum(appliedSpec)

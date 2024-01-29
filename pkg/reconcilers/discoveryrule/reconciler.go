@@ -36,7 +36,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	//"sigs.k8s.io/controller-runtime/pkg/log"
+	"github.com/henderiw/logger/log"
 )
 
 func init() {
@@ -95,7 +96,7 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithValues("req", req)
+	log := log.FromContext(ctx).With("req", req)
 	log.Info("reconcile")
 
 	key := store.KeyFromNSN(req.NamespacedName)
@@ -104,7 +105,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(err, errGetCr)
+			log.Error(errGetCr, "error", err)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -118,7 +119,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			// discovery rule does not exist
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-				log.Error(err, "cannot remove finalizer")
+				log.Error("cannot remove finalizer", "error", err)
 				cr.SetConditions(invv1alpha1.Failed(err.Error()))
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
@@ -128,13 +129,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// stop and delete the discovery rule
 		dr.Stop(ctx)
 		if err := r.discoveryStore.Delete(ctx, key); err != nil {
-			log.Error(err, "cannot delete discovery rule from store")
+			log.Error("cannot delete discovery rule from store", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error(err, "cannot remove finalizer")
+			log.Error("cannot remove finalizer", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
@@ -143,13 +144,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := cr.Validate(); err != nil {
-		log.Error(err, "validation failed")
+		log.Error("validation failed", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error(err, "cannot add finalizer")
+		log.Error("cannot add finalizer", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
@@ -163,12 +164,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// gather the referencesm from the CR in a normalized format
 	newDRConfig, err := r.getDRConfig(ctx, cr)
 	if err != nil {
-		log.Error(err, "cannot get discovery rule config")
+		log.Error("cannot get discovery rule config", "error", err)
 		if isDRRunning {
 			// we stop the discovery rule
 			dr.Stop(ctx)
 			if err := r.discoveryStore.Delete(ctx, key); err != nil { // we don't fail
-				log.Error(err, "cannot delete discovery rule from store")
+				log.Error("cannot delete discovery rule from store", "error", err)
 			}
 		}
 		cr.Status.StartTime = metav1.Time{}
@@ -188,14 +189,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		dr.Stop(ctx)
 		if err = r.discoveryStore.Delete(ctx, key); err != nil {
 			// we dont fail
-			log.Error(err, "cannot delete discovery rule from store")
+			log.Error("cannot delete discovery rule from store", "error", err)
 		}
 	}
 	// create a new discoveryRule with the latest parameters
 	dr = discoveryrule.New(r.Client, newDRConfig, r.targetStore)
 	// new discovery initialization -> create or update (we deleted the DRConfig before)
 	if err := r.discoveryStore.Create(ctx, key, dr); err != nil {
-		log.Error(err, "cannot add dr ")
+		log.Error("cannot add dr", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
 		// given this is a ummutable field this means the CR will have to be deleted/recreated
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
