@@ -76,14 +76,18 @@ func (r *configCommon) get(ctx context.Context, name string, options *metav1.Get
 			return nil, apierrors.NewNotFound(r.gr, name)
 		}
 	case configv1alpha1.RunningConfigKind:
-		tctx, err := r.getTargetRunningContext(ctx, key)
+		target, tctx, err := r.getTargetRunningContext(ctx, key)
 		if err != nil {
 			return nil, apierrors.NewNotFound(r.gr, name)
 		}
-		obj, err = tctx.GetData(ctx, key)
+		rc, err := tctx.GetData(ctx, key)
 		if err != nil {
 			return nil, apierrors.NewInternalError(err)
 		}
+		rc.SetCreationTimestamp(target.CreationTimestamp)
+		rc.SetResourceVersion(target.ResourceVersion)
+		rc.SetAnnotations(target.Annotations)
+		rc.SetLabels(target.Labels)
 	default:
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
@@ -199,6 +203,10 @@ func (r *configCommon) list(
 					log.Error("cannot get running config", "key", key.String(), "error", err.Error())
 					return
 				}
+				obj.SetCreationTimestamp(target.CreationTimestamp)
+				obj.SetResourceVersion(target.ResourceVersion)
+				obj.SetAnnotations(target.Annotations)
+				obj.SetLabels(target.Labels)
 				appendItem(v, obj)
 			}
 		} else {
@@ -207,6 +215,10 @@ func (r *configCommon) list(
 				log.Error("cannot get running config", "key", key.String(), "error", err.Error())
 				return
 			}
+			obj.SetCreationTimestamp(target.CreationTimestamp)
+			obj.SetResourceVersion(target.ResourceVersion)
+			obj.SetAnnotations(target.Annotations)
+			obj.SetLabels(target.Labels)
 			appendItem(v, obj)
 		}
 	}
@@ -287,17 +299,20 @@ func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key
 	return &tctx, nil
 }
 
-func (r *configCommon) getTargetRunningContext(ctx context.Context, targetKey store.Key) (*target.Context, error) {
+func (r *configCommon) getTargetRunningContext(ctx context.Context, targetKey store.Key) (*invv1alpha1.Target, *target.Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
-		return nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+	}
+	if !target.DeletionTimestamp.IsZero() {
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
 	}
 	if !target.IsReady() {
-		return nil, apierrors.NewInternalError(fmt.Errorf("target not ready"))
+		return nil, nil, apierrors.NewInternalError(fmt.Errorf("target not ready"))
 	}
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
-		return nil, apierrors.NewNotFound(r.gr, targetKey.Name)
+		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
 	}
-	return &tctx, nil
+	return target, &tctx, nil
 }
