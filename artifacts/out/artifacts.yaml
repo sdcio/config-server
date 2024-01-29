@@ -1110,7 +1110,7 @@ spec:
           value: "true"
         - name: ENABLE_SCHEMA
           value: "true"
-        image: ghcr.io/iptecharch/config-server:latest
+        image: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server
         imagePullPolicy: Always
         name: config-server
         volumeMounts:
@@ -1125,7 +1125,7 @@ spec:
         - --config=/config/data-server.yaml
         command:
         - /app/data-server
-        image: ghcr.io/iptecharch/data-server:latest
+        image: registry.kmrd.dev/iptecharch/data-server:latest
         imagePullPolicy: Always
         name: data-server
         volumeMounts:
