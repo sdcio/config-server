@@ -30,3 +30,11 @@ type ConfigSetListerExpansion interface{}
 // ConfigSetNamespaceListerExpansion allows custom methods to be added to
 // ConfigSetNamespaceLister.
 type ConfigSetNamespaceListerExpansion interface{}
+
+// RunningConfigListerExpansion allows custom methods to be added to
+// RunningConfigLister.
+type RunningConfigListerExpansion interface{}
+
+// RunningConfigNamespaceListerExpansion allows custom methods to be added to
+// RunningConfigNamespaceLister.
+type RunningConfigNamespaceListerExpansion interface{}

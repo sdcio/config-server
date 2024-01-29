@@ -33,6 +33,10 @@ func (c *FakeConfigV1alpha1) ConfigSets(namespace string) v1alpha1.ConfigSetInte
 	return &FakeConfigSets{c, namespace}
 }
 
+func (c *FakeConfigV1alpha1) RunningConfigs(namespace string) v1alpha1.RunningConfigInterface {
+	return &FakeRunningConfigs{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeConfigV1alpha1) RESTClient() rest.Interface {

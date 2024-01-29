@@ -43,6 +43,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation":                       schema_config_server_apis_config_v1alpha1_Deviation(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig":                   schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigList":               schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec":               schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
+		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus":             schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
@@ -617,7 +621,8 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 					},
 					"deviations": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Deviations identify the configuration deviation based on the last applied config",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -677,26 +682,30 @@ func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Path of the config this deviation belongs to",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"desiredValue": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "DesiredValue is the desired value of the config belonging to the path",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"actualValue": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "ActualValue defines the actual value of the config belonging to the path that is actually configured on the target",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Reason defines the reason of the deviation",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -721,6 +730,135 @@ func schema_config_server_apis_config_v1alpha1_Lifecycle(ref common.ReferenceCal
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_RunningConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "\tRunningConfig is the Schema for the RunningConfig API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_RunningConfigList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RunningConfigList contains a list of RunningConfigs",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RunningConfigSpec defines the desired state of RunningConfig",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RunningConfigStatus defines the observed state of RunningConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+						},
+					},
+				},
+				Required: []string{"value"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 

@@ -16,14 +16,12 @@ package configserver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,21 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
-
-func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key) (*target.Context, error) {
-	target := &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
-		return nil, err
-	}
-	if !target.IsConfigReady() {
-		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotReady))
-	}
-	tctx, err := r.targetStore.Get(ctx, targetKey)
-	if err != nil {
-		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotFound))
-	}
-	return &tctx, nil
-}
 
 func (r *configCommon) createConfig(ctx context.Context,
 	runtimeObject runtime.Object,
