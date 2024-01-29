@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Nephio Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 )
 
 type ControllerConfig struct {
-	//ConfigStore     store.Storer[runtime.Object]
 	TargetStore       store.Storer[target.Context]
 	DataServerStore   store.Storer[sdcctx.DSContext]
 	SchemaServerStore store.Storer[sdcctx.SSContext]
