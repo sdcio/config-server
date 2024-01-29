@@ -1,22 +1,25 @@
-// Copyright 2023 The xxx Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package configserver
 
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
@@ -90,11 +93,12 @@ func newConfigSetProvider(
 			isNamespaced:   obj.NamespaceScoped(),
 			newFunc:        obj.New,
 			newListFunc:    obj.NewList,
+			watcherManager: watchermanager.New(32),
 		},
 		TableConvertor: NewConfigSetTableConvertor(gr),
-		watcherManager: watchermanager.New(32),
+		//watcherManager: watcherManager,
 	}
-	go c.watcherManager.Start(ctx)
+	go c.configCommon.watcherManager.Start(ctx)
 	return c, nil
 }
 
@@ -107,17 +111,26 @@ var _ rest.SingularNameProvider = &configset{}
 type configset struct {
 	configCommon
 	rest.TableConvertor
-	watcherManager watchermanager.WatcherManager
+	//watcherManager watchermanager.WatcherManager
 }
 
 func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
 
-func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) {
-	r.configSetStore.Update(ctx, key, obj)
+func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) error {
+	return r.configSetStore.Update(ctx, key, obj)
 }
 
-func (r *configset) UpdateTarget(ctx context.Context, key store.Key, targetKey store.Key, obj runtime.Object) error {
-	return fmt.Errorf("UpdateTarget not supported for confgisets")
+func (r *configset) Apply(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+	newConfigSet, ok := newObj.(*configv1alpha1.ConfigSet)
+	if !ok {
+		return fmt.Errorf("apply unexpected new object, want: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(newObj).Name())
+	}
+	_, err := r.upsertConfigSet(ctx, newConfigSet)
+	return err
+}
+
+func (r *configset) SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error {
+	return fmt.Errorf("setIntent not supported for confgisets")
 }
 
 func (r *configset) Destroy() {}
@@ -185,10 +198,6 @@ func (r *configset) Create(
 	if err != nil {
 		return obj, err
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Added,
-		Object: obj,
-	})
 	return obj, nil
 }
 
@@ -212,17 +221,6 @@ func (r *configset) Update(
 	if err != nil {
 		return obj, create, err
 	}
-	if create {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Added,
-			Object: obj,
-		})
-	} else {
-		r.notifyWatcher(ctx, watch.Event{
-			Type:   watch.Modified,
-			Object: obj,
-		})
-	}
 	return obj, create, nil
 }
 
@@ -243,10 +241,6 @@ func (r *configset) Delete(
 	if err != nil {
 		return obj, asyncDelete, err
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Deleted,
-		Object: obj,
-	})
 	return obj, asyncDelete, nil
 }
 
@@ -298,39 +292,16 @@ func (r *configset) Watch(
 
 	options.TypeMeta = metav1.TypeMeta{APIVersion: configv1alpha1.SchemeBuilder.GroupVersion.Identifier(), Kind: configv1alpha1.ConfigSetKind}
 
-	// logger
-	log := log.FromContext(ctx)
-
-	if options.FieldSelector == nil {
-		log.Info("watch", "options", *options, "fieldselector", "nil")
-	} else {
-		requirements := options.FieldSelector.Requirements()
-		log.Info("watch", "options", *options, "fieldselector", options.FieldSelector.Requirements())
-		for _, requirement := range requirements {
-			log.Info("watch requirement",
-				"Operator", requirement.Operator,
-				"Value", requirement.Value,
-				"Field", requirement.Field,
-			)
-		}
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-
-	w := &watcher{
-		cancel:         cancel,
-		resultChan:     make(chan watch.Event),
-		watcherManager: r.watcherManager,
-	}
-
-	go w.listAndWatch(ctx, r, options)
+	w := r.watch(ctx, options)
 
 	return w, nil
 }
 
+/*
 func (r *configset) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
 	log.Info("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

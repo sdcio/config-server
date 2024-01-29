@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The xxx Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ const (
 	// ConditionTypeReady represents the resource ready condition
 	ConditionTypeReady ConditionType = "Ready"
 	// ConditionTypeTargetReady represents the resource target ready condition
-	ConditionTypeTargetReady ConditionType = "Ready"
+	//ConditionTypeTargetReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -38,15 +38,20 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady         ConditionReason = "Ready"
-	ConditionReasonNotReady      ConditionReason = "NotReady"
-	ConditionReasonFailed        ConditionReason = "Failed"
-	ConditionReasonUnknown       ConditionReason = "Unknown"
-	ConditionReasonTargetDeleted ConditionReason = "Target Deleted"
+	ConditionReasonReady          ConditionReason = "ready"
+	ConditionReasonNotReady       ConditionReason = "notReady"
+	ConditionReasonFailed         ConditionReason = "failed"
+	ConditionReasonUnknown        ConditionReason = "unknown"
+	ConditionReasonTargetDeleted  ConditionReason = "target Deleted"
+	ConditionReasonDeleting       ConditionReason = "deleting"
+	ConditionReasonCreating       ConditionReason = "creating"
+	ConditionReasonUpdating       ConditionReason = "updating"
+	ConditionReasonTargetNotReady ConditionReason = "target not ready"
+	ConditionReasonTargetNotFound ConditionReason = "target not found"
 )
 
 type Condition struct {
-	metav1.Condition `json:",inline" yaml:",inline"`
+	metav1.Condition `json:",inline" protobuf:"bytes,1,opt,name=condition"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
@@ -70,7 +75,7 @@ func (c Condition) WithMessage(msg string) Condition {
 type ConditionedStatus struct {
 	// Conditions of the resource.
 	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
+	Conditions []Condition `json:"conditions,omitempty" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // NewConditionedStatus returns a stat with the supplied conditions set.
@@ -179,36 +184,35 @@ func Failed(msg string) Condition {
 	}}
 }
 
-// TargetDeleted returns a condition that indicates the resource
-// target is deleted
-func TargetDeleted() Condition {
+// Creating returns a condition that indicates a create transaction
+// is ongoing
+func Creating() Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeTargetReady),
+		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonTargetDeleted),
+		Reason:             string(ConditionReasonCreating),
 	}}
 }
 
-// TargetReady returns a condition that indicates the resource
-// target is ready.
-func TargetReady() Condition {
+// Creating returns a condition that indicates a delete transaction
+// is ongoing
+func Deleting() Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeTargetReady),
-		Status:             metav1.ConditionTrue,
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
+		Reason:             string(ConditionReasonDeleting),
 	}}
 }
 
-// TargetNotReady returns a condition that indicates the resource
-// target is NOT ready.
-func TargetNotReady(msg string) Condition {
+// Creating returns a condition that indicates a update transaction
+// is ongoing
+func Updating() Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeTargetReady),
+		Type:               string(ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonNotReady),
-		Message:            msg,
+		Reason:             string(ConditionReasonUpdating),
 	}}
 }

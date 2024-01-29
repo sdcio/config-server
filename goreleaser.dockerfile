@@ -1,3 +1,7 @@
+# Copyright 2024 Nokia
+# Licensed under the Apache License 2.0
+# SPDX-License-Identifier: Apache-2.0
+#
 FROM golang:1.21 AS builder
 ARG USERID=10000
 # no need to include cgo bindings
@@ -12,7 +16,6 @@ RUN adduser --shell /bin/false --uid $USERID --disabled-login --home /app/ --no-
     && sed -i -r 's#^(.*):[^:]*$#\1:/bin/false#' /etc/passwd
 
 #
-
 FROM scratch
 ARG USERID=10000
 # add-in our timezone data file

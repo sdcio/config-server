@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The xxx Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,37 +25,37 @@ import (
 // ConfigSetSpec defines the desired state of Config
 type ConfigSetSpec struct {
 	// Targets defines the targets on which this configSet applies
-	Target Target `json:"target" yaml:"target"`
+	Target Target `json:"target" protobuf:"bytes,1,opt,name=target"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
-	Lifecycle Lifecycle `json:"lifecycle,omitempty" yaml:"lifecycle,omitempty"`
+	Lifecycle Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int `json:"priority,omitempty" yaml:"priroity,omitempty"`
+	Priority int `json:"priority,omitempty" protobuf:"bytes,3,opt,name=priority"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
-	Config []ConfigBlob `json:"config" yaml:"config"`
+	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
 }
 
 type Target struct {
 	// TargetSelector defines the selector used to select the targets to which the config applies
-	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty" yaml:"targetSelector,omitempty"`
+	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty" protobuf:"bytes,1,opt,name=targetSelector"`
 }
 
 // ConfigSetStatus defines the observed state of Config
 type ConfigSetStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" yaml:",inline"`
+	ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the configSet resource on the respective target
-	Targets []TargetStatus `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Targets []TargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 
 type TargetStatus struct {
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// right now we assume the namespace of the config and target are aligned
-	//NameSpace string `json:"namespace" yaml:"namespace"`
+	//NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
 	// Condition of the configCR status
-	Condition `json:",inline" yaml:",inline"`
+	Condition `json:",inline" protobuf:"bytes,3,opt,name=condition"`
 }
 
 // +genclient
@@ -66,23 +66,25 @@ type TargetStatus struct {
 // +k8s:openapi-gen=true
 type ConfigSet struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   ConfigSetSpec   `json:"spec,omitempty"`
-	Status ConfigSetStatus `json:"status,omitempty"`
+	Spec   ConfigSetSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status ConfigSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // ConfigSetList contains a list of ConfigSets
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type ConfigSetList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ConfigSet `json:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []ConfigSet `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
 
 func init() {
 	SchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
 }
+
 
 // Config type metadata.
 var (

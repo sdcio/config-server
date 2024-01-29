@@ -1,16 +1,18 @@
-// Copyright 2023 The xxx Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package watchermanager
 
@@ -56,6 +58,14 @@ func (r *watcherManager) WatchChan() chan watch.Event {
 // Add adds a watcher to the watcherManager and allocates a uuid per watcher to make the delete
 // easier, the uuid is used only internally
 func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.ListOptions, callback Watcher) error {
+	// see if we have to clean done watcher
+	for _, w := range r.watchers.list() {
+		if err := w.isDone(); err != nil {
+			r.watchers.del(w.key)
+			r.sem.Release(1)
+		}
+	}
+
 	ok := r.sem.TryAcquire(1)
 	if !ok {
 		return fmt.Errorf("max number of watchers reached")
@@ -64,10 +74,10 @@ func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.L
 	uuid := uuid.New().String()
 	// initialize the watcher
 	w := &watcher{
-		key:      uuid,
-		isDone:   ctx.Err, // handles watcher stop and deletion gracefully
-		callback: callback,
-		filterOptions:   options,
+		key:           uuid,
+		isDone:        ctx.Err, // handles watcher stop and deletion gracefully
+		callback:      callback,
+		filterOptions: options,
 	}
 
 	r.watchers.add(uuid, w)
@@ -101,8 +111,6 @@ func (r *watcherManager) Start(ctx context.Context) {
 						r.sem.Release(1)
 						return
 					}
-
-					// TBD: filtering
 
 					// the callback deals with filtering
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {

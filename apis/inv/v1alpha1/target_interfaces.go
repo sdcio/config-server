@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Nephio Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +37,12 @@ func (r *Target) SetConditions(c ...Condition) {
 func (r *Target) IsReady() bool {
 	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue
+}
+
+func (r *Target) IsConfigReady() bool {
+	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) NotReadyReason() string {

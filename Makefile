@@ -1,3 +1,7 @@
+# Copyright 2024 Nokia
+# Licensed under the Apache License 2.0
+# SPDX-License-Identifier: Apache-2.0
+
 VERSION ?= latest
 REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
 PROJECT ?= config-server
@@ -52,6 +56,7 @@ genclients:
 		-g informer-gen \
 		-g lister-gen \
 		-g openapi-gen \
+		#-g go-to-protobuf \
 		--module $(REPO) \
 		--versions $(REPO)/apis/config/v1alpha1,$(REPO)/apis/inv/v1alpha1
 

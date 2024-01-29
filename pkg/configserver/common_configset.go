@@ -1,16 +1,18 @@
-// Copyright 2023 The xxx Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package configserver
 
@@ -30,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,16 +65,13 @@ func (r *configCommon) createConfigSet(ctx context.Context,
 	if !ok {
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected Config object, got %T", runtimeObject))
 	}
-	if len(newConfigSet.Spec.Config) > 0 {
-		log.Info("create", "obj", string(newConfigSet.Spec.Config[0].Value.Raw))
-	}
 
 	newConfigSet, err = r.upsertConfigSet(ctx, newConfigSet)
 	if err != nil {
 		return newConfigSet, err
 	}
 	// update the store
-	if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+	if err := r.storeCreateConfigSet(ctx, key, newConfigSet); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
 
@@ -150,15 +150,14 @@ func (r *configCommon) updateConfigSet(
 	}
 	// update the store
 	if isCreate {
-		if err := r.configSetStore.Create(ctx, key, newConfigSet); err != nil {
+		if err := r.storeCreateConfigSet(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
 	} else {
-		if err := r.configSetStore.Update(ctx, key, newConfigSet); err != nil {
+		if err := r.storeUpdateConfigSet(ctx, key, newConfigSet); err != nil {
 			return nil, false, apierrors.NewInternalError(err)
 		}
 	}
-
 
 	return newConfigSet, isCreate, nil
 }
@@ -211,23 +210,23 @@ func (r *configCommon) deleteConfigSet(
 		return newConfigSet, false, nil
 	}
 
-
 	existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, newConfigSet)
 	log.Info("delete existingConfigs", "total", len(existingChildConfigs))
 
 	for nsn, existingChildConfig := range existingChildConfigs {
 		log.Info("delete existingChildConfig", "nsn", nsn)
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
-			TypeMeta:           existingChildConfig.TypeMeta,
-			GracePeriodSeconds: pointer.Int64(0), // force delete
+			TypeMeta: existingChildConfig.TypeMeta,
+			//GracePeriodSeconds: pointer.Int64(0), // force delete
 		}); err != nil {
 			log.Error("delete existing childConfig failed", "error", err)
 		}
 	}
 
-	if err := r.configSetStore.Delete(ctx, key); err != nil {
+	if err := r.storeDeleteConfigSet(ctx, key, newConfigSet); err != nil {
 		return nil, false, apierrors.NewInternalError(err)
 	}
+
 	log.Info("delete intent from store succeeded")
 	return newConfigSet, true, nil
 }
@@ -242,6 +241,7 @@ func (r *configCommon) upsertConfigSet(ctx context.Context, configSet *configv1a
 	return r.ensureConfigs(ctx, configSet, targets)
 }
 
+// unrollDownstreamTargets list the targets
 func (r *configCommon) unrollDownstreamTargets(
 	ctx context.Context,
 	configSet *configv1alpha1.ConfigSet) ([]types.NamespacedName, error) {
@@ -259,9 +259,12 @@ func (r *configCommon) unrollDownstreamTargets(
 	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
-	targets := make([]types.NamespacedName, len(targetList.Items))
-	for i, target := range targetList.Items {
-		targets[i] = types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace}
+	targets := make([]types.NamespacedName, 0, len(targetList.Items))
+	for _, target := range targetList.Items {
+		// only add targets that are not in deleting state
+		if target.GetDeletionTimestamp().IsZero() {
+			targets = append(targets, types.NamespacedName{Name: target.Name, Namespace: configSet.Namespace})
+		}
 	}
 	sort.Slice(targets, func(i, j int) bool {
 		return targets[i].Name < targets[j].Name
@@ -272,63 +275,90 @@ func (r *configCommon) unrollDownstreamTargets(
 func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alpha1.ConfigSet, targets []types.NamespacedName) (*configv1alpha1.ConfigSet, error) {
 	log := log.FromContext(ctx)
 
+	// get the exisiting configs to see if the config is present; if the configset's target is no
+	// longer applicable we will delete the config for this particular target
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 
 	// TODO run in parallel and/or try 1 first to see if the validation works or not
 	TargetsStatus := make([]configv1alpha1.TargetStatus, len(targets))
 	configSet.SetConditions(configv1alpha1.Ready())
 	for i, target := range targets {
-		config := buildConfig(ctx, configSet, target)
+		var oldConfig *configv1alpha1.Config
+		newConfig := buildConfig(ctx, configSet, target)
 
-		// delete the config from the map as it is updated
-		delete(existingConfigs, types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
-
-		key := store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name})
+		// delete the config from the existingConfigs map as it is updated
+		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
 		isCreate := false
-		obj, err := r.configStore.Get(ctx, key)
-		if err != nil {
-			// create
+		changed := true
+		oldConfig, ok := existingConfigs[nsnKey]
+		if !ok { // config does not exist -> create it
+			log.Info("config does not exist", "nsn", nsnKey.String())
 			isCreate = true
-			config.UID = uuid.NewUUID()
-			config.CreationTimestamp = metav1.Now()
-			config.ResourceVersion = generateRandomString(6)
+			newConfig.UID = uuid.NewUUID()
+			newConfig.CreationTimestamp = metav1.Now()
+			oldConfig = newConfig // ensure the upsert call works
 		} else {
-			oldConfig, ok := obj.(*configv1alpha1.Config)
-			if !ok {
+			log.Info("config exists", "nsn", nsnKey.String())
+			// TODO better logic to validate changes
+			newConfig = oldConfig.DeepCopy()
+			newSpec := configv1alpha1.ConfigSpec{
+				Lifecycle: configSet.Spec.Lifecycle,
+				Priority:  configSet.Spec.Priority,
+				Config:    configSet.Spec.Config,
+			}
+			// check if the spec changed
+			currentShaSum := configv1alpha1.GetShaSum(ctx, &oldConfig.Spec)
+			newShaSum := configv1alpha1.GetShaSum(ctx, &newSpec)
+			if currentShaSum != newShaSum {
+				log.Info("ensureConfigs spec changed")
+				newConfig.ResourceVersion = generateRandomString(6)
+				newConfig.Spec = newSpec
+			} else {
+				log.Info("ensureConfigs spec did not change")
+				changed = false
+			}
+			if len(newConfig.GetLabels()) == 0 {
+				newConfig.Labels = make(map[string]string, len(configSet.GetLabels()))
+			}
+			for k, v := range configSet.GetLabels() {
+				newConfig.Labels[k] = v
+			}
+			if len(newConfig.GetAnnotations()) == 0 {
+				newConfig.Annotations = make(map[string]string, len(configSet.GetAnnotations()))
+			}
+			for k, v := range configSet.GetAnnotations() {
+				newConfig.Annotations[k] = v
+			}
+		}
+		// delete the config from the existing configs -> this list is emptied such that the remaining entries
+		// can be deleted
+		delete(existingConfigs, nsnKey)
+		if changed || oldConfig.GetCondition(configv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
+			// this is now an async
+			if _, _, err := r.upsertTargetConfig(
+				ctx,
+				store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
+				store.KeyFromNSN(target),
+				oldConfig,
+				newConfig,
+				isCreate,
+			); err != nil {
 				TargetsStatus[i] = configv1alpha1.TargetStatus{
 					Name:      target.Name,
-					Condition: configv1alpha1.Failed("unexpected object type"),
+					Condition: configv1alpha1.Failed(err.Error()),
 				}
-				continue
-			}
-			// update -> copy UID/CreateTimestamp, generate new resourceVersion
-			config.UID = oldConfig.UID
-			config.CreationTimestamp = oldConfig.CreationTimestamp
-			config.ResourceVersion = generateRandomString(6)
-		}
-
-		_, _, err = r.upsertTargetConfig(
-			ctx,
-			store.KeyFromNSN(types.NamespacedName{Namespace: config.Namespace, Name: config.Name}),
-			store.KeyFromNSN(target),
-			config,
-			isCreate,
-		)
-		if err != nil {
-			TargetsStatus[i] = configv1alpha1.TargetStatus{
-				Name:      target.Name,
-				Condition: configv1alpha1.Failed(err.Error()),
-			}
-			configSet.SetConditions(configv1alpha1.Failed("config not applied to all targets"))
-		} else {
-			TargetsStatus[i] = configv1alpha1.TargetStatus{
-				Name:      target.Name,
-				Condition: configv1alpha1.Ready(),
+				configSet.SetConditions(configv1alpha1.Failed("config not applied to all targets"))
+			} else {
+				TargetsStatus[i] = configv1alpha1.TargetStatus{
+					Name:      target.Name,
+					Condition: configv1alpha1.Ready(),
+				}
 			}
 		}
 	}
 
-	// TBD: what to do with the delete error
+	// These configs no longer match a target
+	// TODO: what to do with the delete error
 	for nsn, existingConfig := range existingConfigs {
 		if _, _, err := r.deleteConfig(ctx, nsn.Name, nil, &metav1.DeleteOptions{
 			TypeMeta:           existingConfig.TypeMeta,
@@ -362,6 +392,7 @@ func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, config
 			}
 		}
 	})
+
 	return existingConfigs
 }
 
@@ -396,4 +427,37 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 		},
 		configv1alpha1.ConfigStatus{},
 	)
+}
+
+func (r *configCommon) storeCreateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configSetStore.Create(ctx, key, configset); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Added,
+		Object: configset,
+	})
+	return nil
+}
+
+func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configSetStore.Update(ctx, key, configset); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Modified,
+		Object: configset,
+	})
+	return nil
+}
+
+func (r *configCommon) storeDeleteConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+	if err := r.configSetStore.Delete(ctx, key); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+	r.notifyWatcher(ctx, watch.Event{
+		Type:   watch.Deleted,
+		Object: configset,
+	})
+	return nil
 }

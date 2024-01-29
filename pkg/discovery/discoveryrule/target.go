@@ -1,3 +1,19 @@
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package discoveryrule
 
 import (
@@ -54,10 +70,6 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *target
 }
 
 func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
-	targetName := di.HostName
-	targetName = strings.ReplaceAll(targetName, ":", "-")
-	targetName = strings.ToLower(targetName)
-
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
@@ -79,7 +91,7 @@ func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *
 
 	return &invv1alpha1.Target{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        targetName,
+			Name:        getTargetName(di.HostName),
 			Namespace:   r.cfg.CR.GetNamespace(),
 			Labels:      labels,
 			Annotations: anno,
@@ -98,14 +110,6 @@ func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *
 		Spec: targetSpec,
 		Status: invv1alpha1.TargetStatus{
 			DiscoveryInfo: di,
-			/*
-				UsedReferences: &invv1alpha1.TargetStatusUsedReferences{
-					SecretResourceVersion:            r.cfg.ConnectivityProfile.SecretResourceVersion,
-					TLSSecretResourceVersion:         r.cfg.ConnectivityProfile.TLSSecretResourceVersion,
-					ConnectionProfileResourceVersion: r.cfg.ConnectivityProfile.Connectionprofile.ResourceVersion,
-					SyncProfileResourceVersion:       r.cfg.ConnectivityProfile.Syncprofile.ResourceVersion,
-				},
-			*/
 		},
 	}, nil
 }
@@ -221,4 +225,9 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 	}
 
 	return false
+}
+
+func getTargetName(s string) string {
+	targetName := strings.ReplaceAll(s, ":", "-")
+	return strings.ToLower(targetName)
 }

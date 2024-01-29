@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Nephio Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,16 +27,12 @@ type ConditionType string
 
 // Condition Types.
 const (
-	// ConditionTypeSynced represents the reconciliation state condition
-	ConditionTypeSynced ConditionType = "Synced"
 	// ConditionTypeReady represents the resource ready condition
 	ConditionTypeReady ConditionType = "Ready"
-	// ConditionTypeWired represents the resource wire condition
-	ConditionTypeWired ConditionType = "Wired"
-	// ConditionTypeEPReady represents the resource epready condition
-	ConditionTypeEPReady ConditionType = "EPReady"
 	// ConditionTypeDSReady represents the resource datastore ready state condition
 	ConditionTypeDSReady ConditionType = "DSReady"
+	// ConditionTypeCfgReady represents the resource config ready state condition
+	ConditionTypeConfigReady ConditionType = "ConfigReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -51,6 +47,7 @@ const (
 	ConditionReasonAction         ConditionReason = "Action"
 	ConditionReasonLoading        ConditionReason = "Loading"
 	ConditionReasonSchemaNotReady ConditionReason = "SchemaNotReady"
+	ConditionReasonReApplyFailed  ConditionReason = "ReApplyConfigFailed"
 )
 
 // Reasons a resource is synced or not
@@ -237,29 +234,6 @@ func Failed(msg string) Condition {
 	}}
 }
 
-// ReconcileSuccess returns a condition indicating that the controller
-// successfully completed the reconciliation of the resource.
-func ReconcileSuccess() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeSynced),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReconcileSuccess),
-	}}
-}
-
-// ReconcileError returns a condition indicating that the controller
-// encountered an error while reconciling the resource.
-func ReconcileError(err error) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeSynced),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReconcileFailure),
-		Message:            err.Error(),
-	}}
-}
-
 // not ready status.
 func DSReady() Condition {
 	return Condition{metav1.Condition{
@@ -290,6 +264,41 @@ func DSSchemaNotReady(msg string) Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonSchemaNotReady),
+		Message:            msg,
+	}}
+}
+
+// ConfigReady return a condition that indicates the config
+// get re-applied when the target became ready
+func ConfigReady() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+	}}
+}
+
+// ConfigFailed returns a condition that indicates the config
+// is in failed condition due to a dependency
+func ConfigFailed(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+// ConfigReApplyFailed returns a condition that indicates the config
+// we we reapplied to the target
+func ConfigReApplyFailed(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReApplyFailed),
 		Message:            msg,
 	}}
 }

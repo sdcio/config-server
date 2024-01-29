@@ -1,16 +1,18 @@
-// Copyright 2023 The xxx Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 
 package configserver
 
@@ -22,6 +24,7 @@ import (
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/store/file"
 	"github.com/iptecharch/config-server/pkg/store/memory"
+	"github.com/iptecharch/config-server/pkg/target"
 	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -35,15 +38,16 @@ var tracer = otel.Tracer("config-server")
 const (
 	// this is the root directory where the files are stored; the same path is used for both config and configset
 	// since the derived path is based on GVR
-	rootConfigFilePath = "config" 
+	rootConfigFilePath = "config"
 )
 
 type ResourceProvider interface {
 	rest.Storage
 	rest.StandardStorage
 	GetStore() store.Storer[runtime.Object]
-	UpdateStore(context.Context, store.Key, runtime.Object)
-	UpdateTarget(context.Context, store.Key, store.Key, runtime.Object) error
+	UpdateStore(context.Context, store.Key, runtime.Object) error
+	Apply(context.Context, store.Key, store.Key, runtime.Object, runtime.Object) error
+	SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error
 }
 
 func createFileStore(ctx context.Context, obj resource.Object, rootPath string) (store.Storer[runtime.Object], error) {

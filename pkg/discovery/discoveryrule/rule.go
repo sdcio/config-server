@@ -1,3 +1,19 @@
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package discoveryrule
 
 import (
@@ -7,7 +23,11 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
+	"github.com/iptecharch/config-server/pkg/lease"
+	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/iptecharch/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -17,18 +37,20 @@ type DiscoveryRule interface {
 	GetDiscoveryRulConfig() *DiscoveryRuleConfig
 }
 
-func New(client client.Client, cfg *DiscoveryRuleConfig) DiscoveryRule {
+func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore store.Storer[target.Context]) DiscoveryRule {
 	r := &dr{}
 	r.client = client
 	r.cfg = cfg
 	r.protocols = r.newDiscoveryProtocols()
+	r.targetStore = targetStore
 	return r
 }
 
 type dr struct {
-	client    client.Client
-	cfg       *DiscoveryRuleConfig
-	protocols *protocols
+	client      client.Client
+	cfg         *DiscoveryRuleConfig
+	protocols   *protocols
+	targetStore store.Storer[target.Context]
 
 	cancel context.CancelFunc
 }
@@ -96,6 +118,16 @@ func (r *dr) run(ctx context.Context) error {
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
 					log.Info("disovery disabled")
+
+					lease := r.getLease(ctx, store.KeyFromNSN(types.NamespacedName{
+						Namespace: r.cfg.CR.GetNamespace(),
+						Name:      getTargetName(h.hostName),
+					}))
+
+					if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
+						log.Info("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+						return
+					}
 					// No discovery this is a static target
 					if err := r.applyStaticTarget(ctx, h, targets); err != nil {
 						// TODO reapply if update failed
@@ -134,4 +166,20 @@ func (r *dr) run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *dr) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		lease := lease.New(r.client, targetKey.NamespacedName)
+		r.targetStore.Create(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	if tctx.Lease == nil {
+		lease := lease.New(r.client, targetKey.NamespacedName)
+		tctx.Lease = lease
+		r.targetStore.Update(ctx, targetKey, target.Context{Lease: lease})
+		return lease
+	}
+	return tctx.Lease
 }

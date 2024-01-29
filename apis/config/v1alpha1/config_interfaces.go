@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The xxx Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,19 +17,24 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
+	"crypto/sha1"
+	"encoding/json"
 	"path/filepath"
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/logger/log"
 )
 
 const ConfigPlural = "configs"
 
+// +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
 
@@ -91,16 +96,24 @@ func (r *Config) GetTarget() string {
 		return ""
 	}
 	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()["targetNamespace"]
+	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
 	if ok {
 		sb.WriteString(targetNamespace)
 		sb.WriteString("/")
 	}
-	targetName, ok := r.GetLabels()["targetName"]
+	targetName, ok := r.GetLabels()[TargetNameKey]
 	if ok {
 		sb.WriteString(targetName)
 	}
 	return sb.String()
+}
+
+// IsTransacting return true if a create/update or delete is ongoing on the config object
+func (r *Config) IsTransacting() bool {
+	condition := r.GetCondition(ConditionTypeReady)
+	return condition.Reason == string(ConditionReasonCreating) ||
+		condition.Reason == string(ConditionReasonUpdating) ||
+		condition.Reason == string(ConditionReasonDeleting)
 }
 
 // GetListMeta returns the ListMeta
@@ -136,4 +149,15 @@ func GetConfigFromFile(path string) (*Config, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+// GetShaSum calculates the shasum of the confgiSpec
+func GetShaSum(ctx context.Context, spec *ConfigSpec) [20]byte {
+	log := log.FromContext(ctx)
+	appliedSpec, err := json.Marshal(spec)
+	if err != nil {
+		log.Error("cannot marshal appliedConfig", "error", err)
+		return [20]byte{}
+	}
+	return sha1.Sum(appliedSpec)
 }

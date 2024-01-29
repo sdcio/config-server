@@ -1,9 +1,26 @@
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package configserver
 
 import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
@@ -53,11 +70,13 @@ func buildTestTarget(ctx context.Context, namespace, name string, ready bool) *i
 	conditions := []invv1alpha1.Condition{
 		{Condition: invv1alpha1.Ready().Condition},
 		{Condition: invv1alpha1.DSReady().Condition},
+		{Condition: invv1alpha1.ConfigReady().Condition},
 	}
 	if !ready {
 		conditions = []invv1alpha1.Condition{
 			{Condition: invv1alpha1.Ready().Condition},
 			{Condition: invv1alpha1.DSFailed("testNotReady").Condition},
+			{Condition: invv1alpha1.ConfigFailed("configNotReady").Condition},
 		}
 	}
 	return invv1alpha1.BuildTarget(
@@ -103,6 +122,7 @@ func initTargetDataStore(ctx context.Context, namespace string, targets map[stri
 	for targetName := range targets {
 		key := store.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: namespace})
 		targetStore.Create(ctx, key, target.Context{
+			Ready:  true,
 			Client: dsClient,
 			DataStore: &sdcpb.CreateDataStoreRequest{
 				Schema: &sdcpb.Schema{
@@ -171,6 +191,15 @@ func TestNewConfigProviderBasic(t *testing.T) {
 				// error is not expected
 				t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 			}
+			time.Sleep(1 * time.Second)
+			/*
+				if config, ok := obj.(*configv1alpha1.Config); ok {
+					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+						config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+						t.Errorf("%s expecting a ready condition, got\n%v", name, config)
+					}
+				}
+			*/
 			if config, ok := obj.(*configv1alpha1.Config); ok {
 				if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 					t.Errorf("%s expecting a ready condition, got\n%v", name, config)
@@ -273,11 +302,20 @@ func TestNewConfigProviderList(t *testing.T) {
 					// error is not expected
 					t.Errorf("%s expecting no error, got\n%s", name, err.Error())
 				}
+				time.Sleep(1 * time.Second)
 				if config, ok := obj.(*configv1alpha1.Config); ok {
 					if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 						t.Errorf("%s expecting a ready condition, got\n%v", name, config)
 					}
 				}
+				/*
+					if config, ok := obj.(*configv1alpha1.Config); ok {
+						if config.GetCondition(configv1alpha1.ConditionTypeReady).Status != metav1.ConditionFalse &&
+							config.GetCondition(configv1alpha1.ConditionTypeReady).Reason != string(configv1alpha1.ConditionReasonCreating) {
+							t.Errorf("%s expecting a ready condition, got\n%v", name, config)
+						}
+					}
+				*/
 			}
 
 			obj, err := provider.List(ctx, buildOptions(tc.fieldSet, tc.labelSet))

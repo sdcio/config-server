@@ -1,3 +1,19 @@
+/*
+Copyright 2024 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main // nolint:revive
 
 import (
@@ -84,6 +100,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 func doGen() error {
 	inputs := strings.Join(versions, ",")
+	protoInput := versions[0]
 
 	gen := map[string]bool{}
 	for _, g := range generators {
@@ -151,6 +168,15 @@ func doGen() error {
 		}
 	}
 
+	if gen["go-to-protobuf"] {
+		err := run(getCmd("go-to-protobuf",
+			"--packages", protoInput,
+			))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -165,7 +191,7 @@ var (
 func main() {
 	cmd.Flags().BoolVar(&clean, "clean", true, "Delete temporary directory for code generation.")
 
-	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen"}
+	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen", "go-to-protobuf"}
 	defaultGen := []string{"deepcopy-gen", "openapi-gen"}
 	cmd.Flags().StringSliceVarP(&generators, "generator", "g",
 		defaultGen, fmt.Sprintf("Code generator to install and run.  Options: %v.", options))

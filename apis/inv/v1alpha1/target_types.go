@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The xxx Authors.
+Copyright 2024 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -82,6 +82,7 @@ type TargetStatusUsedReferences struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="DATASTORE",type="string",JSONPath=".status.conditions[?(@.type=='DSReady')].status"
+// +kubebuilder:printcolumn:name="CONFIG",type="string",JSONPath=".status.conditions[?(@.type=='ConfigReady')].status"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="ADDRESS",type="string",JSONPath=".spec.address"
 // +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"
