@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	//"sigs.k8s.io/controller-runtime/pkg/log"
 	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )

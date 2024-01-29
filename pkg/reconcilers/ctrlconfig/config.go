@@ -24,7 +24,6 @@ import (
 )
 
 type ControllerConfig struct {
-	//ConfigStore     store.Storer[runtime.Object]
 	TargetStore       store.Storer[target.Context]
 	DataServerStore   store.Storer[sdcctx.DSContext]
 	SchemaServerStore store.Storer[sdcctx.SSContext]
