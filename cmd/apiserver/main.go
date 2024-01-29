@@ -88,11 +88,9 @@ func main() {
 	log := log.FromContext(ctx)
 
 	opts := zap.Options{
-		Development: true,
-		TimeEncoder: zapcore.ISO8601TimeEncoder,
+		//TimeEncoder: zapcore.ISO8601TimeEncoder,
+		TimeEncoder: zapcore.RFC3339TimeEncoder,
 	}
-	//opts.BindFlags(flag.CommandLine)
-	//flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
