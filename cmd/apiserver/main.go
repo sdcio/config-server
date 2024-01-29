@@ -20,9 +20,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net"
 	"os"
 	"strings"
 	"time"
@@ -31,9 +29,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	clientset "github.com/iptecharch/config-server/apis/generated/clientset/versioned"
 	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
-	informers "github.com/iptecharch/config-server/apis/generated/informers/externalversions"
 	configopenapi "github.com/iptecharch/config-server/apis/generated/openapi"
 	"github.com/iptecharch/config-server/pkg/configserver"
 	_ "github.com/iptecharch/config-server/pkg/discovery/discoverers/all"
@@ -46,25 +42,13 @@ import (
 	"github.com/iptecharch/config-server/pkg/store"
 	memstore "github.com/iptecharch/config-server/pkg/store/memory"
 	"github.com/iptecharch/config-server/pkg/target"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/apiserver/pkg/endpoints/openapi"
-	genericapiserver "k8s.io/apiserver/pkg/server"
-	genericoptions "k8s.io/apiserver/pkg/server/options"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
-	netutils "k8s.io/utils/net"
 	ctrl "sigs.k8s.io/controller-runtime"
-	client "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -92,8 +76,6 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	//configStore := memstore.NewStore[runtime.Object]()
 
 	targetStore := memstore.NewStore[target.Context]()
 	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
@@ -184,26 +166,8 @@ func main() {
 			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
-			log.Info("cannot start caas")
+			log.Info("cannot start config-server")
 		}
-
-		/*
-			if err := builder.APIServer.
-				WithOpenAPIDefinitions("Config", "v0.0.0", openapi.GetOpenAPIDefinitions).
-				//WithResourceAndHandler(&v1alpha1.Config{}, filepath.NewJSONFilepathStorageProvider(&v1alpha1.Config{}, "data")).
-				WithResourceAndHandler(&v1alpha1.Config{}, configserver.NewConfigProvider(ctx, &v1alpha1.Config{}, configCtx)).
-				WithResourceAndHandler(&v1alpha1.ConfigSet{}, configserver.NewConfigSetProvider(ctx, &v1alpha1.ConfigSet{}, configCtx)).
-				WithoutEtcd().
-				WithLocalDebugExtension().
-				Execute(); err != nil {
-				log.Info("cannot start caas")
-			}
-		*/
-		/*
-			options := NewConfigServerOptions(mgr.GetClient(), targetStore)
-			cmd := NewCommandStartConfigServer(ctx, options)
-			cmd.Execute()
-		*/
 	}()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -304,155 +268,4 @@ func createSchemaServerClient(ctx context.Context, schemaServerStore store.Store
 	}
 	log.Info("schemaserver client created")
 	return nil
-}
-
-type ConfigServerOptions struct {
-	RecommendedOptions       *genericoptions.RecommendedOptions
-	LocalStandaloneDebugging bool // Enables local standalone running/debugging of the apiserver.
-	Client                   client.Client
-	TargetStore              store.Storer[target.Context]
-	SharedInformerFactory    informers.SharedInformerFactory
-
-	StdOut io.Writer
-	StdErr io.Writer
-}
-
-func NewConfigServerOptions(client client.Client, targetStore store.Storer[target.Context]) *ConfigServerOptions {
-	versions := schema.GroupVersions{
-		configv1alpha1.SchemeGroupVersion,
-	}
-
-	o := &ConfigServerOptions{
-		RecommendedOptions: genericoptions.NewRecommendedOptions(
-			defaultEtcdPathPrefix,
-			apiserver.Codecs.LegacyCodec(versions...),
-		),
-		Client:      client,
-		TargetStore: targetStore,
-		StdOut:      os.Stdout,
-		StdErr:      os.Stderr,
-	}
-	o.RecommendedOptions.Etcd.StorageConfig.EncodeVersioner = versions
-	o.RecommendedOptions.Etcd = nil
-	return o
-}
-
-// NewCommandStartConfigServer provides a CLI handler for 'start master' command
-// with a default ConfigServerOptions.
-func NewCommandStartConfigServer(ctx context.Context, defaults *ConfigServerOptions) *cobra.Command {
-	o := *defaults
-	cmd := &cobra.Command{
-		Short: "launch a config-server",
-		Long:  "Launch a config-server",
-		RunE: func(c *cobra.Command, args []string) error {
-			if err := o.Complete(); err != nil {
-				return err
-			}
-			if err := o.Validate(args); err != nil {
-				return err
-			}
-			if err := o.RunConfigServer(ctx); err != nil {
-				return err
-			}
-			return nil
-		},
-	}
-
-	flags := cmd.Flags()
-	o.AddFlags(flags)
-
-	return cmd
-}
-
-// Complete fills in fields required to have valid data
-func (o *ConfigServerOptions) Complete() error {
-	if o.LocalStandaloneDebugging {
-		o.RecommendedOptions.Authorization = nil
-		o.RecommendedOptions.CoreAPI = nil
-		o.RecommendedOptions.Admission = nil
-		o.RecommendedOptions.Authentication.RemoteKubeConfigFileOptional = true
-	}
-
-	// if !o.LocalStandaloneDebugging {
-	// 	TODO: register admission plugins here ...
-	// 	add admission plugins to the RecommendedPluginOrder here ...
-	// }
-
-	return nil
-}
-
-// Validate validates ConfigServerOptions
-func (o ConfigServerOptions) Validate(args []string) error {
-	errors := []error{}
-	errors = append(errors, o.RecommendedOptions.Validate()...)
-	return utilerrors.NewAggregate(errors)
-}
-
-func (o ConfigServerOptions) RunConfigServer(ctx context.Context) error {
-	config, err := o.Config()
-	if err != nil {
-		return err
-	}
-
-	server, err := config.Complete().New(ctx, o.Client, o.TargetStore)
-	if err != nil {
-		return err
-	}
-	if config.GenericConfig.SharedInformerFactory != nil {
-		server.GenericAPIServer.AddPostStartHookOrDie("start-config-server-informers", func(context genericapiserver.PostStartHookContext) error {
-			config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
-			o.SharedInformerFactory.Start(context.StopCh)
-			return nil
-		})
-	}
-	return server.GenericAPIServer.PrepareRun().Run(ctx.Done())
-}
-
-// Config returns config for the api server given ConfigServerOptions
-func (o *ConfigServerOptions) Config() (*configserver.Config, error) {
-	// TODO have a "real" external address
-	if err := o.RecommendedOptions.SecureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{netutils.ParseIPSloppy("127.0.0.1")}); err != nil {
-		return nil, fmt.Errorf("error creating self-signed certificates: %w", err)
-	}
-
-	//if o.RecommendedOptions.Etcd != nil {
-	//	o.RecommendedOptions.Etcd.StorageConfig.Paging = utilfeature.DefaultFeatureGate.Enabled(features.APIListChunking)
-	//}
-
-	o.RecommendedOptions.ExtraAdmissionInitializers = func(c *genericapiserver.RecommendedConfig) ([]admission.PluginInitializer, error) {
-		client, err := clientset.NewForConfig(c.LoopbackClientConfig)
-		if err != nil {
-			return nil, err
-		}
-		informerFactory := informers.NewSharedInformerFactory(client, c.LoopbackClientConfig.Timeout)
-		o.SharedInformerFactory = informerFactory
-		return []admission.PluginInitializer{}, nil
-	}
-
-	serverConfig := genericapiserver.NewRecommendedConfig(apiserver.Codecs)
-
-	serverConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(configopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(apiserver.Scheme))
-	serverConfig.OpenAPIConfig.Info.Title = "Config"
-	serverConfig.OpenAPIConfig.Info.Version = "0.1"
-
-	serverConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(configopenapi.GetOpenAPIDefinitions, openapi.NewDefinitionNamer(apiserver.Scheme))
-	serverConfig.OpenAPIV3Config.Info.Title = "Config"
-	serverConfig.OpenAPIV3Config.Info.Version = "0.1"
-
-	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
-		return nil, err
-	}
-
-	config := &configserver.Config{
-		GenericConfig: serverConfig,
-	}
-	return config, nil
-}
-
-func (o *ConfigServerOptions) AddFlags(fs *pflag.FlagSet) {
-	// Add base flags
-	o.RecommendedOptions.AddFlags(fs)
-	utilfeature.DefaultMutableFeatureGate.AddFlag(fs)
-
-	// Add additional flags.
 }
