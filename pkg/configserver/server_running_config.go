@@ -74,12 +74,12 @@ func newRunningConfigProvider(
 	return c, nil
 }
 
-var _ rest.Lister = &config{}
-var _ rest.Getter = &config{}
-var _ rest.Scoper = &config{}
-var _ rest.Storage = &config{}
-var _ rest.TableConvertor = &config{}
-var _ rest.SingularNameProvider = &config{}
+var _ rest.Lister = &runningConfig{}
+var _ rest.Getter = &runningConfig{}
+var _ rest.Scoper = &runningConfig{}
+var _ rest.Storage = &runningConfig{}
+var _ rest.TableConvertor = &runningConfig{}
+var _ rest.SingularNameProvider = &runningConfig{}
 
 type runningConfig struct {
 	configCommon
@@ -111,7 +111,7 @@ func (r *runningConfig) Get(
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::Get", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "runningconfigs::Get", trace.WithAttributes())
 	defer span.End()
 
 	options.TypeMeta = metav1.TypeMeta{
@@ -128,7 +128,7 @@ func (r *runningConfig) List(
 ) (runtime.Object, error) {
 
 	// Start OTEL tracer
-	ctx, span := tracer.Start(ctx, "configs::List", trace.WithAttributes())
+	ctx, span := tracer.Start(ctx, "runningconfigs::List", trace.WithAttributes())
 	defer span.End()
 
 	options.TypeMeta = metav1.TypeMeta{
