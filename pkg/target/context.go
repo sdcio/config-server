@@ -138,11 +138,15 @@ func (r *Context) GetData(ctx context.Context, key store.Key) (*configv1alpha1.R
 	if err := r.Validate(ctx, key); err != nil {
 		return nil, err
 	}
+	path, err := ParsePath("/")
+	if err != nil {
+		return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), "/")
+	}
 
 	stream, err := r.Client.GetData(ctx, &sdcpb.GetDataRequest{
 		Name:      key.String(),
 		Datastore: &sdcpb.DataStore{Type: sdcpb.Type_MAIN},
-		Path:      []*sdcpb.Path{},
+		Path:      []*sdcpb.Path{path},
 		DataType:  sdcpb.DataType_CONFIG,
 		Encoding:  sdcpb.Encoding_JSON,
 	})
