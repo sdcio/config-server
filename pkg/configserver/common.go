@@ -90,6 +90,7 @@ func (r *configCommon) get(ctx context.Context, name string, options *metav1.Get
 		rc.SetResourceVersion(target.ResourceVersion)
 		rc.SetAnnotations(target.Annotations)
 		rc.SetLabels(target.Labels)
+		obj = rc
 	default:
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
