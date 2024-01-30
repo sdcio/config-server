@@ -18,7 +18,6 @@ package target
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -167,9 +166,14 @@ func (r *Context) GetData(ctx context.Context, key store.Key) (*configv1alpha1.R
 			return nil, err
 		}
 
-		b, err = json.Marshal(rsp)
-		if err != nil {
-			return nil, err
+		if len(rsp.GetNotification()) == 1 {
+			if len(rsp.GetNotification()[0].GetUpdate()) == 1 {
+				b = rsp.GetNotification()[0].GetUpdate()[0].GetValue().GetJsonVal()
+			} else {
+				log.Info("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
+			}
+		} else {
+			log.Info("get data", "notifications", len(rsp.GetNotification()))
 		}
 	}
 
