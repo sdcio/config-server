@@ -53,6 +53,13 @@ spec:
           spec:
             description: SchemaSpec defines the desired state of Schema
             properties:
+              credentials:
+                description: Credentials defines the name of the secret that holds
+                  the credentials to connect to the repo
+                type: string
+                x-kubernetes-validations:
+                - message: credentials is immutable
+                  rule: self == oldSelf
               dirs:
                 description: Dirs defines the list of directories that identified
                   the provider schema in src/dst pairs relative within the repository
@@ -146,6 +153,7 @@ spec:
                 - message: version is immutable
                   rule: self == oldSelf
             required:
+            - credentials
             - kind
             - provider
             - ref

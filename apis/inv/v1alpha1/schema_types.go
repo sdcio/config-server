@@ -35,6 +35,9 @@ type SchemaSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
 	// URL specifies the base URL for a given repository
 	RepositoryURL string `json:"repoURL" yaml:"repoURL"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
+	// Credentials defines the name of the secret that holds the credentials to connect to the repo
+	Credentials string `json:"credentials" yaml:"credentials"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
 	// Provider specifies the provider of the schema.
 	Provider string `json:"provider" yaml:"provider"`

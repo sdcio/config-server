@@ -26,20 +26,23 @@ import (
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/git"
+	"github.com/iptecharch/config-server/pkg/git/auth"
 	"github.com/iptecharch/config-server/pkg/utils"
 	"github.com/otiai10/copy"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type Loader struct {
-	tmpDir    string
-	schemaDir string
+	tmpDir             string
+	schemaDir          string
+	credentialResolver auth.CredentialResolver
 
 	//schemas contains the Schema Reference indexed by Provider.Version key
 	m       sync.RWMutex
 	schemas map[string]*invv1alpha1.SchemaSpec
 }
 
-func NewLoader(tmpDir, schemaDir string) (*Loader, error) {
+func NewLoader(tmpDir, schemaDir string, credentialResolver auth.CredentialResolver) (*Loader, error) {
 	var err error
 
 	if !utils.DirExists(tmpDir) {
@@ -57,9 +60,10 @@ func NewLoader(tmpDir, schemaDir string) (*Loader, error) {
 	}
 
 	return &Loader{
-		tmpDir:    tmpDir,
-		schemaDir: schemaDir,
-		schemas:   map[string]*invv1alpha1.SchemaSpec{},
+		tmpDir:             tmpDir,
+		schemaDir:          schemaDir,
+		schemas:            map[string]*invv1alpha1.SchemaSpec{},
+		credentialResolver: credentialResolver,
 	}, nil
 }
 
@@ -114,7 +118,7 @@ func (r *Loader) get(key string) (*invv1alpha1.SchemaSpec, bool) {
 	return ref, exists
 }
 
-func (r *Loader) Load(ctx context.Context, key string) error {
+func (r *Loader) Load(ctx context.Context, key string, secretNSN types.NamespacedName) error {
 	log := log.FromContext(ctx)
 	spec, _, err := r.GetRef(ctx, key)
 	if err != nil {
@@ -144,10 +148,10 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 	}
 
 	// init the actual git instance
-	gogit := git.NewGoGit(repo)
+	gogit := git.NewGoGit(repo, secretNSN, r.credentialResolver)
 
 	log.Info("cloning", "from", repo.GetCloneURL(), "to", repoPath)
-	err = gogit.Clone()
+	err = gogit.Clone(ctx)
 	if err != nil {
 		return err
 	}

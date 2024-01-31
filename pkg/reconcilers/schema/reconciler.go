@@ -22,14 +22,16 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	"github.com/iptecharch/config-server/pkg/git/auth/secret"
 	"github.com/iptecharch/config-server/pkg/reconcilers"
 	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
@@ -64,9 +66,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	/*
-	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		return nil, err
-	}
+		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+			return nil, err
+		}
 	*/
 
 	cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key store.Key, dsCtx sdcctx.SSContext) {
@@ -80,7 +82,13 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	// initiazes the directory
 	r.schemaBasePath = cfg.SchemaDir
-	r.schemaLoader, err = schemaloader.NewLoader(filepath.Join(r.schemaBasePath, "tmp"), r.schemaBasePath)
+	r.schemaLoader, err = schemaloader.NewLoader(
+		filepath.Join(r.schemaBasePath, "tmp"),
+		r.schemaBasePath,
+		secret.NewCredentialResolver(mgr.GetClient(), []secret.Resolver{
+			secret.NewBasicAuthResolver(),
+		}),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot initialize schemaloader")
 	}
@@ -172,7 +180,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{Requeue: true}, err
 		}
 
-		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
+		if err := r.schemaLoader.Load(ctx, spec.GetKey(), types.NamespacedName{
+			Namespace: cr.Namespace,
+			Name: cr.Spec.Credentials,
+		}); err != nil {
 			log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
