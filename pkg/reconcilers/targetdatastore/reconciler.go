@@ -22,16 +22,6 @@ import (
 	"reflect"
 	"strings"
 
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
-	"github.com/pkg/errors"
-	"google.golang.org/protobuf/encoding/prototext"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
 	"github.com/iptecharch/config-server/pkg/lease"
@@ -42,6 +32,16 @@ import (
 	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
+	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	"github.com/pkg/errors"
+	"google.golang.org/protobuf/encoding/prototext"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 func init() {
@@ -71,9 +71,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	/*
-	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		return nil, err
-	}
+		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+			return nil, err
+		}
 	*/
 
 	r.Client = mgr.GetClient()
@@ -90,6 +90,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		For(&invv1alpha1.Target{}).
 		Watches(&invv1alpha1.TargetConnectionProfile{}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetSyncProfile{}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
+		Watches(&corev1.Secret{}, &secretEventHandler{client: mgr.GetClient()}).
 		Complete(r)
 }
 
