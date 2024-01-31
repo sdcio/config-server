@@ -166,41 +166,54 @@ func (r *configCommon) list(
 		}
 	}
 
-	runningConfigListFunc := func(ctx context.Context, key store.Key, tctx target.Context) {
-		target := &invv1alpha1.Target{}
-		if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
-			log.Error("cannot get target", "key", key.String(), "error", err.Error())
-			return
-		}
+	/*
+		runningConfigListFunc := func(ctx context.Context, key store.Key, tctx target.Context) {
+			target := &invv1alpha1.Target{}
+			if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
+				log.Error("cannot get target", "key", key.String(), "error", err.Error())
+				return
+			}
 
-		if options.LabelSelector != nil || configFilter != nil {
-			filter := true
-			if options.LabelSelector != nil {
-				if options.LabelSelector.Matches(labels.Set(target.GetLabels())) {
+			if options.LabelSelector != nil || configFilter != nil {
+				filter := true
+				if options.LabelSelector != nil {
+					if options.LabelSelector.Matches(labels.Set(target.GetLabels())) {
+						filter = false
+					}
+				} else {
+					// if not labels selector is present don't filter
 					filter = false
 				}
+				// if filtered we dont have to run this section since the label requirement was not met
+				if configFilter != nil && !filter {
+					if configFilter.Name != "" {
+						if target.GetName() == configFilter.Name {
+							filter = false
+						} else {
+							filter = true
+						}
+					}
+					if configFilter.Namespace != "" {
+						if target.GetNamespace() == configFilter.Namespace {
+							filter = false
+						} else {
+							filter = true
+						}
+					}
+				}
+				if !filter {
+					obj, err := tctx.GetData(ctx, key)
+					if err != nil {
+						log.Error("cannot get running config", "key", key.String(), "error", err.Error())
+						return
+					}
+					obj.SetCreationTimestamp(target.CreationTimestamp)
+					obj.SetResourceVersion(target.ResourceVersion)
+					obj.SetAnnotations(target.Annotations)
+					obj.SetLabels(target.Labels)
+					appendItem(v, obj)
+				}
 			} else {
-				// if not labels selector is present don't filter
-				filter = false
-			}
-			// if filtered we dont have to run this section since the label requirement was not met
-			if configFilter != nil && !filter {
-				if configFilter.Name != "" {
-					if target.GetName() == configFilter.Name {
-						filter = false
-					} else {
-						filter = true
-					}
-				}
-				if configFilter.Namespace != "" {
-					if target.GetNamespace() == configFilter.Namespace {
-						filter = false
-					} else {
-						filter = true
-					}
-				}
-			}
-			if !filter {
 				obj, err := tctx.GetData(ctx, key)
 				if err != nil {
 					log.Error("cannot get running config", "key", key.String(), "error", err.Error())
@@ -212,19 +225,8 @@ func (r *configCommon) list(
 				obj.SetLabels(target.Labels)
 				appendItem(v, obj)
 			}
-		} else {
-			obj, err := tctx.GetData(ctx, key)
-			if err != nil {
-				log.Error("cannot get running config", "key", key.String(), "error", err.Error())
-				return
-			}
-			obj.SetCreationTimestamp(target.CreationTimestamp)
-			obj.SetResourceVersion(target.ResourceVersion)
-			obj.SetAnnotations(target.Annotations)
-			obj.SetLabels(target.Labels)
-			appendItem(v, obj)
 		}
-	}
+	*/
 
 	// get the data from the store
 	switch options.Kind {
@@ -233,7 +235,8 @@ func (r *configCommon) list(
 	case configv1alpha1.ConfigSetKind:
 		r.configSetStore.List(ctx, configListFunc)
 	case configv1alpha1.RunningConfigKind:
-		r.targetStore.List(ctx, runningConfigListFunc)
+		return nil, apierrors.NewMethodNotSupported(r.gr, "list")
+		//r.targetStore.List(ctx, runningConfigListFunc)
 	default:
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("unsupported kind, got: %s", options.Kind))
 	}
