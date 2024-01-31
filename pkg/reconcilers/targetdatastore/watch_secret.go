@@ -20,43 +20,44 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetSyncProfileEventHandler struct {
+type secretEventHandler struct {
 	client client.Client
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *secretEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *secretEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *secretEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *targetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.TargetSyncProfile)
+func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+	cr, ok := obj.(*corev1.Secret)
 	if !ok {
 		return
 	}
@@ -75,7 +76,7 @@ func (r *targetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 		return
 	}
 	for _, target := range targets.Items {
-		if *target.Spec.SyncProfile == cr.GetName() {
+		if target.Spec.TargetProfile.Credentials == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}

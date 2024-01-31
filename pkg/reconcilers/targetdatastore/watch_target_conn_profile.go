@@ -71,7 +71,7 @@ func (r *targetConnProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 	}
 	targets := &invv1alpha1.TargetList{}
 	if err := r.client.List(ctx, targets, opts...); err != nil {
-		log.Error("cannot list links", "error", err)
+		log.Error("cannot list targets", "error", err)
 		return
 	}
 	for _, target := range targets.Items {
