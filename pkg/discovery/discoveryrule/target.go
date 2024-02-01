@@ -185,7 +185,7 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
 			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
 			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
-			curTargetCR.Spec.SyncProfile != newTargetCR.Spec.SyncProfile ||
+			*curTargetCR.Spec.SyncProfile != *newTargetCR.Spec.SyncProfile ||
 			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
 			return true
 		}
