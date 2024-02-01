@@ -537,6 +537,11 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 
 	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
 
+	commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
+	if connProfile.Spec.CommitCandidate == invv1alpha1.CommitCandidate_Running {
+		commitCandidate = sdcpb.CommitCandidate_COMMIT_RUNNING
+	}
+
 	return &sdcpb.CreateDataStoreRequest{
 		Name: store.KeyFromNSN(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
@@ -550,10 +555,10 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 			IncludeNs:          connProfile.Spec.IncludeNS,
 			OperationWithNs:    connProfile.Spec.OperationWithNS,
 			UseOperationRemove: connProfile.Spec.UseOperationRemove,
+			CommitCandidate:    commitCandidate,
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
-			//Name: cr.Status.DiscoveryInfo.Provider,
 			Name:    name,
 			Vendor:  vendor,
 			Version: cr.Status.DiscoveryInfo.Version,
