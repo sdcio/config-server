@@ -158,6 +158,7 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 	}
 	curTargetCR.Status.SetConditions(invv1alpha1.Ready())
 	curTargetCR.Status.DiscoveryInfo = di
+	log.Info("discovery target apply", "status", curTargetCR.Status)
 	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
 		return err
 	}
@@ -181,11 +182,25 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 			"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
 			//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
 		)
-
 		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
 			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
 			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
 			*curTargetCR.Spec.SyncProfile != *newTargetCR.Spec.SyncProfile ||
+			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
+			return true
+		}
+	} else {
+		log.Info("validateDataStoreChanges",
+			"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
+			"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
+			"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
+			"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
+			//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
+		)
+
+		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
+			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
+			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
 			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
 			return true
 		}
