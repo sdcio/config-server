@@ -50,6 +50,7 @@ func init() {
 }
 
 const (
+	controllerName = "TargetConfigServerController"
 	finalizer = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
@@ -80,7 +81,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.targetStore = cfg.TargetStore
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
-		Named("TargetConfigServerController").
+		Named(controllerName).
 		For(&invv1alpha1.Target{}).
 		Complete(r)
 }
@@ -95,7 +96,8 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).With("req", req)
+	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
+	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
 	targetKey := store.KeyFromNSN(req.NamespacedName)

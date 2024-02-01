@@ -49,7 +49,8 @@ func init() {
 }
 
 const (
-	finalizer = "targetdatastore.inv.sdcio.dev/finalizer"
+	controllerName = "TargetDataStoreController"
+	finalizer      = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -86,7 +87,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	go targetDSWatcher.Start(ctx)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
-		Named("TargetDataStoreController").
+		Named(controllerName).
 		For(&invv1alpha1.Target{}).
 		Watches(&invv1alpha1.TargetConnectionProfile{}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetSyncProfile{}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
@@ -103,7 +104,8 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).With("req", req)
+	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
+	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
 	targetKey := store.KeyFromNSN(req.NamespacedName)
@@ -179,7 +181,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
-	cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
+	//cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
@@ -428,8 +430,9 @@ func (r *reconciler) hasDataStoreChanged(
 		return true
 	}
 
-	if cr.Status.GetCondition(invv1alpha1.ConditionTypeDSReady).Status == metav1.ConditionFalse {
-		log.Info("hasDataStoreChanged", "DS Ready condition", "false")
+	dsReaadyCondition := cr.Status.GetCondition(invv1alpha1.ConditionTypeDSReady)
+	if dsReaadyCondition.Status == metav1.ConditionFalse {
+		log.Info("hasDataStoreChanged", "DS Ready condition", dsReaadyCondition)
 		return true
 	}
 
