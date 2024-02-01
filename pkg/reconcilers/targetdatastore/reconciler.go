@@ -49,6 +49,7 @@ func init() {
 }
 
 const (
+	controllerName = "TargetDataStoreController"
 	finalizer = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
@@ -86,7 +87,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	go targetDSWatcher.Start(ctx)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
-		Named("TargetDataStoreController").
+		Named(controllerName).
 		For(&invv1alpha1.Target{}).
 		Watches(&invv1alpha1.TargetConnectionProfile{}, &targetConnProfileEventHandler{client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetSyncProfile{}, &targetSyncProfileEventHandler{client: mgr.GetClient()}).
@@ -103,7 +104,7 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).With("req", req)
+	log := log.FromContext(ctx).With("controller", controllerName, "req", req)
 	log.Info("reconcile")
 
 	targetKey := store.KeyFromNSN(req.NamespacedName)
