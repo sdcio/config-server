@@ -48,12 +48,14 @@ func (r *targets) del(key string) {
 	delete(r.targets, key)
 }
 
+/*
 func (r *targets) get(key string) (*invv1alpha1.Target, bool) {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	t, ok := r.targets[key]
 	return t, ok
 }
+*/
 
 func (r *targets) list() []*invv1alpha1.Target {
 	r.m.RLock()

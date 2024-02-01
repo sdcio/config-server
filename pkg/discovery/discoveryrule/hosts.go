@@ -44,13 +44,9 @@ func (r *dr) getHosts(ctx context.Context) (Iterator, error) {
 	case invv1alpha1.DiscoveryRuleSpecKindAddress:
 		return newIterator(r.cfg.CR.GetAddresses(), r.cfg.CR.GetDefaultSchema()), nil
 	case invv1alpha1.DiscoveryRuleSpecKindPod:
-		// TODO list svc based on selector
-		// add the prefixes
-		// return host selector
+		return newIterator(r.GetSVCDiscoveryAddresses(ctx), r.cfg.CR.GetDefaultSchema()), nil
 	case invv1alpha1.DiscoveryRuleSpecKindSvc:
-		// TODO list svc based on selector
-		// add the prefixes
-		// return host selector
+		return newIterator(r.GetPODDiscoveryAddresses(ctx), r.cfg.CR.GetDefaultSchema()), nil
 	default:
 		return nil, fmt.Errorf("unsupported discovery rule kind, supporting %v, got %s",
 			[]string{
@@ -62,7 +58,6 @@ func (r *dr) getHosts(ctx context.Context) (Iterator, error) {
 			r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
 		)
 	}
-	return nil, nil
 }
 
 func getHosts(drPrefixes []invv1alpha1.DiscoveryRulePrefix) ([]string, error) {

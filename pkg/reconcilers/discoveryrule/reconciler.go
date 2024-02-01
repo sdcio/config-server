@@ -164,7 +164,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		isDRRunning = true
 	}
 
-	// gather the referencesm from the CR in a normalized format
+	// gather the references from the CR in a normalized format
 	newDRConfig, err := r.getDRConfig(ctx, cr)
 	if err != nil {
 		log.Error("cannot get discovery rule config", "error", err)

@@ -37,8 +37,9 @@ type DiscoveryObject interface {
 	GetDiscoveryKind() (DiscoveryRuleSpecKind, error)
 	GetPrefixes() []DiscoveryRulePrefix
 	GetAddresses() []DiscoveryRuleAddress
-	GetPodSelector() metav1.LabelSelector
-	GetSvcSelector() metav1.LabelSelector
+	GetPodSelector() *metav1.LabelSelector
+	GetSvcSelector() *metav1.LabelSelector
+	GetDomainName() string
 	GetDefaultSchema() *SchemaKey
 }
 
@@ -119,18 +120,16 @@ func (r *DiscoveryRule) GetAddresses() []DiscoveryRuleAddress {
 	return r.Spec.Addresses
 }
 
-func (r *DiscoveryRule) GetPodSelector() metav1.LabelSelector {
-	if r.Spec.PodSelector == nil {
-		return metav1.LabelSelector{}
-	}
-	return *r.Spec.PodSelector
+func (r *DiscoveryRule) GetPodSelector() *metav1.LabelSelector {
+	return r.Spec.PodSelector
 }
 
-func (r *DiscoveryRule) GetSvcSelector() metav1.LabelSelector {
-	if r.Spec.PodSelector == nil {
-		return metav1.LabelSelector{}
-	}
-	return *r.Spec.ServiceSelector
+func (r *DiscoveryRule) GetSvcSelector() *metav1.LabelSelector {
+	return r.Spec.PodSelector
+}
+
+func (r *DiscoveryRule) GetDomainName() string {
+	return r.Spec.DomainName
 }
 
 func (r *DiscoveryRule) Validate() error {
