@@ -99,6 +99,11 @@ spec:
                 - connectionProfiles
                 - credentials
                 type: object
+              domainName:
+                description: DomainName defines the domain name of the cluster, used
+                  by pod or svc discovery to identify the domain name in the l8s cluster
+                  where the pod or services reside.
+                type: string
               period:
                 description: Period defines the wait period between discovery rule
                   runs

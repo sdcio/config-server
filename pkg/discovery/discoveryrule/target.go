@@ -31,7 +31,7 @@ import (
 )
 
 // TODO based on the TargetConnectionProfile we might have to create a new Target
-func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo, targets *targets) error {
+func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 	if h.hostName == "" {
 		return fmt.Errorf("cannot create a static target w/o a hostname")
 	}

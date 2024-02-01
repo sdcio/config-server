@@ -93,6 +93,7 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
+	// targets 
 	t, err := r.getTargets(ctx)
 	if err != nil {
 		return err // happens only of the apiserver is unresponsive
@@ -107,6 +108,7 @@ func (r *dr) run(ctx context.Context) error {
 		}
 		h, ok := iter.Next()
 		if !ok {
+			sem.Release(1)
 			break
 		}
 		select {
@@ -129,11 +131,11 @@ func (r *dr) run(ctx context.Context) error {
 						return
 					}
 					// No discovery this is a static target
-					if err := r.applyStaticTarget(ctx, h, targets); err != nil {
+					if err := r.applyStaticTarget(ctx, h); err != nil {
 						// TODO reapply if update failed
 						if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
 							// we will rety once, sometimes we get an error
-							if err := r.applyStaticTarget(ctx, h, targets); err != nil {
+							if err := r.applyStaticTarget(ctx, h); err != nil {
 								log.Info("static target creation retry failed", "error", err)
 							}
 						} else {
@@ -144,7 +146,7 @@ func (r *dr) run(ctx context.Context) error {
 				}
 				log.Info("disovery enabled")
 				// Discovery
-				if err := r.discover(ctx, h, targets); err != nil {
+				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context canceled") {
 						log.Info("discovery cancelled")
