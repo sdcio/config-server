@@ -181,7 +181,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
-	cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
+	//cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
