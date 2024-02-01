@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: context
 data: 
-  configServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server
+  configServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
   dataServerImage: registry.kmrd.dev/iptecharch/data-server:latest
