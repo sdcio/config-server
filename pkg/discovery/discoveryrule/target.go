@@ -144,6 +144,8 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 		}
 		return nil
 	}
+	curTargetCR = curTargetCR.DeepCopy()
+	newTargetCR = newTargetCR.DeepCopy()
 	// target already exists -> validate changes to avoid triggering a reconcile loop
 	if hasChanged(ctx, curTargetCR, newTargetCR) {
 		log.Info("discovery target apply, target exists -> changed")

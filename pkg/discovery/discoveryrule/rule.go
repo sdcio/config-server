@@ -105,6 +105,7 @@ func (r *dr) run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		defer sem.Release(1)
 		h, ok := iter.Next()
 		if !ok {
 			break
@@ -115,7 +116,6 @@ func (r *dr) run(ctx context.Context) error {
 		default:
 			go func(h *hostInfo, targets *targets) {
 				log := log.With("address", h.Address)
-				defer sem.Release(1)
 				if !r.cfg.Discovery {
 					log.Info("disovery disabled")
 
