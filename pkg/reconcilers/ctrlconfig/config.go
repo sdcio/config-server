@@ -17,10 +17,14 @@ limitations under the License.
 package ctrlconfig
 
 import (
+	"context"
+
+	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/configserver"
 	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
 	"github.com/iptecharch/config-server/pkg/store"
 	"github.com/iptecharch/config-server/pkg/target"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type ControllerConfig struct {
@@ -30,4 +34,9 @@ type ControllerConfig struct {
 	SchemaDir         string
 	ConfigProvider    configserver.ResourceProvider
 	ConfigSetProvider configserver.ResourceProvider
+}
+
+func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {
+	l := log.FromContext(ctx).With("controller", controllerName, "req", req)
+	return log.IntoContext(ctx, l)
 }

@@ -110,7 +110,8 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).With("controller", controllerName, "req", req)
+	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
+	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
 	cr := &invv1alpha1.Schema{}
