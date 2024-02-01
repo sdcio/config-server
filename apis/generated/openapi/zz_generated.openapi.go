@@ -1437,6 +1437,13 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
+					"domainName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DomainName defines the domain name of the cluster, used by pod or svc discovery to identify the domain name in the l8s cluster where the pod or services reside.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"defaultSchema": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DefaultSchema define the default schema used to connect to a target Indicates that discovery is disable; cannot be used for prefix based discovery rules",
@@ -1663,6 +1670,13 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "URL specifies the base URL for a given repository",
 							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2053,6 +2067,12 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 					"useOperationRemove": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"commitCandidate": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
 							Format: "",
 						},
 					},
