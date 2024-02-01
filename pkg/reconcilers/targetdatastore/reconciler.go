@@ -430,8 +430,9 @@ func (r *reconciler) hasDataStoreChanged(
 		return true
 	}
 
-	if cr.Status.GetCondition(invv1alpha1.ConditionTypeDSReady).Status == metav1.ConditionFalse {
-		log.Info("hasDataStoreChanged", "DS Ready condition", "false")
+	dsReaadyCondition := cr.Status.GetCondition(invv1alpha1.ConditionTypeDSReady)
+	if dsReaadyCondition.Status == metav1.ConditionFalse {
+		log.Info("hasDataStoreChanged", "DS Ready condition", dsReaadyCondition)
 		return true
 	}
 

@@ -158,7 +158,10 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 	}
 	curTargetCR.Status.SetConditions(invv1alpha1.Ready())
 	curTargetCR.Status.DiscoveryInfo = di
-	log.Info("discovery target apply", "status", curTargetCR.Status)
+	log.Info("discovery target apply",
+		"Ready", curTargetCR.GetCondition(invv1alpha1.ConditionTypeReady).Status,
+		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDSReady).Status,
+		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
 	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
 		return err
 	}

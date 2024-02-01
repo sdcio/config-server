@@ -82,7 +82,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if err != nil {
 					log.Error("cannot get target from the datastore", "key", key.String(), "error", err)
 					if condition.Status == metav1.ConditionTrue {
-						target.SetConditions(invv1alpha1.Failed(err.Error()))
+						target.SetConditions(invv1alpha1.DSFailed(err.Error()))
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
@@ -94,7 +94,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 					// Target is not connected
 					if condition.Status == metav1.ConditionTrue {
-						target.SetConditions(invv1alpha1.Failed(resp.Target.StatusDetails))
+						target.SetConditions(invv1alpha1.DSFailed(resp.Target.StatusDetails))
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
@@ -104,7 +104,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				} else {
 					// Target is connected
 					if condition.Status == metav1.ConditionFalse {
-						target.SetConditions(invv1alpha1.Ready())
+						target.SetConditions(invv1alpha1.DSReady())
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
