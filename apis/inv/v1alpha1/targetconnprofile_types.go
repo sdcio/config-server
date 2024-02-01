@@ -44,6 +44,13 @@ const (
 	Protocol_NOOP    Protocol = "noop"
 )
 
+type CommitCandidate string
+
+const (
+	CommitCandidate_Candidate CommitCandidate = "candidate"
+	CommitCandidate_Running   CommitCandidate = "running"
+)
+
 // TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile
 type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectRetry is immutable"
@@ -79,10 +86,14 @@ type TargetConnectionProfileSpec struct {
 	IncludeNS bool `json:"includeNS,omitempty" yaml:"include-ns,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
 	// +kubebuilder:default:=false
-	OperationWithNS bool `json:"operationWithNS,omitempty" yaml:"operation-with-ns,omitempty"`
+	OperationWithNS bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
 	// +kubebuilder:default:=false
-	UseOperationRemove bool `json:"useOperationRemove,omitempty" yaml:"use-operation-remove,omitempty"`
+	UseOperationRemove bool `json:"useOperationRemove,omitempty" yaml:"useOperationRemove,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
+	// +kubebuilder:validation:Enum=candidate;running;
+	// +kubebuilder:default:="candidate"
+	CommitCandidate CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty"`
 }
 
 // +kubebuilder:object:root=true
