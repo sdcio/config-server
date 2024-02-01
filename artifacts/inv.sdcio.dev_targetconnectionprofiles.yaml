@@ -39,6 +39,15 @@ spec:
             description: TargetConnectionProfileSpec defines the desired state of
               TargetConnectionProfile
             properties:
+              commitCandidate:
+                default: candidate
+                enum:
+                - candidate
+                - running
+                type: string
+                x-kubernetes-validations:
+                - message: UseOperationRemove is immutable
+                  rule: self == oldSelf
               connectRetry:
                 default: 10s
                 type: string
