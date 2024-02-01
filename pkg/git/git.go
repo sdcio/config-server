@@ -180,6 +180,12 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 		log.Info("checking out", "branch", branch)
 	}
 
+	// execute the checkout
+	err = tree.Checkout(checkoutOpts)
+	if err != nil {
+		return err
+	}
+
 	if !isTag {
 		log.Debug("pulling latest repo data")
 		// execute the pull
