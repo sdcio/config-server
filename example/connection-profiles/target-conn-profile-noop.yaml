@@ -1,3 +1,7 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
 apiVersion: inv.sdcio.dev/v1alpha1
 kind: TargetConnectionProfile
 metadata:

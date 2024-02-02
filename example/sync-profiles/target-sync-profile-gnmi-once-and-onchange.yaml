@@ -5,7 +5,7 @@
 apiVersion: inv.sdcio.dev/v1alpha1
 kind: TargetSyncProfile
 metadata:
-  name: netconf-getconfig
+  name: gnmi-onchange
   namespace: default
 spec:
   buffer: 0
@@ -13,9 +13,15 @@ spec:
   validate: true
   sync:
   - name: config
-    protocol: netconf
+    protocol: gnmi
     paths:
     - /
-    mode: sample
+    mode: onChange
     encoding: config
-    interval: 10s
+  - name: all_once
+    protocol: gnmi
+    paths:
+    - /
+    mode: once
+    encoding: ASCII
+    interval: 5m
