@@ -15,6 +15,3 @@ spec:
     mode: sample
     encoding: config
     interval: 10s
-    
-
-  
