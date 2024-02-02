@@ -1,0 +1,27 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Schema
+metadata:
+  name: srl.nokia.sdcio.dev-23.10.1
+  namespace: default
+spec:
+  repoURL: https://github.com/nokia/srlinux-yang-models
+  provider: srl.nokia.sdcio.dev
+  version: 23.10.1
+  kind: tag
+  ref: v23.10.1
+  dirs:
+  - src: srlinux-yang-models
+    dst: .
+  schema:
+    models:
+    - srl_nokia/models
+    includes:
+    - ietf
+    - openconfig/extensions
+    - openconfig/openconfig-extensions.yang
+    excludes:
+    - .*tools.*
