@@ -4,7 +4,7 @@ metadata:
   name: config-server-clusterrole
 rules:
 - apiGroups: [""]
-  resources: ["namespaces", "secrets"]
+  resources: ["namespaces", "secrets", "services", "pods"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["admissionregistration.k8s.io"]
   resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]

@@ -122,7 +122,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 
+	l := r.getLease(ctx, targetKey)
+	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
+		log.Info("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
+	}
+
 	if !cr.GetDeletionTimestamp().IsZero() {
+		log.Info("delete", "finalizers", cr.GetFinalizers())
+		cr.SetConditions(invv1alpha1.DSFailed("target deleting"))
+		if len(cr.GetFinalizers()) > 1 {
+			// this should be the last finalizer to be removed as this deletes the target from the taregtStore
+			log.Error("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		log.Info("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
 		targetCtx, err := r.targetStore.Get(ctx, targetKey)
 		if err != nil {
@@ -137,9 +151,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// delete the mapping in the dataserver cache, which keeps track of all targets per dataserver
-		r.deleteTargetFromDataServer(ctx, store.ToKey(targetCtx.Client.GetAddress()), targetKey)
+		r.deleteTargetFromDataServer(ctx, targetKey)
+		log.Info("deleted target from dataserver...")
 		// delete the datastore
-		if targetCtx.DataStore != nil {
+		if targetCtx.DataStore != nil && targetCtx.Client != nil {
 			log.Info("deleting datastore", "key", targetKey.String())
 			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
 			if err != nil {
@@ -152,7 +167,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// delete the target from the target store
-		r.targetStore.Delete(ctx, store.KeyFromNSN(req.NamespacedName))
+		r.targetStore.Delete(ctx, targetKey)
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			log.Error("cannot remove finalizer", "error", err)
@@ -170,12 +185,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
-
-	l := r.getLease(ctx, targetKey)
-	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
-		log.Info("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
 	}
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
@@ -261,16 +270,24 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 }
 
-func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, dsKey store.Key, targetKey store.Key) {
+func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey store.Key) {
 	log := log.FromContext(ctx)
-	dsctx, err := r.dataServerStore.Get(ctx, dsKey)
-	if err != nil {
-		log.Info("DeleteTarget2DataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
-		return
-	}
-	dsctx.Targets = dsctx.Targets.Delete(targetKey.String())
-	if err := r.dataServerStore.Update(ctx, dsKey, dsctx); err != nil {
-		log.Info("DeleteTarget2DataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+	dsKeys := []store.Key{}
+	r.dataServerStore.List(ctx, func(ctx context.Context, dsKey store.Key, dsctx sdcctx.DSContext) {
+		if dsctx.Targets.Has(targetKey.String()) {
+			dsKeys = append(dsKeys, dsKey)
+		}
+	})
+	for _, dsKey := range dsKeys {
+		dsctx, err := r.dataServerStore.Get(ctx, dsKey)
+		if err != nil {
+			log.Info("deleteTargetFromDataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+			return
+		}
+		dsctx.Targets = dsctx.Targets.Delete(targetKey.String())
+		if err := r.dataServerStore.Update(ctx, dsKey, dsctx); err != nil {
+			log.Info("deleteTargetFromDataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+		}
 	}
 }
 
