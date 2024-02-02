@@ -114,7 +114,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 
+	l := r.getLease(ctx, targetKey)
+	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
+		log.Info("cannot acquire lease", "error", err.Error())
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
+	}
+
 	if !cr.GetDeletionTimestamp().IsZero() {
+		log.Info("delete")
 		// list the configs per target
 		cr.SetConditions(invv1alpha1.ConfigFailed("target deleting"))
 		configList, err := r.listTargetConfigs(ctx, cr)
@@ -144,12 +151,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
 		log.Error("cannot add finalizer", "error", err)
 		return ctrl.Result{Requeue: true}, err
-	}
-
-	l := r.getLease(ctx, targetKey)
-	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
-		log.Info("cannot acquire lease", "error", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
 	}
 
 	// handle transition
