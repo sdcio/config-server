@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: config-server
   namespace: network-system
+  labels:
+    sdcio.dev/config-server: "true"
 spec:
   ports:
   - port: 6443
     protocol: TCP
     targetPort: 6443
   selector:
-    config-server: "true"
+    sdcio.dev/config-server: "true"

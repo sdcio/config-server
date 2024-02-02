@@ -4,18 +4,18 @@ metadata:
   name: config-server
   namespace: network-system
   labels:
-    config-server: "true"
+    sdcio.dev/config-server: "true"
 spec:
   strategy:
     type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      config-server: "true"
+      sdcio.dev/config-server: "true"
   template:
     metadata:
       labels:
-        config-server: "true"
+        sdcio.dev/config-server: "true"
     spec:
       securityContext:
         runAsUser: 10000
