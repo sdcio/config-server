@@ -1,0 +1,11 @@
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: TargetConnectionProfile
+metadata:
+  name: noop
+  namespace: default
+  labels:
+    dummy: dummy
+spec:
+  port: 0
+  protocol: noop
+  skipVerify: true

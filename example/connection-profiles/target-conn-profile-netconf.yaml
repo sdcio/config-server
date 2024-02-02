@@ -1,0 +1,11 @@
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: TargetConnectionProfile
+metadata:
+  name: netconf
+  namespace: default
+  labels:
+    dummy: dummy
+spec:
+  port: 830
+  protocol: netconf
+  skipVerify: true

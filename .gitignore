@@ -12,8 +12,6 @@ private.md
 certificates/*
 test
 test/*
-schemas
-schemas/*
 keys
 
 # Test binary, built with `go test -c`
