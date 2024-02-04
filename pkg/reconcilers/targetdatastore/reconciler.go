@@ -552,7 +552,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		return nil, nil, fmt.Errorf("target not discovered, discovery incomplete, got: %v", cr.Status.DiscoveryInfo)
 	}
 
-	name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
+	//name, vendor := invv1alpha1.GetVendorType(cr.Status.DiscoveryInfo.Provider)
 
 	commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
 	if connProfile.Spec.CommitCandidate == invv1alpha1.CommitCandidate_Running {
@@ -576,8 +576,8 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		},
 		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
-			Name:    name,
-			Vendor:  vendor,
+			Name:    "",
+			Vendor:  cr.Status.DiscoveryInfo.Provider,
 			Version: cr.Status.DiscoveryInfo.Version,
 		},
 	}, usedReferences, nil

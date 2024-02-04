@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import "strings"
 
 func GetVendorType(provider string) (string, string) {
@@ -25,3 +26,4 @@ func GetVendorType(provider string) (string, string) {
 	}
 	return split[0], split[1]
 }
+*/
