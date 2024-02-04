@@ -52,9 +52,7 @@ func (r *SchemaSpec) GetKey() string {
 }
 
 func (r *SchemaSpec) GetSchema() *sdcpb.Schema {
-	//name, vendor := GetVendorType(r.Provider)
 	return &sdcpb.Schema{
-		//Name: r.Provider,
 		Name:    "",
 		Vendor:  r.Provider,
 		Version: r.Version,
