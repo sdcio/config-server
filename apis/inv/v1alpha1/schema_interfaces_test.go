@@ -70,3 +70,50 @@ func TestGetNewSchemaBase(t *testing.T) {
 		})
 	}
 }
+
+func TestExampleSchemas(t *testing.T) {
+	cases := map[string]struct {
+		path        string
+		expectedErr error
+	}{
+		"JuniperEx": {
+			path:        "../../../example/schemas/schema-juniper-ex-23.2R1.yaml",
+			expectedErr: nil,
+		},
+		"JuniperMx": {
+			path:        "../../../example/schemas/schema-juniper-mx-23.2R1.yaml",
+			expectedErr: nil,
+		},
+		"JuniperNfx": {
+			path:        "../../../example/schemas/schema-juniper-nfx-23.2R1.yaml",
+			expectedErr: nil,
+		},
+		"JuniperQfx": {
+			path:        "../../../example/schemas/schema-juniper-qfx-23.2R1.yaml",
+			expectedErr: nil,
+		},
+		"NokiaSrl": {
+			path:        "../../../example/schemas/schema-nokia-srl-23.10.1.yaml",
+			expectedErr: nil,
+		},
+		"NokiaSros": {
+			path:        "../../../example/schemas/schema-nokia-sros-23.10.yaml",
+			expectedErr: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := GetSchemaFromFile(tc.path)
+			if err != nil {
+				if tc.expectedErr == nil {
+					t.Errorf("unexpected error\n%s", err.Error())
+				}
+				return
+			}
+			if tc.expectedErr != nil {
+				t.Errorf("%s expecting an error, got nil", name)
+			}
+		})
+	}
+}

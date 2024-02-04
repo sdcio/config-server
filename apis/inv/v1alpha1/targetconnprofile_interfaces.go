@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,4 +50,17 @@ func BuildTargetConnectionProfile(meta metav1.ObjectMeta, spec TargetConnectionP
 		ObjectMeta: meta,
 		Spec:       spec,
 	}
+}
+
+// GetTargetConnectionProfileFromFile is a helper for tests to use the
+// examples and validate them in unit tests
+func GetTargetConnectionProfileFromFile(path string) (*DiscoveryRule, error) {
+	addToScheme := AddToScheme
+	obj := &DiscoveryRule{}
+	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
+	// build object from file
+	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

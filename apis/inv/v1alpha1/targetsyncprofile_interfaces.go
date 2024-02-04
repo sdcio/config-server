@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/iptecharch/config-server/pkg/testhelper"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -95,4 +98,17 @@ func BuildTargetSyncProfile(meta metav1.ObjectMeta, spec TargetSyncProfileSpec) 
 		ObjectMeta: meta,
 		Spec:       spec,
 	}
+}
+
+// GetTargetSyncProfileFromFile is a helper for tests to use the
+// examples and validate them in unit tests
+func GetTargetSyncProfileFromFile(path string) (*DiscoveryRule, error) {
+	addToScheme := AddToScheme
+	obj := &DiscoveryRule{}
+	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
+	// build object from file
+	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
