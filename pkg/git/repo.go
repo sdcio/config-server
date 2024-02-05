@@ -17,41 +17,20 @@ limitations under the License.
 package git
 
 import (
-	"errors"
 	"net/url"
 )
-
-var errInvalidURL = errors.New("invalid URL")
 
 // GitRepoStruct is a struct that contains all the fields
 // required for a GitRepo instance.
 type GitRepoStruct struct {
-	// original URL parsed from the user input
-	URL *url.URL
 	// CloneURL is the URL that will be used for cloning the repo
 	CloneURL       *url.URL
-	ProjectOwner   string
 	RepositoryName string
 	// GitBranch is the referenced Git branch name.
 	GitBranch string
 	// Tag name - either tag or branch should be set.
-	Tag string
-	// Path is the path within the repository where the file is located.
-	Path []string
-	// FileName is the name of the file located at repo_root/path/filename.
-	FileName      string
+	Tag           string
 	LocalRepoPath string
-}
-
-// GetFilename returns the filename if a file was specifically referenced.
-// the empty string is returned otherwise.
-func (u *GitRepoStruct) GetFilename() string {
-	return u.FileName
-}
-
-// GetPath returns the path of the repository.
-func (u *GitRepoStruct) GetPath() []string {
-	return u.Path
 }
 
 // GetName returns the repository name.
@@ -78,14 +57,27 @@ func (u *GitRepoStruct) GetTag() string {
 	return u.Tag
 }
 
+func (u *GitRepoStruct) SetTag(t string) {
+	u.Tag = t
+}
+
+func (u *GitRepoStruct) SetBranch(b string) {
+	u.GitBranch = b
+}
+
+func (u *GitRepoStruct) SetLocalPath(p string) {
+	u.LocalRepoPath = p
+}
+
 type GitRepo interface {
 	GetName() string
-	GetFilename() string
-	GetPath() []string
 	GetCloneURL() *url.URL
 	GetBranch() string
 	GetLocalPath() string
 	GetTag() string
+	SetTag(string)
+	SetBranch(string)
+	SetLocalPath(string)
 }
 
 // NewRepo parses the given git urlPath and returns an interface
@@ -99,19 +91,9 @@ func NewRepo(urlPath string) (GitRepo, error) {
 		return nil, err
 	}
 
-	if IsGitHubURL(u) {
-		r, err = NewGitHubRepoFromURL(u)
+	r = &GitRepoStruct{
+		CloneURL: u,
 	}
 
 	return r, err
-}
-
-// IsGitHubOrGitLabURL checks if the url is a github or gitlab url.
-func IsGitHubOrGitLabURL(u string) bool {
-	_url, err := url.ParseRequestURI(u)
-	if err != nil {
-		return false
-	}
-
-	return IsGitHubURL(_url)
 }
