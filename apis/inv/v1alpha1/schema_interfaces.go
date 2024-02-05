@@ -19,7 +19,9 @@ package v1alpha1
 import (
 	"fmt"
 	"path"
+	"reflect"
 
+	"github.com/iptecharch/config-server/pkg/testhelper"
 	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -91,4 +93,17 @@ func getNewBase(basePath string, in []string) []string {
 		str = append(str, path.Join(basePath, s))
 	}
 	return str
+}
+
+// GetSchemaFromFile is a helper for tests to use the
+// examples and validate them in unit tests
+func GetSchemaFromFile(path string) (*DiscoveryRule, error) {
+	addToScheme := AddToScheme
+	obj := &DiscoveryRule{}
+	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
+	// build object from file
+	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

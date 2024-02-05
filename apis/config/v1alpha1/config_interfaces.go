@@ -20,16 +20,18 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/logger/log"
 	"github.com/iptecharch/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/logger/log"
 )
 
 const ConfigPlural = "configs"
@@ -114,6 +116,17 @@ func (r *Config) IsTransacting() bool {
 	return condition.Reason == string(ConditionReasonCreating) ||
 		condition.Reason == string(ConditionReasonUpdating) ||
 		condition.Reason == string(ConditionReasonDeleting)
+}
+
+func (r *Config) Validate() error {
+	var errm error
+	if _, ok := r.GetLabels()[TargetNameKey]; !ok {
+		errm = errors.Join(errm, fmt.Errorf("a config cr always need a %s", TargetNameKey))
+	}
+	if _, ok := r.GetLabels()[TargetNamespaceKey]; !ok {
+		errm = errors.Join(errm, fmt.Errorf("a config cr always need a %s", TargetNamespaceKey))
+	}
+	return errm
 }
 
 // GetListMeta returns the ListMeta
