@@ -7,7 +7,7 @@ spec:
   secretName: config-server-cert
   secretTemplate:
     labels:
-      config-server: "true"
+      sdcio.dev/config-server: "true"
   dnsNames:
     - config-server.network-system.svc
   issuerRef:
