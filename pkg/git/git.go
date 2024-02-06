@@ -190,20 +190,18 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 		log.Debug("pulling latest repo data")
 		// execute the pull
 		// execute the checkout
-		if err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+		switch err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 			return tree.Pull(&gogit.PullOptions{
 				Depth:        1,
 				SingleBranch: true,
 				Force:        true,
 				Auth:         auth,
 			})
-		}); err != nil {
-			return err
-		}
-
-		if err == gogit.NoErrAlreadyUpToDate {
-			log.Info("git repository up to date")
+		}); err {
+		case nil, gogit.NoErrAlreadyUpToDate:
 			err = nil
+		default:
+			return err
 		}
 	}
 
