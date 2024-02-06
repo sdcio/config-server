@@ -3,6 +3,7 @@
 # 1. they serve as unit tests
 # 2. they can be used as discovery rules examplesapiVersion: inv.sdcio.dev/v1alpha1
 ####### HEADER END #######
+apiVersion: inv.sdcio.dev/v1alpha1
 kind: Schema
 metadata:
   name: mx.juniper.23.2r1
