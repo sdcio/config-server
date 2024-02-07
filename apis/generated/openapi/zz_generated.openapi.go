@@ -31,112 +31,112 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition":                       schema_config_server_apis_config_v1alpha1_Condition(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConditionedStatus":               schema_config_server_apis_config_v1alpha1_ConditionedStatus(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.Config":                          schema_config_server_apis_config_v1alpha1_Config(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob":                      schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigList":                      schema_config_server_apis_config_v1alpha1_ConfigList(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet":                       schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetList":                   schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec":                   schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus":                 schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation":                       schema_config_server_apis_config_v1alpha1_Deviation(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig":                   schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigList":               schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec":               schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus":             schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
-		"github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryParameters":                schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile":                   schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule":                      schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix":                schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema":                             schema_config_server_apis_inv_v1alpha1_Schema(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey":                          schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetList":                         schema_config_server_apis_inv_v1alpha1_TargetList(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile":                      schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSpec":                         schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatus":                       schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":         schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile":                  schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileList":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSync":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref),
-		"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate":                     schema_config_server_apis_inv_v1alpha1_TargetTemplate(ref),
-		"k8s.io/apimachinery/pkg/api/resource.Quantity":                                            schema_apimachinery_pkg_api_resource_Quantity(ref),
-		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                                         schema_apimachinery_pkg_api_resource_int64Amount(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                            schema_pkg_apis_meta_v1_APIGroup(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                        schema_pkg_apis_meta_v1_APIGroupList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                         schema_pkg_apis_meta_v1_APIResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                                     schema_pkg_apis_meta_v1_APIResourceList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                         schema_pkg_apis_meta_v1_APIVersions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                        schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                           schema_pkg_apis_meta_v1_Condition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                                       schema_pkg_apis_meta_v1_CreateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                                       schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                            schema_pkg_apis_meta_v1_Duration(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                            schema_pkg_apis_meta_v1_FieldsV1(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                          schema_pkg_apis_meta_v1_GetOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                           schema_pkg_apis_meta_v1_GroupKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                                       schema_pkg_apis_meta_v1_GroupResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                        schema_pkg_apis_meta_v1_GroupVersion(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                            schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                                    schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                                schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                                       schema_pkg_apis_meta_v1_InternalEvent(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                                       schema_pkg_apis_meta_v1_LabelSelector(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                            schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                                schema_pkg_apis_meta_v1_List(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                            schema_pkg_apis_meta_v1_ListMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                         schema_pkg_apis_meta_v1_ListOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                                  schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                           schema_pkg_apis_meta_v1_MicroTime(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                          schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                                      schema_pkg_apis_meta_v1_OwnerReference(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                               schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                           schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                               schema_pkg_apis_meta_v1_Patch(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                        schema_pkg_apis_meta_v1_PatchOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                                       schema_pkg_apis_meta_v1_Preconditions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                           schema_pkg_apis_meta_v1_RootPaths(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                           schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                              schema_pkg_apis_meta_v1_Status(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                         schema_pkg_apis_meta_v1_StatusCause(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                                       schema_pkg_apis_meta_v1_StatusDetails(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                               schema_pkg_apis_meta_v1_Table(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                               schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                        schema_pkg_apis_meta_v1_TableOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                            schema_pkg_apis_meta_v1_TableRow(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                                   schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                                schema_pkg_apis_meta_v1_Time(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                           schema_pkg_apis_meta_v1_Timestamp(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                            schema_pkg_apis_meta_v1_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                       schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                          schema_pkg_apis_meta_v1_WatchEvent(ref),
-		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                             schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                                 schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/runtime.Unknown":                                                  schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		"k8s.io/apimachinery/pkg/version.Info":                                                     schema_k8sio_apimachinery_pkg_version_Info(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Condition":                       schema_config_server_apis_config_v1alpha1_Condition(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConditionedStatus":               schema_config_server_apis_config_v1alpha1_ConditionedStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Config":                          schema_config_server_apis_config_v1alpha1_Config(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob":                      schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigList":                      schema_config_server_apis_config_v1alpha1_ConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet":                       schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetList":                   schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec":                   schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus":                 schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation":                       schema_config_server_apis_config_v1alpha1_Deviation(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig":                   schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":               schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec":               schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":             schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryParameters":                schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile":                   schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRule":                      schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix":                schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Schema":                             schema_config_server_apis_inv_v1alpha1_Schema(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey":                          schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetList":                         schema_config_server_apis_inv_v1alpha1_TargetList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile":                      schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec":                         schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus":                       schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":         schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile":                  schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileList":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSync":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate":                     schema_config_server_apis_inv_v1alpha1_TargetTemplate(ref),
+		"k8s.io/apimachinery/pkg/api/resource.Quantity":                                       schema_apimachinery_pkg_api_resource_Quantity(ref),
+		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                                    schema_apimachinery_pkg_api_resource_int64Amount(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                       schema_pkg_apis_meta_v1_APIGroup(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                   schema_pkg_apis_meta_v1_APIGroupList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                    schema_pkg_apis_meta_v1_APIResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                                schema_pkg_apis_meta_v1_APIResourceList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                    schema_pkg_apis_meta_v1_APIVersions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                   schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                      schema_pkg_apis_meta_v1_Condition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                                  schema_pkg_apis_meta_v1_CreateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                                  schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                       schema_pkg_apis_meta_v1_Duration(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                       schema_pkg_apis_meta_v1_FieldsV1(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                     schema_pkg_apis_meta_v1_GetOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                      schema_pkg_apis_meta_v1_GroupKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                                  schema_pkg_apis_meta_v1_GroupResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                   schema_pkg_apis_meta_v1_GroupVersion(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                       schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                               schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                           schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                                  schema_pkg_apis_meta_v1_InternalEvent(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                                  schema_pkg_apis_meta_v1_LabelSelector(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                       schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                           schema_pkg_apis_meta_v1_List(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                       schema_pkg_apis_meta_v1_ListMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                    schema_pkg_apis_meta_v1_ListOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                             schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                      schema_pkg_apis_meta_v1_MicroTime(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                     schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                                 schema_pkg_apis_meta_v1_OwnerReference(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                          schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                      schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                          schema_pkg_apis_meta_v1_Patch(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                   schema_pkg_apis_meta_v1_PatchOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                                  schema_pkg_apis_meta_v1_Preconditions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                      schema_pkg_apis_meta_v1_RootPaths(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                      schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                         schema_pkg_apis_meta_v1_Status(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                    schema_pkg_apis_meta_v1_StatusCause(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                                  schema_pkg_apis_meta_v1_StatusDetails(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                          schema_pkg_apis_meta_v1_Table(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                          schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                   schema_pkg_apis_meta_v1_TableOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                       schema_pkg_apis_meta_v1_TableRow(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                              schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                           schema_pkg_apis_meta_v1_Time(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                      schema_pkg_apis_meta_v1_Timestamp(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                       schema_pkg_apis_meta_v1_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                  schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                     schema_pkg_apis_meta_v1_WatchEvent(ref),
+		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                        schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                            schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/runtime.Unknown":                                             schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		"k8s.io/apimachinery/pkg/version.Info":                                                schema_k8sio_apimachinery_pkg_version_Info(ref),
 	}
 }
 
@@ -216,7 +216,7 @@ func schema_config_server_apis_config_v1alpha1_ConditionedStatus(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -226,7 +226,7 @@ func schema_config_server_apis_config_v1alpha1_ConditionedStatus(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Condition"},
 	}
 }
 
@@ -260,20 +260,20 @@ func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallba
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -339,7 +339,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigList(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Config"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Config"),
 									},
 								},
 							},
@@ -350,7 +350,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigList(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.Config", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Config", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -384,20 +384,20 @@ func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCal
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -435,7 +435,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetList(ref common.Referenc
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet"),
 									},
 								},
 							},
@@ -446,7 +446,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetList(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -461,14 +461,14 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Targets defines the targets on which this configSet applies",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Target"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Target"),
 						},
 					},
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"),
 						},
 					},
 					"priority": {
@@ -486,7 +486,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob"),
 									},
 								},
 							},
@@ -497,7 +497,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle", "github.com/iptecharch/config-server/apis/config/v1alpha1.Target"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle", "github.com/sdcio/config-server/apis/config/v1alpha1.Target"},
 	}
 }
 
@@ -516,7 +516,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -530,7 +530,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"),
 									},
 								},
 							},
@@ -540,7 +540,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/config/v1alpha1.TargetStatus"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"},
 	}
 }
 
@@ -555,7 +555,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"),
 						},
 					},
 					"priority": {
@@ -573,7 +573,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob"),
 									},
 								},
 							},
@@ -584,7 +584,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/iptecharch/config-server/apis/config/v1alpha1.Lifecycle"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
 	}
 }
 
@@ -603,7 +603,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -612,13 +612,13 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 					"lastKnownGoodSchema": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastKnownGoodSchema identifies the last known good schema used to apply the config successfully",
-							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
 						},
 					},
 					"appliedConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AppliedConfig defines the config applied to the target",
-							Ref:         ref("github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec"),
 						},
 					},
 					"deviations": {
@@ -629,7 +629,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
 									},
 								},
 							},
@@ -639,7 +639,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/iptecharch/config-server/apis/config/v1alpha1.Deviation"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"},
 	}
 }
 
@@ -765,20 +765,20 @@ func schema_config_server_apis_config_v1alpha1_RunningConfig(ref common.Referenc
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigSpec", "github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -816,7 +816,7 @@ func schema_config_server_apis_config_v1alpha1_RunningConfigList(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig"),
 									},
 								},
 							},
@@ -827,7 +827,7 @@ func schema_config_server_apis_config_v1alpha1_RunningConfigList(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/config/v1alpha1.RunningConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -1028,7 +1028,7 @@ func schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -1038,7 +1038,7 @@ func schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"},
 	}
 }
 
@@ -1136,13 +1136,13 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 					"defaultSchema": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DefaultSchema define the default schema used to connect to a target Indicates that discovery is disable; cannot be used for prefix based discovery rules",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey"),
 						},
 					},
 					"discoveryProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DiscoveryProfile define the profiles the discovery controller uses to discover targets",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
 						},
 					},
 					"targetConnectionProfiles": {
@@ -1153,7 +1153,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile"),
 									},
 								},
 							},
@@ -1162,7 +1162,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 					"targetTemplate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate"),
 						},
 					},
 					"period": {
@@ -1183,7 +1183,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -1260,20 +1260,20 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref common.ReferenceCa
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1339,7 +1339,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRule"),
 									},
 								},
 							},
@@ -1350,7 +1350,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRule", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRule", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -1405,7 +1405,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix"),
 									},
 								},
 							},
@@ -1419,7 +1419,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress"),
 									},
 								},
 							},
@@ -1447,13 +1447,13 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 					"defaultSchema": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DefaultSchema define the default schema used to connect to a target Indicates that discovery is disable; cannot be used for prefix based discovery rules",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey"),
 						},
 					},
 					"discoveryProfile": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DiscoveryProfile define the profiles the discovery controller uses to discover targets",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile"),
 						},
 					},
 					"targetConnectionProfiles": {
@@ -1464,7 +1464,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile"),
 									},
 								},
 							},
@@ -1473,7 +1473,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 					"targetTemplate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate"),
 						},
 					},
 					"period": {
@@ -1494,7 +1494,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile", "github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress", "github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -1513,7 +1513,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -1530,7 +1530,7 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1564,20 +1564,20 @@ func schema_config_server_apis_inv_v1alpha1_Schema(ref common.ReferenceCallback)
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpec", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1644,7 +1644,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaList(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Schema"),
 									},
 								},
 							},
@@ -1655,7 +1655,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaList(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Schema", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Schema", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -1721,7 +1721,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"),
 									},
 								},
 							},
@@ -1731,7 +1731,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 						SchemaProps: spec.SchemaProps{
 							Description: "Schema provides the details of which files must be used for the models and which files/directories cana be excludes",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema"),
 						},
 					},
 				},
@@ -1739,7 +1739,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/iptecharch/config-server/apis/inv/v1alpha1.SrcDstPath"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
 	}
 }
 
@@ -1815,7 +1815,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -1825,7 +1825,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"},
 	}
 }
 
@@ -1889,20 +1889,20 @@ func schema_config_server_apis_inv_v1alpha1_Target(ref common.ReferenceCallback)
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatus"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSpec", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1936,14 +1936,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref common.R
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1981,7 +1981,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref comm
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile"),
 									},
 								},
 							},
@@ -1992,7 +1992,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetConnectionProfile", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -2119,7 +2119,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetList(ref common.ReferenceCallb
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Target"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Target"),
 									},
 								},
 							},
@@ -2130,7 +2130,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetList(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Target", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Target", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -2252,7 +2252,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetStatus(ref common.ReferenceCal
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Condition"),
 									},
 								},
 							},
@@ -2261,20 +2261,20 @@ func schema_config_server_apis_inv_v1alpha1_TargetStatus(ref common.ReferenceCal
 					"discoveryInfo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Discovery info defines the information retrieved during discovery",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo"),
 						},
 					},
 					"usedReferences": {
 						SchemaProps: spec.SchemaProps{
 							Description: "UsedReferences track the resource used to reconcile the cr",
-							Ref:         ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"),
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.Condition", "github.com/iptecharch/config-server/apis/inv/v1alpha1.DiscoveryInfo", "github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition", "github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"},
 	}
 }
 
@@ -2347,14 +2347,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref common.Referen
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec"),
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -2392,7 +2392,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref common.Ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile"),
 									},
 								},
 							},
@@ -2403,7 +2403,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfile", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -2439,7 +2439,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSync"),
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSync"),
 									},
 								},
 							},
@@ -2450,7 +2450,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"github.com/iptecharch/config-server/apis/inv/v1alpha1.TargetSyncProfileSync"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSync"},
 	}
 }
 

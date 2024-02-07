@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/target"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/pkg/store"
+	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

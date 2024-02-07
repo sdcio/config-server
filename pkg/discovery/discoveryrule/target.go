@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/henderiw/logger/log"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"

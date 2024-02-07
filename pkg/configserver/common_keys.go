@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/store"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/pkg/store"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

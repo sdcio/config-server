@@ -17,7 +17,7 @@ limitations under the License.
 package discoveryrule
 
 import (
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 type DiscoveryRuleConfig struct {

@@ -19,7 +19,7 @@ package secret
 import (
 	"context"
 
-	"github.com/iptecharch/config-server/pkg/git/auth"
+	"github.com/sdcio/config-server/pkg/git/auth"
 	corev1 "k8s.io/api/core/v1"
 )
 

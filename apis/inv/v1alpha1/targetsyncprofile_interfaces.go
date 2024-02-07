@@ -19,8 +19,8 @@ package v1alpha1
 import (
 	"reflect"
 
-	"github.com/iptecharch/config-server/pkg/testhelper"
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	"github.com/sdcio/config-server/pkg/testhelper"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
+	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

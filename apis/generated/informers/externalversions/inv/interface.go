@@ -18,8 +18,8 @@ limitations under the License.
 package inv
 
 import (
-	internalinterfaces "github.com/iptecharch/config-server/apis/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/iptecharch/config-server/apis/generated/informers/externalversions/inv/v1alpha1"
+	internalinterfaces "github.com/sdcio/config-server/apis/generated/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/sdcio/config-server/apis/generated/informers/externalversions/inv/v1alpha1"
 )
 
 // Interface provides access to each of this group's versions.

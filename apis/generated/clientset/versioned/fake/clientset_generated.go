@@ -18,11 +18,11 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/iptecharch/config-server/apis/generated/clientset/versioned"
-	configv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1"
-	fakeconfigv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1/fake"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1"
-	fakeinvv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1/fake"
+	clientset "github.com/sdcio/config-server/apis/generated/clientset/versioned"
+	configv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1"
+	fakeconfigv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1/fake"
+	invv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1"
+	fakeinvv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

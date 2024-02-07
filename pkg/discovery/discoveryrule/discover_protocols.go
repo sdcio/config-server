@@ -20,7 +20,7 @@ import (
 	"context"
 	"sync"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 func (r *dr) newDiscoveryProtocols() *protocols {

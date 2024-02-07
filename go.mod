@@ -1,4 +1,4 @@
-module github.com/iptecharch/config-server
+module github.com/sdcio/config-server
 
 go 1.21.4
 
@@ -19,13 +19,13 @@ require (
 	github.com/henderiw/apiserver-builder v0.0.1
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
-	github.com/iptecharch/sdc-protos v0.0.21
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnmic/pkg/api v0.1.1
 	github.com/openconfig/gnmic/pkg/path v0.1.1
 	github.com/openconfig/gnmic/pkg/target v0.1.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
+	github.com/sdcio/sdc-protos v0.0.22
 	github.com/spf13/cobra v1.8.0
 	go.opentelemetry.io/otel v1.20.0
 	go.opentelemetry.io/otel/trace v1.20.0

@@ -22,7 +22,7 @@ import (
 	"reflect"
 
 	"github.com/henderiw/iputil"
-	"github.com/iptecharch/config-server/pkg/testhelper"
+	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

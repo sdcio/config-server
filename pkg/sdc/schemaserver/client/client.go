@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

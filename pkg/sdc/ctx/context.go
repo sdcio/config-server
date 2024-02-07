@@ -17,8 +17,8 @@ limitations under the License.
 package sdcctx
 
 import (
-	dsclient "github.com/iptecharch/config-server/pkg/sdc/dataserver/client"
-	ssclient "github.com/iptecharch/config-server/pkg/sdc/schemaserver/client"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 

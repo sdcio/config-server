@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/iptecharch/config-server/pkg/git/auth"
+	"github.com/sdcio/config-server/pkg/git/auth"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"

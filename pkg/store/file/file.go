@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/sdcio/config-server/pkg/store"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

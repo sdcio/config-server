@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"

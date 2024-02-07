@@ -20,10 +20,10 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/pkg/configserver"
-	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
-	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/target"
+	"github.com/sdcio/config-server/pkg/configserver"
+	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
+	"github.com/sdcio/config-server/pkg/store"
+	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/types"
 )
 

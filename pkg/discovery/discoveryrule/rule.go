@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/pkg/lease"
-	"github.com/iptecharch/config-server/pkg/store"
-	"github.com/iptecharch/config-server/pkg/target"
+	"github.com/sdcio/config-server/pkg/lease"
+	"github.com/sdcio/config-server/pkg/store"
+	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"

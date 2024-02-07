@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/iptecharch/config-server/pkg/git/auth"
+	"github.com/sdcio/config-server/pkg/git/auth"
 	corev1 "k8s.io/api/core/v1"
 )
 

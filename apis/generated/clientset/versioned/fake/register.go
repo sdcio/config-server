@@ -18,8 +18,8 @@ limitations under the License.
 package fake
 
 import (
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

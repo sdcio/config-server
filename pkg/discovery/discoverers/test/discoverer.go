@@ -19,8 +19,8 @@ package test
 import (
 	"context"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/discovery/discoverers"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/discovery/discoverers"
 	"github.com/openconfig/gnmic/pkg/target"
 )
 

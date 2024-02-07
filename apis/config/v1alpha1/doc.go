@@ -20,10 +20,10 @@ limitations under the License.
 
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/iptecharch/config-server/apis/config
+// +k8s:conversion-gen=github.com/sdcio/config-server/apis/config
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=config.sdcio.dev
 
 // Package v1alpha1 is the v1alpha1 version of the API.
-package v1alpha1 // import "github.com/iptecharch/config-server/apis/config/v1alpha1"
+package v1alpha1 // import "github.com/sdcio/config-server/apis/config/v1alpha1"
 

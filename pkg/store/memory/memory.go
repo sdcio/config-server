@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/iptecharch/config-server/pkg/store"
+	"github.com/sdcio/config-server/pkg/store"
 )
 
 const (
