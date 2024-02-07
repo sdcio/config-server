@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/discovery/discoveryrule"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )

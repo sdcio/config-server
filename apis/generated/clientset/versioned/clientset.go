@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
-	configv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/config/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/generated/clientset/versioned/typed/inv/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

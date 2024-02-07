@@ -7,7 +7,7 @@ REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
 PROJECT ?= config-server
 IMG ?= $(REGISTRY)/${PROJECT}:$(VERSION)
 
-REPO = github.com/iptecharch/config-server
+REPO = github.com/sdcio/config-server
 USERID := 10000
 
 ## Tool Binaries

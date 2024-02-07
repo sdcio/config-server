@@ -24,10 +24,10 @@ import (
 	"sync"
 
 	"github.com/henderiw/logger/log"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/git"
-	"github.com/iptecharch/config-server/pkg/git/auth"
-	"github.com/iptecharch/config-server/pkg/utils"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/git"
+	"github.com/sdcio/config-server/pkg/git/auth"
+	"github.com/sdcio/config-server/pkg/utils"
 	"github.com/otiai10/copy"
 	"k8s.io/apimachinery/pkg/types"
 )

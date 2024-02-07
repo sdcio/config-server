@@ -19,7 +19,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 var errMalformedXPath = errors.New("malformed xpath")

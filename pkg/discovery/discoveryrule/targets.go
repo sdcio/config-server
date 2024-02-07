@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

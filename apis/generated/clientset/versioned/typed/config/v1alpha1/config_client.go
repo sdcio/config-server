@@ -20,8 +20,8 @@ package v1alpha1
 import (
 	"net/http"
 
-	v1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
+	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

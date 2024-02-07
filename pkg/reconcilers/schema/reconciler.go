@@ -30,16 +30,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
-	"github.com/iptecharch/config-server/pkg/git/auth/secret"
-	"github.com/iptecharch/config-server/pkg/reconcilers"
-	"github.com/iptecharch/config-server/pkg/reconcilers/ctrlconfig"
-	"github.com/iptecharch/config-server/pkg/reconcilers/resource"
-	schemaloader "github.com/iptecharch/config-server/pkg/schema"
-	sdcctx "github.com/iptecharch/config-server/pkg/sdc/ctx"
-	ssclient "github.com/iptecharch/config-server/pkg/sdc/schemaserver/client"
-	"github.com/iptecharch/config-server/pkg/store"
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/git/auth/secret"
+	"github.com/sdcio/config-server/pkg/reconcilers"
+	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	schemaloader "github.com/sdcio/config-server/pkg/schema"
+	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
+	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
+	"github.com/sdcio/config-server/pkg/store"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 func init() {

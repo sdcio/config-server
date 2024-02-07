@@ -20,8 +20,8 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

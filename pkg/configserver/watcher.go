@@ -23,8 +23,8 @@ import (
 	"sync"
 
 	"github.com/henderiw/logger/log"
-	configv1alpha1 "github.com/iptecharch/config-server/apis/config/v1alpha1"
-	watchermanager "github.com/iptecharch/config-server/pkg/watcher-manager"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/runtime"

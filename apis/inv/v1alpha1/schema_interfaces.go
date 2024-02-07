@@ -21,8 +21,8 @@ import (
 	"path"
 	"reflect"
 
-	"github.com/iptecharch/config-server/pkg/testhelper"
-	sdcpb "github.com/iptecharch/sdc-protos/sdcpb"
+	"github.com/sdcio/config-server/pkg/testhelper"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

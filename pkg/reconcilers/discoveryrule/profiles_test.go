@@ -20,8 +20,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/iptecharch/config-server/apis/generated/clientset/versioned/scheme"
-	invv1alpha1 "github.com/iptecharch/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

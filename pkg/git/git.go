@@ -28,7 +28,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/henderiw/logger/log"
-	"github.com/iptecharch/config-server/pkg/git/auth"
+	"github.com/sdcio/config-server/pkg/git/auth"
 	"k8s.io/apimachinery/pkg/types"
 )
 
