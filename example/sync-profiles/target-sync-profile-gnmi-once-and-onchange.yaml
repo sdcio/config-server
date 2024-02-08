@@ -6,7 +6,7 @@
 apiVersion: inv.sdcio.dev/v1alpha1
 kind: TargetSyncProfile
 metadata:
-  name: gnmi-onchange
+  name: gnmi-onchange-and-once
   namespace: default
 spec:
   buffer: 0
