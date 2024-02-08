@@ -15,12 +15,12 @@ dockers:
     ids:
       - config-server
     image_templates:
-      - "ghcr.io/iptecharch/{{ .ProjectName }}:latest"
-      - "ghcr.io/iptecharch/{{ .ProjectName }}:v{{ .Version }}"
-      - "registry.kmrd.dev/iptecharch/{{ .ProjectName }}:latest"
-      - "registry.kmrd.dev/iptecharch/{{ .ProjectName }}:v{{ .Version }}"
-      - "registry.k8s.hans.io/iptecharch/{{ .ProjectName }}:latest"
-      - "registry.k8s.hans.io/iptecharch/{{ .ProjectName }}:v{{ .Version }}"
+      - "ghcr.io/sdcio/{{ .ProjectName }}:v{{ .Version }}"
+      - "ghcr.io/sdcio/{{ .ProjectName }}:latest"
+      - "registry.kmrd.dev/sdcio/{{ .ProjectName }}:v{{ .Version }}"
+      - "registry.kmrd.dev/sdcio/{{ .ProjectName }}:latest"
+      - "registry.k8s.sdcio.dev/sdcio/{{ .ProjectName }}:v{{ .Version }}"
+      - "registry.k8s.sdcio.dev/sdcio/{{ .ProjectName }}:latest"
     dockerfile: goreleaser.dockerfile
     skip_push: false
     build_flag_templates:
@@ -28,7 +28,7 @@ dockers:
       - "--build-arg=USERID=10000"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.source=https://github.com/iptecharch/{{.ProjectName}}"
+      - "--label=org.opencontainers.image.source=https://github.com/sdcio/{{.ProjectName}}"
       - "--label=org.opencontainers.image.version=v{{.Version}}"
 archives:
   - name_template: >-

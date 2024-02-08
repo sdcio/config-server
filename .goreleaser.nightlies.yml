@@ -15,9 +15,9 @@ dockers:
     ids:
       - config-server
     image_templates:
-      - "ghcr.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
-      - "ghcr.io/iptecharch/config-server:v0.0.0-dev-latest"
-      - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.k8s.sdcio.dev/sdcio/config-server:v0.0.0-{{ .ShortCommit }}"
+      - "registry.k8s.sdcio.dev/sdcio/config-server:v0.0.0-dev-latest"
+      - "registry.kmrd.dev/sdcio/config-server:v0.0.0-{{ .ShortCommit }}"
       - "registry.kmrd.dev/iptecharch/config-server:v0.0.0-dev-latest"
     dockerfile: goreleaser.dockerfile
     skip_push: false
@@ -26,25 +26,7 @@ dockers:
       - "--build-arg=USERID=10000"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.source=https://github.com/iptecharch/{{.ProjectName}}"
-      - "--label=org.opencontainers.image.version=v{{.Version}}"
-  - goos: linux
-    goarch: amd64
-    ids:
-      - config-server
-    image_templates:
-      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-{{ .ShortCommit }}"
-      - "registry.k8s.hans.io/iptecharch/config-server:v0.0.0-dev-latest"
-    dockerfile: goreleaser.dockerfile
-    skip_push: false
-    push_flags:
-      - --tls-verify=false
-    build_flag_templates:
-      - "--pull"
-      - "--build-arg=USERID=10000"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.source=https://github.com/iptecharch/{{.ProjectName}}"
+      - "--label=org.opencontainers.image.source=https://github.com/sdcio/{{.ProjectName}}"
       - "--label=org.opencontainers.image.version=v{{.Version}}"
 release:
   disable: true
