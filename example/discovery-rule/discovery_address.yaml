@@ -6,7 +6,7 @@
 apiVersion: inv.sdcio.dev/v1alpha1
 kind: DiscoveryRule
 metadata:
-  name: dr-static
+  name: dr-address
   namespace: default
 spec:
   period: 1m
