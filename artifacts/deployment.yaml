@@ -16,6 +16,7 @@ spec:
     metadata:
       labels:
         sdcio.dev/config-server: "true"
+        sdcio.dev/data-server: "true"
     spec:
       securityContext:
         runAsUser: 10000
