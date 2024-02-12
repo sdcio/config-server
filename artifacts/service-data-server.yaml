@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-server
+  namespace: network-system
+  labels:
+    sdcio.dev/config-server: "true"
+spec:
+  ports:
+  - port: 56000
+    protocol: TCP
+    targetPort: 56000
+  selector:
+    sdcio.dev/data-server: "true"
