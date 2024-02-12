@@ -36,8 +36,8 @@ func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 		return addresses
 	}
 	domainName := "cluster.local"
-	if r.cfg.CR.GetDomainName() != "" {
-		domainName = r.cfg.CR.GetDomainName()
+	if r.cfg.CR.GetServiceDomain() != "" {
+		domainName = r.cfg.CR.GetServiceDomain()
 	}
 	for _, svc := range svcList.Items {
 		addresses = append(addresses, invv1alpha1.DiscoveryRuleAddress{

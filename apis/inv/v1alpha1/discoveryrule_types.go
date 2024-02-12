@@ -43,9 +43,9 @@ type DiscoveryRuleSpec struct {
 	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty" yaml:"podSelector,omitempty"`
 	// ServiceSelector defines the service selector for which this discovery rule applies
 	ServiceSelector *metav1.LabelSelector `json:"serviceSelector,omitempty" yaml:"serviceSelector,omitempty"`
-	// DomainName defines the domain name of the cluster, used by pod or svc discovery to identify the
-	// domain name in the l8s cluster where the pod or services reside.
-	DomainName string `json:"domainName,omitempty" yaml:"domainName,omitempty"`
+	// ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the
+	// domain name in the k8s cluster where the service reside.
+	ServiceDomain string `json:"serviceDomain,omitempty" yaml:"serviceDomain,omitempty"`
 	// Discovery defines the generic parameters of the discovery rule
 	DiscoveryParameters `json:",inline" yaml:",inline"`
 }
