@@ -70,6 +70,7 @@ manifests: controller-gen artifacts ## Generate WebhookConfiguration, ClusterRol
 	
 .PHONY: artifacts
 artifacts: kform
+	mkdir -p artifacts/out
 	$(KFORM) apply artifacts -i artifacts/in/configmap-input-vars.yaml -o artifacts/out/artifacts.yaml
 
 .PHONY:
