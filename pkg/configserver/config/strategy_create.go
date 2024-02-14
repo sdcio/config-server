@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func (r *strategy) BeginCreate(ctx context.Context) error { return nil }
@@ -36,6 +37,8 @@ func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
+	log := log.FromContext(ctx)
+
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
@@ -45,6 +48,9 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 		))
 		return allErrs
 	}
+
+	log.Info("validate create", "name", accessor.GetName(), "resourceVersion", accessor.GetResourceVersion())
+
 	if _, err := getTargetKey(accessor.GetLabels()); err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),

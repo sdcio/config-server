@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +41,8 @@ func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
+
+	log := log.FromContext(ctx)
 
 	newaccessor, err := meta.Accessor(obj)
 	if err != nil {
@@ -75,6 +78,10 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 			err.Error(),
 		))
 	}
+
+	log.Info("validate update old", "name", oldaccessor.GetName(), "resourceVersion", oldaccessor.GetResourceVersion())
+	log.Info("validate update new", "name", newaccessor.GetName(), "resourceVersion", newaccessor.GetResourceVersion())
+
 	if len(allErrs) != 0 {
 		return allErrs
 	}

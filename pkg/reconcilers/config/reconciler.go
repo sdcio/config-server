@@ -99,7 +99,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, nil
 	}
-
+	log.Info("get object", "resourceVersion", cr.GetResourceVersion())
 	cr = cr.DeepCopy()
 
 	if !cr.GetDeletionTimestamp().IsZero() {
