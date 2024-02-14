@@ -10,13 +10,24 @@ replace k8s.io/api => k8s.io/api v0.28.6
 
 replace k8s.io/apimachinery => k8s.io/apimachinery v0.28.6
 
+replace k8s.io/component-base => k8s.io/component-base v0.28.6
+
+replace k8s.io/cli-runtime => k8s.io/cli-runtime v0.28.6
+
 replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
+
+replace k8s.io/apiserver => k8s.io/apiserver v0.28.6
+
+replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.15.0
+
+replace sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.15.0
 
 require (
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.4.0
 	github.com/henderiw/apiserver-builder v0.0.1
+	github.com/henderiw/apiserver-store v0.0.0-20240214070948-1c0cae3704e2
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.10.0
@@ -36,7 +47,7 @@ require (
 	google.golang.org/protobuf v1.32.0
 	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
-	k8s.io/apiserver v0.28.6
+	k8s.io/apiserver v0.29.1
 	k8s.io/client-go v0.29.1
 	k8s.io/code-generator v0.28.6
 	k8s.io/component-base v0.29.1

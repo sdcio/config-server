@@ -22,27 +22,22 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"github.com/henderiw/logger/log"
+	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/configserver"
 	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/store"
 	"github.com/sdcio/config-server/pkg/target"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 func init() {
@@ -51,7 +46,7 @@ func init() {
 
 const (
 	controllerName = "TargetConfigServerController"
-	finalizer = "targetconfigserver.inv.sdcio.dev/finalizer"
+	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -69,14 +64,14 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	/*
-	if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		return nil, err
-	}
+		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+			return nil, err
+		}
 	*/
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	r.configProvider = cfg.ConfigProvider
+	//r.configProvider = cfg.ConfigProvider
 	//r.targetTransitionStore = memory.NewStore[bool]() // keeps track of the target status locally
 	r.targetStore = cfg.TargetStore
 
@@ -90,7 +85,7 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	configProvider configserver.ResourceProvider
+	//configProvider configserver.ResourceProvider
 	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
 	targetStore store.Storer[target.Context]
 }
@@ -132,12 +127,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			condition := config.GetCondition(configv1alpha1.ConditionTypeReady)
 			if condition.Status != metav1.ConditionFalse && condition.Message != string(configv1alpha1.ConditionReasonTargetNotFound) {
 				// update the status if not already set
-				// resource version does not need to be updated
 				config.SetConditions(configv1alpha1.Failed(string(configv1alpha1.ConditionReasonTargetNotFound)))
-				r.configProvider.UpdateStore(ctx, store.KeyFromNSN(types.NamespacedName{
-					Name:      config.GetName(),
-					Namespace: config.GetNamespace(),
-				}), &config)
+				if err := r.Client.Update(ctx, &config); err != nil {
+					return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
 			}
 		}
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
@@ -154,7 +147,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// handle transition
-	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
+	ready, _ := r.GetTargetReadiness(ctx, targetKey, cr)
 	log.Info("readiness", "ready", ready)
 	if ready {
 		cfgCondition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
@@ -163,7 +156,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			log.Info("target reapply config")
 			// we split the config in config that was successfully applied to config that was not yet
-			priorityReApplyConfigs, reApplyConfigs, err := r.getReApplyConfigs(ctx, cr)
+			priorityReApplyConfigs, _, err := r.getReApplyConfigs(ctx, cr)
 			if err != nil {
 				cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -177,28 +170,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 
 			// We need to restore the config on the target
-			for _, config := range priorityReApplyConfigs {
-				if err := r.configProvider.SetIntent(ctx, store.KeyFromNSN(types.NamespacedName{
-					Name:      config.GetName(),
-					Namespace: config.GetNamespace(),
-				}), targetKey, tctx, config); err != nil {
-					// This is bad since this means we cannot recover the applied config
-					// on a target. We set the target config status to Failed.
-					// Most likely a human intervention is needed
-					cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			/*
+				for _, config := range priorityReApplyConfigs {
+					if err := r.configProvider.SetIntent(ctx, store.KeyFromNSN(types.NamespacedName{
+						Name:      config.GetName(),
+						Namespace: config.GetNamespace(),
+					}), targetKey, tctx, config); err != nil {
+						// This is bad since this means we cannot recover the applied config
+						// on a target. We set the target config status to Failed.
+						// Most likely a human intervention is needed
+						cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+						return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+					}
 				}
-			}
+			*/
 			cr.SetConditions(invv1alpha1.ConfigReady())
 			// apply the remaining config in async mode
-			for _, config := range reApplyConfigs {
-				if err := r.configProvider.Apply(ctx, store.KeyFromNSN(types.NamespacedName{
-					Name:      config.GetName(),
-					Namespace: config.GetNamespace(),
-				}), targetKey, config, config); err != nil {
-					log.Error("cannot apply config on target", "error", err)
+			/*
+				for _, config := range reApplyConfigs {
+					if err := r.configProvider.Apply(ctx, store.KeyFromNSN(types.NamespacedName{
+						Name:      config.GetName(),
+						Namespace: config.GetNamespace(),
+					}), targetKey, config, config); err != nil {
+						log.Error("cannot apply config on target", "error", err)
+					}
 				}
-			}
+			*/
 		}
 
 	} else {
@@ -216,10 +213,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// update the status if not already set
 					// resource version does not need to be updated, so we do a shortcut
 					config.SetConditions(configv1alpha1.Failed(string(configv1alpha1.ConditionReasonNotReady)))
-					if err := r.configProvider.UpdateStore(ctx, store.KeyFromNSN(types.NamespacedName{
-						Name:      config.GetName(),
-						Namespace: config.GetNamespace(),
-					}), &config); err != nil {
+					if err := r.Update(ctx, &config); err != nil {
 						log.Error("cannot update config store", "error", err)
 					}
 				}
@@ -232,22 +226,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
 	ctx = genericapirequest.WithNamespace(ctx, cr.GetNamespace())
 
-	obj, err := r.configProvider.List(ctx, &internalversion.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector("metadata.namespace", cr.GetNamespace()),
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			configv1alpha1.TargetNameKey: cr.GetName(),
-		}),
-	})
-	if err != nil {
+	opts := []client.ListOption{
+		client.MatchingLabels{configv1alpha1.TargetNamespaceKey: cr.GetNamespace()},
+		client.MatchingLabels{configv1alpha1.TargetNameKey: cr.GetName()},
+	}
+
+	configList := &configv1alpha1.ConfigList{}
+	if err := r.List(ctx, configList, opts...); err != nil {
 		return nil, err
 	}
-	configList, ok := obj.(*configv1alpha1.ConfigList)
-	if !ok {
-		return nil, fmt.Errorf("listTargetConfigs, unexpected object, wanted %s, got : %s",
-			reflect.TypeOf(configv1alpha1.ConfigList{}).Name(),
-			reflect.TypeOf(obj).Name(),
-		)
-	}
+
 	return configList, nil
 }
 

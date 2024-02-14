@@ -26,13 +26,13 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder"
-	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
 	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/configserver"
+	"github.com/sdcio/config-server/pkg/configserver/config"
+	configserverstore "github.com/sdcio/config-server/pkg/configserver/store"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -123,29 +123,31 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
-	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-	if err != nil {
-		log.Error("cannot create config rest storage", "err", err)
-		os.Exit(1)
-	}
-	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
-	if err != nil {
-		log.Error("cannot create configset rest storage", "err", err)
-		os.Exit(1)
-	}
-	runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-	if err != nil {
-		log.Error("cannot create runningconfig rest storage", "err", err)
-		os.Exit(1)
-	}
+	/*
+		configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
+		if err != nil {
+			log.Error("cannot create config rest storage", "err", err)
+			os.Exit(1)
+		}
+		configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
+		if err != nil {
+			log.Error("cannot create configset rest storage", "err", err)
+			os.Exit(1)
+		}
+		runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
+		if err != nil {
+			log.Error("cannot create runningconfig rest storage", "err", err)
+			os.Exit(1)
+		}
+	*/
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
-		ConfigProvider:    configProvider,
-		ConfigSetProvider: configSetProvider,
+		//ConfigProvider:    configProvider,
+		//ConfigSetProvider: configSetProvider,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -163,9 +165,13 @@ func main() {
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
-			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
-			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
+			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+				Prefix: "config",
+				Type:   configserverstore.StorageType_File,
+			})).
+			//WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
+			//WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
+			//WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

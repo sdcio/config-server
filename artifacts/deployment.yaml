@@ -67,6 +67,8 @@ spec:
           value: "true"
         - name: ENABLE_SCHEMA
           value: "true"
+        - name: ENABLE_CONFIG
+          value: "true"
         volumeMounts:
         - name: apiserver-certs
           mountPath: /apiserver.local.config/certificates

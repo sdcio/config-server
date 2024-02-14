@@ -17,20 +17,26 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
 const ConfigSetPlural = "configsets"
+const ConfigSetSingular = "configset"
 
 var _ resource.Object = &ConfigSet{}
 var _ resource.ObjectList = &ConfigSetList{}
+
+func (r *ConfigSet) GetSingularName() string {
+	return ConfigSetSingular
+}
 
 func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -124,4 +130,16 @@ func GetConfigSetFromFile(path string) (*ConfigSet, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+// ConvertConfigSetFieldSelector is the schema conversion function for normalizing the FieldSelector for ConfigSet
+func ConvertConfigSetFieldSelector(label, value string) (internalLabel, internalValue string, err error) {
+	switch label {
+	case "metadata.name":
+		return label, value, nil
+	case "metadata.namespace":
+		return label, value, nil
+	default:
+		return "", "", fmt.Errorf("%q is not a known field selector", label)
+	}
 }

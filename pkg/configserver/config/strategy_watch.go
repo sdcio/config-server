@@ -14,13 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package all
+package config
 
 import (
-	_ "github.com/sdcio/config-server/pkg/reconcilers/discoveryrule"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/schema"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigserver"
-	//_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigsetserver"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/config"
+	"context"
+
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	"k8s.io/apimachinery/pkg/watch"
 )
+
+func (r *strategy) BeginWatch(ctx context.Context) error { return nil }
+
+func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListOptions) (watch.Interface, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	w := &watcher{
+		cancel:         cancel,
+		resultChan:     make(chan watch.Event),
+		watcherManager: r.watcherManager,
+	}
+
+	go w.listAndWatch(ctx, r, options)
+
+	return w, nil
+}

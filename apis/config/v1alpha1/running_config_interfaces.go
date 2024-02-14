@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,10 +26,15 @@ import (
 )
 
 const RunningConfigPlural = "runningconfigs"
+const RunningConfigSingular = "runningconfig"
 
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &RunningConfig{}
 var _ resource.ObjectList = &RunningConfigList{}
+
+func (r *RunningConfig) GetSingularName() string {
+	return RunningConfigSingular
+}
 
 func (RunningConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -79,5 +86,17 @@ func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status R
 		ObjectMeta: meta,
 		Spec:       spec,
 		Status:     status,
+	}
+}
+
+// ConvertRunningConfigFieldSelector is the schema conversion function for normalizing the FieldSelector for RunningConfig
+func ConvertRunningConfigFieldSelector(label, value string) (internalLabel, internalValue string, err error) {
+	switch label {
+	case "metadata.name":
+		return label, value, nil
+	case "metadata.namespace":
+		return label, value, nil
+	default:
+		return "", "", fmt.Errorf("%q is not a known field selector", label)
 	}
 }
