@@ -20,11 +20,16 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type targetEventHandler struct {
@@ -61,26 +66,56 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 
 	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())
 
-	// list all the configs of the particular target that got changed
-	/*
-		opts := []client.ListOption{
-			client.InNamespace(cr.Namespace),
-			client.MatchingLabels{
-				configv1alpha1.TargetNameKey:      cr.GetName(),
-				configv1alpha1.TargetNamespaceKey: cr.GetNamespace(),
-			},
+	// list the configsets and see
+	opts := []client.ListOption{
+		client.InNamespace(cr.Namespace),
+	}
+	configsets := &configv1alpha1.ConfigSetList{}
+	if err := r.client.List(ctx, configsets, opts...); err != nil {
+		log.Error("cannot list targets", "error", err)
+		return
+	}
+
+	for _, configset := range configsets.Items {
+		selector, err := metav1.LabelSelectorAsSelector(configset.Spec.Target.TargetSelector)
+		if err != nil {
+			log.Error("cannot get label selector from configset", "name", configset.Name, "error", err.Error())
+			continue
 		}
-		configs := &configv1alpha1.ConfigSetList{}
-		if err := r.client.List(ctx, configs, opts...); err != nil {
-			log.Error("cannot list targets", "error", err)
-			return
+		found := false
+		targetName := ""
+		if selector.Matches(labels.Set(cr.GetLabels())) {
+			// if the target was NOT part of the targets in the status, requeue it
+			for _, target := range configset.Status.Targets {
+				if target.Name == cr.Name {
+					found = true
+					targetName = target.Name
+					break
+				}
+			}
+			if !found {
+				key := types.NamespacedName{
+					Namespace: configset.Namespace,
+					Name:      configset.Name}
+				log.Info("event requeue configset with target create", "key", key.String(), "target", targetName)
+				queue.Add(reconcile.Request{NamespacedName: key})
+			}
+		} else {
+			// check if the target was part of the target list before, if so requeue it
+			for _, target := range configset.Status.Targets {
+				if target.Name == cr.Name {
+					found = true
+					targetName = target.Name
+					break
+				}
+			}
+			if found {
+				key := types.NamespacedName{
+					Namespace: configset.Namespace,
+					Name:      configset.Name}
+				log.Info("event requeue configset with target delete", "key", key.String(), "target", targetName)
+				queue.Add(reconcile.Request{NamespacedName: key})
+			}
 		}
-		for _, config := range configs.Items {
-			key := types.NamespacedName{
-				Namespace: config.Namespace,
-				Name:      config.Name}
-			log.Info("event requeue config", "key", key.String())
-			queue.Add(reconcile.Request{NamespacedName: key})
-		}
-	*/
+	}
 }
