@@ -107,7 +107,7 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	if !ok {
 		return fmt.Errorf("unexpected new object, expecting: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj))
 	}
-	oldConfig, ok := obj.(*configv1alpha1.Config)
+	oldConfig, ok := old.(*configv1alpha1.Config)
 	if !ok {
 		return fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj))
 	}
