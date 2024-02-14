@@ -191,3 +191,14 @@ func ConvertConfigFieldSelector(label, value string) (internalLabel, internalVal
 		return "", "", fmt.Errorf("%q is not a known field selector", label)
 	}
 }
+
+func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
+	// Convert the struct to JSON
+	jsonData, err := json.Marshal(r)
+	if err != nil {
+		return [sha1.Size]byte{}, err
+	}
+
+	// Calculate SHA-1 hash
+	return sha1.Sum(jsonData), nil
+}

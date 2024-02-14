@@ -18,10 +18,14 @@ package config
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"reflect"
+	"strconv"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -96,7 +100,36 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return allErrs
 }
 
-func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj runtime.Object) error {
+func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) error {
+	log := log.FromContext(ctx)
+	// check if there is a change
+	newConfig, ok := obj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("unexpected new object, expecting: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj))
+	}
+	oldConfig, ok := obj.(*configv1alpha1.Config)
+	if !ok {
+		return fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj))
+	}
+
+	newHash, err := newConfig.CalculateHash()
+	if err != nil {
+		return err
+	}
+	oldHash, err := oldConfig.CalculateHash()
+	if err != nil {
+		return err
+	}
+
+	if oldHash == newHash {
+		log.Info("update nothing to do")
+		return nil
+	}
+	log.Info("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+	if err := updateResourceVersion(ctx, obj, old); err != nil {
+		return apierrors.NewInternalError(err)
+	}
+
 	if err := r.store.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
 		return apierrors.NewInternalError(err)
 	}
@@ -108,5 +141,23 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj run
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
+	return nil
+}
+
+func updateResourceVersion(ctx context.Context, obj, old runtime.Object) error {
+	accessorNew, err := meta.Accessor(obj)
+	if err != nil {
+		return nil
+	}
+	accessorOld, err := meta.Accessor(old)
+	if err != nil {
+		return nil
+	}
+	resourceVersion, err := strconv.Atoi(accessorOld.GetResourceVersion())
+	if err != nil {
+		return err
+	}
+	resourceVersion++
+	accessorNew.SetResourceVersion(strconv.Itoa(resourceVersion))
 	return nil
 }

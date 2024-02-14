@@ -42,10 +42,10 @@ const (
 	ConditionReasonNotReady       ConditionReason = "notReady"
 	ConditionReasonFailed         ConditionReason = "failed"
 	ConditionReasonUnknown        ConditionReason = "unknown"
-	ConditionReasonTargetDeleted  ConditionReason = "target Deleted"
 	ConditionReasonDeleting       ConditionReason = "deleting"
 	ConditionReasonCreating       ConditionReason = "creating"
 	ConditionReasonUpdating       ConditionReason = "updating"
+	ConditionReasonTargetDeleted  ConditionReason = "target Deleted"
 	ConditionReasonTargetNotReady ConditionReason = "target not ready"
 	ConditionReasonTargetNotFound ConditionReason = "target not found"
 )
