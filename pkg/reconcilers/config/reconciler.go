@@ -119,5 +119,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	cr.SetConditions(configv1alpha1.Ready())
 	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 }
