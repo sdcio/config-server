@@ -148,6 +148,8 @@ github.com/henderiw/apiserver-store v0.0.0-20240214090552-730c6362acfb h1:1FOJ4u
 github.com/henderiw/apiserver-store v0.0.0-20240214090552-730c6362acfb/go.mod h1:Idtji7zU7wgVa1cIN9aTI10Q0Kjp1n6mKmf8amm4Ql0=
 github.com/henderiw/apiserver-store v0.0.0-20240214093417-044b0addb2aa h1:TNRahBnfjDZgMhLoBeF9HuFjQd49ZD81RJ25PbPbKvg=
 github.com/henderiw/apiserver-store v0.0.0-20240214093417-044b0addb2aa/go.mod h1:Idtji7zU7wgVa1cIN9aTI10Q0Kjp1n6mKmf8amm4Ql0=
+github.com/henderiw/apiserver-store v0.0.0-20240214094319-81573dc62ec5 h1:I4ae9Qf3GSVOdvlQxHT5KJAcWY87cjm2lgBfiZogpCw=
+github.com/henderiw/apiserver-store v0.0.0-20240214094319-81573dc62ec5/go.mod h1:Idtji7zU7wgVa1cIN9aTI10Q0Kjp1n6mKmf8amm4Ql0=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c/go.mod h1:PrPJdVAwtl5tL323wykHZ5L/b7tfJJsjhegza/wq4fQ=
 github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe h1:+R53KH7fW+pmqlfSYVTCGPn8pj6gqBGcQ0nq7L1h8+g=
