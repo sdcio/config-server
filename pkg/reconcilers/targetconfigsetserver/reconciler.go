@@ -37,7 +37,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
@@ -88,7 +88,7 @@ type reconciler struct {
 
 	configSetProvider configserver.ResourceProvider
 	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
-	targetStore store.Storer[target.Context]
+	targetStore storebackend.Storer[target.Context]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -96,7 +96,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	targetKey := store.KeyFromNSN(req.NamespacedName)
+	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.Target{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -125,7 +125,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{Requeue: true}, err
 		}
 		for _, configset := range configSetList.Items {
-			if err := r.configSetProvider.Apply(ctx, store.Key{}, store.Key{}, nil, &configset); err != nil {
+			if err := r.configSetProvider.Apply(ctx, storebackend.Key{}, storebackend.Key{}, nil, &configset); err != nil {
 				log.Error("canot apply configSets", "confifSetName", configset.Name, "error", err)
 				return ctrl.Result{Requeue: true}, err
 			}
@@ -149,7 +149,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 	for _, configset := range configSetList.Items {
-		if err := r.configSetProvider.Apply(ctx, store.Key{}, store.Key{}, nil, &configset); err != nil {
+		if err := r.configSetProvider.Apply(ctx, storebackend.Key{}, storebackend.Key{}, nil, &configset); err != nil {
 			log.Error("canot apply configSets", "confifSetName", configset.Name, "error", err)
 			return ctrl.Result{Requeue: true}, err
 		}
@@ -177,7 +177,7 @@ func (r *reconciler) listConfigSets(ctx context.Context, cr *invv1alpha1.Target)
 	return configSetList, nil
 }
 
-func (r *reconciler) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+func (r *reconciler) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		lease := lease.New(r.Client, targetKey.NamespacedName)

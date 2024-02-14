@@ -24,7 +24,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel/trace"
@@ -51,7 +51,7 @@ func NewConfigFileProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 	configStore, err := createFileStore(ctx, obj, rootConfigFilePath)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func NewConfigMemProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 
 	return newConfigProvider(ctx, obj, createMemStore(ctx), client, targetStore)
 }
@@ -72,9 +72,9 @@ func NewConfigMemProvider(
 func newConfigProvider(
 	ctx context.Context,
 	obj resource.Object,
-	configStore store.Storer[runtime.Object],
+	configStore storebackend.Storer[runtime.Object],
 	client client.Client,
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
 	c := &config{
@@ -106,9 +106,9 @@ type config struct {
 	rest.TableConvertor
 }
 
-func (r *config) GetStore() store.Storer[runtime.Object] { return r.configStore }
+func (r *config) GetStore() storebackend.Storer[runtime.Object] { return r.configStore }
 
-func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) error {
+func (r *config) UpdateStore(ctx context.Context, key storebackend.Key, obj runtime.Object) error {
 	config, ok := obj.(*configv1alpha1.Config)
 	if !ok {
 		return fmt.Errorf("expected Config object, got %T", obj)
@@ -116,7 +116,7 @@ func (r *config) UpdateStore(ctx context.Context, key store.Key, obj runtime.Obj
 	return r.storeUpdateConfig(ctx, key, config)
 }
 
-func (r *config) Apply(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+func (r *config) Apply(ctx context.Context, key storebackend.Key, targetKey storebackend.Key, oldObj, newObj runtime.Object) error {
 	oldConfig, ok := oldObj.(*configv1alpha1.Config)
 	if !ok {
 		return fmt.Errorf("apply unexpected old object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(oldObj).Name())
@@ -129,7 +129,7 @@ func (r *config) Apply(ctx context.Context, key store.Key, targetKey store.Key, 
 	return err
 }
 
-func (r *config) SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error {
+func (r *config) SetIntent(ctx context.Context, key storebackend.Key, targetKey storebackend.Key, tctx *target.Context, newObj runtime.Object) error {
 	newConfig, ok := newObj.(*configv1alpha1.Config)
 	if !ok {
 		return fmt.Errorf("setIntent unexpected new object, want: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(newObj).Name())
@@ -303,7 +303,7 @@ func (r *config) DeleteCollection(
 		return nil, err
 	}
 
-	r.configStore.List(ctx, func(ctx context.Context, key store.Key, obj runtime.Object) {
+	r.configStore.List(ctx, func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
 		// TODO delete
 		appendItem(v, obj)
 	})

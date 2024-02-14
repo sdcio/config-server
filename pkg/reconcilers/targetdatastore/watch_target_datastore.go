@@ -21,7 +21,7 @@ import (
 	"time"
 
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,11 +32,11 @@ import (
 
 type targetDataStoreWatcher struct {
 	cancel      context.CancelFunc
-	targetStore store.Storer[target.Context]
+	targetStore storebackend.Storer[target.Context]
 	client.Client
 }
 
-func newTargetDataStoreWatcher(client client.Client, targetStore store.Storer[target.Context]) *targetDataStoreWatcher {
+func newTargetDataStoreWatcher(client client.Client, targetStore storebackend.Storer[target.Context]) *targetDataStoreWatcher {
 	return &targetDataStoreWatcher{
 		Client:      client,
 		targetStore: targetStore,
@@ -65,7 +65,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 
 			for _, target := range targetList.Items {
 				target := target
-				key := store.KeyFromNSN(types.NamespacedName{Namespace: target.GetNamespace(), Name: target.GetName()})
+				key := storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.GetNamespace(), Name: target.GetName()})
 
 				tctx, err := r.targetStore.Get(ctx, key)
 				if err != nil {

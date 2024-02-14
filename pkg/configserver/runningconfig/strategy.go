@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package runningconfig
 
 import (
 	"context"
@@ -23,15 +23,12 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
+	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
@@ -39,19 +36,19 @@ import (
 )
 
 // NewStrategy creates and returns a fischerStrategy instance
-func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, store storebackend.Storer[runtime.Object]) *strategy {
-	watcherManager := watchermanager.New(32)
+func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, targetStore storebackend.Storer[target.Context]) *strategy {
+	//watcherManager := watchermanager.New(32)
 
-	go watcherManager.Start(ctx)
+	//go watcherManager.Start(ctx)
 
 	return &strategy{
-		ObjectTyper:    typer,
-		NameGenerator:  names.SimpleNameGenerator,
-		client:         client,
-		store:          store,
-		gr:             configv1alpha1.Resource(configv1alpha1.ConfigPlural),
-		resource:       &configv1alpha1.Config{},
-		watcherManager: watcherManager,
+		ObjectTyper:   typer,
+		NameGenerator: names.SimpleNameGenerator,
+		client:        client,
+		targetStore:   targetStore,
+		gr:            configv1alpha1.Resource(configv1alpha1.RunningConfigPlural),
+		resource:      &configv1alpha1.RunningConfig{},
+		//watcherManager: watcherManager,
 	}
 }
 
@@ -67,15 +64,15 @@ func Match(label labels.Selector, field fields.Selector) storage.SelectionPredic
 
 // GetAttrs returns labels.Set, fields.Set, and error in case the given runtime.Object does not match
 func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
-	api, ok := obj.(*configv1alpha1.Config)
+	api, ok := obj.(*configv1alpha1.RunningConfig)
 	if !ok {
-		return nil, nil, fmt.Errorf("given object is not a %s", configv1alpha1.ConfigKind)
+		return nil, nil, fmt.Errorf("given object is not a %s", configv1alpha1.RunningConfigKind)
 	}
 	return labels.Set(api.ObjectMeta.Labels), SelectableFields(api), nil
 }
 
 // SelectableFields returns a field set that represents the object.
-func SelectableFields(obj *configv1alpha1.Config) fields.Set {
+func SelectableFields(obj *configv1alpha1.RunningConfig) fields.Set {
 	return generic.ObjectMetaFieldsSet(&obj.ObjectMeta, true)
 }
 
@@ -89,11 +86,11 @@ var _ rest.RESTWatchStrategy = &strategy{}
 type strategy struct {
 	runtime.ObjectTyper
 	names.NameGenerator
-	client         client.Client
-	store          storebackend.Storer[runtime.Object]
-	gr             schema.GroupResource
-	resource       resource.Object
-	watcherManager watchermanager.WatcherManager
+	client      client.Client
+	targetStore storebackend.Storer[target.Context]
+	gr          schema.GroupResource
+	resource    resource.Object
+	//watcherManager watchermanager.WatcherManager
 }
 
 func (r *strategy) NamespaceScoped() bool {
@@ -101,25 +98,3 @@ func (r *strategy) NamespaceScoped() bool {
 }
 
 func (r *strategy) Canonicalize(obj runtime.Object) {}
-
-func getTargetKey(labels map[string]string) (types.NamespacedName, error) {
-	var targetName, targetNamespace string
-	if labels != nil {
-		targetName = labels[configv1alpha1.TargetNameKey]
-		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
-	}
-	if targetName == "" || targetNamespace == "" {
-		return types.NamespacedName{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
-	}
-	return types.NamespacedName{
-		Namespace: targetNamespace,
-		Name:      targetName,
-	}, nil
-}
-
-func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
-}

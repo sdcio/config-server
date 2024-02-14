@@ -30,7 +30,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/pkg/errors"
@@ -99,8 +99,8 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	targetStore     store.Storer[target.Context]
-	dataServerStore store.Storer[sdcctx.DSContext]
+	targetStore     storebackend.Storer[target.Context]
+	dataServerStore storebackend.Storer[sdcctx.DSContext]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -108,7 +108,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	targetKey := store.KeyFromNSN(req.NamespacedName)
+	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.Target{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -210,7 +210,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// add the target to the DS
-		r.addTargetToDataServer(ctx, store.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
+		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
 		// create the target in the target store
 		if currentTargetCtx.Client == nil {
 			currentTargetCtx.Client = selectedDSctx.DSClient
@@ -230,7 +230,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	} else {
 		// safety
-		r.addTargetToDataServer(ctx, store.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
+		r.addTargetToDataServer(ctx, storebackend.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
 	}
 
 	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
@@ -270,10 +270,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 }
 
-func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey store.Key) {
+func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey storebackend.Key) {
 	log := log.FromContext(ctx)
-	dsKeys := []store.Key{}
-	r.dataServerStore.List(ctx, func(ctx context.Context, dsKey store.Key, dsctx sdcctx.DSContext) {
+	dsKeys := []storebackend.Key{}
+	r.dataServerStore.List(ctx, func(ctx context.Context, dsKey storebackend.Key, dsctx sdcctx.DSContext) {
 		if dsctx.Targets.Has(targetKey.String()) {
 			dsKeys = append(dsKeys, dsKey)
 		}
@@ -291,7 +291,7 @@ func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey s
 	}
 }
 
-func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey store.Key, targetKey store.Key) {
+func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebackend.Key, targetKey storebackend.Key) {
 	log := log.FromContext(ctx)
 	dsctx, err := r.dataServerStore.Get(ctx, dsKey)
 	if err != nil {
@@ -311,7 +311,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	var err error
 	selectedDSctx := &sdcctx.DSContext{}
 	minTargets := 9999
-	r.dataServerStore.List(ctx, func(ctx context.Context, k store.Key, dsctx sdcctx.DSContext) {
+	r.dataServerStore.List(ctx, func(ctx context.Context, k storebackend.Key, dsctx sdcctx.DSContext) {
 		if dsctx.Targets.Len() == 0 || dsctx.Targets.Len() < minTargets {
 			selectedDSctx = &dsctx
 			minTargets = dsctx.Targets.Len()
@@ -340,7 +340,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 // 2. delete/update the datastore if changes were detected
 // 3. do nothing if no changes were detected.
 func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1alpha1.Target) (bool, *invv1alpha1.TargetStatusUsedReferences, error) {
-	key := store.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
+	key := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).With("targetkey", key.String())
 	changed := false
 	req, usedRefs, err := r.getCreateDataStoreRequest(ctx, cr)
@@ -558,7 +558,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	}
 
 	return &sdcpb.CreateDataStoreRequest{
-		Name: store.KeyFromNSN(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
+		Name: storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
 			Type:    string(connProfile.Spec.Protocol),
 			Address: cr.Spec.Address,
@@ -581,7 +581,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	}, usedReferences, nil
 }
 
-func (r *reconciler) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+func (r *reconciler) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		lease := lease.New(r.Client, targetKey.NamespacedName)

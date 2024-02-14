@@ -30,7 +30,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -87,7 +87,7 @@ type reconciler struct {
 
 	//configProvider configserver.ResourceProvider
 	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
-	targetStore store.Storer[target.Context]
+	targetStore storebackend.Storer[target.Context]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -95,7 +95,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	targetKey := store.KeyFromNSN(req.NamespacedName)
+	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.Target{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -116,38 +116,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		log.Info("delete")
-		// list the configs per target
-		cr.SetConditions(invv1alpha1.ConfigFailed("target deleting"))
-		configList, err := r.listTargetConfigs(ctx, cr)
-		if err != nil {
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		for _, config := range configList.Items {
-			condition := config.GetCondition(configv1alpha1.ConditionTypeReady)
-			if condition.Status != metav1.ConditionFalse && condition.Message != string(configv1alpha1.ConditionReasonTargetNotFound) {
-				// update the status if not already set
-				config.SetConditions(configv1alpha1.Failed(string(configv1alpha1.ConditionReasonTargetNotFound)))
-				if err := r.Client.Update(ctx, &config); err != nil {
-					return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-				}
-			}
-		}
-		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error("cannot remove finalizer", "error", err)
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-		}
-		log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error("cannot add finalizer", "error", err)
-		return ctrl.Result{Requeue: true}, err
-	}
-
 	// handle transition
-	ready, _ := r.GetTargetReadiness(ctx, targetKey, cr)
+	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
 	log.Info("readiness", "ready", ready)
 	if ready {
 		cfgCondition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
@@ -155,70 +128,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
 
 			log.Info("target reapply config")
-			// we split the config in config that was successfully applied to config that was not yet
-			priorityReApplyConfigs, _, err := r.getReApplyConfigs(ctx, cr)
+			// we split the config in config that were successfully applied and config that was not yet
+			reApplyConfigs, err := r.getReApplyConfigs(ctx, cr)
 			if err != nil {
 				cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 
-			for _, config := range priorityReApplyConfigs {
+			for _, config := range reApplyConfigs {
 				log.Info("target reapply config", "priority", config.Name)
-			}
-			for _, config := range priorityReApplyConfigs {
-				log.Info("target reapply config", "regular", config.Name)
 			}
 
 			// We need to restore the config on the target
-			/*
-				for _, config := range priorityReApplyConfigs {
-					if err := r.configProvider.SetIntent(ctx, store.KeyFromNSN(types.NamespacedName{
-						Name:      config.GetName(),
-						Namespace: config.GetNamespace(),
-					}), targetKey, tctx, config); err != nil {
-						// This is bad since this means we cannot recover the applied config
-						// on a target. We set the target config status to Failed.
-						// Most likely a human intervention is needed
-						cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-						return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-					}
-				}
-			*/
-			cr.SetConditions(invv1alpha1.ConfigReady())
-			// apply the remaining config in async mode
-			/*
-				for _, config := range reApplyConfigs {
-					if err := r.configProvider.Apply(ctx, store.KeyFromNSN(types.NamespacedName{
-						Name:      config.GetName(),
-						Namespace: config.GetNamespace(),
-					}), targetKey, config, config); err != nil {
-						log.Error("cannot apply config on target", "error", err)
-					}
-				}
-			*/
-		}
 
+			for _, config := range reApplyConfigs {
+				if err := tctx.SetIntent(ctx, targetKey, config, false); err != nil {
+					// This is bad since this means we cannot recover the applied config
+					// on a target. We set the target config status to Failed.
+					// Most likely a human intervention is needed
+					cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
+			}
+			cr.SetConditions(invv1alpha1.ConfigReady())
+		}
 	} else {
 		cr.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
-		condition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-		if condition.Status == metav1.ConditionTrue {
-			configList, err := r.listTargetConfigs(ctx, cr)
-			if err != nil {
-				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-			}
-			for _, config := range configList.Items {
-				log.Info("update config status", "config", config)
-				condition := config.GetCondition(configv1alpha1.ConditionTypeReady)
-				if condition.Status != metav1.ConditionFalse && condition.Message != string(configv1alpha1.ConditionReasonNotReady) {
-					// update the status if not already set
-					// resource version does not need to be updated, so we do a shortcut
-					config.SetConditions(configv1alpha1.Failed(string(configv1alpha1.ConditionReasonNotReady)))
-					if err := r.Update(ctx, &config); err != nil {
-						log.Error("cannot update config store", "error", err)
-					}
-				}
-			}
-		}
 	}
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
@@ -227,8 +162,10 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Targ
 	ctx = genericapirequest.WithNamespace(ctx, cr.GetNamespace())
 
 	opts := []client.ListOption{
-		client.MatchingLabels{configv1alpha1.TargetNamespaceKey: cr.GetNamespace()},
-		client.MatchingLabels{configv1alpha1.TargetNameKey: cr.GetName()},
+		client.MatchingLabels{
+			configv1alpha1.TargetNamespaceKey: cr.GetNamespace(),
+			configv1alpha1.TargetNameKey:      cr.GetName(),
+		},
 	}
 
 	configList := &configv1alpha1.ConfigList{}
@@ -239,7 +176,7 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Targ
 	return configList, nil
 }
 
-func (r *reconciler) GetTargetReadiness(ctx context.Context, key store.Key, cr *invv1alpha1.Target) (bool, *target.Context) {
+func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, cr *invv1alpha1.Target) (bool, *target.Context) {
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
@@ -252,39 +189,26 @@ func (r *reconciler) GetTargetReadiness(ctx context.Context, key store.Key, cr *
 	return false, &tctx
 }
 
-func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Target) ([]*configv1alpha1.Config, []*configv1alpha1.Config, error) {
-	priorityReApplyConfigs := []*configv1alpha1.Config{}
-	reApplyConfigs := []*configv1alpha1.Config{}
+func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Target) ([]*configv1alpha1.Config, error) {
+	configs := []*configv1alpha1.Config{}
 	configList, err := r.listTargetConfigs(ctx, cr)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	for _, config := range configList.Items {
 		if config.Status.AppliedConfig != nil {
-			priorityReApplyConfigs = append(priorityReApplyConfigs, &config)
-			// check if appliedConfig != desiredConfig; if so add this to the 2nd config group
-			// to be reapplied
-			appliedShaSum := configv1alpha1.GetShaSum(ctx, config.Status.AppliedConfig)
-			desiredShaSum := configv1alpha1.GetShaSum(ctx, &config.Spec)
-			if appliedShaSum != desiredShaSum {
-				reApplyConfigs = append(reApplyConfigs, &config)
-			}
-		} else {
-			reApplyConfigs = append(reApplyConfigs, &config)
+			configs = append(configs, &config)
 		}
 	}
 
-	sort.Slice(priorityReApplyConfigs, func(i, j int) bool {
-		return priorityReApplyConfigs[i].CreationTimestamp.Before(&priorityReApplyConfigs[j].CreationTimestamp)
-	})
-	sort.Slice(reApplyConfigs, func(i, j int) bool {
-		return reApplyConfigs[i].CreationTimestamp.Before(&reApplyConfigs[j].CreationTimestamp)
+	sort.Slice(configs, func(i, j int) bool {
+		return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
 	})
 
-	return priorityReApplyConfigs, reApplyConfigs, err
+	return configs, err
 }
 
-func (r *reconciler) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+func (r *reconciler) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		lease := lease.New(r.Client, targetKey.NamespacedName)

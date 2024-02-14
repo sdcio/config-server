@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package targetconfigserver
+package config
 
 import (
 	"context"
@@ -24,12 +24,14 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -47,6 +49,10 @@ const (
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
 )
+
+type adder interface {
+	Add(item interface{})
+}
 
 //+kubebuilder:rbac:groups=config.sdcio.dev,resources=configs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=config.sdcio.dev,resources=configs/status,verbs=get;update;patch
@@ -73,6 +79,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&configv1alpha1.Config{}).
+		Watches(&invv1alpha1.Target{}, &targetEventHandler{client: mgr.GetClient()}).
 		Complete(r)
 }
 
@@ -82,7 +89,7 @@ type reconciler struct {
 
 	//configProvider configserver.ResourceProvider
 	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
-	targetStore store.Storer[target.Context]
+	targetStore storebackend.Storer[target.Context]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -102,13 +109,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("get object", "resourceVersion", cr.GetResourceVersion())
 	cr = cr.DeepCopy()
 
+	targetKey, err := getTargetKey(cr.GetLabels())
+	if err != nil {
+		cr.SetConditions(configv1alpha1.Failed("target key invalid"))
+		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+	}
+
+	tctx, err := r.getTargetContext(ctx, targetKey)
+	if err != nil {
+		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+	}
+
 	if !cr.GetDeletionTimestamp().IsZero() {
 		log.Info("delete")
 		// list the configs per target
 
+		if err := tctx.DeleteIntent(ctx, targetKey, cr); err != nil {
+				// TODO depending on the error we need to retry
+			log.Error("delete intent failed", "error", err.Error())
+			cr.SetConditions(configv1alpha1.Failed(err.Error()))
+			return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		}
+
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			log.Error("cannot remove finalizer", "error", err)
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 		}
 		log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
@@ -119,6 +145,45 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	if err := tctx.SetIntent(ctx, targetKey, cr, true); err != nil {
+		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		// TODO depending on the error we need to retry
+		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+	}
+
 	cr.SetConditions(configv1alpha1.Ready())
+	cr.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    tctx.DataStore.Schema.Name,
+		Vendor:  tctx.DataStore.Schema.Vendor,
+		Version: tctx.DataStore.Schema.Version,
+	}
+	cr.Status.AppliedConfig = &cr.Spec
 	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+}
+
+func (r *reconciler) getTargetContext(ctx context.Context, targetKey storebackend.Key) (*target.Context, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.Get(ctx, targetKey.NamespacedName, target); err != nil {
+		return nil, err
+	}
+	if !target.IsConfigReady() {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotReady))
+	}
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotFound))
+	}
+	return &tctx, nil
+}
+
+func getTargetKey(labels map[string]string) (storebackend.Key, error) {
+	var targetName, targetNamespace string
+	if labels != nil {
+		targetName = labels[configv1alpha1.TargetNameKey]
+		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
+	}
+	if targetName == "" || targetNamespace == "" {
+		return storebackend.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
+	}
+	return storebackend.Key{NamespacedName: types.NamespacedName{Namespace: targetNamespace, Name: targetName}}, nil
 }

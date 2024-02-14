@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"crypto/sha1"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -33,6 +35,25 @@ const ConfigSetSingular = "configset"
 
 var _ resource.Object = &ConfigSet{}
 var _ resource.ObjectList = &ConfigSetList{}
+
+/*
+var _ resource.ObjectWithStatusSubResource =  &ConfigSet{}
+
+func (ConfigSetStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s",ConfigSetPlural, "status")
+}
+
+func (r ConfigSetStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*ConfigSet)
+	if ok {
+		cfg.Status = r
+	}
+}
+
+func (r *ConfigSet) GetStatus() resource.StatusSubResource {
+	return r.Status
+}
+*/
 
 func (r *ConfigSet) GetSingularName() string {
 	return ConfigSetSingular
@@ -142,4 +163,15 @@ func ConvertConfigSetFieldSelector(label, value string) (internalLabel, internal
 	default:
 		return "", "", fmt.Errorf("%q is not a known field selector", label)
 	}
+}
+
+func (r *ConfigSet) CalculateHash() ([sha1.Size]byte, error) {
+	// Convert the struct to JSON
+	jsonData, err := json.Marshal(r)
+	if err != nil {
+		return [sha1.Size]byte{}, err
+	}
+
+	// Calculate SHA-1 hash
+	return sha1.Sum(jsonData), nil
 }

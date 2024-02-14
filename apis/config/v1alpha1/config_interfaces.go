@@ -40,6 +40,24 @@ const ConfigSingular = "config"
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
+/*
+var _ resource.ObjectWithStatusSubResource =  &Config{}
+
+func (ConfigStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s",ConfigPlural, "status")
+}
+
+func (r ConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*Config)
+	if ok {
+		cfg.Status = r
+	}
+}
+
+func (r *Config) GetStatus() resource.StatusSubResource {
+	return r.Status
+}
+*/
 
 func (r *Config) GetSingularName() string {
 	return ConfigSingular

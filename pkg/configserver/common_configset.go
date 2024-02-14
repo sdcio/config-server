@@ -25,7 +25,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -337,8 +337,8 @@ func (r *configCommon) ensureConfigs(ctx context.Context, configSet *configv1alp
 			// this is now an async
 			if _, _, err := r.upsertTargetConfig(
 				ctx,
-				store.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
-				store.KeyFromNSN(target),
+				storebackend.KeyFromNSN(types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}),
+				storebackend.KeyFromNSN(target),
 				oldConfig,
 				newConfig,
 				isCreate,
@@ -377,7 +377,7 @@ func (r *configCommon) getOrphanConfigsFromConfigSet(ctx context.Context, config
 	log := log.FromContext(ctx)
 	existingConfigs := map[types.NamespacedName]*configv1alpha1.Config{}
 	// get existing configs
-	r.configStore.List(ctx, func(ctx context.Context, key store.Key, obj runtime.Object) {
+	r.configStore.List(ctx, func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
 		config, ok := obj.(*configv1alpha1.Config)
 		if !ok {
 			log.Error("unexpected object in store")
@@ -429,7 +429,7 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 	)
 }
 
-func (r *configCommon) storeCreateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+func (r *configCommon) storeCreateConfigSet(ctx context.Context, key storebackend.Key, configset *configv1alpha1.ConfigSet) error {
 	if err := r.configSetStore.Create(ctx, key, configset); err != nil {
 		return apierrors.NewInternalError(err)
 	}
@@ -440,7 +440,7 @@ func (r *configCommon) storeCreateConfigSet(ctx context.Context, key store.Key, 
 	return nil
 }
 
-func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key storebackend.Key, configset *configv1alpha1.ConfigSet) error {
 	if err := r.configSetStore.Update(ctx, key, configset); err != nil {
 		return apierrors.NewInternalError(err)
 	}
@@ -451,7 +451,7 @@ func (r *configCommon) storeUpdateConfigSet(ctx context.Context, key store.Key, 
 	return nil
 }
 
-func (r *configCommon) storeDeleteConfigSet(ctx context.Context, key store.Key, configset *configv1alpha1.ConfigSet) error {
+func (r *configCommon) storeDeleteConfigSet(ctx context.Context, key storebackend.Key, configset *configv1alpha1.ConfigSet) error {
 	if err := r.configSetStore.Delete(ctx, key); err != nil {
 		return apierrors.NewInternalError(err)
 	}

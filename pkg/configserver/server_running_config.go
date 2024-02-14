@@ -21,7 +21,7 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel/trace"
@@ -47,7 +47,7 @@ func NewRunningConfigProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	targetStore store.Storer[target.Context]) (rest.Storage, error) {
+	targetStore storebackend.Storer[target.Context]) (rest.Storage, error) {
 
 	return newRunningConfigProvider(ctx, obj, client, targetStore)
 }
@@ -56,7 +56,7 @@ func newRunningConfigProvider(
 	ctx context.Context,
 	obj resource.Object,
 	client client.Client,
-	targetStore store.Storer[target.Context]) (rest.Storage, error) {
+	targetStore storebackend.Storer[target.Context]) (rest.Storage, error) {
 	// initialie the rest storage object
 	gr := obj.GetGroupVersionResource().GroupResource()
 	c := &runningConfig{

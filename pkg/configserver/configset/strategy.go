@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package configset
 
 import (
 	"context"
@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/storage"
@@ -49,8 +48,8 @@ func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.C
 		NameGenerator:  names.SimpleNameGenerator,
 		client:         client,
 		store:          store,
-		gr:             configv1alpha1.Resource(configv1alpha1.ConfigPlural),
-		resource:       &configv1alpha1.Config{},
+		gr:             configv1alpha1.Resource(configv1alpha1.ConfigSetPlural),
+		resource:       &configv1alpha1.ConfigSet{},
 		watcherManager: watcherManager,
 	}
 }
@@ -67,15 +66,15 @@ func Match(label labels.Selector, field fields.Selector) storage.SelectionPredic
 
 // GetAttrs returns labels.Set, fields.Set, and error in case the given runtime.Object does not match
 func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
-	api, ok := obj.(*configv1alpha1.Config)
+	api, ok := obj.(*configv1alpha1.ConfigSet)
 	if !ok {
-		return nil, nil, fmt.Errorf("given object is not a %s", configv1alpha1.ConfigKind)
+		return nil, nil, fmt.Errorf("given object is not a %s", configv1alpha1.ConfigSetKind)
 	}
 	return labels.Set(api.ObjectMeta.Labels), SelectableFields(api), nil
 }
 
 // SelectableFields returns a field set that represents the object.
-func SelectableFields(obj *configv1alpha1.Config) fields.Set {
+func SelectableFields(obj *configv1alpha1.ConfigSet) fields.Set {
 	return generic.ObjectMetaFieldsSet(&obj.ObjectMeta, true)
 }
 
@@ -101,21 +100,6 @@ func (r *strategy) NamespaceScoped() bool {
 }
 
 func (r *strategy) Canonicalize(obj runtime.Object) {}
-
-func getTargetKey(labels map[string]string) (types.NamespacedName, error) {
-	var targetName, targetNamespace string
-	if labels != nil {
-		targetName = labels[configv1alpha1.TargetNameKey]
-		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
-	}
-	if targetName == "" || targetNamespace == "" {
-		return types.NamespacedName{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
-	}
-	return types.NamespacedName{
-		Namespace: targetNamespace,
-		Name:      targetName,
-	}, nil
-}
 
 func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)

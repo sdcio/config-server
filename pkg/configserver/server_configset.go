@@ -24,7 +24,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
 	"go.opentelemetry.io/otel/trace"
@@ -51,8 +51,8 @@ func NewConfigSetFileProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	configStore store.Storer[runtime.Object],
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	configStore storebackend.Storer[runtime.Object],
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 
 	configSetStore, err := createFileStore(ctx, obj, rootConfigFilePath)
 	if err != nil {
@@ -66,8 +66,8 @@ func NewConfigSetMemProvider(
 	obj resource.Object,
 	scheme *runtime.Scheme,
 	client client.Client,
-	configStore store.Storer[runtime.Object],
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	configStore storebackend.Storer[runtime.Object],
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 
 	return newConfigSetProvider(ctx, obj, createMemStore(ctx), client, configStore, targetStore)
 }
@@ -75,10 +75,10 @@ func NewConfigSetMemProvider(
 func newConfigSetProvider(
 	ctx context.Context,
 	obj resource.Object,
-	configSetStore store.Storer[runtime.Object],
+	configSetStore storebackend.Storer[runtime.Object],
 	client client.Client,
-	configStore store.Storer[runtime.Object],
-	targetStore store.Storer[target.Context]) (ResourceProvider, error) {
+	configStore storebackend.Storer[runtime.Object],
+	targetStore storebackend.Storer[target.Context]) (ResourceProvider, error) {
 	// create the backend store
 
 	// initialie the rest storage object
@@ -114,13 +114,13 @@ type configset struct {
 	//watcherManager watchermanager.WatcherManager
 }
 
-func (r *configset) GetStore() store.Storer[runtime.Object] { return r.configSetStore }
+func (r *configset) GetStore() storebackend.Storer[runtime.Object] { return r.configSetStore }
 
-func (r *configset) UpdateStore(ctx context.Context, key store.Key, obj runtime.Object) error {
+func (r *configset) UpdateStore(ctx context.Context, key storebackend.Key, obj runtime.Object) error {
 	return r.configSetStore.Update(ctx, key, obj)
 }
 
-func (r *configset) Apply(ctx context.Context, key store.Key, targetKey store.Key, oldObj, newObj runtime.Object) error {
+func (r *configset) Apply(ctx context.Context, key storebackend.Key, targetKey storebackend.Key, oldObj, newObj runtime.Object) error {
 	newConfigSet, ok := newObj.(*configv1alpha1.ConfigSet)
 	if !ok {
 		return fmt.Errorf("apply unexpected new object, want: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(newObj).Name())
@@ -129,7 +129,7 @@ func (r *configset) Apply(ctx context.Context, key store.Key, targetKey store.Ke
 	return err
 }
 
-func (r *configset) SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error {
+func (r *configset) SetIntent(ctx context.Context, key storebackend.Key, targetKey storebackend.Key, tctx *target.Context, newObj runtime.Object) error {
 	return fmt.Errorf("setIntent not supported for confgisets")
 }
 
@@ -274,7 +274,7 @@ func (r *configset) DeleteCollection(
 		return nil, err
 	}
 
-	r.configStore.List(ctx, func(ctx context.Context, key store.Key, obj runtime.Object) {
+	r.configStore.List(ctx, func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
 		// TODO delete
 		appendItem(v, obj)
 	})

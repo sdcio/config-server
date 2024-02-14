@@ -14,14 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package all
+package configset
 
 import (
-	_ "github.com/sdcio/config-server/pkg/reconcilers/discoveryrule"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/schema"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigserver"
-	//_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigsetserver"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/config"
-	_ "github.com/sdcio/config-server/pkg/reconcilers/configset"
+	"context"
+
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
+
+func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
+	obj, err := r.store.Get(ctx, storebackend.KeyFromNSN(key))
+	if err != nil {
+		return nil, apierrors.NewNotFound(r.gr, key.Name)
+	}
+	return obj, nil
+}

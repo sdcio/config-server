@@ -22,15 +22,15 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/configserver"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 type ControllerConfig struct {
-	TargetStore       store.Storer[target.Context]
-	DataServerStore   store.Storer[sdcctx.DSContext]
-	SchemaServerStore store.Storer[sdcctx.SSContext]
+	TargetStore       storebackend.Storer[target.Context]
+	DataServerStore   storebackend.Storer[sdcctx.DSContext]
+	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string
 	ConfigProvider    configserver.ResourceProvider
 	ConfigSetProvider configserver.ResourceProvider
