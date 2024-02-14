@@ -125,7 +125,7 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	}
 
 	if oldHash == newHash {
-		log.Info("update nothing to do")
+		log.Info("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 		return nil
 	}
 	log.Info("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
