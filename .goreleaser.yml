@@ -2,7 +2,7 @@ project_name: config-server
 builds:
   - id: config-server
     binary: config-server
-    main: ./cmd/apiserver/main.go
+    main: ./main.go
     env:
       - CGO_ENABLED=0
     goos:
