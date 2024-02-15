@@ -21,11 +21,8 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
-    - jsonPath: .status.conditions[?(@.type=='DSReady')].status
-      name: DATASTORE
-      type: string
-    - jsonPath: .status.conditions[?(@.type=='ConfigReady')].status
-      name: CONFIG
+    - jsonPath: .status.conditions[?(@.type=='Ready')].message
+      name: REASON
       type: string
     - jsonPath: .spec.provider
       name: PROVIDER

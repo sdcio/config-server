@@ -132,6 +132,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			reApplyConfigs, err := r.getReApplyConfigs(ctx, cr)
 			if err != nil {
 				cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+				cr.SetOverallStatus()
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 
@@ -147,13 +148,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// on a target. We set the target config status to Failed.
 					// Most likely a human intervention is needed
 					cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+					cr.SetOverallStatus()
 					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 				}
 			}
 			cr.SetConditions(invv1alpha1.ConfigReady())
+			cr.SetOverallStatus()
 		}
 	} else {
 		cr.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
+		cr.SetOverallStatus()
 	}
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
