@@ -24,7 +24,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,9 +45,9 @@ const (
 
 type configCommon struct {
 	client         client.Client
-	configStore    store.Storer[runtime.Object]
-	configSetStore store.Storer[runtime.Object]
-	targetStore    store.Storer[target.Context]
+	configStore    storebackend.Storer[runtime.Object]
+	configSetStore storebackend.Storer[runtime.Object]
+	targetStore    storebackend.Storer[target.Context]
 	gr             schema.GroupResource
 	isNamespaced   bool
 	newFunc        func() runtime.Object
@@ -124,7 +124,7 @@ func (r *configCommon) list(
 		return nil, err
 	}
 
-	configListFunc := func(ctx context.Context, key store.Key, obj runtime.Object) {
+	configListFunc := func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
 			log.Error("cannot get meta from object", "error", err.Error())
@@ -290,7 +290,7 @@ type lister interface {
 	list(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error)
 }
 
-func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key) (*target.Context, error) {
+func (r *configCommon) getTargetContext(ctx context.Context, targetKey storebackend.Key) (*target.Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
 		return nil, err
@@ -305,7 +305,7 @@ func (r *configCommon) getTargetContext(ctx context.Context, targetKey store.Key
 	return &tctx, nil
 }
 
-func (r *configCommon) getTargetRunningContext(ctx context.Context, targetKey store.Key) (*invv1alpha1.Target, *target.Context, error) {
+func (r *configCommon) getTargetRunningContext(ctx context.Context, targetKey storebackend.Key) (*invv1alpha1.Target, *target.Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey.NamespacedName, target); err != nil {
 		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)

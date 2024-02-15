@@ -18,15 +18,14 @@ package discoveryeventhandler
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -35,23 +34,23 @@ type TargetConnProfileEventHandler struct {
 	ObjList invv1alpha1.DiscoveryObjectList
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *TargetConnProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *TargetConnProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *TargetConnProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *TargetConnProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
@@ -61,9 +60,9 @@ func (r *TargetConnProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 	if !ok {
 		return
 	}
-	//ctx := context.Background()
+
 	log := log.FromContext(ctx)
-	log.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log.Info("event", "gvk", invv1alpha1.TargetConnectionProfileGroupVersionKind.String(), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -91,7 +90,7 @@ func (r *TargetConnProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 		}
 
 		// check if the connection profile is referenced in the ConnectivityProfile
-		if *dr.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile== cr.GetName() {
+		if *dr.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}

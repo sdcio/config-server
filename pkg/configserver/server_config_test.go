@@ -26,8 +26,8 @@ import (
 	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/config-server/pkg/store"
-	"github.com/sdcio/config-server/pkg/store/memory"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -115,12 +115,12 @@ func buildOptions(fieldSet, labelSet map[string]string) *internalversion.ListOpt
 	return options
 }
 
-func initTargetDataStore(ctx context.Context, namespace string, targets map[string]bool) store.Storer[target.Context] {
+func initTargetDataStore(ctx context.Context, namespace string, targets map[string]bool) storebackend.Storer[target.Context] {
 	targetStore := memory.NewStore[target.Context]()
 
 	dsClient := dsclient.NewFakeClient()
 	for targetName := range targets {
-		key := store.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: namespace})
+		key := storebackend.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: namespace})
 		targetStore.Create(ctx, key, target.Context{
 			Ready:  true,
 			Client: dsClient,

@@ -29,7 +29,7 @@ import (
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/target"
@@ -74,7 +74,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	b, _ := json.Marshal(di)
 	log.Info("discovery info", "info", string(b))
 
-	lease := r.getLease(ctx, store.KeyFromNSN(types.NamespacedName{
+	lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
 		Namespace: r.cfg.CR.GetNamespace(),
 		Name:      getTargetName(di.HostName),
 	}))

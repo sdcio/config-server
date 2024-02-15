@@ -38,7 +38,7 @@ import (
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
@@ -72,7 +72,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		}
 	*/
 
-	cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key store.Key, dsCtx sdcctx.SSContext) {
+	cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key storebackend.Key, dsCtx sdcctx.SSContext) {
 		r.schemaclient = dsCtx.SSClient
 	})
 	if r.schemaclient == nil {

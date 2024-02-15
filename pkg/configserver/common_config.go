@@ -24,7 +24,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -256,7 +256,7 @@ func (r *configCommon) deleteConfig(
 	return newConfig, true, nil
 }
 
-func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey store.Key, oldConfig, newConfig *configv1alpha1.Config, isCreate bool) (*configv1alpha1.Config, bool, error) {
+func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey storebackend.Key, oldConfig, newConfig *configv1alpha1.Config, isCreate bool) (*configv1alpha1.Config, bool, error) {
 	log := log.FromContext(ctx)
 	// interact with the data server if the target is ready
 	tctx, err := r.getTargetContext(ctx, targetKey)
@@ -303,7 +303,7 @@ func (r *configCommon) upsertTargetConfig(ctx context.Context, key, targetKey st
 	return newConfig, true, nil
 }
 
-func (r *configCommon) setIntent(ctx context.Context, key, targetKey store.Key, tctx *target.Context, newConfig *configv1alpha1.Config, spec bool) error {
+func (r *configCommon) setIntent(ctx context.Context, key, targetKey storebackend.Key, tctx *target.Context, newConfig *configv1alpha1.Config, spec bool) error {
 	log := log.FromContext(ctx)
 	log.Info("transacting with target", "config", newConfig, "spec", spec)
 	nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
@@ -331,7 +331,7 @@ func (r *configCommon) setIntent(ctx context.Context, key, targetKey store.Key, 
 	return nil
 }
 
-func (r *configCommon) deleteIntent(ctx context.Context, key, targetKey store.Key, tctx *target.Context, newConfig *configv1alpha1.Config, options *metav1.DeleteOptions) error {
+func (r *configCommon) deleteIntent(ctx context.Context, key, targetKey storebackend.Key, tctx *target.Context, newConfig *configv1alpha1.Config, options *metav1.DeleteOptions) error {
 	log := log.FromContext(ctx)
 	log.Info("transacting with target")
 	nctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
@@ -351,7 +351,7 @@ func (r *configCommon) deleteIntent(ctx context.Context, key, targetKey store.Ke
 	return nil
 }
 
-func (r *configCommon) storeCreateConfig(ctx context.Context, key store.Key, config *configv1alpha1.Config) error {
+func (r *configCommon) storeCreateConfig(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config) error {
 	if err := r.configStore.Create(ctx, key, config); err != nil {
 		return apierrors.NewInternalError(err)
 	}
@@ -362,7 +362,7 @@ func (r *configCommon) storeCreateConfig(ctx context.Context, key store.Key, con
 	return nil
 }
 
-func (r *configCommon) storeUpdateConfig(ctx context.Context, key store.Key, config *configv1alpha1.Config) error {
+func (r *configCommon) storeUpdateConfig(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config) error {
 	if err := r.configStore.Update(ctx, key, config); err != nil {
 		return apierrors.NewInternalError(err)
 	}
@@ -373,7 +373,7 @@ func (r *configCommon) storeUpdateConfig(ctx context.Context, key store.Key, con
 	return nil
 }
 
-func (r *configCommon) storeDeleteConfig(ctx context.Context, key store.Key, config *configv1alpha1.Config) error {
+func (r *configCommon) storeDeleteConfig(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config) error {
 	if err := r.configStore.Delete(ctx, key); err != nil {
 		return apierrors.NewInternalError(err)
 	}

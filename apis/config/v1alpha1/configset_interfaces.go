@@ -17,20 +17,47 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"crypto/sha1"
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
 const ConfigSetPlural = "configsets"
+const ConfigSetSingular = "configset"
 
 var _ resource.Object = &ConfigSet{}
 var _ resource.ObjectList = &ConfigSetList{}
+
+/*
+var _ resource.ObjectWithStatusSubResource =  &ConfigSet{}
+
+func (ConfigSetStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s",ConfigSetPlural, "status")
+}
+
+func (r ConfigSetStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*ConfigSet)
+	if ok {
+		cfg.Status = r
+	}
+}
+
+func (r *ConfigSet) GetStatus() resource.StatusSubResource {
+	return r.Status
+}
+*/
+
+func (r *ConfigSet) GetSingularName() string {
+	return ConfigSetSingular
+}
 
 func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -124,4 +151,27 @@ func GetConfigSetFromFile(path string) (*ConfigSet, error) {
 		return nil, err
 	}
 	return obj, nil
+}
+
+// ConvertConfigSetFieldSelector is the schema conversion function for normalizing the FieldSelector for ConfigSet
+func ConvertConfigSetFieldSelector(label, value string) (internalLabel, internalValue string, err error) {
+	switch label {
+	case "metadata.name":
+		return label, value, nil
+	case "metadata.namespace":
+		return label, value, nil
+	default:
+		return "", "", fmt.Errorf("%q is not a known field selector", label)
+	}
+}
+
+func (r *ConfigSet) CalculateHash() ([sha1.Size]byte, error) {
+	// Convert the struct to JSON
+	jsonData, err := json.Marshal(r)
+	if err != nil {
+		return [sha1.Size]byte{}, err
+	}
+
+	// Calculate SHA-1 hash
+	return sha1.Sum(jsonData), nil
 }

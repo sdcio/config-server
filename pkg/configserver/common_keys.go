@@ -21,19 +21,19 @@ import (
 	"fmt"
 
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
-func (r *configCommon) getKey(ctx context.Context, name string) (store.Key, error) {
+func (r *configCommon) getKey(ctx context.Context, name string) (storebackend.Key, error) {
 	ns, namespaced := genericapirequest.NamespaceFrom(ctx)
 	if namespaced != r.isNamespaced {
-		return store.Key{}, fmt.Errorf("namespace mismatch got %t, want %t", namespaced, r.isNamespaced)
+		return storebackend.Key{}, fmt.Errorf("namespace mismatch got %t, want %t", namespaced, r.isNamespaced)
 	}
-	return store.Key{
+	return storebackend.Key{
 		NamespacedName: types.NamespacedName{
 			Name:      name,
 			Namespace: ns,
@@ -41,32 +41,32 @@ func (r *configCommon) getKey(ctx context.Context, name string) (store.Key, erro
 	}, nil
 }
 
-func (r *configCommon) getKeys(ctx context.Context, obj runtime.Object) (store.Key, store.Key, error) {
+func (r *configCommon) getKeys(ctx context.Context, obj runtime.Object) (storebackend.Key, storebackend.Key, error) {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
-		return store.Key{}, store.Key{}, err
+		return storebackend.Key{}, storebackend.Key{}, err
 	}
 	// Get Key
 	key, err := r.getKey(ctx, accessor.GetName())
 	if err != nil {
-		return store.Key{}, store.Key{}, err
+		return storebackend.Key{}, storebackend.Key{}, err
 	}
 	// Get targetKey to intercat with the device
 	targetKey, err := getTargetKey(accessor.GetLabels())
 	if err != nil {
-		return store.Key{}, store.Key{}, err
+		return storebackend.Key{}, storebackend.Key{}, err
 	}
 	return key, targetKey, nil
 }
 
-func getTargetKey(labels map[string]string) (store.Key, error) {
+func getTargetKey(labels map[string]string) (storebackend.Key, error) {
 	var targetName, targetNamespace string
 	if labels != nil {
 		targetName = labels[configv1alpha1.TargetNameKey]
 		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
 	}
 	if targetName == "" || targetNamespace == "" {
-		return store.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
+		return storebackend.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
 	}
-	return store.Key{NamespacedName: types.NamespacedName{Namespace: targetNamespace, Name: targetName}}, nil
+	return storebackend.Key{NamespacedName: types.NamespacedName{Namespace: targetNamespace, Name: targetName}}, nil
 }

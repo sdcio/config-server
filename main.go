@@ -26,13 +26,17 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder"
-	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
 	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/configserver"
+	"github.com/sdcio/config-server/pkg/configserver/config"
+	"github.com/sdcio/config-server/pkg/configserver/configset"
+	"github.com/sdcio/config-server/pkg/configserver/runningconfig"
+	configserverstore "github.com/sdcio/config-server/pkg/configserver/store"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -40,8 +44,6 @@ import (
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
-	"github.com/sdcio/config-server/pkg/store"
-	memstore "github.com/sdcio/config-server/pkg/store/memory"
 	"github.com/sdcio/config-server/pkg/target"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -123,29 +125,31 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
-	configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-	if err != nil {
-		log.Error("cannot create config rest storage", "err", err)
-		os.Exit(1)
-	}
-	configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
-	if err != nil {
-		log.Error("cannot create configset rest storage", "err", err)
-		os.Exit(1)
-	}
-	runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-	if err != nil {
-		log.Error("cannot create runningconfig rest storage", "err", err)
-		os.Exit(1)
-	}
+	/*
+		configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
+		if err != nil {
+			log.Error("cannot create config rest storage", "err", err)
+			os.Exit(1)
+		}
+		configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
+		if err != nil {
+			log.Error("cannot create configset rest storage", "err", err)
+			os.Exit(1)
+		}
+		runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
+		if err != nil {
+			log.Error("cannot create runningconfig rest storage", "err", err)
+			os.Exit(1)
+		}
+	*/
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
-		ConfigProvider:    configProvider,
-		ConfigSetProvider: configSetProvider,
+		//ConfigProvider:    configProvider,
+		//ConfigSetProvider: configSetProvider,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -163,9 +167,18 @@ func main() {
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
-			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
-			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
+			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+				Prefix: "config",
+				Type:   configserverstore.StorageType_File,
+			})).
+			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configset.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+				Prefix: "config",
+				Type:   configserverstore.StorageType_File,
+			})).
+			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
+			//WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
+			//WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
+			//WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")
@@ -199,7 +212,7 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 	return false
 }
 
-func createDataServerClient(ctx context.Context, dataServerStore store.Storer[sdcctx.DSContext]) error {
+func createDataServerClient(ctx context.Context, dataServerStore storebackend.Storer[sdcctx.DSContext]) error {
 	log := log.FromContext(ctx)
 
 	dataServerAddress := localDataServerAddress
@@ -226,7 +239,7 @@ func createDataServerClient(ctx context.Context, dataServerStore store.Storer[sd
 		Targets:  sets.New[string](),
 		DSClient: dsClient,
 	}
-	if err := dataServerStore.Create(ctx, store.ToKey(dataServerAddress), dsCtx); err != nil {
+	if err := dataServerStore.Create(ctx, storebackend.ToKey(dataServerAddress), dsCtx); err != nil {
 		log.Error("cannot store datastore context in dataserver", "err", err)
 		return err
 	}
@@ -234,7 +247,7 @@ func createDataServerClient(ctx context.Context, dataServerStore store.Storer[sd
 	return nil
 }
 
-func createSchemaServerClient(ctx context.Context, schemaServerStore store.Storer[sdcctx.SSContext]) error {
+func createSchemaServerClient(ctx context.Context, schemaServerStore storebackend.Storer[sdcctx.SSContext]) error {
 	log := log.FromContext(ctx)
 
 	// For the schema server we first check if the SDC_SCHEMA_SERVER was et if not we could also use
@@ -264,7 +277,7 @@ func createSchemaServerClient(ctx context.Context, schemaServerStore store.Store
 		Config:   ssConfig,
 		SSClient: ssClient,
 	}
-	if err := schemaServerStore.Create(ctx, store.ToKey(schemaServerAddress), ssCtx); err != nil {
+	if err := schemaServerStore.Create(ctx, storebackend.ToKey(schemaServerAddress), ssCtx); err != nil {
 		log.Error("cannot store schema context in schemaserver", "err", err)
 		return err
 	}

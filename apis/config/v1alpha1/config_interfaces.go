@@ -35,10 +35,33 @@ import (
 )
 
 const ConfigPlural = "configs"
+const ConfigSingular = "config"
 
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
+/*
+var _ resource.ObjectWithStatusSubResource =  &Config{}
+
+func (ConfigStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s",ConfigPlural, "status")
+}
+
+func (r ConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*Config)
+	if ok {
+		cfg.Status = r
+	}
+}
+
+func (r *Config) GetStatus() resource.StatusSubResource {
+	return r.Status
+}
+*/
+
+func (r *Config) GetSingularName() string {
+	return ConfigSingular
+}
 
 func (Config) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -173,4 +196,27 @@ func GetShaSum(ctx context.Context, spec *ConfigSpec) [20]byte {
 		return [20]byte{}
 	}
 	return sha1.Sum(appliedSpec)
+}
+
+// ConvertConfigFieldSelector is the schema conversion function for normalizing the FieldSelector for Config
+func ConvertConfigFieldSelector(label, value string) (internalLabel, internalValue string, err error) {
+	switch label {
+	case "metadata.name":
+		return label, value, nil
+	case "metadata.namespace":
+		return label, value, nil
+	default:
+		return "", "", fmt.Errorf("%q is not a known field selector", label)
+	}
+}
+
+func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
+	// Convert the struct to JSON
+	jsonData, err := json.Marshal(r)
+	if err != nil {
+		return [sha1.Size]byte{}, err
+	}
+
+	// Calculate SHA-1 hash
+	return sha1.Sum(jsonData), nil
 }

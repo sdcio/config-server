@@ -21,9 +21,9 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/store"
-	"github.com/sdcio/config-server/pkg/store/file"
-	"github.com/sdcio/config-server/pkg/store/memory"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/file"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/sdcio/config-server/pkg/target"
 	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,13 +44,13 @@ const (
 type ResourceProvider interface {
 	rest.Storage
 	rest.StandardStorage
-	GetStore() store.Storer[runtime.Object]
-	UpdateStore(context.Context, store.Key, runtime.Object) error
-	Apply(context.Context, store.Key, store.Key, runtime.Object, runtime.Object) error
-	SetIntent(ctx context.Context, key store.Key, targetKey store.Key, tctx *target.Context, newObj runtime.Object) error
+	GetStore() storebackend.Storer[runtime.Object]
+	UpdateStore(context.Context, storebackend.Key, runtime.Object) error
+	Apply(context.Context, storebackend.Key, storebackend.Key, runtime.Object, runtime.Object) error
+	SetIntent(ctx context.Context, key storebackend.Key, targetKey storebackend.Key, tctx *target.Context, newObj runtime.Object) error
 }
 
-func createFileStore(ctx context.Context, obj resource.Object, rootPath string) (store.Storer[runtime.Object], error) {
+func createFileStore(ctx context.Context, obj resource.Object, rootPath string) (storebackend.Storer[runtime.Object], error) {
 	scheme := runtime.NewScheme()
 	// add the core object to the scheme
 	for _, api := range (runtime.SchemeBuilder{
@@ -72,14 +72,14 @@ func createFileStore(ctx context.Context, obj resource.Object, rootPath string) 
 	if err != nil {
 		return nil, err
 	}
-	return file.NewStore[runtime.Object](&file.Config[runtime.Object]{
+	return file.NewStore[runtime.Object](&storebackend.Config[runtime.Object]{
 		GroupResource: gr,
-		RootPath:      rootPath,
+		Prefix:      rootPath,
 		Codec:         codec,
 		NewFunc:       obj.New,
 	})
 }
 
-func createMemStore(ctx context.Context) store.Storer[runtime.Object] {
+func createMemStore(ctx context.Context) storebackend.Storer[runtime.Object] {
 	return memory.NewStore[runtime.Object]()
 }

@@ -27,8 +27,8 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	discoveryeventhandler "github.com/sdcio/config-server/pkg/reconcilers/discoveryeventhandlers"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/store"
-	memstore "github.com/sdcio/config-server/pkg/store/memory"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/sdcio/config-server/pkg/target"
 	errors "github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,8 +93,8 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	discoveryStore store.Storer[discoveryrule.DiscoveryRule]
-	targetStore    store.Storer[target.Context]
+	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
+	targetStore    storebackend.Storer[target.Context]
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -102,7 +102,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	key := store.KeyFromNSN(req.NamespacedName)
+	key := storebackend.KeyFromNSN(req.NamespacedName)
 
 	cr := &invv1alpha1.DiscoveryRule{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {

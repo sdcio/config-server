@@ -24,7 +24,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/lease"
-	"github.com/sdcio/config-server/pkg/store"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,7 +37,7 @@ type DiscoveryRule interface {
 	GetDiscoveryRulConfig() *DiscoveryRuleConfig
 }
 
-func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore store.Storer[target.Context]) DiscoveryRule {
+func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[target.Context]) DiscoveryRule {
 	r := &dr{}
 	r.client = client
 	r.cfg = cfg
@@ -50,7 +50,7 @@ type dr struct {
 	client      client.Client
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
-	targetStore store.Storer[target.Context]
+	targetStore storebackend.Storer[target.Context]
 
 	cancel context.CancelFunc
 }
@@ -121,7 +121,7 @@ func (r *dr) run(ctx context.Context) error {
 				if !r.cfg.Discovery {
 					log.Info("disovery disabled")
 
-					lease := r.getLease(ctx, store.KeyFromNSN(types.NamespacedName{
+					lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
 						Namespace: r.cfg.CR.GetNamespace(),
 						Name:      getTargetName(h.hostName),
 					}))
@@ -170,7 +170,7 @@ func (r *dr) run(ctx context.Context) error {
 	return nil
 }
 
-func (r *dr) getLease(ctx context.Context, targetKey store.Key) lease.Lease {
+func (r *dr) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		lease := lease.New(r.client, targetKey.NamespacedName)
