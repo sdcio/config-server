@@ -46,8 +46,6 @@ func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
-	log := log.FromContext(ctx)
-
 	newaccessor, err := meta.Accessor(obj)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
@@ -83,9 +81,6 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 		))
 	}
 
-	log.Info("validate update old", "name", oldaccessor.GetName(), "resourceVersion", oldaccessor.GetResourceVersion())
-	log.Info("validate update new", "name", newaccessor.GetName(), "resourceVersion", newaccessor.GetResourceVersion())
-
 	if len(allErrs) != 0 {
 		return allErrs
 	}
@@ -93,7 +88,7 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),
 			obj,
-			fmt.Errorf("target keys cannot change: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
+			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
 		))
 	}
 
@@ -122,10 +117,10 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	}
 
 	if oldHash == newHash {
-		log.Info("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+		log.Debug("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 		return nil
 	}
-	log.Info("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
 		return apierrors.NewInternalError(err)
 	}
