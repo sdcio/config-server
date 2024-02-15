@@ -114,6 +114,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		tctx, targetKey, err := r.getTargetInfo(ctx, cr)
 		if err != nil {
 			// Since the target is not available we delete the resource
+			// The target config might not be deleted
 			log.Error("delete config with unavailable target", "error", err)
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 				log.Error("cannot remove finalizer", "error", err)
