@@ -29,9 +29,11 @@ type ConditionType string
 const (
 	// ConditionTypeReady represents the resource ready condition
 	ConditionTypeReady ConditionType = "Ready"
-	// ConditionTypeDSReady represents the resource datastore ready state condition
-	ConditionTypeDSReady ConditionType = "DSReady"
-	// ConditionTypeCfgReady represents the resource config ready state condition
+	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
+	ConditionTypeDiscoveryReady ConditionType = "DiscoveryReady"
+	// ConditionTypeDatastoreReady represents the resource datastore ready condition
+	ConditionTypeDatastoreReady ConditionType = "DatastoreReady"
+	// ConditionTypeCfgReady represents the resource config ready condition
 	ConditionTypeConfigReady ConditionType = "ConfigReady"
 )
 
@@ -48,20 +50,6 @@ const (
 	ConditionReasonLoading        ConditionReason = "Loading"
 	ConditionReasonSchemaNotReady ConditionReason = "SchemaNotReady"
 	ConditionReasonReApplyFailed  ConditionReason = "ReApplyConfigFailed"
-)
-
-// Reasons a resource is synced or not
-const (
-	ConditionReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
-	ConditionReasonReconcileFailure ConditionReason = "ReconcileFailure"
-)
-
-// Reasons a resource is synced or not
-const (
-	ConditionReasonWireSuccess ConditionReason = "Success"
-	ConditionReasonWireFailure ConditionReason = "Failure"
-	ConditionReasonWireUnknown ConditionReason = "Unknown"
-	ConditionReasonWireWiring  ConditionReason = "Wiring"
 )
 
 type Condition struct {
@@ -107,7 +95,7 @@ func (r *ConditionedStatus) GetCondition(t ConditionType) Condition {
 			return c
 		}
 	}
-	return Condition{metav1.Condition{Type: string(t), Status: metav1.ConditionFalse}}
+	return Condition{metav1.Condition{Type: string(t), Status: metav1.ConditionFalse, Reason: string(ConditionReasonUnknown)}}
 }
 
 // SetConditions sets the supplied conditions, replacing any existing conditions
@@ -235,9 +223,9 @@ func Failed(msg string) Condition {
 }
 
 // not ready status.
-func DSReady() Condition {
+func DatastoreReady() Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeDSReady),
+		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReady),
@@ -246,9 +234,9 @@ func DSReady() Condition {
 
 // Failed returns a condition that indicates the resource
 // failed to get reconciled.
-func DSFailed(msg string) Condition {
+func DatastoreFailed(msg string) Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeDSReady),
+		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonFailed),
@@ -258,9 +246,9 @@ func DSFailed(msg string) Condition {
 
 // Failed returns a condition that indicates the resource
 // failed to get reconciled.
-func DSSchemaNotReady(msg string) Condition {
+func DatastoreSchemaNotReady(msg string) Condition {
 	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeDSReady),
+		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonSchemaNotReady),
@@ -299,6 +287,30 @@ func ConfigReApplyFailed(msg string) Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReApplyFailed),
+		Message:            msg,
+	}}
+}
+
+
+// DiscoveryReady return a condition that indicates the discovery
+// is ready
+func DiscoveryReady() Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeDiscoveryReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+	}}
+}
+
+// DiscoveryFailed returns a condition that indicates the discovery
+// is in failed condition
+func DiscoveryFailed(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeDiscoveryReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}
 }

@@ -20,14 +20,14 @@ import (
 	"context"
 	"time"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"github.com/henderiw/logger/log"
 )
 
 type targetDataStoreWatcher struct {
@@ -77,12 +77,13 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					log.Error("k8s target does not have a corresponding dataserver client", "key", key.String(), "error", err)
 					continue
 				}
-				condition := target.GetCondition(invv1alpha1.ConditionTypeDSReady)
+				condition := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
 				resp, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
 				if err != nil {
 					log.Error("cannot get target from the datastore", "key", key.String(), "error", err)
 					if condition.Status == metav1.ConditionTrue {
-						target.SetConditions(invv1alpha1.DSFailed(err.Error()))
+						target.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+						target.SetOverallStatus()
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
@@ -94,7 +95,8 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 					// Target is not connected
 					if condition.Status == metav1.ConditionTrue {
-						target.SetConditions(invv1alpha1.DSFailed(resp.Target.StatusDetails))
+						target.SetConditions(invv1alpha1.DatastoreFailed(resp.Target.StatusDetails))
+						target.SetOverallStatus()
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}
@@ -104,7 +106,8 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				} else {
 					// Target is connected
 					if condition.Status == metav1.ConditionFalse {
-						target.SetConditions(invv1alpha1.DSReady())
+						target.SetConditions(invv1alpha1.DatastoreReady())
+						target.SetOverallStatus()
 						if err := r.Status().Update(ctx, &target); err != nil {
 							log.Error("cannot update target status", "key", key.String(), "error", err)
 						}

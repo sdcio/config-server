@@ -137,7 +137,7 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 			return err
 		}
 
-		newTargetCR.Status.SetConditions(invv1alpha1.Ready())
+		newTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
 		newTargetCR.Status.DiscoveryInfo = di
 		if err := r.client.Status().Update(ctx, newTargetCR); err != nil {
 			return err
@@ -156,11 +156,12 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 	} else {
 		log.Info("discovery target apply, target exists -> no change")
 	}
-	curTargetCR.Status.SetConditions(invv1alpha1.Ready())
+	curTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	curTargetCR.SetOverallStatus()
 	curTargetCR.Status.DiscoveryInfo = di
 	log.Info("discovery target apply",
 		"Ready", curTargetCR.GetCondition(invv1alpha1.ConditionTypeReady).Status,
-		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDSReady).Status,
+		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
 		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
 	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
 		return err

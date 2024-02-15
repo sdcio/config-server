@@ -81,8 +81,7 @@ type TargetStatusUsedReferences struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="DATASTORE",type="string",JSONPath=".status.conditions[?(@.type=='DSReady')].status"
-// +kubebuilder:printcolumn:name="CONFIG",type="string",JSONPath=".status.conditions[?(@.type=='ConfigReady')].status"
+// +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].message"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="ADDRESS",type="string",JSONPath=".spec.address"
 // +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"

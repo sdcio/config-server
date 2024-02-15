@@ -22,7 +22,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/pkg/errors"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -30,10 +32,8 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -130,7 +130,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !cr.GetDeletionTimestamp().IsZero() {
 		log.Info("delete", "finalizers", cr.GetFinalizers())
-		cr.SetConditions(invv1alpha1.DSFailed("target deleting"))
+		cr.SetConditions(invv1alpha1.DatastoreFailed("target deleting"))
+		cr.SetOverallStatus()
 		if len(cr.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the taregtStore
 			log.Error("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
@@ -144,7 +145,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 				log.Error("cannot remove finalizer", "error", err)
 				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+				cr.SetOverallStatus()
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			log.Info("Successfully deleted resource, with non existing client -> strange")
@@ -160,7 +162,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if err != nil {
 				log.Error("cannot delete datastore", "error", err)
 				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+				cr.SetOverallStatus()
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
@@ -172,7 +175,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			log.Error("cannot remove finalizer", "error", err)
 			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+			cr.SetOverallStatus()
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
@@ -183,18 +187,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
 		log.Error("cannot add finalizer", "error", err)
 		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+		cr.SetOverallStatus()
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Info("target ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
-	//cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
-	if cr.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
+	log.Info("target discovery ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
+	if cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DSFailed("target not ready"))
+		cr.SetConditions(invv1alpha1.DatastoreFailed("target discovery not ready"))
+		cr.SetOverallStatus()
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -206,7 +211,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			log.Error("cannot select a dataserver", "error", err)
 			cr.Status.UsedReferences = nil
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+			cr.SetOverallStatus()
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// add the target to the DS
@@ -216,7 +222,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			currentTargetCtx.Client = selectedDSctx.DSClient
 			if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
 				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+				cr.SetOverallStatus()
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		} else {
@@ -224,7 +231,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				Client: selectedDSctx.DSClient,
 			}); err != nil {
 				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+				cr.SetOverallStatus()
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
@@ -237,13 +245,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		log.Error("cannot get schema ready state", "error", err)
 		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+		cr.SetOverallStatus()
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 	if !isSchemaReady {
 		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DSSchemaNotReady(schemaMsg))
+		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
+		cr.SetOverallStatus()
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -253,18 +263,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	changed, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
 	if err != nil {
 		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+		cr.SetOverallStatus()
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	// robustness avoid to update status when there is no change
 	// avoid retriggering reconcile
 	if changed {
 		cr.Status.UsedReferences = usedRefs
-		cr.SetConditions(invv1alpha1.DSReady())
+		cr.SetConditions(invv1alpha1.DatastoreReady())
+		cr.SetOverallStatus()
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.Status.UsedReferences = usedRefs
-	cr.SetConditions(invv1alpha1.DSReady())
+	cr.SetConditions(invv1alpha1.DatastoreReady())
+	cr.SetOverallStatus()
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	//return ctrl.Result{}, nil
 
@@ -447,7 +460,7 @@ func (r *reconciler) hasDataStoreChanged(
 		return true
 	}
 
-	dsReaadyCondition := cr.Status.GetCondition(invv1alpha1.ConditionTypeDSReady)
+	dsReaadyCondition := cr.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
 	if dsReaadyCondition.Status == metav1.ConditionFalse {
 		log.Info("hasDataStoreChanged", "DS Ready condition", dsReaadyCondition)
 		return true

@@ -34,27 +34,52 @@ func (r *Target) SetConditions(c ...Condition) {
 	r.Status.SetConditions(c...)
 }
 
+func (r *Target) SetOverallStatus() {
+	ready := true
+	msg := "target ready"
+	condition := r.GetCondition(ConditionTypeDiscoveryReady)
+	if ready && condition.Status == metav1.ConditionFalse {
+		ready = false
+		msg = "discovery not ready"
+	}
+	condition = r.GetCondition(ConditionTypeDatastoreReady)
+	if ready && condition.Status == metav1.ConditionFalse {
+		ready = false
+		msg = "datastore not ready"
+	}
+	condition = r.GetCondition(ConditionTypeConfigReady)
+	if ready && condition.Status == metav1.ConditionFalse {
+		ready = false
+		msg = "config not ready"
+	}
+	if ready {
+		r.Status.SetConditions(Ready())
+	} else {
+		r.Status.SetConditions(Failed(msg))
+	}
+}
+
 func (r *Target) IsReady() bool {
-	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue
+	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) IsConfigReady() bool {
-	return r.GetCondition(ConditionTypeReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDSReady).Status == metav1.ConditionTrue &&
+	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) NotReadyReason() string {
-	readyCondition := r.GetCondition(ConditionTypeReady)
-	dsreadyCondition := r.GetCondition(ConditionTypeDSReady)
+	discoveryReadyCondition := r.GetCondition(ConditionTypeDiscoveryReady)
+	datastoreReadyCondition := r.GetCondition(ConditionTypeDatastoreReady)
 	return fmt.Sprintf("ready: %v, reason: %s, msg: %s dsready: %v, reason: %s, msg: %s",
-		readyCondition.Status,
-		readyCondition.Reason,
-		readyCondition.Message,
-		dsreadyCondition.Status,
-		dsreadyCondition.Reason,
-		dsreadyCondition.Message,
+		discoveryReadyCondition.Status,
+		discoveryReadyCondition.Reason,
+		discoveryReadyCondition.Message,
+		datastoreReadyCondition.Status,
+		datastoreReadyCondition.Reason,
+		datastoreReadyCondition.Message,
 	)
 }
 

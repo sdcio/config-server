@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -38,7 +39,6 @@ import (
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
@@ -48,7 +48,7 @@ func init() {
 
 const (
 	controllerName = "SchemaController"
-	finalizer = "schema.inv.sdcio.dev/finalizer"
+	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -149,7 +149,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			log.Error("cannot remove finalizer", "error", err)
-			cr.SetConditions(invv1alpha1.DSFailed(err.Error()))
+			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
@@ -184,7 +184,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		if err := r.schemaLoader.Load(ctx, spec.GetKey(), types.NamespacedName{
 			Namespace: cr.Namespace,
-			Name: cr.Spec.Credentials,
+			Name:      cr.Spec.Credentials,
 		}); err != nil {
 			log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
