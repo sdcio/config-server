@@ -61,8 +61,6 @@ spec:
           value: "true"
         - name: ENABLE_TARGETCONFIGSERVER
           value: "true"
-        - name: ENABLE_TARGETCONFIGSETSERVER
-          value: "true"
         - name: ENABLE_DISCOVERYRULE
           value: "true"
         - name: ENABLE_SCHEMA
