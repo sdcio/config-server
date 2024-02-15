@@ -112,9 +112,6 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigKind, reflect.TypeOf(obj))
 	}
 
-	log.Info("update", "newConfig", newConfig)
-	log.Info("update", "oldConfig", oldConfig)
-
 	newHash, err := newConfig.CalculateHash()
 	if err != nil {
 		return err
