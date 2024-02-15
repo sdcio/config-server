@@ -75,7 +75,7 @@ func (r *watcher) listAndWatch(ctx context.Context, l rest.RESTListStrategy, opt
 	if err := r.innerListAndWatch(ctx, l, options); err != nil {
 		// TODO: We need to populate the object on this error
 		// Most likely happens when we cancel a context, stop a watch
-		log.Info("sending error to watch stream", "error", err)
+		log.Debug("sending error to watch stream", "error", err)
 		ev := watch.Event{
 			Type:   watch.Error,
 			Object: &configv1alpha1.Config{},
@@ -115,14 +115,14 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 
 	// we add the watcher to the watchermanager and start building a backlog for intermediate changes
 	// while we startup, the backlog will be replayed once synced
-	log.Info("starting watch")
+	log.Debug("starting watch")
 	if err := r.watcherManager.Add(ctx, options, r); err != nil {
 		return err
 	}
 
 	// options.Watch means watch only no listing
 	if !options.Watch {
-		log.Info("starting list watch")
+		log.Debug("starting list watch")
 		obj, err := l.List(ctx, options)
 		if err != nil {
 			r.setDone()
@@ -147,9 +147,9 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 			r.sendWatchEvent(ctx, ev)
 		}
 
-		log.Info("finished list watch")
+		log.Debug("finished list watch")
 	} else {
-		log.Info("watch only, no list")
+		log.Debug("watch only, no list")
 	}
 
 	// Repeatedly flush the backlog until we catch up
@@ -163,7 +163,7 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 			break
 		}
 
-		log.Info("flushing backlog", "chunk length", len(chunk))
+		log.Debug("flushing backlog", "chunk length", len(chunk))
 
 		for _, ev := range chunk {
 			r.sendWatchEvent(ctx, ev)
@@ -176,10 +176,10 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 		r.sendWatchEvent(ctx, ev)
 	}
 
-	log.Info("moving into streaming mode")
+	log.Debug("moving into streaming mode")
 	r.eventCallback = func(eventType watch.EventType, obj runtime.Object) bool {
 		accessor, _ := meta.Accessor(obj)
-		log.Info("eventCallBack", "eventType", eventType, "nsn", fmt.Sprintf("%s/%s", accessor.GetNamespace(), accessor.GetName()))
+		log.Debug("eventCallBack", "eventType", eventType, "nsn", fmt.Sprintf("%s/%s", accessor.GetNamespace(), accessor.GetName()))
 		if r.done {
 			return false
 		}
@@ -208,10 +208,10 @@ func (r *watcher) sendWatchEvent(ctx context.Context, event watch.Event) {
 	if event.Object != nil {
 		accessor, _ := meta.Accessor(event.Object)
 		log := log.FromContext(ctx).With("event", event.Type, "nsn", fmt.Sprintf("%s/%s", accessor.GetNamespace(), accessor.GetName()))
-		log.Info("sending watch event")
+		log.Debug("sending watch event")
 	} else {
 		log := log.FromContext(ctx).With("event", event.Type)
-		log.Info("sending watch event")
+		log.Debug("sending watch event")
 	}
 
 	r.resultChan <- event

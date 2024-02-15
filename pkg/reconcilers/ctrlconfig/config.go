@@ -19,10 +19,9 @@ package ctrlconfig
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/pkg/configserver"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
+	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -32,8 +31,6 @@ type ControllerConfig struct {
 	DataServerStore   storebackend.Storer[sdcctx.DSContext]
 	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string
-	ConfigProvider    configserver.ResourceProvider
-	ConfigSetProvider configserver.ResourceProvider
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {
