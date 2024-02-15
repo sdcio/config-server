@@ -201,11 +201,15 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		// all other configs will be deleted afterwards since they are no longer needed
 		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
 		oldConfig, ok := existingConfigs[nsnKey]
+		// delete the config from the existing configs -> this list is emptied such that the remaining entries
+		// can be deleted
+		delete(existingConfigs, nsnKey)
 		if !ok { // config does not exist -> create it
 			log.Info("config does not exist", "nsn", nsnKey.String())
 
 			if err := r.Create(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 			TargetsStatus[i].Condition = configv1alpha1.Creating()
@@ -234,11 +238,13 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			newHash, err := newConfig.CalculateHash()
 			if err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				log.Error("cannot calculate hash",  "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 			oldHash, err := oldConfig.CalculateHash()
 			if err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				log.Error("cannot calculate hash",  "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 
@@ -251,17 +257,15 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			}
 			if err := r.Update(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
-
 		}
-		// delete the config from the existing configs -> this list is emptied such that the remaining entries
-		// can be deleted
-		delete(existingConfigs, nsnKey)
 	}
 
 	// These configs no longer match a target
 	for _, existingConfig := range existingConfigs {
+		log.Error("existing config delete", "existingConfig", existingConfig.Name)
 		if err := r.Delete(ctx, existingConfig); err != nil {
 			log.Error("delete existing intent failed", "error", err)
 		}
