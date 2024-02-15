@@ -85,21 +85,19 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 			continue
 		}
 		found := false
-		targetName := ""
 		if selector.Matches(labels.Set(cr.GetLabels())) {
 			log.Info("event target selector matches")
 			// we always requeue since it allows to handle delete of targets that were previously there
 			key := types.NamespacedName{
 				Namespace: configset.Namespace,
 				Name:      configset.Name}
-			log.Info("event requeue configset with target create", "key", key.String(), "target", targetName)
+			log.Info("event requeue configset with target create", "key", key.String(), "target", cr.GetName())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
 			for _, target := range configset.Status.Targets {
 				if target.Name == cr.Name {
 					found = true
-					targetName = target.Name
 					break
 				}
 			}
@@ -107,7 +105,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 				key := types.NamespacedName{
 					Namespace: configset.Namespace,
 					Name:      configset.Name}
-				log.Info("event requeue configset with target delete", "key", key.String(), "target", targetName)
+				log.Info("event requeue configset with target delete", "key", key.String(), "target", cr.GetName())
 				queue.Add(reconcile.Request{NamespacedName: key})
 			}
 		}

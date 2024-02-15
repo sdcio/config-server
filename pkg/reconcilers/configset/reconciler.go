@@ -80,6 +80,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
+		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
 		Watches(&invv1alpha1.Target{}, &targetEventHandler{client: mgr.GetClient()}).
 		Complete(r)

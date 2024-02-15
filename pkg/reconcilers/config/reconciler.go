@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -28,7 +29,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -109,24 +109,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("get object", "resourceVersion", cr.GetResourceVersion())
 	cr = cr.DeepCopy()
 
-	targetKey, err := getTargetKey(cr.GetLabels())
-	if err != nil {
-		cr.SetConditions(configv1alpha1.Failed("target key invalid"))
-		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
-	}
-
-	tctx, err := r.getTargetContext(ctx, targetKey)
-	if err != nil {
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
-	}
-
 	if !cr.GetDeletionTimestamp().IsZero() {
 		log.Info("delete")
-		// list the configs per target
+		tctx, targetKey, err := r.getTargetInfo(ctx, cr)
+		if err != nil {
+			// Since the target is not available we delete the resource
+			log.Error("delete config with unavailable target", "error", err)
+			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
+				log.Error("cannot remove finalizer", "error", err)
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			}
+		}
 
 		if err := tctx.DeleteIntent(ctx, targetKey, cr); err != nil {
-				// TODO depending on the error we need to retry
+			// TODO depending on the error we need to retry
 			log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
 			return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
@@ -138,6 +134,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
+	}
+
+	tctx, targetKey, err := r.getTargetInfo(ctx, cr)
+	if err != nil {
+		// we do not reconcile again since the input was invalid
+		// validation already does some checks before accepting the object,
+		// but there can still be errors.
+		// The target watch should retrigger the reconciler
+		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
@@ -159,6 +165,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	cr.Status.AppliedConfig = &cr.Spec
 	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+}
+
+func (r *reconciler) getTargetInfo(ctx context.Context, cr *configv1alpha1.Config) (*target.Context, storebackend.Key, error) {
+	targetKey, err := getTargetKey(cr.GetLabels())
+	if err != nil {
+		return nil, storebackend.Key{}, errors.Wrap(err, "target key invalid")
+	}
+
+	tctx, err := r.getTargetContext(ctx, targetKey)
+	if err != nil {
+		return nil, storebackend.Key{}, err
+	}
+	return tctx, targetKey, nil
 }
 
 func (r *reconciler) getTargetContext(ctx context.Context, targetKey storebackend.Key) (*target.Context, error) {
