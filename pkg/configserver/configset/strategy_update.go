@@ -80,10 +80,7 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
 	}
 
-	log.Info("update", "newConfig", newConfigSet)
-	log.Info("update", "oldConfig", oldConfigSet)
-
-	newHash, err := oldConfigSet.CalculateHash()
+	newHash, err := newConfigSet.CalculateHash()
 	if err != nil {
 		return err
 	}
@@ -93,10 +90,10 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	}
 
 	if oldHash == newHash {
-		log.Info("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+		log.Debug("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 		return nil
 	}
-	log.Info("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
 		return apierrors.NewInternalError(err)
 	}
