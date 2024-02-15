@@ -97,16 +97,16 @@ func (r *watcherManager) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case event := <-r.watchCh:
-			log.Info("watchermanager event received", "eventType", event.Type, "watchers", r.watchers.len())
+			log.Debug("watchermanager event received", "eventType", event.Type, "watchers", r.watchers.len())
 			var wg sync.WaitGroup
 			for _, w := range r.watchers.list() {
 				w := w
-				log.Info("watcher event processing", "eventType", event.Type, "key", w.key)
+				log.Debug("watcher event processing", "eventType", event.Type, "key", w.key)
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					if err := w.isDone(); err != nil {
-						log.Info("stopping watcher due to error", "key", w.key)
+						log.Debug("stopping watcher due to error", "key", w.key)
 						r.watchers.del(w.key)
 						r.sem.Release(1)
 						return
@@ -114,17 +114,17 @@ func (r *watcherManager) Start(ctx context.Context) {
 
 					// the callback deals with filtering
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {
-						log.Info("stopping watcher due to !keepGoing", "key", w.key)
+						log.Debug("stopping watcher due to !keepGoing", "key", w.key)
 						r.watchers.del(w.key)
 						r.sem.Release(1)
 						return
 					}
-					log.Info("watch callback done", "key", w.key)
+					log.Debug("watch callback done", "key", w.key)
 				}()
 			}
-			log.Info("watchermanager goroutines waiting", "eventType", event.Type, "watchers", r.watchers.len())
+			log.Debug("watchermanager goroutines waiting", "eventType", event.Type, "watchers", r.watchers.len())
 			wg.Wait()
-			log.Info("watchermanager goroutines done waiting", "eventType", event.Type, "watchers", r.watchers.len())
+			log.Debug("watchermanager goroutines done waiting", "eventType", event.Type, "watchers", r.watchers.len())
 		}
 	}
 }
