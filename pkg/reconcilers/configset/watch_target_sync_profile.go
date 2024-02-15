@@ -22,6 +22,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,23 +37,23 @@ type targetEventHandler struct {
 	client client.Client
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request 
 func (r *targetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request 
 func (r *targetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request 
 func (r *targetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request 
 func (r *targetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
@@ -62,6 +63,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 	if !ok {
 		return
 	}
+	ctx = ctrlconfig.InitContext(ctx, controllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
 	log := log.FromContext(ctx)
 
 	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())
@@ -85,21 +87,13 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 		found := false
 		targetName := ""
 		if selector.Matches(labels.Set(cr.GetLabels())) {
-			// if the target was NOT part of the targets in the status, requeue it
-			for _, target := range configset.Status.Targets {
-				if target.Name == cr.Name {
-					found = true
-					targetName = target.Name
-					break
-				}
-			}
-			if !found {
-				key := types.NamespacedName{
-					Namespace: configset.Namespace,
-					Name:      configset.Name}
-				log.Info("event requeue configset with target create", "key", key.String(), "target", targetName)
-				queue.Add(reconcile.Request{NamespacedName: key})
-			}
+			log.Info("event target selector matches")
+			// we always requeue since it allows to handle delete of targets that were previously there
+			key := types.NamespacedName{
+				Namespace: configset.Namespace,
+				Name:      configset.Name}
+			log.Info("event requeue configset with target create", "key", key.String(), "target", targetName)
+			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
 			for _, target := range configset.Status.Targets {

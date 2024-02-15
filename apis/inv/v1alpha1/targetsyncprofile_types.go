@@ -98,5 +98,5 @@ var (
 	TargetSyncProfileKind              = reflect.TypeOf(TargetSyncProfile{}).Name()
 	TargetSyncProfileGroupKind         = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetSyncProfileKind}.String()
 	TargetSyncProfileKindAPIVersion    = TargetKind + "." + SchemeGroupVersion.String()
-	TTargetSyncProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetSyncProfileKind)
+	TargetSyncProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetSyncProfileKind)
 )

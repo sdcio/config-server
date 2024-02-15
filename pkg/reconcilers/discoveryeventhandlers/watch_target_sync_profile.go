@@ -18,20 +18,19 @@ package discoveryeventhandler
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 type TargetSyncProfileEventHandler struct {
-	Client client.Client
+	Client  client.Client
 	ObjList invv1alpha1.DiscoveryObjectList
 }
 
@@ -63,7 +62,7 @@ func (r *TargetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 	}
 	//ctx := context.Background()
 	log := log.FromContext(ctx)
-	log.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log.Info("event", "gvk", invv1alpha1.TargetSyncProfileGroupVersionKind.String(), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints

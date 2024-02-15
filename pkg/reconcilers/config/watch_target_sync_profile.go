@@ -22,6 +22,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -34,23 +35,23 @@ type targetEventHandler struct {
 	client client.Client
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *targetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *targetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *targetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request for all ip allocation within the ipam
+// Create enqueues a request
 func (r *targetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
@@ -60,6 +61,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 	if !ok {
 		return
 	}
+	ctx = ctrlconfig.InitContext(ctx, controllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
 	log := log.FromContext(ctx)
 
 	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())

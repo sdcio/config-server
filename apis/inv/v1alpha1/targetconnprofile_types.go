@@ -127,5 +127,5 @@ var (
 	TargetConnectionProfileKind              = reflect.TypeOf(TargetConnectionProfile{}).Name()
 	TargetConnectionProfileGroupKind         = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetConnectionProfileKind}.String()
 	TargetConnectionProfileKindAPIVersion    = TargetKind + "." + SchemeGroupVersion.String()
-	TTargetConnectionProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetConnectionProfileKind)
+	TargetConnectionProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetConnectionProfileKind)
 )
