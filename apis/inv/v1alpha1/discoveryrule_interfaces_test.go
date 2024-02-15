@@ -38,6 +38,14 @@ func TestValidate(t *testing.T) {
 			path:        "../../../example/discovery-rule/discovery_prefix.yaml",
 			expectedErr: nil,
 		},
+		"DiscoveryPoD": {
+			path:        "../../../example/discovery-rule/discovery_pod.yaml",
+			expectedErr: nil,
+		},
+		"DiscoverySvc": {
+			path:        "../../../example/discovery-rule/discovery_svc.yaml",
+			expectedErr: nil,
+		},
 	}
 
 	for name, tc := range cases {
