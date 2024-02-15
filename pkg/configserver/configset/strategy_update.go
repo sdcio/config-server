@@ -68,44 +68,44 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return allErrs
 }
 
-func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) error {
+func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 	// check if there is a change
 	newConfigSet, ok := obj.(*configv1alpha1.ConfigSet)
 	if !ok {
-		return fmt.Errorf("unexpected new object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
+		return obj, fmt.Errorf("unexpected new object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
 	}
 	oldConfigSet, ok := old.(*configv1alpha1.ConfigSet)
 	if !ok {
-		return fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
+		return obj, fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
 	}
 
 	newHash, err := newConfigSet.CalculateHash()
 	if err != nil {
-		return err
+		return obj, err
 	}
 	oldHash, err := oldConfigSet.CalculateHash()
 	if err != nil {
-		return err
+		return obj, err
 	}
 
 	if oldHash == newHash {
 		log.Debug("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
-		return nil
+		return obj, nil
 	}
 	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
-		return apierrors.NewInternalError(err)
+		return obj, apierrors.NewInternalError(err)
 	}
 
 	if err := r.store.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
-		return apierrors.NewInternalError(err)
+		return obj, apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Modified,
 		Object: obj,
 	})
-	return nil
+	return obj, nil
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {

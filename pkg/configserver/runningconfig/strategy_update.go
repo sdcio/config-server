@@ -41,8 +41,8 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return field.ErrorList{}
 }
 
-func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) error {
-	return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "update")
+func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) (runtime.Object, error) {
+	return obj, apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "update")
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
