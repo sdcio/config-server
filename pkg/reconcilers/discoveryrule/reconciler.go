@@ -21,22 +21,23 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
+	"github.com/henderiw/logger/log"
+	errors "github.com/pkg/errors"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	discoveryeventhandler "github.com/sdcio/config-server/pkg/reconcilers/discoveryeventhandlers"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/sdcio/config-server/pkg/target"
-	errors "github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 )
 
 func init() {
@@ -45,11 +46,15 @@ func init() {
 
 const (
 	controllerName = "DiscoveryRuleController"
-	finalizer = "discoveryruleip.inv.sdcio.dev/finalizer"
+	finalizer      = "discoveryrule.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
 )
+
+type adder interface {
+	Add(item interface{})
+}
 
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=discoveryrules,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=discoveryrules/status,verbs=get;update;patch
@@ -86,6 +91,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 				Client:  mgr.GetClient(),
 				ObjList: &invv1alpha1.DiscoveryRuleList{},
 			}).
+		Watches(&corev1.Secret{}, &secretEventHandler{client: mgr.GetClient()}).
 		Complete(r)
 }
 
