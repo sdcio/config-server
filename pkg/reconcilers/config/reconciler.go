@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -131,7 +132,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// and a human need to intervene
 			if er, ok := status.FromError(err); ok {
 				if er.Code() == codes.ResourceExhausted {
-					return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+					return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 				}
 			}
 			return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
@@ -166,7 +167,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// and a human need to intervene
 		if er, ok := status.FromError(err); ok {
 			if er.Code() == codes.ResourceExhausted {
-				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 			}
 		}
 		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
