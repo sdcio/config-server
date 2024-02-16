@@ -30,6 +30,8 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -123,9 +125,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		if err := tctx.DeleteIntent(ctx, targetKey, cr); err != nil {
-			// TODO depending on the error we need to retry
 			log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
+			// all grpc errors except resource exhausted will not retry
+			// and a human need to intervene
+			if er, ok := status.FromError(err); ok {
+				if er.Code() == codes.ResourceExhausted {
+					return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+				}
+			}
 			return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 		}
 
@@ -154,7 +162,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err := tctx.SetIntent(ctx, targetKey, cr, true); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
-		// TODO depending on the error we need to retry
+		// all grpc errors except resource exhausted will not retry
+		// and a human need to intervene
+		if er, ok := status.FromError(err); ok {
+			if er.Code() == codes.ResourceExhausted {
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			}
+		}
 		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
