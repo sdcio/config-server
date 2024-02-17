@@ -28,9 +28,11 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,9 +76,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	//r.configProvider = cfg.ConfigProvider
-	//r.targetTransitionStore = memory.NewStore[bool]() // keeps track of the target status locally
-	//r.targetStore = cfg.TargetStore
+	r.recorder = mgr.GetEventRecorderFor(controllerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
@@ -89,10 +89,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
-
-	//configProvider configserver.ResourceProvider
-	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
-	//targetStore storebackend.Storer[target.Context]
+	recorder  record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -112,44 +109,56 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cr = cr.DeepCopy()
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		log.Info("delete")
+		//log.Info("delete")
 		// list the configs per target
 		existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, cr)
-		log.Info("delete existingConfigs", "total", len(existingChildConfigs))
-	
+		//log.Info("delete existingConfigs", "total", len(existingChildConfigs))
+
 		for nsn, existingChildConfig := range existingChildConfigs {
-			log.Info("delete existingChildConfig", "nsn", nsn)
+			//log.Info("delete existingChildConfig", "nsn", nsn)
 			if err := r.Delete(ctx, existingChildConfig); err != nil {
-				log.Error("cannot delete config", "error", err.Error())
+				//log.Error("cannot delete config", "error", err.Error())
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "delete child config : %s error %s", nsn.String(), err.Error())
 			}
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error("cannot remove finalizer", "error", err)
+			//log.Error("cannot remove finalizer", "error", err)
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 		}
-		log.Info("Successfully deleted resource")
+		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error("cannot add finalizer", "error", err)
+		//log.Error("cannot add finalizer", "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
 	targets, err := r.unrollDownstreamTargets(ctx, cr)
 	if err != nil {
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.ensureConfigs(ctx, cr, targets); err != nil {
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
 	cr.SetConditions(configv1alpha1.Ready())
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		"configset", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 }
 
@@ -206,7 +215,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		// can be deleted
 		delete(existingConfigs, nsnKey)
 		if !ok { // config does not exist -> create it
-			log.Info("config does not exist", "nsn", nsnKey.String())
+			//log.Info("config does not exist", "nsn", nsnKey.String())
 
 			if err := r.Create(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
@@ -215,7 +224,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			}
 			TargetsStatus[i].Condition = configv1alpha1.Creating()
 		} else {
-			log.Info("config exists", "nsn", nsnKey.String())
+			//log.Info("config exists", "nsn", nsnKey.String())
 			// TODO better logic to validate changes
 			newConfig = oldConfig.DeepCopy()
 			newConfig.Spec = configv1alpha1.ConfigSpec{
@@ -239,13 +248,13 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			newHash, err := newConfig.CalculateHash()
 			if err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
-				log.Error("cannot calculate hash",  "name", nsnKey.Name, "error", err.Error())
+				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 			oldHash, err := oldConfig.CalculateHash()
 			if err != nil {
 				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
-				log.Error("cannot calculate hash",  "name", nsnKey.Name, "error", err.Error())
+				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 

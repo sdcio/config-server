@@ -33,8 +33,10 @@ import (
 	"github.com/sdcio/config-server/pkg/target"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -75,9 +77,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	//r.configProvider = cfg.ConfigProvider
-	//r.targetTransitionStore = memory.NewStore[bool]() // keeps track of the target status locally
 	r.targetStore = cfg.TargetStore
+	r.recorder = mgr.GetEventRecorderFor(controllerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
@@ -89,16 +90,14 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
-
-	//configProvider configserver.ResourceProvider
-	//targetTransitionStore store.Storer[bool] // keeps track of the target status locally
 	targetStore storebackend.Storer[target.Context]
+	recorder    record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
 	log := log.FromContext(ctx)
-	log.Info("reconcile")
+	//log.Info("reconcile")
 
 	cr := &configv1alpha1.Config{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
@@ -109,25 +108,29 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, nil
 	}
-	log.Info("get object", "resourceVersion", cr.GetResourceVersion())
+	//log.Info("get object", "resourceVersion", cr.GetResourceVersion())
 	cr = cr.DeepCopy()
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		log.Info("delete")
+		//log.Info("delete")
 		tctx, targetKey, err := r.getTargetInfo(ctx, cr)
 		if err != nil {
 			// Since the target is not available we delete the resource
 			// The target config might not be deleted
-			log.Error("delete config with unavailable target", "error", err)
+			//log.Error("delete config with unavailable target", "error", err)
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-				log.Error("cannot remove finalizer", "error", err)
+				//log.Error("cannot remove finalizer", "error", err)
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 			}
 		}
 
 		if err := tctx.DeleteIntent(ctx, targetKey, cr); err != nil {
-			log.Error("delete intent failed", "error", err.Error())
+			//log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "delete error %s", err.Error())
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
 			if er, ok := status.FromError(err); ok {
@@ -139,10 +142,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error("cannot remove finalizer", "error", err)
+			//log.Error("cannot remove finalizer", "error", err)
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 		}
-		log.Info("Successfully deleted resource")
+		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
@@ -153,16 +158,22 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// but there can still be errors.
 		// The target watch should retrigger the reconciler
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error("cannot add finalizer", "error", err)
+		//log.Error("cannot add finalizer", "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	if err := tctx.SetIntent(ctx, targetKey, cr, true); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		// all grpc errors except resource exhausted will not retry
 		// and a human need to intervene
 		if er, ok := status.FromError(err); ok {
@@ -180,6 +191,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Version: tctx.DataStore.Schema.Version,
 	}
 	cr.Status.AppliedConfig = &cr.Spec
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		"config", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 }
 
