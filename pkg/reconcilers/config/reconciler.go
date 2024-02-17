@@ -97,7 +97,7 @@ type reconciler struct {
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
 	log := log.FromContext(ctx)
-	//log.Info("reconcile")
+	log.Info("reconcile")
 
 	cr := &configv1alpha1.Config{}
 	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {

@@ -39,6 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -79,9 +80,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
-	//r.configStore = cfg.ConfigStore
 	r.targetStore = cfg.TargetStore
 	r.dataServerStore = cfg.DataServerStore
+	r.recorder = mgr.GetEventRecorderFor(controllerName)
 
 	targetDSWatcher := newTargetDataStoreWatcher(mgr.GetClient(), cfg.TargetStore)
 	go targetDSWatcher.Start(ctx)
@@ -97,10 +98,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client.Client
-	finalizer *resource.APIFinalizer
-
+	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[target.Context]
 	dataServerStore storebackend.Storer[sdcctx.DSContext]
+	recorder        record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -124,82 +125,96 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	l := r.getLease(ctx, targetKey)
 	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
-		log.Info("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
+		//log.Info("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"lease", "error %s", err.Error())
 		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
 	}
+	r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		"lease", "acquired")
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		log.Info("delete", "finalizers", cr.GetFinalizers())
+		//log.Info("delete", "finalizers", cr.GetFinalizers())
 		cr.SetConditions(invv1alpha1.DatastoreFailed("target deleting"))
 		cr.SetOverallStatus()
 		if len(cr.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the taregtStore
-			log.Error("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
+			//log.Error("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		log.Info("deleting targetstore...")
+		//log.Info("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
 		targetCtx, err := r.targetStore.Get(ctx, targetKey)
 		if err != nil {
 			// client does not exist
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-				log.Error("cannot remove finalizer", "error", err)
+				//log.Error("cannot remove finalizer", "error", err)
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			log.Info("Successfully deleted resource, with non existing client -> strange")
+			//log.Info("Successfully deleted resource, with non existing client -> strange")
 			return ctrl.Result{}, nil
 		}
 		// delete the mapping in the dataserver cache, which keeps track of all targets per dataserver
 		r.deleteTargetFromDataServer(ctx, targetKey)
-		log.Info("deleted target from dataserver...")
+		//log.Info("deleted target from dataserver...")
 		// delete the datastore
 		if targetCtx.DataStore != nil && targetCtx.Client != nil {
-			log.Info("deleting datastore", "key", targetKey.String())
-			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
+			//log.Info("deleting datastore", "key", targetKey.String())
+			_, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
 			if err != nil {
-				log.Error("cannot delete datastore", "error", err)
+				//log.Error("cannot delete datastore", "error", err)
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
+			//log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 		}
 
 		// delete the target from the target store
 		r.targetStore.Delete(ctx, targetKey)
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error("cannot remove finalizer", "error", err)
+			//log.Error("cannot remove finalizer", "error", err)
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 			cr.SetOverallStatus()
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
-		log.Info("Successfully deleted resource")
+		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error("cannot add finalizer", "error", err)
+		//log.Error("cannot add finalizer", "error", err)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Info("target discovery ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
+	//log.Info("target discovery ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed("target discovery not ready"))
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "discovery not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -209,10 +224,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil || currentTargetCtx.Client == nil {
 		selectedDSctx, err := r.selectDataServerContext(ctx)
 		if err != nil {
-			log.Error("cannot select a dataserver", "error", err)
+			//log.Error("cannot select a dataserver", "error", err)
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 			cr.SetOverallStatus()
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// add the target to the DS
@@ -224,9 +241,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		} else {
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"datastore", "create")
 			if err := r.targetStore.Create(ctx, targetKey, target.Context{
 				Client: selectedDSctx.DSClient,
 			}); err != nil {
@@ -243,17 +264,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 	if err != nil {
-		log.Error("cannot get schema ready state", "error", err)
+		//log.Error("cannot get schema ready state", "error", err)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "schema not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+	//log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 	if !isSchemaReady {
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "schema not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -265,6 +290,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	// robustness avoid to update status when there is no change
@@ -273,11 +300,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.UsedReferences = usedRefs
 		cr.SetConditions(invv1alpha1.DatastoreReady())
 		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.Status.UsedReferences = usedRefs
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
+	r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		"datastore", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	//return ctrl.Result{}, nil
 
