@@ -206,8 +206,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if !r.HasChanged(ctx, newDRConfig, currentDRConfig) {
 			//log.Info("refs -> no change")
 			cr.SetConditions(invv1alpha1.Ready())
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
+			r.recorder.Eventf(cr, corev1.EventTypeNormal,
+				"discoveryRule", "ready")
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		//log.Info("refs -> changed")
