@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder"
+	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
@@ -63,6 +64,7 @@ const (
 
 var (
 	schemaBaseDir = "/schemas"
+	configDir     = "/config"
 )
 
 func main() {
@@ -125,31 +127,11 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
-	/*
-		configProvider, err := configserver.NewConfigFileProvider(ctx, &configv1alpha1.Config{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-		if err != nil {
-			log.Error("cannot create config rest storage", "err", err)
-			os.Exit(1)
-		}
-		configSetProvider, err := configserver.NewConfigSetFileProvider(ctx, &configv1alpha1.ConfigSet{}, apiserverbuilder.Scheme, mgr.GetClient(), configProvider.GetStore(), targetStore)
-		if err != nil {
-			log.Error("cannot create configset rest storage", "err", err)
-			os.Exit(1)
-		}
-		runningConfigProvider, err := configserver.NewRunningConfigProvider(ctx, &configv1alpha1.RunningConfig{}, apiserverbuilder.Scheme, mgr.GetClient(), targetStore)
-		if err != nil {
-			log.Error("cannot create runningconfig rest storage", "err", err)
-			os.Exit(1)
-		}
-	*/
-
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
-		//ConfigProvider:    configProvider,
-		//ConfigSetProvider: configSetProvider,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -162,18 +144,26 @@ func main() {
 		}
 	}
 
+	db, err := badgerdb.OpenDB(ctx, configDir)
+	if err != nil {
+		log.Error("cannot open db", "err", err.Error())
+		os.Exit(1)
+	}
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
 			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-				Prefix: "config",
-				Type:   configserverstore.StorageType_File,
+				Prefix: configDir,
+				Type:   configserverstore.StorageType_KV,
+				DB:     db,
 			})).
 			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configset.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-				Prefix: "config",
-				Type:   configserverstore.StorageType_File,
+				Prefix: configDir,
+				Type:   configserverstore.StorageType_KV,
+				DB:     db,
 			})).
 			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
 			//WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
