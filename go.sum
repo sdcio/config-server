@@ -180,8 +180,6 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 h1:YBftPWNWd4WwGqtY2yeZL2ef8rH
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0/go.mod h1:YN5jB8ie0yfIUg6VvR9Kz84aCaG7AsGZnLjhHbUqwPg=
 github.com/henderiw/apiserver-builder v0.0.1 h1:biWpjGnjZfRsidr2Vg/k3Ps61YWHzkGCFCHoKv6bwXo=
 github.com/henderiw/apiserver-builder v0.0.1/go.mod h1:9H6WdWwU+XGQtT69BRcelknaBLaWxGVipS5ESqN+hwA=
-github.com/henderiw/apiserver-store v0.0.0-20240219220642-6e3ed2ecd105 h1:OIraYdIg79VOjHbCLFXMT6YcMZ2d+HCCwXoBGdzEG1E=
-github.com/henderiw/apiserver-store v0.0.0-20240219220642-6e3ed2ecd105/go.mod h1:ymfcsQIkGBgOG+YZkWHZQYn6JH0QfUmRwzGTGScP540=
 github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc h1:ZwU2/LrwaHIVkdIchcoLGl6FGL0TFDGRrWrdZo/2WQ0=
 github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc/go.mod h1:ymfcsQIkGBgOG+YZkWHZQYn6JH0QfUmRwzGTGScP540=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
@@ -237,8 +235,8 @@ github.com/openconfig/gnmi v0.10.0 h1:kQEZ/9ek3Vp2Y5IVuV2L/ba8/77TgjdXg505QXvYmg
 github.com/openconfig/gnmi v0.10.0/go.mod h1:Y9os75GmSkhHw2wX8sMsxfI7qRGAEcDh8NTa5a8vj6E=
 github.com/openconfig/gnmic/pkg/api v0.1.1 h1:9d7mhVdoz9k+73h9qoWvwcTpmWvLhjavHg1jyuRGq6Y=
 github.com/openconfig/gnmic/pkg/api v0.1.1/go.mod h1:kX1bJnTRTuYyvceHLcs8JDkLL3QzTpaeYVfQGphYWE4=
-github.com/openconfig/gnmic/pkg/path v0.1.1 h1:C6vZTC0NsMOGyre7ueXRS8vmYvCW9sdHKQ5cqWYiNPw=
-github.com/openconfig/gnmic/pkg/path v0.1.1/go.mod h1:Z2Ejm3UIO7WDxlXsnJmzE7/lnWe/0neCuXW6QDwmYHQ=
+github.com/openconfig/gnmic/pkg/path v0.34.1 h1:enMPNv4il5cNjXwyPZSmmQlRPONdTlPN7VMh3Y5dfh4=
+github.com/openconfig/gnmic/pkg/path v0.34.1/go.mod h1:BtTs36pDCN8hbEpdSSCfmhgSqyVj0Vjokh/sutU1bC0=
 github.com/openconfig/gnmic/pkg/target v0.1.1 h1:/XA3cFs3FTb2Bli4TdvLYf0b/ifMX1gDOMY+f8LcTr0=
 github.com/openconfig/gnmic/pkg/target v0.1.1/go.mod h1:5NF5rtYCt7e7wygyi5kUUU6YsrFLD62kDB2jaCwFUbk=
 github.com/openconfig/gnmic/pkg/testutils v0.1.0 h1:Mw6LKGqzXQnrI9fCtaCAp3pFDy2B0+rKQFtjCqQWJwM=

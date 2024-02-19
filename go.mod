@@ -33,7 +33,7 @@ require (
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.10.0
 	github.com/openconfig/gnmic/pkg/api v0.1.1
-	github.com/openconfig/gnmic/pkg/path v0.1.1
+	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/openconfig/gnmic/pkg/target v0.1.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
