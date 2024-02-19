@@ -19,8 +19,10 @@ package store
 import (
 	"context"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/badgerdb"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/file"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,11 +36,13 @@ type StorageType int
 const (
 	StorageType_Memory StorageType = iota
 	StorageType_File
+	StorageType_KV
 )
 
 type Config struct {
 	Prefix string
 	Type   StorageType
+	DB     *badger.DB
 }
 
 func CreateFileStore(ctx context.Context, scheme *runtime.Scheme, obj resource.Object, prefix string) (storebackend.Storer[runtime.Object], error) {
@@ -68,6 +72,25 @@ func CreateFileStore(ctx context.Context, scheme *runtime.Scheme, obj resource.O
 	return file.NewStore[runtime.Object](&storebackend.Config[runtime.Object]{
 		GroupResource: gr,
 		Prefix:        prefix,
+		Codec:         codec,
+		NewFunc:       obj.New,
+	})
+}
+
+func CreateKVStore(ctx context.Context, db *badger.DB, scheme *runtime.Scheme, obj resource.Object) (storebackend.Storer[runtime.Object], error) {
+	gr := obj.GetGroupVersionResource().GroupResource()
+	codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
+		StorageMediaType:  runtime.ContentTypeJSON,
+		StorageSerializer: serializer.NewCodecFactory(scheme),
+		StorageVersion:    scheme.PrioritizedVersionsForGroup(obj.GetGroupVersionResource().Group)[0],
+		MemoryVersion:     scheme.PrioritizedVersionsForGroup(obj.GetGroupVersionResource().Group)[0],
+		Config:            storagebackend.Config{}, // useless fields..
+	})
+	if err != nil {
+		return nil, err
+	}
+	return badgerdb.NewStore[runtime.Object](db, &storebackend.Config[runtime.Object]{
+		GroupResource: gr,
 		Codec:         codec,
 		NewFunc:       obj.New,
 	})

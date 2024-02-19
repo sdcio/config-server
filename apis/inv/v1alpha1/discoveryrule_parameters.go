@@ -84,28 +84,21 @@ func (r DiscoveryParameters) GetTargetAnnotations(name string) (map[string]strin
 }
 
 func (r DiscoveryParameters) buildTags(m map[string]string, name string) (map[string]string, error) {
-	// initialize map if empty
-	if m == nil {
-		m = make(map[string]string)
-	}
-	// add discovery-rule labels
-	if _, ok := m[LabelKeyDiscoveryRule]; !ok {
-		m[LabelKeyDiscoveryRule] = name
-	}
-	// render values templates
-	labels := make(map[string]string, len(m))
+	// copy map
+	cm := make(map[string]string, len(m))
+	cm[LabelKeyDiscoveryRule] = name
 	b := new(bytes.Buffer)
 	for k, v := range m {
 		tpl, err := template.New(k).Parse(v)
 		if err != nil {
 			return nil, err
 		}
-		b.Reset()
 		err = tpl.Execute(b, nil)
 		if err != nil {
 			return nil, err
 		}
-		labels[k] = b.String()
+		cm[k] = b.String()
+		b.Reset()
 	}
-	return labels, nil
+	return cm, nil
 }

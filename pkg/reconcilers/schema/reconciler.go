@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -40,6 +41,7 @@ import (
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -93,6 +95,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot initialize schemaloader")
 	}
+	r.recorder = mgr.GetEventRecorderFor(controllerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
@@ -107,6 +110,7 @@ type reconciler struct {
 	schemaLoader   *schemaloader.Loader
 	schemaclient   ssclient.Client
 	schemaBasePath string
+	recorder       record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -134,44 +138,54 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
-				log.Error("cannot delete schema from schemaserver", "error", err)
+				//log.Error("cannot delete schema from schemaserver", "error", err)
 				cr.SetConditions(invv1alpha1.Failed(err.Error()))
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 
 		// delete the reference from disk
 		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
-			log.Error("cannot delete schema from disk", "error", err)
+			//log.Error("cannot delete schema from disk", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			log.Error("cannot remove finalizer", "error", err)
+			//log.Error("cannot remove finalizer", "error", err)
 			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
-		log.Info("Successfully deleted resource")
+		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		log.Error("cannot add finalizer", "error", err)
+		//log.Error("cannot add finalizer", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// we just insert the schema again
-	log.Info("schema", "key", spec.GetKey())
+	//log.Info("schema", "key", spec.GetKey())
 	r.schemaLoader.AddRef(ctx, spec)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
-		log.Error("cannot get schema", "error", err)
+		//log.Error("cannot get schema", "error", err)
 		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"Error", "error %s", err.Error())
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
@@ -179,15 +193,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// we set the loading condition to know loading started
 		cr.SetConditions(invv1alpha1.Loading())
 		if err := r.Status().Update(ctx, cr); err != nil {
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, err
 		}
-
+		r.recorder.Eventf(cr, corev1.EventTypeNormal,
+			"schema", "loading")
 		if err := r.schemaLoader.Load(ctx, spec.GetKey(), types.NamespacedName{
 			Namespace: cr.Namespace,
 			Name:      cr.Spec.Credentials,
 		}); err != nil {
-			log.Error("cannot load schema", "error", err)
+			//log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
@@ -195,27 +214,25 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
 	}); err != nil {
-		// TODO act upon NotFound error, etc
-
-		log.Info("schema", "schema", spec.GetSchema())
-		log.Info("create schema", "Models", spec.GetNewSchemaBase(r.schemaBasePath).Models)
-		log.Info("create schema", "Includes", spec.GetNewSchemaBase(r.schemaBasePath).Includes)
-		log.Info("create schema", "Excludes", spec.GetNewSchemaBase(r.schemaBasePath).Excludes)
-		// schema does not exists
+		// schema does not exists in schema-server
 		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
 			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			log.Error("cannot load schema", "error", err)
+			//log.Error("cannot load schema", "error", err)
 			cr.SetConditions(invv1alpha1.Failed(err.Error()))
+			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 
 	// schema ready
 	cr.SetConditions(invv1alpha1.Ready())
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		"schema", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 
 }

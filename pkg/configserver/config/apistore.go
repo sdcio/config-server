@@ -57,6 +57,11 @@ func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RES
 		if err != nil {
 			return nil, err
 		}
+	case store.StorageType_KV:
+		configStore, err = store.CreateKVStore(ctx, storeConfig.DB, scheme, &configv1alpha1.Config{})
+		if err != nil {
+			return nil, err
+		}
 	default:
 		configStore = store.CreateMemStore(ctx)
 	}
