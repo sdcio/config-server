@@ -26,7 +26,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.1
 	github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
