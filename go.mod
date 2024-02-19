@@ -40,7 +40,7 @@ require (
 	github.com/sdcio/sdc-protos v0.0.22
 	github.com/spf13/cobra v1.8.0
 	go.opentelemetry.io/otel v1.20.0
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 	golang.org/x/mod v0.14.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.60.1
