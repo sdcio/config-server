@@ -29,7 +29,7 @@ type ConfigSpec struct {
 	// will follow
 	Lifecycle Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,1,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int `json:"priority,omitempty" protobuf:"bytes,2,opt,name=priority"`
+	Priority int64 `json:"priority,omitempty" protobuf:"bytes,2,opt,name=priority"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Config []ConfigBlob `json:"config" protobuf:"bytes,3,rep,name=config"`
@@ -57,14 +57,14 @@ type ConfigStatus struct {
 
 type Deviation struct {
 	// Path of the config this deviation belongs to
-	Path         string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
 	// CurrentValue defines the current value of the config belonging to the path 
 	// that is currently configured on the target
 	CurrentValue  string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
 	// Reason defines the reason of the deviation
-	Reason       string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {
@@ -99,7 +99,7 @@ type ConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Config{}, &ConfigList{})
+	schemeBuilder.Register(&Config{}, &ConfigList{})
 }
 
 // Config type metadata.

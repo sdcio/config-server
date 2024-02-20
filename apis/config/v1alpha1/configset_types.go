@@ -30,7 +30,7 @@ type ConfigSetSpec struct {
 	// will follow
 	Lifecycle Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int `json:"priority,omitempty" protobuf:"bytes,3,opt,name=priority"`
+	Priority int64 `json:"priority,omitempty" protobuf:"bytes,3,opt,name=priority"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
@@ -80,11 +80,9 @@ type ConfigSetList struct {
 	Items           []ConfigSet `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-
 func init() {
-	SchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
+	schemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
 }
-
 
 // Config type metadata.
 var (
