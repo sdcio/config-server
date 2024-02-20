@@ -40,6 +40,7 @@ const ConfigSingular = "config"
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
+
 /*
 var _ resource.ObjectWithStatusSubResource =  &Config{}
 
@@ -157,7 +158,7 @@ func (r *ConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
 
-func (r *ConfigStatusLastKnownGoodSchema) String() string {
+func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }
 
@@ -165,7 +166,7 @@ func (r *ConfigStatusLastKnownGoodSchema) String() string {
 func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *Config {
 	return &Config{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: schemeBuilder.GroupVersion.Identifier(),
 			Kind:       ConfigKind,
 		},
 		ObjectMeta: meta,

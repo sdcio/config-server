@@ -56,7 +56,7 @@ type RunningConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&RunningConfig{}, &RunningConfigList{})
+	schemeBuilder.Register(&RunningConfig{}, &RunningConfigList{})
 }
 
 // RunningConfig type metadata.
