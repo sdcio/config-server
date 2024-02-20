@@ -22,10 +22,11 @@ replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.15.0
 
 replace sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.15.0
 
+replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.6
+
 require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-git/go-git/v5 v5.11.0
-	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.1

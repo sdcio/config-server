@@ -37,7 +37,7 @@ func NewTableConvertor(gr schema.GroupResource) registry.TableConvertor {
 				config.GetCondition(configv1alpha1.ConditionTypeReady).Status,
 				config.GetCondition(configv1alpha1.ConditionTypeReady).Reason,
 				config.GetTarget(),
-				config.GetLastKnownGoodSchema().String(),
+				config.GetLastKnownGoodSchema().FileString(),
 			}
 		},
 		Columns: []metav1.TableColumnDefinition{
