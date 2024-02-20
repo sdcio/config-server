@@ -161,7 +161,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			}
 			parts := strings.SplitN(configName, ".", 2)
 			if len(parts) != 2 {
-				log.Info("unexpected intentName, got: %s", configName)
+				log.Info("unexpected configName", "got", configName)
 				continue
 			}
 	UpdateConfig:
