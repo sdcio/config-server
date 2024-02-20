@@ -26,24 +26,24 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.4.0
+	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.1
 	github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.10.0
-	github.com/openconfig/gnmic/pkg/api v0.1.1
-	github.com/openconfig/gnmic/pkg/path v0.1.1
+	github.com/openconfig/gnmic/pkg/api v0.1.3
+	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/openconfig/gnmic/pkg/target v0.1.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
 	github.com/sdcio/sdc-protos v0.0.22
 	github.com/spf13/cobra v1.8.0
 	go.opentelemetry.io/otel v1.20.0
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 	golang.org/x/mod v0.14.0
-	golang.org/x/sync v0.5.0
-	google.golang.org/grpc v1.60.1
+	golang.org/x/sync v0.6.0
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
@@ -146,12 +146,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/oauth2 v0.15.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/oauth2 v0.17.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
