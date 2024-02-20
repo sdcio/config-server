@@ -32,7 +32,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
-	"github.com/openconfig/gnmic/pkg/target"
+	"github.com/openconfig/gnmic/pkg/api/target"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
