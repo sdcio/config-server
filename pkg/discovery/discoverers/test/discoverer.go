@@ -21,7 +21,7 @@ import (
 
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
-	"github.com/openconfig/gnmic/pkg/target"
+	"github.com/openconfig/gnmic/pkg/api/target"
 )
 
 const (

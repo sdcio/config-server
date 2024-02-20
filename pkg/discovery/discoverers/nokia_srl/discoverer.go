@@ -25,7 +25,7 @@ import (
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/path"
-	"github.com/openconfig/gnmic/pkg/target"
+	"github.com/openconfig/gnmic/pkg/api/target"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
