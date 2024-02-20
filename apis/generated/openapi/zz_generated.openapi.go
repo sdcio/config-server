@@ -1437,9 +1437,9 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
-					"domainName": {
+					"serviceDomain": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DomainName defines the domain name of the cluster, used by pod or svc discovery to identify the domain name in the l8s cluster where the pod or services reside.",
+							Description: "ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the domain name in the k8s cluster where the service reside.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -65,6 +65,25 @@ func runE(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+			if gen == "go-to-protobuf" {
+				err := run(exec.Command("go", "mod", "vendor"))
+				if err != nil {
+					return err
+				}
+				/*
+				pkgs := []string{
+					"golang.org/x/tools/cmd/goimports",
+					"github.com/gogo/protobuf/protoc-gen-gogo",
+				}
+				for _, pkg := range pkgs {
+					fmt.Println(pkg)
+					err := run(exec.Command("go", "install", pkg))
+					if err != nil {
+						return err
+					}
+				}
+				*/
+			}
 		}
 	}
 
@@ -171,7 +190,9 @@ func doGen() error {
 	if gen["go-to-protobuf"] {
 		err := run(getCmd("go-to-protobuf",
 			"--packages", protoInput,
-			))
+			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
+			"--proto-import", "./vendor",
+		))
 		if err != nil {
 			return err
 		}
@@ -301,3 +322,14 @@ func allTrimPrefix(prefix string, versions []string) []string {
 	}
 	return vs
 }
+
+/*
+
+
+go-to-protobuf \
+	--go-header-file=./hack/boilerplate.go.txt \
+	--packages=github.com/sdcio/config-server/apis/config/v1alpha1 \
+	--apimachinery-packages=-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1 \
+	--proto-import ./vendor \
+	--output-base ./test
+ */
