@@ -125,7 +125,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	l := r.getLease(ctx, targetKey)
 	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
-		//log.Info("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
+		log.Debug("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"lease", "error %s", err.Error())
 		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
@@ -134,21 +134,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		"lease", "acquired")
 
 	if !cr.GetDeletionTimestamp().IsZero() {
-		//log.Info("delete", "finalizers", cr.GetFinalizers())
 		cr.SetConditions(invv1alpha1.DatastoreFailed("target deleting"))
 		cr.SetOverallStatus()
 		if len(cr.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the taregtStore
-			//log.Error("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
+			log.Debug("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-		//log.Info("deleting targetstore...")
+		log.Debug("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
 		targetCtx, err := r.targetStore.Get(ctx, targetKey)
 		if err != nil {
 			// client does not exist
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-				//log.Error("cannot remove finalizer", "error", err)
+				log.Debug("cannot remove finalizer", "error", err)
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
@@ -156,16 +155,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			//log.Info("Successfully deleted resource, with non existing client -> strange")
+			log.Debug("Successfully deleted resource, with non existing client -> strange")
 			return ctrl.Result{}, nil
 		}
 		// delete the mapping in the dataserver cache, which keeps track of all targets per dataserver
 		r.deleteTargetFromDataServer(ctx, targetKey)
-		//log.Info("deleted target from dataserver...")
+		log.Debug("deleted target from dataserver...")
 		// delete the datastore
 		if targetCtx.DataStore != nil && targetCtx.Client != nil {
-			//log.Info("deleting datastore", "key", targetKey.String())
-			_, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
+			log.Debug("deleting datastore", "key", targetKey.String())
+			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
 			if err != nil {
 				//log.Error("cannot delete datastore", "error", err)
 				cr.Status.UsedReferences = nil
@@ -175,7 +174,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			//log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
+			// TODO Add when Deviation Watcher is implemented
+			//targetCtx.DeviationWatcher.Stop(ctx)
+			log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
 		}
 
 		// delete the target from the target store
@@ -191,12 +192,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
-		//log.Info("Successfully deleted resource")
+		log.Debug("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		//log.Error("cannot add finalizer", "error", err)
+		log.Debug("cannot add finalizer", "error", err)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
@@ -224,7 +225,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil || currentTargetCtx.Client == nil {
 		selectedDSctx, err := r.selectDataServerContext(ctx)
 		if err != nil {
-			//log.Error("cannot select a dataserver", "error", err)
+			log.Debug("cannot select a dataserver", "error", err)
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 			cr.SetOverallStatus()
@@ -237,6 +238,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// create the target in the target store
 		if currentTargetCtx.Client == nil {
 			currentTargetCtx.Client = selectedDSctx.DSClient
+			currentTargetCtx.DeviationWatcher = target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient)
 			if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -249,7 +251,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.recorder.Eventf(cr, corev1.EventTypeWarning,
 				"datastore", "create")
 			if err := r.targetStore.Create(ctx, targetKey, target.Context{
-				Client: selectedDSctx.DSClient,
+				Client:           selectedDSctx.DSClient,
+				DeviationWatcher: target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient),
 			}); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -264,7 +267,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 	if err != nil {
-		//log.Error("cannot get schema ready state", "error", err)
+		log.Debug("cannot get schema ready state", "error", err)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
@@ -272,7 +275,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			"datastore", "schema not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	//log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+	log.Debug("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 	if !isSchemaReady {
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
@@ -310,7 +313,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.recorder.Eventf(cr, corev1.EventTypeWarning,
 		"datastore", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	//return ctrl.Result{}, nil
 
 }
 
@@ -423,6 +425,8 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 			log.Error("cannot delete datstore in dataserver", "error", err)
 			return changed, nil, err
 		}
+		// TODO Add when Deviation Watcher is implemented
+		//targetCtx.DeviationWatcher.Stop(ctx)
 		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 	}
 	// datastore does not exist -> create datastore
@@ -439,6 +443,8 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		log.Error("cannot update datastore in store", "error", err)
 		return changed, nil, err
 	}
+	// TODO Add when Deviation Watcher is implemented
+	//targetCtx.DeviationWatcher.Start(ctx)
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return changed, usedRefs, nil
 }

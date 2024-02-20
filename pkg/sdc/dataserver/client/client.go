@@ -95,15 +95,6 @@ func (r *client) Start(ctx context.Context) error {
 	//defer conn.Close()
 	r.dsclient = sdcpb.NewDataServerClient(r.conn)
 	log.Info("started...")
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				log.Info("stopped...")
-				return
-			}
-		}
-	}()
 	return nil
 }
 
@@ -168,6 +159,10 @@ func (r *client) SetIntent(ctx context.Context, in *sdcpb.SetIntentRequest, opts
 }
 func (r *client) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest, opts ...grpc.CallOption) (*sdcpb.ListIntentResponse, error) {
 	return r.dsclient.ListIntent(ctx, in, opts...)
+}
+
+func (r *client) WatchDeviations(ctx context.Context, in *sdcpb.WatchDeviationRequest, opts ...grpc.CallOption) (sdcpb.DataServer_WatchDeviationsClient, error) {
+	return r.dsclient.WatchDeviations(ctx, in, opts...)
 }
 
 /*
