@@ -174,7 +174,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			targetCtx.DeviationWatcher.Stop(ctx)
+			// TODO Add when Deviation Watcher is implemented
+			//targetCtx.DeviationWatcher.Stop(ctx)
 			log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
 		}
 
@@ -424,7 +425,8 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 			log.Error("cannot delete datstore in dataserver", "error", err)
 			return changed, nil, err
 		}
-		targetCtx.DeviationWatcher.Stop(ctx)
+		// TODO Add when Deviation Watcher is implemented
+		//targetCtx.DeviationWatcher.Stop(ctx)
 		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 	}
 	// datastore does not exist -> create datastore
@@ -441,7 +443,8 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		log.Error("cannot update datastore in store", "error", err)
 		return changed, nil, err
 	}
-	targetCtx.DeviationWatcher.Start(ctx)
+	// TODO Add when Deviation Watcher is implemented
+	//targetCtx.DeviationWatcher.Start(ctx)
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return changed, usedRefs, nil
 }

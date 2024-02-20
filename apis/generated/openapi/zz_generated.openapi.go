@@ -628,8 +628,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
+										Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
 									},
 								},
 							},
@@ -698,7 +697,7 @@ func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCal
 					},
 					"actualValue": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ActualValue defines the actual value of the config belonging to the path that is actually configured on the target",
+							Description: "CurrentValue defines the current value of the config belonging to the path that is currently configured on the target",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1437,9 +1436,9 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref common.Referen
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
-					"domainName": {
+					"serviceDomain": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DomainName defines the domain name of the cluster, used by pod or svc discovery to identify the domain name in the l8s cluster where the pod or services reside.",
+							Description: "ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the domain name in the k8s cluster where the service reside.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

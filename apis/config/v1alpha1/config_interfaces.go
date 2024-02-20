@@ -29,6 +29,8 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/testhelper"
+	"github.com/sdcio/data-server/pkg/utils"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,6 +42,7 @@ const ConfigSingular = "config"
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &Config{}
 var _ resource.ObjectList = &ConfigList{}
+
 /*
 var _ resource.ObjectWithStatusSubResource =  &Config{}
 
@@ -219,4 +222,17 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 
 	// Calculate SHA-1 hash
 	return sha1.Sum(jsonData), nil
+}
+
+func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []*Deviation {
+	deviations := make([]*Deviation, 0, len(devs))
+	for _, dev := range devs {
+		deviations = append(deviations, &Deviation{
+			Path:         utils.ToXPath(dev.GetPath(), false),
+			DesiredValue: dev.GetExpectedValue().String(),
+			CurrentValue: dev.GetCurrentValue().String(),
+			Reason:       dev.GetReason().String(),
+		})
+	}
+	return deviations
 }
