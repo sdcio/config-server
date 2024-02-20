@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/lease"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,10 +33,11 @@ import (
 )
 
 type Context struct {
-	Lease     lease.Lease
-	Ready     bool
-	DataStore *sdcpb.CreateDataStoreRequest
-	Client    dsclient.Client
+	Lease            lease.Lease
+	Ready            bool
+	DataStore        *sdcpb.CreateDataStoreRequest
+	Client           dsclient.Client
+	DeviationWatcher *DeviationWatcher
 }
 
 func getGVKNSN(obj *configv1alpha1.Config) string {
