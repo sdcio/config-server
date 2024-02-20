@@ -51,6 +51,12 @@ codegen:
 
 genclients:
 	go run ./tools/apiserver-runtime-gen \
+		-g client-gen \
+		-g deepcopy-gen \
+		-g informer-gen \
+		-g lister-gen \
+		-g openapi-gen \
+		-g conversion-gen \
 		-g go-to-protobuf \
 		--module $(REPO) \
 		--versions $(REPO)/apis/config/v1alpha1,$(REPO)/apis/inv/v1alpha1

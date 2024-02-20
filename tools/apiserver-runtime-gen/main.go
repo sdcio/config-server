@@ -66,10 +66,12 @@ func runE(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			if gen == "go-to-protobuf" {
+				/*
 				err := run(exec.Command("go", "mod", "vendor"))
 				if err != nil {
 					return err
 				}
+				*/
 				/*
 				pkgs := []string{
 					"golang.org/x/tools/cmd/goimports",
@@ -182,6 +184,15 @@ func doGen() error {
 			"--versioned-clientset-package", path.Join(module, "apis/generated/clientset/versioned"),
 			"--listers-package", path.Join(module, "apis/generated/listers"),
 			"--output-package", path.Join(module, "apis/generated/informers")))
+		if err != nil {
+			return err
+		}
+	}
+
+	if gen["conversion-gen"] {
+		err := run(getCmd("conversion-gen",
+			"--input-dirs", inputs,
+			"-O", "zz_generated.conversion"))
 		if err != nil {
 			return err
 		}

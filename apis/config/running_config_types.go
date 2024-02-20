@@ -14,11 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package config
 
 import (
-	"reflect"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -54,15 +52,3 @@ type RunningConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []RunningConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-func init() {
-	localSchemeBuilder.Register(&RunningConfig{}, &RunningConfigList{})
-}
-
-// RunningConfig type metadata.
-var (
-	RunningConfigKind = reflect.TypeOf(RunningConfig{}).Name()
-	//RunningConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: RunningConfigKind}.String()
-	//RunningConfigKindAPIVersion   = RunningConfigKind + "." + GroupVersion.String()
-	//RunningConfigGroupVersionKind = SchemeGroupVersion.WithKind(RunningConfigKind)
-)

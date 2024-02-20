@@ -14,11 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package config
 
 import (
-	"reflect"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -97,15 +95,3 @@ type ConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Config `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-func init() {
-	localSchemeBuilder.Register(&Config{}, &ConfigList{})
-}
-
-// Config type metadata.
-var (
-	ConfigKind = reflect.TypeOf(Config{}).Name()
-	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
-	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
-	//ConfigGroupVersionKind = SchemeGroupVersion.WithKind(ConfigKind)
-)

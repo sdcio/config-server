@@ -31,10 +31,10 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 	// AddToScheme applies all the stored functions to the scheme. A non-nil error
 	// indicates that one function failed and the attempt was abandoned.
-	AddToScheme = schemeBuilder.AddToScheme
+	AddToScheme = localSchemeBuilder.AddToScheme
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	schemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	localSchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
