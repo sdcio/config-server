@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -41,4 +42,25 @@ var (
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}
+
+func init() {
+	localSchemeBuilder.Register(addKnownTypes)
+}
+
+// Adds the list of known types to the given scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	// +kubebuilder:scaffold:install
+
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&Config{},
+		&ConfigList{},
+		&ConfigSet{},
+		&ConfigSetList{},
+		&RunningConfig{},
+		&RunningConfigList{},
+	)
+
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	return nil
 }

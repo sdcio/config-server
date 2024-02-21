@@ -98,12 +98,6 @@ type ConfigList struct {
 	Items           []Config `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-/*
-func init() {
-	localSchemeBuilder.Register(&Config{}, &ConfigList{})
-}
-*/
-
 // Config type metadata.
 var (
 	ConfigKind = reflect.TypeOf(Config{}).Name()
