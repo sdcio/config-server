@@ -114,14 +114,17 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		}
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
+			//fmt.Println("started", r.targetKey.String())
 			if started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue
 			}
+			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
+			//fmt.Println("update", r.targetKey.String(), resp.GetReason().String(), utils.ToXPath(resp.GetPath(), false))
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -138,6 +141,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations[intent] = append(deviations[intent], resp)
 			continue
 		case sdcpb.DeviationEvent_END:
+			//fmt.Println("end", r.targetKey.String())
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -147,6 +151,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 
 			started = false
 		case sdcpb.DeviationEvent_CLEAR:
+			//fmt.Println("end", r.targetKey.String())
 			// manage them in batches going fwd, not implemented right now
 			continue
 		default:
@@ -175,7 +180,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			c.Status.Deviations = configDevs
 			if err := r.client.Update(ctx, c); err != nil {
 				log.Error("cannot update intent for recieved deviation", "config", configName)
-				// TODO check if resourceversion is bad retry
 				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 					goto UpdateConfig
 				}

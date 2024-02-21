@@ -72,7 +72,7 @@ func (r *lease) getLease(holderIdentity string) *coordinationv1.Lease {
 
 func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 	log := log.FromContext(ctx)
-	log.Info("attempting to acquire lease to update the resource", "lease", r.leasName)
+	log.Debug("attempting to acquire lease to update the resource", "lease", r.leasName)
 	interconnectLeaseNSN := types.NamespacedName{
 		Name:      r.leasName,
 		Namespace: r.leaseNamespace,
@@ -83,7 +83,7 @@ func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
-		log.Info("lease not found, creating it", "lease", r.leasName)
+		log.Debug("lease not found, creating it", "lease", r.leasName)
 
 		lease = r.getLease(holderIdentity)
 		if err := r.Create(ctx, lease); err != nil {
@@ -102,18 +102,18 @@ func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 	now := metav1.NowMicro()
 	if *lease.Spec.HolderIdentity != holderIdentity {
 		// lease is held by another
-		log.Info("lease held by another identity", "identity", *lease.Spec.HolderIdentity)
+		log.Debug("lease held by another identity", "identity", *lease.Spec.HolderIdentity)
 		if lease.Spec.RenewTime != nil {
 			expectedRenewTime := lease.Spec.RenewTime.Add(time.Duration(*lease.Spec.LeaseDurationSeconds) * time.Second)
 			if !expectedRenewTime.Before(now.Time) {
-				log.Info("cannot acquire lease, lease held by another identity", "identity", *lease.Spec.HolderIdentity)
+				log.Debug("cannot acquire lease, lease held by another identity", "identity", *lease.Spec.HolderIdentity)
 				return fmt.Errorf("cannot acquire lease, lease held by another identity: %s", *lease.Spec.HolderIdentity)
 			}
 		}
 	}
 
 	// take over the lease or update the lease
-	log.Info("successfully acquired lease")
+	log.Debug("successfully acquired lease")
 	lease.Spec = coordinationv1.LeaseSpec{
 		HolderIdentity:       ptr.To[string](holderIdentity),
 		LeaseDurationSeconds: ptr.To[int32](int32(defaultLeaseInterval / time.Second)),

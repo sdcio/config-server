@@ -208,7 +208,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	//log.Info("target discovery ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
+	log.Debug("target discovery ready condition", "status", cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if cr.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		cr.Status.UsedReferences = nil
@@ -327,12 +327,12 @@ func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey s
 	for _, dsKey := range dsKeys {
 		dsctx, err := r.dataServerStore.Get(ctx, dsKey)
 		if err != nil {
-			log.Info("deleteTargetFromDataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+			log.Debug("deleteTargetFromDataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 			return
 		}
 		dsctx.Targets = dsctx.Targets.Delete(targetKey.String())
 		if err := r.dataServerStore.Update(ctx, dsKey, dsctx); err != nil {
-			log.Info("deleteTargetFromDataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+			log.Debug("deleteTargetFromDataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 		}
 	}
 }
@@ -341,12 +341,12 @@ func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebacke
 	log := log.FromContext(ctx)
 	dsctx, err := r.dataServerStore.Get(ctx, dsKey)
 	if err != nil {
-		log.Info("AddTarget2DataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+		log.Debug("AddTarget2DataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 		return
 	}
 	dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
 	if err := r.dataServerStore.Update(ctx, dsKey, dsctx); err != nil {
-		log.Info("AddTarget2DataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
+		log.Debug("AddTarget2DataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 	}
 }
 
@@ -365,7 +365,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	})
 	// create and start client if it does not exist
 	if selectedDSctx.DSClient == nil {
-		log.Info("selectedDSctx", "selectedDSctx", selectedDSctx)
+		log.Debug("selectedDSctx", "selectedDSctx", selectedDSctx)
 
 		selectedDSctx.DSClient, err = dsclient.New(selectedDSctx.Config)
 		if err != nil {
@@ -407,16 +407,16 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 			log.Error("cannot get datastore from dataserver", "error", err)
 			return changed, nil, err
 		}
-		log.Info("datastore does not exist")
+		log.Debug("datastore does not exist")
 		// datastore does not exist
 	} else {
 		// datastore exists -> validate changes and if so delete the datastore
 		if !r.hasDataStoreChanged(ctx, req, getRsp, cr, usedRefs) {
-			log.Info("datastore exist -> no change")
+			log.Debug("datastore exist -> no change")
 			return changed, usedRefs, nil
 		}
 		changed = true
-		log.Info("datastore exist -> changed")
+		log.Debug("datastore exist -> changed")
 		targetCtx.Ready = false
 		targetCtx.DataStore = nil
 		r.targetStore.Update(ctx, key, targetCtx)
@@ -427,10 +427,10 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		}
 		// TODO Add when Deviation Watcher is implemented
 		targetCtx.DeviationWatcher.Stop(ctx)
-		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
+		log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
 	}
 	// datastore does not exist -> create datastore
-	log.Info("create datastore", "req name", req.Name, "schema", req.GetSchema(), "target", req.GetTarget(), "sync", req.GetSync())
+	log.Debug("create datastore", "req name", req.Name, "schema", req.GetSchema(), "target", req.GetTarget(), "sync", req.GetSync())
 	changed = true
 	rsp, err := targetCtx.Client.CreateDataStore(ctx, req)
 	if err != nil {
@@ -445,7 +445,6 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 	}
 	// TODO Add when Deviation Watcher is implemented
 	targetCtx.DeviationWatcher = target.NewDeviationWatcher(key, r.Client, targetCtx.Client)
-	log.Info("create datastore start deviation watcher")
 	targetCtx.DeviationWatcher.Start(ctx)
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return changed, usedRefs, nil
@@ -459,7 +458,7 @@ func (r *reconciler) hasDataStoreChanged(
 	usedRefs *invv1alpha1.TargetStatusUsedReferences,
 ) bool {
 	log := log.FromContext(ctx)
-	log.Info("hasDataStoreChanged",
+	log.Debug("hasDataStoreChanged",
 		"name", fmt.Sprintf("%s/%s", req.Name, rsp.Name),
 		"schema Name", fmt.Sprintf("%s/%s", req.Schema.Name, rsp.Schema.Name),
 		"schema Vendor", fmt.Sprintf("%s/%s", req.Schema.Vendor, rsp.Schema.Vendor),
@@ -482,11 +481,11 @@ func (r *reconciler) hasDataStoreChanged(
 	}
 
 	if cr.Status.UsedReferences == nil {
-		log.Info("hasDataStoreChanged", "UsedReferences", "nil")
+		log.Debug("hasDataStoreChanged", "UsedReferences", "nil")
 		return true
 	}
 
-	log.Info("hasDataStoreChanged",
+	log.Debug("hasDataStoreChanged",
 		"ConnectionProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.ConnectionProfileResourceVersion, usedRefs.ConnectionProfileResourceVersion),
 		"SyncProfileResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SyncProfileResourceVersion, usedRefs.SyncProfileResourceVersion),
 		"SecretResourceVersion", fmt.Sprintf("%s/%s", cr.Status.UsedReferences.SecretResourceVersion, usedRefs.SecretResourceVersion),
@@ -501,7 +500,7 @@ func (r *reconciler) hasDataStoreChanged(
 
 	dsReaadyCondition := cr.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
 	if dsReaadyCondition.Status == metav1.ConditionFalse {
-		log.Info("hasDataStoreChanged", "DS Ready condition", dsReaadyCondition)
+		log.Debug("hasDataStoreChanged", "DS Ready condition", dsReaadyCondition)
 		return true
 	}
 
