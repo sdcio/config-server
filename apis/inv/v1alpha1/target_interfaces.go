@@ -96,7 +96,7 @@ func (r *TargetList) GetItems() []client.Object {
 func BuildTarget(meta metav1.ObjectMeta, spec TargetSpec, status TargetStatus) *Target {
 	return &Target{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: localSchemeBuilder.GroupVersion.Identifier(),
 			Kind:       TargetKind,
 		},
 		ObjectMeta: meta,

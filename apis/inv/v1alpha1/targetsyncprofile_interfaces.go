@@ -92,7 +92,7 @@ func DefaultTargetSyncProfile() *TargetSyncProfile {
 func BuildTargetSyncProfile(meta metav1.ObjectMeta, spec TargetSyncProfileSpec) *TargetSyncProfile {
 	return &TargetSyncProfile{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: localSchemeBuilder.GroupVersion.Identifier(),
 			Kind:       TargetSyncProfileKind,
 		},
 		ObjectMeta: meta,

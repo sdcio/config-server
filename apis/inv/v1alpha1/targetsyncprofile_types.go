@@ -91,7 +91,7 @@ type TargetSyncProfileList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&TargetSyncProfile{}, &TargetSyncProfileList{})
+	localSchemeBuilder.Register(&TargetSyncProfile{}, &TargetSyncProfileList{})
 }
 
 var (
