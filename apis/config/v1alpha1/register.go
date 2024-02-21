@@ -34,9 +34,8 @@ var (
 	AddToScheme = localSchemeBuilder.AddToScheme
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	schemeBuilder runtime.SchemeBuilder
+	schemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &schemeBuilder
-	
 )
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
