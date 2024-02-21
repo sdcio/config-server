@@ -170,6 +170,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	cr.Status.Deviations = []*configv1alpha1.Deviation{}
+
 	if err := tctx.SetIntent(ctx, targetKey, cr, true); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
