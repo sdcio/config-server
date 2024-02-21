@@ -175,7 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			// TODO Add when Deviation Watcher is implemented
-			//targetCtx.DeviationWatcher.Stop(ctx)
+			targetCtx.DeviationWatcher.Stop(ctx)
 			log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
 		}
 
@@ -238,7 +238,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// create the target in the target store
 		if currentTargetCtx.Client == nil {
 			currentTargetCtx.Client = selectedDSctx.DSClient
-			currentTargetCtx.DeviationWatcher = target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient)
+			//currentTargetCtx.DeviationWatcher = target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient)
 			if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -426,7 +426,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 			return changed, nil, err
 		}
 		// TODO Add when Deviation Watcher is implemented
-		//targetCtx.DeviationWatcher.Stop(ctx)
+		targetCtx.DeviationWatcher.Stop(ctx)
 		log.Info("delete datastore succeeded", "resp", prototext.Format(rsp))
 	}
 	// datastore does not exist -> create datastore
@@ -444,7 +444,9 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		return changed, nil, err
 	}
 	// TODO Add when Deviation Watcher is implemented
-	//targetCtx.DeviationWatcher.Start(ctx)
+	targetCtx.DeviationWatcher = target.NewDeviationWatcher(key, r.Client, targetCtx.Client)
+	log.Info("create datastore start deviation watcher")
+	targetCtx.DeviationWatcher.Start(ctx)
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return changed, usedRefs, nil
 }

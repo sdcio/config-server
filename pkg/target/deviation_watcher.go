@@ -157,14 +157,16 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
 			if configName == unIntendedConfigDeviation {
 				// TODO add deviation to target or deviation object
+				log.Info("unintended deviations", "devs", len(devs))
 				continue
 			}
+			log.Info("deviations", "config", configName, "devs", devs)
 			parts := strings.SplitN(configName, ".", 2)
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
 				continue
 			}
-	UpdateConfig:
+		UpdateConfig:
 			c := &configv1alpha1.Config{}
 			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, c); err != nil {
 				log.Error("cannot get intent for recieved deviation", "config", configName)

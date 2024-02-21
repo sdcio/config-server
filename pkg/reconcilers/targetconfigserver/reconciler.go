@@ -190,7 +190,7 @@ func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Ke
 	if err != nil {
 		return false, nil
 	}
-	if cr.IsReady() && tctx.Client != nil && tctx.DataStore != nil && tctx.Ready {
+	if cr.IsDatastoreReady() && tctx.Client != nil && tctx.DataStore != nil && tctx.Ready {
 		// target is trustable
 		return true, &tctx
 	}
