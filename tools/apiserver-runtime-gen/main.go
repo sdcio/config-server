@@ -123,7 +123,8 @@ func runE(cmd *cobra.Command, args []string) error {
 
 func doGen() error {
 	inputs := strings.Join(versions, ",")
-	protoInput := versions[0]
+	// proto-gen, conversion-gen only runs on the apiServer resources
+	apiServerInput := versions[0]
 
 	gen := map[string]bool{}
 	for _, g := range generators {
@@ -193,7 +194,7 @@ func doGen() error {
 
 	if gen["conversion-gen"] {
 		err := run(getCmd("conversion-gen",
-			"--input-dirs", inputs,
+			"--input-dirs", apiServerInput,
 			"-O", "zz_generated.conversion"))
 		if err != nil {
 			return err
@@ -202,7 +203,7 @@ func doGen() error {
 
 	if gen["go-to-protobuf"] {
 		err := run(getCmd("go-to-protobuf",
-			"--packages", protoInput,
+			"--packages", apiServerInput,
 			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
 			"--proto-import", "./vendor",
 		))

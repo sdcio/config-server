@@ -166,7 +166,7 @@ func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *Config {
 	return &Config{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: localSchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       ConfigKind,
 		},
 		ObjectMeta: meta,

@@ -80,7 +80,7 @@ func (r *RunningConfigList) GetListMeta() *metav1.ListMeta {
 func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status RunningConfigStatus) *RunningConfig {
 	return &RunningConfig{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: localSchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       RunningConfigKind,
 		},
 		ObjectMeta: meta,

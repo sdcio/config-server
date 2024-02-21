@@ -80,9 +80,11 @@ type ConfigSetList struct {
 	Items           []ConfigSet `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+/*
 func init() {
 	localSchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
 }
+*/
 
 // Config type metadata.
 var (

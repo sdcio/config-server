@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 const (
@@ -34,7 +34,9 @@ var (
 	AddToScheme = localSchemeBuilder.AddToScheme
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	localSchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	schemeBuilder runtime.SchemeBuilder
+	localSchemeBuilder = &schemeBuilder
+	
 )
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource

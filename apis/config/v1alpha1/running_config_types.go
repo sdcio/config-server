@@ -55,9 +55,11 @@ type RunningConfigList struct {
 	Items           []RunningConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+/*
 func init() {
 	localSchemeBuilder.Register(&RunningConfig{}, &RunningConfigList{})
 }
+*/
 
 // RunningConfig type metadata.
 var (
