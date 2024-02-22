@@ -191,9 +191,9 @@ func GetConfigFromFile(path string) (*Config, error) {
 }
 
 // GetShaSum calculates the shasum of the confgiSpec
-func GetShaSum(ctx context.Context, spec *ConfigSpec) [20]byte {
+func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
 	log := log.FromContext(ctx)
-	appliedSpec, err := json.Marshal(spec)
+	appliedSpec, err := json.Marshal(r)
 	if err != nil {
 		log.Error("cannot marshal appliedConfig", "error", err)
 		return [20]byte{}
@@ -224,10 +224,10 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 	return sha1.Sum(jsonData), nil
 }
 
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []*Deviation {
-	deviations := make([]*Deviation, 0, len(devs))
+func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
+	deviations := make([]Deviation, 0, len(devs))
 	for _, dev := range devs {
-		deviations = append(deviations, &Deviation{
+		deviations = append(deviations, Deviation{
 			Path:         utils.ToXPath(dev.GetPath(), false),
 			DesiredValue: dev.GetExpectedValue().String(),
 			CurrentValue: dev.GetCurrentValue().String(),
@@ -235,4 +235,13 @@ func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationRespons
 		})
 	}
 	return deviations
+}
+
+func (r ConfigStatus) HasNotAppliedDeviation() bool {
+	for _, dev := range r.Deviations {
+		if dev.Reason == "NOT_APPLIED" {
+			return true
+		}
+	}
+	return false
 }

@@ -475,7 +475,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Priority defines the priority of this config",
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"config": {
@@ -562,7 +562,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "Priority defines the priority of this config",
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"config": {
@@ -628,7 +628,8 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
 									},
 								},
 							},
