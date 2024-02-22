@@ -176,10 +176,10 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 h1:YBftPWNWd4WwGqtY2yeZL2ef8rHAxPBD8KFhJpmcqms=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0/go.mod h1:YN5jB8ie0yfIUg6VvR9Kz84aCaG7AsGZnLjhHbUqwPg=
-github.com/henderiw/apiserver-builder v0.0.2-0.20240221234618-04d14596271f h1:ZiATDkOV0h55YOsz8QUxr1ozh+yGezY77erlRyJx1ws=
-github.com/henderiw/apiserver-builder v0.0.2-0.20240221234618-04d14596271f/go.mod h1:3hCydiBULUwYfXVh/3GHei56HHHfy253FnEOQvqLTv0=
-github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc h1:ZwU2/LrwaHIVkdIchcoLGl6FGL0TFDGRrWrdZo/2WQ0=
-github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc/go.mod h1:ymfcsQIkGBgOG+YZkWHZQYn6JH0QfUmRwzGTGScP540=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240222151136-8b4cddd205c5 h1:4ZJJShBo1yNgb1RwZ0LAO1VIbO9BwmVbD2f59kcqU30=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240222151136-8b4cddd205c5/go.mod h1:InXP3QZgZQodpCgN5KYTwYUWaSxKD+1EEo8Xp+V6dRo=
+github.com/henderiw/apiserver-store v0.0.0-20240222183018-cd80e3189aff h1:xyIqJ+U4HL87Kgk8FJojmZ1Aqum7jrAkMP9w7Cuck9c=
+github.com/henderiw/apiserver-store v0.0.0-20240222183018-cd80e3189aff/go.mod h1:ymfcsQIkGBgOG+YZkWHZQYn6JH0QfUmRwzGTGScP540=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c/go.mod h1:PrPJdVAwtl5tL323wykHZ5L/b7tfJJsjhegza/wq4fQ=
 github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe h1:+R53KH7fW+pmqlfSYVTCGPn8pj6gqBGcQ0nq7L1h8+g=
