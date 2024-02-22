@@ -30,7 +30,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.2-0.20240221220102-506e215e5f8b
+	github.com/henderiw/apiserver-builder v0.0.2-0.20240221234618-04d14596271f
 	github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
@@ -120,7 +120,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
