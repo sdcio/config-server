@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/lease"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,17 +34,15 @@ import (
 )
 
 type Context struct {
-	Lease     lease.Lease
-	Ready     bool
-	DataStore *sdcpb.CreateDataStoreRequest
-	Client    dsclient.Client
+	Lease            lease.Lease
+	Ready            bool
+	DataStore        *sdcpb.CreateDataStoreRequest
+	Client           dsclient.Client
+	DeviationWatcher *DeviationWatcher
 }
 
 func getGVKNSN(obj *configv1alpha1.Config) string {
-	if obj.Namespace == "" {
-		return fmt.Sprintf("%s.%s.%s", obj.APIVersion, obj.Kind, obj.Name)
-	}
-	return fmt.Sprintf("%s.%s.%s.%s", obj.APIVersion, obj.Kind, obj.Namespace, obj.Name)
+	return fmt.Sprintf("%s.%s", obj.Namespace, obj.Name)
 }
 
 func (r *Context) Validate(ctx context.Context, key storebackend.Key) error {
@@ -68,7 +67,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	}
 
 	for _, config := range configSpec {
-		path, err := ParsePath(config.Path)
+		path, err := utils.ParsePath(config.Path)
 		if err != nil {
 			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
@@ -141,7 +140,7 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1a
 	if err := r.Validate(ctx, key); err != nil {
 		return nil, err
 	}
-	path, err := ParsePath("/")
+	path, err := utils.ParsePath("/")
 	if err != nil {
 		return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), "/")
 	}
