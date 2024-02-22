@@ -17,8 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -31,13 +32,35 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 	// AddToScheme applies all the stored functions to the scheme. A non-nil error
 	// indicates that one function failed and the attempt was abandoned.
-	AddToScheme = schemeBuilder.AddToScheme
+	AddToScheme = localSchemeBuilder.AddToScheme
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	schemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	schemeBuilder      runtime.SchemeBuilder
+	localSchemeBuilder = &schemeBuilder
 )
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}
+
+func init() {
+	localSchemeBuilder.Register(addKnownTypes)
+}
+
+// Adds the list of known types to the given scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	// +kubebuilder:scaffold:install
+
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&Config{},
+		&ConfigList{},
+		&ConfigSet{},
+		&ConfigSetList{},
+		&RunningConfig{},
+		&RunningConfigList{},
+	)
+
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	return nil
 }

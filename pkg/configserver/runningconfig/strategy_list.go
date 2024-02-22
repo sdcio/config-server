@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
@@ -37,6 +38,17 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 	filter, err := parseFieldSelector(options.FieldSelector)
 	if err != nil {
 		return nil, err
+	}
+
+	namespace, ok := genericapirequest.NamespaceFrom(ctx)
+	if ok {
+		if filter != nil {
+			filter.Namespace = namespace
+		} else {
+			filter = &Filter{
+				Namespace: namespace,
+			}
+		}
 	}
 
 	newListObj := r.resource.NewList()

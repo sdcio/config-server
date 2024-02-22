@@ -29,8 +29,8 @@ require (
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.1
-	github.com/henderiw/apiserver-store v0.0.0-20240219224959-b2cf4686fecc
+	github.com/henderiw/apiserver-builder v0.0.2-0.20240222151136-8b4cddd205c5
+	github.com/henderiw/apiserver-store v0.0.0-20240222183018-cd80e3189aff
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.10.0
@@ -126,7 +126,6 @@ require (
 	github.com/prometheus/common v0.46.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect

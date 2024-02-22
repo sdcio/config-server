@@ -161,7 +161,7 @@ type DiscoveryRuleList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&DiscoveryRule{}, &DiscoveryRuleList{})
+	localSchemeBuilder.Register(&DiscoveryRule{}, &DiscoveryRuleList{})
 }
 
 var (
