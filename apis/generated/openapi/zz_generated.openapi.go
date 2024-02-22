@@ -628,7 +628,8 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
 									},
 								},
 							},

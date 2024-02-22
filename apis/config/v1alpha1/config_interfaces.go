@@ -224,10 +224,10 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 	return sha1.Sum(jsonData), nil
 }
 
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []*Deviation {
-	deviations := make([]*Deviation, 0, len(devs))
+func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
+	deviations := make([]Deviation, 0, len(devs))
 	for _, dev := range devs {
-		deviations = append(deviations, &Deviation{
+		deviations = append(deviations, Deviation{
 			Path:         utils.ToXPath(dev.GetPath(), false),
 			DesiredValue: dev.GetExpectedValue().String(),
 			CurrentValue: dev.GetCurrentValue().String(),

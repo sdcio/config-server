@@ -293,14 +293,8 @@ func (in *ConfigStatus) DeepCopyInto(out *ConfigStatus) {
 	}
 	if in.Deviations != nil {
 		in, out := &in.Deviations, &out.Deviations
-		*out = make([]*Deviation, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(Deviation)
-				**out = **in
-			}
-		}
+		*out = make([]Deviation, len(*in))
+		copy(*out, *in)
 	}
 	return
 }
