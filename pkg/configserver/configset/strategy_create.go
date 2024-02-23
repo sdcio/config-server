@@ -60,15 +60,19 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 	return allErrs
 }
 
-func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object) error {
+func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	if dryrun {
+		return obj, nil
+	}
+
 	if err := r.store.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
-		return apierrors.NewInternalError(err)
+		return obj, apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Added,
 		Object: obj,
 	})
-	return nil
+	return obj, nil
 }
 
 func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {

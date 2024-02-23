@@ -28,13 +28,17 @@ import (
 
 func (r *strategy) BeginDelete(ctx context.Context) error { return nil }
 
-func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object) error {
+func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	if dryrun {
+		return obj, nil
+	}
+
 	if err := r.store.Delete(ctx, storebackend.KeyFromNSN(key)); err != nil {
-		return apierrors.NewInternalError(err)
+		return obj, apierrors.NewInternalError(err)
 	}
 	r.notifyWatcher(ctx, watch.Event{
 		Type:   watch.Deleted,
 		Object: obj,
 	})
-	return nil
+	return obj, nil
 }

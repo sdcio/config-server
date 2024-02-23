@@ -37,8 +37,8 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 	return field.ErrorList{}
 }
 
-func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object) error {
-	return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "create")
+func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	return obj, apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "create")
 }
 
 func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {

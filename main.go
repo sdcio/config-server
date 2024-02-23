@@ -155,7 +155,7 @@ func main() {
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), targetStore, &configserverstore.Config{
 				Prefix: configDir,
 				Type:   configserverstore.StorageType_KV,
 				DB:     db,

@@ -24,8 +24,12 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +43,7 @@ import (
 )
 
 // NewStrategy creates and returns a fischerStrategy instance
-func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, store storebackend.Storer[runtime.Object]) *strategy {
+func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, targetStore storebackend.Storer[target.Context], store storebackend.Storer[runtime.Object]) *strategy {
 	watcherManager := watchermanager.New(32)
 
 	go watcherManager.Start(ctx)
@@ -49,6 +53,7 @@ func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.C
 		NameGenerator:  names.SimpleNameGenerator,
 		client:         client,
 		store:          store,
+		targetStore:    targetStore,
 		gr:             configv1alpha1.Resource(configv1alpha1.ConfigPlural),
 		resource:       &configv1alpha1.Config{},
 		watcherManager: watcherManager,
@@ -91,6 +96,7 @@ type strategy struct {
 	names.NameGenerator
 	client         client.Client
 	store          storebackend.Storer[runtime.Object]
+	targetStore    storebackend.Storer[target.Context]
 	gr             schema.GroupResource
 	resource       resource.Object
 	watcherManager watchermanager.WatcherManager
@@ -115,6 +121,34 @@ func getTargetKey(labels map[string]string) (types.NamespacedName, error) {
 		Namespace: targetNamespace,
 		Name:      targetName,
 	}, nil
+}
+
+func (r *strategy) getTargetInfo(ctx context.Context, accessor metav1.Object) (*target.Context, storebackend.Key, error) {
+	targetKey, err := getTargetKey(accessor.GetLabels())
+	if err != nil {
+		return nil, storebackend.Key{}, errors.Wrap(err, "target key invalid")
+	}
+
+	tctx, err := r.getTargetContext(ctx, targetKey)
+	if err != nil {
+		return nil, storebackend.Key{}, err
+	}
+	return tctx, storebackend.Key{NamespacedName: targetKey}, nil
+}
+
+func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*target.Context, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey, target); err != nil {
+		return nil, err
+	}
+	if !target.IsConfigReady() {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotReady))
+	}
+	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
+	if err != nil {
+		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotFound))
+	}
+	return &tctx, nil
 }
 
 func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {

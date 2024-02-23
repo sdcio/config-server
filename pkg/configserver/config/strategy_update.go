@@ -95,7 +95,7 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return allErrs
 }
 
-func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) (runtime.Object, error) {
+func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 	// check if there is a change
 	newConfig, ok := obj.(*configv1alpha1.Config)
