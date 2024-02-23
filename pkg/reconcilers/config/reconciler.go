@@ -90,7 +90,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client.Client
-	finalizer *resource.APIFinalizer
+	finalizer   *resource.APIFinalizer
 	targetStore storebackend.Storer[target.Context]
 	recorder    record.EventRecorder
 }
@@ -180,8 +180,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.AppliedConfig != nil &&
 		cr.Spec.GetShaSum(ctx) == cr.Status.AppliedConfig.GetShaSum(ctx) &&
 		!cr.Status.HasNotAppliedDeviation() {
-			return ctrl.Result{}, nil
-		}
+		return ctrl.Result{}, nil
+	}
 
 	if err := tctx.SetIntent(ctx, targetKey, cr, true, false); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))

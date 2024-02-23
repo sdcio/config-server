@@ -61,7 +61,6 @@ type SchemaSpec struct {
 	// Schema provides the details of which files must be used for the models and which files/directories
 	// cana be excludes
 	Schema SchemaSpecSchema `json:"schema" yaml:"schema"`
-	
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src

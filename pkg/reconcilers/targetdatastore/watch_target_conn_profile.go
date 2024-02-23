@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"github.com/henderiw/logger/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -40,18 +40,18 @@ func (r *targetConnProfileEventHandler) Create(ctx context.Context, evt event.Cr
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent,q workqueue.RateLimitingInterface) {
+func (r *targetConnProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Delete(ctx context.Context,evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *targetConnProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetConnProfileEventHandler) Generic(ctx context.Context,evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *targetConnProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 

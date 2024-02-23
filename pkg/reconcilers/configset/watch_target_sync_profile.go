@@ -37,23 +37,23 @@ type targetEventHandler struct {
 	client client.Client
 }
 
-// Create enqueues a request 
+// Create enqueues a request
 func (r *targetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request 
+// Create enqueues a request
 func (r *targetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
-// Create enqueues a request 
+// Create enqueues a request
 func (r *targetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-// Create enqueues a request 
+// Create enqueues a request
 func (r *targetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }

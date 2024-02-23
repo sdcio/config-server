@@ -62,19 +62,19 @@ func (r *dr) getDiscoveryProfiles(ctx context.Context, h *hostInfo) []*invv1alph
 	discoveryProfiles := make([]*invv1alpha1.TargetConnectionProfile, 0, len(r.cfg.DiscoveryProfile.Connectionprofiles))
 	// TODO optimize reuse of the exisiting profile -> if discovery is already done, do we reuse the profile that was successfull
 	/*
-	t, ok := targets.get(address)
-	if ok {
-		// target exsists
-		if t.Status.DiscoveryInfo != nil { // safety
-			for _, connProfile := range r.cfg.DiscoveryProfile.Connectionprofiles {
-				if string(connProfile.Spec.Protocol) == t.Status.DiscoveryInfo.Protocol {
-					// initial discovery profile found
-					found = true
-					discoveryProfiles = append(discoveryProfiles, connProfile)
+		t, ok := targets.get(address)
+		if ok {
+			// target exsists
+			if t.Status.DiscoveryInfo != nil { // safety
+				for _, connProfile := range r.cfg.DiscoveryProfile.Connectionprofiles {
+					if string(connProfile.Spec.Protocol) == t.Status.DiscoveryInfo.Protocol {
+						// initial discovery profile found
+						found = true
+						discoveryProfiles = append(discoveryProfiles, connProfile)
+					}
 				}
 			}
 		}
-	}
 	*/
 	for _, connProfile := range r.cfg.DiscoveryProfile.Connectionprofiles {
 		if found {

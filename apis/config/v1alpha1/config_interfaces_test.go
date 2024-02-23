@@ -38,7 +38,7 @@ func TestExampleConfig(t *testing.T) {
 			),
 		},
 		"ConfigBadSpec": {
-			path: "../../../example/config/bad_spec_config.yaml",
+			path:        "../../../example/config/bad_spec_config.yaml",
 			expectedErr: fmt.Errorf("json: cannot unmarshal string into Go struct field ConfigSpec.spec.priority of type int"),
 		},
 	}

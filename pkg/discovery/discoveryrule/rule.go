@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/lease"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/types"
@@ -93,7 +93,7 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
-	// targets 
+	// targets
 	t, err := r.getTargets(ctx)
 	if err != nil {
 		return err // happens only of the apiserver is unresponsive

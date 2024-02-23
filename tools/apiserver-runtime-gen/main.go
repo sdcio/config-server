@@ -75,17 +75,17 @@ func runE(cmd *cobra.Command, args []string) error {
 					return err
 				}
 				/*
-				pkgs := []string{
-					"golang.org/x/tools/cmd/goimports",
-					"github.com/gogo/protobuf/protoc-gen-gogo",
-				}
-				for _, pkg := range pkgs {
-					fmt.Println(pkg)
-					err := run(exec.Command("go", "install", pkg))
-					if err != nil {
-						return err
+					pkgs := []string{
+						"golang.org/x/tools/cmd/goimports",
+						"github.com/gogo/protobuf/protoc-gen-gogo",
 					}
-				}
+					for _, pkg := range pkgs {
+						fmt.Println(pkg)
+						err := run(exec.Command("go", "install", pkg))
+						if err != nil {
+							return err
+						}
+					}
 				*/
 			}
 		}
@@ -346,4 +346,4 @@ go-to-protobuf \
 	--apimachinery-packages=-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1 \
 	--proto-import ./vendor \
 	--output-base ./test
- */
+*/

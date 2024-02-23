@@ -124,8 +124,8 @@ func init() {
 }
 
 var (
-	TargetConnectionProfileKind              = reflect.TypeOf(TargetConnectionProfile{}).Name()
-	TargetConnectionProfileGroupKind         = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetConnectionProfileKind}.String()
-	TargetConnectionProfileKindAPIVersion    = TargetKind + "." + SchemeGroupVersion.String()
+	TargetConnectionProfileKind             = reflect.TypeOf(TargetConnectionProfile{}).Name()
+	TargetConnectionProfileGroupKind        = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetConnectionProfileKind}.String()
+	TargetConnectionProfileKindAPIVersion   = TargetKind + "." + SchemeGroupVersion.String()
 	TargetConnectionProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetConnectionProfileKind)
 )

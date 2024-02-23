@@ -291,7 +291,6 @@ func ConfigReApplyFailed(msg string) Condition {
 	}}
 }
 
-
 // DiscoveryReady return a condition that indicates the discovery
 // is ready
 func DiscoveryReady() Condition {

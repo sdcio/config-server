@@ -3,8 +3,8 @@ package discoverers
 import (
 	"context"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/openconfig/gnmic/pkg/api/target"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 var Discoverers = map[string]Initializer{}

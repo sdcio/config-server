@@ -23,11 +23,11 @@ import (
 	"sync"
 
 	"github.com/henderiw/logger/log"
+	"github.com/otiai10/copy"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
-	"github.com/otiai10/copy"
 	"k8s.io/apimachinery/pkg/types"
 )
 

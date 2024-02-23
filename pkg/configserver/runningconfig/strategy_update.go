@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-func (r *strategy) BeginUpdate(ctx context.Context) error { 
+func (r *strategy) BeginUpdate(ctx context.Context) error {
 	return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "update")
- }
+}
 
 func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 }

@@ -28,7 +28,7 @@ import (
 
 type Reconciler interface {
 	reconcile.Reconciler
-	
+
 	// Setup registers the reconciler to run under the specified manager
 	SetupWithManager(ctx context.Context, mgr ctrl.Manager, c any) (map[schema.GroupVersionKind]chan event.GenericEvent, error)
 }
