@@ -59,7 +59,7 @@ func (r *Target) SetOverallStatus() {
 	}
 }
 
-func (r *Target) IsReady() bool {
+func (r *Target) IsDatastoreReady() bool {
 	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue
 }

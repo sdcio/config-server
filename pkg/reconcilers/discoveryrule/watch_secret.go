@@ -76,8 +76,8 @@ func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 		return
 	}
 	for _, dr := range drList.Items {
-	// dr.Spec.DiscoveryProfile is there to protect static discovery profiles
-	if dr.Spec.DiscoveryProfile != nil && dr.Spec.DiscoveryProfile.Credentials == cr.GetName() {
+		// dr.Spec.DiscoveryProfile is there to protect static discovery profiles
+		if dr.Spec.DiscoveryProfile != nil && dr.Spec.DiscoveryProfile.Credentials == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: dr.Namespace,
 				Name:      dr.Name}

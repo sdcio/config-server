@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -164,11 +165,23 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		//log.Error("cannot add finalizer", "error", err)
+		log.Debug("cannot add finalizer", "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
 		return ctrl.Result{Requeue: true}, err
 	}
+
+	// check if we have to reapply the config
+	// if condition is false -> reapply the config
+	// if the applied Config is not set -> reapply the config
+	// if the applied Config is different than the spec -> reapply the config
+	// if the deviation is having the reason xx -> reapply the config
+	if cr.GetCondition(configv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
+		cr.Status.AppliedConfig != nil &&
+		cr.Spec.GetShaSum(ctx) == cr.Status.AppliedConfig.GetShaSum(ctx) &&
+		!cr.Status.HasNotAppliedDeviation() {
+			return ctrl.Result{}, nil
+		}
 
 	if err := tctx.SetIntent(ctx, targetKey, cr, true, false); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
@@ -190,6 +203,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Vendor:  tctx.DataStore.Schema.Vendor,
 		Version: tctx.DataStore.Schema.Version,
 	}
+	cr.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	cr.Status.AppliedConfig = &cr.Spec
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"config", "ready")

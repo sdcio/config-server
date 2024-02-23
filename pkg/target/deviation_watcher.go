@@ -65,8 +65,8 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) Start(ctx context.Context) {
-	ctx, r.cancel = context.WithCancel(ctx)
-	go r.start(ctx)
+	//ctx, r.cancel = context.WithCancel(ctx)
+	//go r.start(ctx)
 }
 
 func (r *DeviationWatcher) start(ctx context.Context) {
@@ -114,14 +114,17 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		}
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
+			//fmt.Println("started", r.targetKey.String())
 			if started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue
 			}
+			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
+			//fmt.Println("update", r.targetKey.String(), resp.GetReason().String(), utils.ToXPath(resp.GetPath(), false))
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -157,14 +160,16 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
 			if configName == unIntendedConfigDeviation {
 				// TODO add deviation to target or deviation object
+				log.Info("unintended deviations", "devs", len(devs))
 				continue
 			}
+			log.Info("deviations", "config", configName, "devs", devs)
 			parts := strings.SplitN(configName, ".", 2)
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
 				continue
 			}
-	UpdateConfig:
+		UpdateConfig:
 			c := &configv1alpha1.Config{}
 			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, c); err != nil {
 				log.Error("cannot get intent for recieved deviation", "config", configName)
@@ -173,7 +178,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			c.Status.Deviations = configDevs
 			if err := r.client.Update(ctx, c); err != nil {
 				log.Error("cannot update intent for recieved deviation", "config", configName)
-				// TODO check if resourceversion is bad retry
 				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 					goto UpdateConfig
 				}

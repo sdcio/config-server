@@ -55,7 +55,7 @@ func (r *strategy) getTargetRunningContext(ctx context.Context, targetKey types.
 	if !target.DeletionTimestamp.IsZero() {
 		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
 	}
-	if !target.IsReady() {
+	if !target.IsDatastoreReady() {
 		return nil, nil, apierrors.NewInternalError(fmt.Errorf("target not ready"))
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
