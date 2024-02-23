@@ -35,7 +35,7 @@ import (
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	log := log.FromContext(ctx)
-	filter, err := parseFieldSelector(options.FieldSelector)
+	filter, err := parseFieldSelector(ctx, options.FieldSelector)
 	if err != nil {
 		return nil, err
 	}

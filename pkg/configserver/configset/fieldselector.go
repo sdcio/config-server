@@ -17,11 +17,13 @@ limitations under the License.
 package configset
 
 import (
+	"context"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/selection"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
 // Filter
@@ -34,10 +36,15 @@ type Filter struct {
 }
 
 // parseFieldSelector parses client-provided fields.Selector into a packageFilter
-func parseFieldSelector(fieldSelector fields.Selector) (*Filter, error) {
+func parseFieldSelector(ctx context.Context, fieldSelector fields.Selector) (*Filter, error) {
 	var filter *Filter
 
+	// add the namespace to the list
+	namespace, ok := genericapirequest.NamespaceFrom(ctx)
 	if fieldSelector == nil {
+		if ok {
+			return &Filter{Namespace: namespace}, nil
+		}
 		return filter, nil
 	}
 
@@ -60,6 +67,14 @@ func parseFieldSelector(fieldSelector fields.Selector) (*Filter, error) {
 			filter.Namespace = requirement.Value
 		default:
 			return filter, apierrors.NewBadRequest(fmt.Sprintf("unknown fieldSelector field %q", requirement.Field))
+		}
+	}
+	// add namespace to the filter selector if specified
+	if ok {
+		if filter != nil {
+			filter.Namespace = namespace
+		} else {
+			filter = &Filter{Namespace: namespace}
 		}
 	}
 
