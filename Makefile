@@ -57,7 +57,7 @@ genclients:
 		-g lister-gen \
 		-g openapi-gen \
 		-g go-to-protobuf \
-		#-g conversion-gen \
+		-g conversion-gen \
 		--module $(REPO) \
 		--versions $(REPO)/apis/config/v1alpha1,$(REPO)/apis/inv/v1alpha1
 

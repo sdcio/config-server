@@ -131,7 +131,7 @@ func (r *ConfigSetList) GetListMeta() *metav1.ListMeta {
 func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSetStatus) *ConfigSet {
 	return &ConfigSet{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: schemeBuilder.GroupVersion.Identifier(),
+			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       ConfigSetKind,
 		},
 		ObjectMeta: meta,

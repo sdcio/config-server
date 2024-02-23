@@ -141,7 +141,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			// We need to restore the config on the target
 			for _, config := range reApplyConfigs {
-				if err := tctx.SetIntent(ctx, targetKey, config, false); err != nil {
+				if err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
 					// This is bad since this means we cannot recover the applied config
 					// on a target. We set the target config status to Failed.
 					// Most likely a human intervention is needed

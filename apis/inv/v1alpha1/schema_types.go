@@ -129,7 +129,7 @@ type SchemaList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Schema{}, &SchemaList{})
+	localSchemeBuilder.Register(&Schema{}, &SchemaList{})
 }
 
 var (

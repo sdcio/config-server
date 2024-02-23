@@ -68,7 +68,7 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return allErrs
 }
 
-func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object) (runtime.Object, error) {
+func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 	// check if there is a change
 	newConfigSet, ok := obj.(*configv1alpha1.ConfigSet)
@@ -96,6 +96,10 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
+	}
+
+	if dryrun {
+		return obj, nil
 	}
 
 	if err := r.store.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {

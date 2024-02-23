@@ -108,7 +108,7 @@ type TargetList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Target{}, &TargetList{})
+	localSchemeBuilder.Register(&Target{}, &TargetList{})
 }
 
 var (

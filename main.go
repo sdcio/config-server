@@ -154,8 +154,8 @@ func main() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithEtcdPath(defaultEtcdPathPrefix).
-			WithOpenAPIDefinitions("Config", "v0.0.0", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
+			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), targetStore, &configserverstore.Config{
 				Prefix: configDir,
 				Type:   configserverstore.StorageType_KV,
 				DB:     db,
@@ -166,9 +166,6 @@ func main() {
 				DB:     db,
 			})).
 			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
-			//WithResourceAndHandler(ctx, &configv1alpha1.Config{}, configserver.NewConfigProviderHandler(ctx, configProvider)).
-			//WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configserver.NewConfigSetProviderHandler(ctx, configSetProvider)).
-			//WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, configserver.NewRunningConfigProviderHandler(ctx, runningConfigProvider)).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

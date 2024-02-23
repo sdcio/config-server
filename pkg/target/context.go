@@ -84,7 +84,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec bool) error {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) error {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if err := r.Validate(ctx, key); err != nil {
 		return err
@@ -110,7 +110,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	return nil
 }
 
-func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config) error {
+func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) error {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if err := r.Validate(ctx, key); err != nil {
 		return err

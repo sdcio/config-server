@@ -14,11 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package config
 
 import (
-	"reflect"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -60,9 +58,9 @@ type Deviation struct {
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
-	// CurrentValue defines the current value of the config belonging to the path
-	// that is currently configured on the target
-	CurrentValue string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
+	// ActualValue defines the actual value of the config belonging to the path
+	// that is actually configured on the target
+	ActualValue string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
 	// Reason defines the reason of the deviation
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
@@ -97,11 +95,3 @@ type ConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Config `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-// Config type metadata.
-var (
-	ConfigKind = reflect.TypeOf(Config{}).Name()
-	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
-	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
-	//ConfigGroupVersionKind = SchemeGroupVersion.WithKind(ConfigKind)
-)

@@ -120,7 +120,7 @@ type TargetConnectionProfileList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&TargetConnectionProfile{}, &TargetConnectionProfileList{})
+	localSchemeBuilder.Register(&TargetConnectionProfile{}, &TargetConnectionProfileList{})
 }
 
 var (

@@ -44,7 +44,7 @@ func DefaultTargetConnectionProfile() *TargetConnectionProfile {
 func BuildTargetConnectionProfile(meta metav1.ObjectMeta, spec TargetConnectionProfileSpec) *TargetConnectionProfile {
 	return &TargetConnectionProfile{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeBuilder.GroupVersion.Identifier(),
+			APIVersion: localSchemeBuilder.GroupVersion.Identifier(),
 			Kind:       TargetConnectionProfileKind,
 		},
 		ObjectMeta: meta,

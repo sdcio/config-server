@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/conversion"
@@ -32,7 +32,7 @@ import (
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	log := log.FromContext(ctx)
-	filter, err := parseFieldSelector(options.FieldSelector)
+	filter, err := parseFieldSelector(ctx, options.FieldSelector)
 	if err != nil {
 		return nil, err
 	}

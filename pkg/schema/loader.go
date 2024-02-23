@@ -19,7 +19,6 @@ package schema
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"path"
 	"sync"
 
@@ -125,32 +124,28 @@ func (r *Loader) Load(ctx context.Context, key string, secretNSN types.Namespace
 		return err
 	}
 
-	url, err := url.Parse(spec.RepositoryURL)
-	if err != nil {
-		return fmt.Errorf("error parsing repository url %q, %v", spec.RepositoryURL, err)
-	}
-	repo, err := git.NewGitHubRepoFromURL(url)
+	repo, err := git.NewRepo(spec.RepositoryURL)
 	if err != nil {
 		return err
 	}
 
-	repoPath := path.Join(r.tmpDir, repo.ProjectOwner, repo.RepositoryName)
+	repoPath := path.Join(r.tmpDir, repo.GetCloneURL().Path)
 	repo.SetLocalPath(repoPath)
 
 	// set branch or tag
 	if spec.Kind == invv1alpha1.BranchTagKindBranch {
-		repo.GitBranch = spec.Ref
+		repo.SetBranch(spec.Ref)
 	} else {
 		// set the git tag that we're after
 		// if both branch and tag are the empty string
 		// the git impl will retrieve the default branch
-		repo.Tag = spec.Ref
+		repo.SetTag(spec.Ref)
 	}
 
 	// init the actual git instance
 	gogit := git.NewGoGit(repo, secretNSN, r.credentialResolver)
 
-	log.Info("cloning", "from", repo.GetCloneURL(), "to", repoPath)
+	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
 	err = gogit.Clone(ctx)
 	if err != nil {
 		return err
@@ -171,7 +166,6 @@ func (r *Loader) Load(ctx context.Context, key string, secretNSN types.Namespace
 			return err
 		}
 		// build dst path
-
 		dst := path.Join(provVersionBasePath, dir.Dst)
 		// check path is still within the base schema folder
 		// -> prevent escaping the folder
