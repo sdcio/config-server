@@ -126,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}
 
-		if err := tctx.DeleteIntent(ctx, targetKey, cr); err != nil {
+		if err := tctx.DeleteIntent(ctx, targetKey, cr, false); err != nil {
 			//log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
 			r.recorder.Eventf(cr, corev1.EventTypeWarning,
@@ -170,7 +170,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	if err := tctx.SetIntent(ctx, targetKey, cr, true); err != nil {
+	if err := tctx.SetIntent(ctx, targetKey, cr, true, false); err != nil {
 		cr.SetConditions(configv1alpha1.Failed(err.Error()))
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())

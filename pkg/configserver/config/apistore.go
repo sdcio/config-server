@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/configserver/store"
+	"github.com/sdcio/config-server/pkg/target"
 	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,14 +33,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewProvider(ctx context.Context, client client.Client, storeConfig *store.Config) builderrest.ResourceHandlerProvider {
+func NewProvider(ctx context.Context, client client.Client, targetStore storebackend.Storer[target.Context], storeConfig *store.Config) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
-		return NewREST(ctx, scheme, getter, client, storeConfig)
+		return NewREST(ctx, scheme, getter, client, targetStore, storeConfig)
 	}
 }
 
 // NewPackageRevisionREST returns a RESTStorage object that will work against API services.
-func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter, client client.Client, storeConfig *store.Config) (rest.Storage, error) {
+func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter, client client.Client, targetStore storebackend.Storer[target.Context], storeConfig *store.Config) (rest.Storage, error) {
 	scheme.AddFieldLabelConversionFunc(
 		schema.GroupVersionKind{
 			Group:   configv1alpha1.Group,
@@ -67,7 +68,7 @@ func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RES
 	}
 
 	gr := configv1alpha1.Resource(configv1alpha1.ConfigPlural)
-	strategy := NewStrategy(ctx, scheme, client, configStore)
+	strategy := NewStrategy(ctx, scheme, client, targetStore, configStore)
 
 	// This is the etcd store
 	store := &registry.Store{

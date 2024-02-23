@@ -28,7 +28,7 @@ func (r *strategy) BeginDelete(ctx context.Context) error {
 	//return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "delete")
 }
 
-func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object) error {
-	return nil
+func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	return obj, nil
 	//return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "delete")
 }
