@@ -16,6 +16,8 @@ limitations under the License.
 
 package discoveryrule
 
+/*
+
 import (
 	"context"
 	"strings"
@@ -48,15 +50,6 @@ func (r *targets) del(key string) {
 	delete(r.targets, key)
 }
 
-/*
-func (r *targets) get(key string) (*invv1alpha1.Target, bool) {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	t, ok := r.targets[key]
-	return t, ok
-}
-*/
-
 func (r *targets) list() []*invv1alpha1.Target {
 	r.m.RLock()
 	defer r.m.RUnlock()
@@ -85,3 +78,4 @@ func (r *dr) getTargets(ctx context.Context) (*targets, error) {
 	}
 	return targets, nil
 }
+*/

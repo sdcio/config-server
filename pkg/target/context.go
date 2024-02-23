@@ -84,17 +84,17 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) error {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if err := r.Validate(ctx, key); err != nil {
-		return err
+		return config, err
 	}
 
 	update, err := r.getIntentUpdate(ctx, key, config, useSpec)
 	if err != nil {
-		return err
+		return config, err
 	}
-	log.Info("SetIntent", "update", update)
+	log.Debug("SetIntent", "update", update)
 
 	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
@@ -104,21 +104,21 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	})
 	if err != nil {
 		log.Info("set intent failed", "error", err.Error())
-		return err
+		return config, err
 	}
 	log.Info("set intent succeeded", "rsp", prototext.Format(rsp))
-	return nil
+	return config, nil
 }
 
-func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) error {
+func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if err := r.Validate(ctx, key); err != nil {
-		return err
+		return config, err
 	}
 
 	if config.Status.AppliedConfig == nil {
 		log.Info("delete intent was never applied")
-		return nil
+		return config, nil
 	}
 
 	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
@@ -129,10 +129,10 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	})
 	if err != nil {
 		log.Info("delete intent failed", "error", err.Error())
-		return err
+		return config, err
 	}
 	log.Info("delete intent succeeded", "rsp", prototext.Format(rsp))
-	return nil
+	return config, nil
 }
 
 func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1alpha1.RunningConfig, error) {

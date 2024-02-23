@@ -219,3 +219,32 @@ message TargetStatus {
   optional Condition condition = 3;
 }
 
+// 	UnManagedConfig is the Schema for the UnManagedConfig API
+//
+// +k8s:openapi-gen=true
+message UnManagedConfig {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional UnManagedConfigSpec spec = 2;
+
+  optional UnManagedConfigStatus status = 3;
+}
+
+// UnManagedConfigList contains a list of UnManagedConfigs
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message UnManagedConfigList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated UnManagedConfig items = 2;
+}
+
+// UnManagedConfigSpec defines the desired state of UnManagedConfig
+message UnManagedConfigSpec {
+}
+
+// UnManagedConfigStatus defines the observed state of UnManagedConfig
+message UnManagedConfigStatus {
+  // Deviations identify the configuration deviation based on the last applied config
+  repeated Deviation deviations = 4;
+}
+

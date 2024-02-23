@@ -28,6 +28,7 @@ import (
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -51,6 +52,7 @@ type dr struct {
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
 	targetStore storebackend.Storer[target.Context]
+	children    sets.Set[string]
 
 	cancel context.CancelFunc
 }
@@ -93,11 +95,16 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
-	// targets
-	t, err := r.getTargets(ctx)
-	if err != nil {
-		return err // happens only of the apiserver is unresponsive
-	}
+
+	// clear the children list
+	r.children.Clear()
+	/*
+		// targets get re
+		tgts, err := r.getTargets(ctx)
+		if err != nil {
+			return err // happens only of the apiserver is unresponsive
+		}
+	*/
 
 	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().GetConcurrentScans())
 	for {
@@ -115,19 +122,19 @@ func (r *dr) run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			go func(h *hostInfo, targets *targets) {
+			go func(h *hostInfo) {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
-					log.Info("disovery disabled")
-
+					// discovery disabled
+					log.Debug("disovery disabled")
 					lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
 						Namespace: r.cfg.CR.GetNamespace(),
 						Name:      getTargetName(h.hostName),
 					}))
 
 					if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
-						log.Info("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+						log.Debug("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
 						return
 					}
 					// No discovery this is a static target
@@ -144,8 +151,8 @@ func (r *dr) run(ctx context.Context) error {
 					}
 					return
 				}
-				log.Info("disovery enabled")
-				// Discovery
+				// discovery enabled
+				log.Debug("disovery enabled")
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context canceled") {
@@ -155,17 +162,20 @@ func (r *dr) run(ctx context.Context) error {
 					}
 					// TBD update status
 				}
-			}(h, t)
+			}(h)
 			// delete the target since we processed it
-			t.del(h.Address)
+			//tgts.del(h.Address)
 		}
 	}
 	// any target that was not processed we can delete as the ip rules dont cover this any longer
-	for _, t := range t.list() {
-		if err := r.client.Delete(ctx, t); err != nil {
-			log.Error("cannot delete target")
+	r.deleteUnWantedChildren(ctx)
+	/*
+		for _, t := range tgts.list() {
+			if err := r.client.Delete(ctx, t); err != nil {
+				log.Error("cannot delete target")
+			}
 		}
-	}
+	*/
 
 	return nil
 }

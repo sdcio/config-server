@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	unIntendedConfigDeviation = "__"
+	unManagedConfigDeviation = "__"
 )
 
 type DeviationWatcher struct {
@@ -65,8 +65,8 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) Start(ctx context.Context) {
-	//ctx, r.cancel = context.WithCancel(ctx)
-	//go r.start(ctx)
+	ctx, r.cancel = context.WithCancel(ctx)
+	go r.start(ctx)
 }
 
 func (r *DeviationWatcher) start(ctx context.Context) {
@@ -114,7 +114,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		}
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
-			//fmt.Println("started", r.targetKey.String())
 			if started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -124,7 +123,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
-			//fmt.Println("update", r.targetKey.String(), resp.GetReason().String(), utils.ToXPath(resp.GetPath(), false))
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -133,7 +131,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			}
 			intent := resp.GetIntent()
 			if resp.Reason == sdcpb.DeviationReason_UNHANDLED {
-				intent = unIntendedConfigDeviation
+				intent = unManagedConfigDeviation
 			}
 			if _, ok := deviations[intent]; !ok {
 				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0, 1)
@@ -147,8 +145,8 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue
 			}
-
 			started = false
+			// handle deviations
 		case sdcpb.DeviationEvent_CLEAR:
 			// manage them in batches going fwd, not implemented right now
 			continue
@@ -158,10 +156,23 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		}
 		for configName, devs := range deviations {
 			configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
-			if configName == unIntendedConfigDeviation {
+			if configName == unManagedConfigDeviation {
 				// TODO add deviation to target or deviation object
 				log.Info("unintended deviations", "devs", len(devs))
-				continue
+			UpdateUnManagedConfig:
+				cfg := &configv1alpha1.UnManagedConfig{}
+				if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
+					log.Error("cannot get intent for recieved deviation", "config", configName)
+					continue
+				}
+				cfg.Status.Deviations = configDevs
+				if err := r.client.Update(ctx, cfg); err != nil {
+					log.Error("cannot update intent for recieved deviation", "config", configName)
+					if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
+						goto UpdateUnManagedConfig
+					}
+					continue
+				}
 			}
 			log.Info("deviations", "config", configName, "devs", devs)
 			parts := strings.SplitN(configName, ".", 2)
@@ -170,14 +181,14 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 		UpdateConfig:
-			c := &configv1alpha1.Config{}
-			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, c); err != nil {
-				log.Error("cannot get intent for recieved deviation", "config", configName)
+			cfg := &configv1alpha1.Config{}
+			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, cfg); err != nil {
+				log.Error("cannot get config for recieved deviation", "config", configName)
 				continue
 			}
-			c.Status.Deviations = configDevs
-			if err := r.client.Update(ctx, c); err != nil {
-				log.Error("cannot update intent for recieved deviation", "config", configName)
+			cfg.Status.Deviations = configDevs
+			if err := r.client.Update(ctx, cfg); err != nil {
+				log.Error("cannot update config for recieved deviation", "config", configName)
 				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 					goto UpdateConfig
 				}

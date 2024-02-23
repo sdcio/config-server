@@ -14,48 +14,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package config
 
 import (
-	"reflect"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// RunningConfigSpec defines the desired state of RunningConfig
-type RunningConfigSpec struct {
+// UnManagedConfigSpec defines the desired state of UnManagedConfig
+type UnManagedConfigSpec struct {
 }
 
-// RunningConfigStatus defines the observed state of RunningConfig
-type RunningConfigStatus struct {
-	//+kubebuilder:pruning:PreserveUnknownFields
-	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
+// UnManagedConfigStatus defines the observed state of UnManagedConfig
+type UnManagedConfigStatus struct {
+	// Deviations identify the configuration deviation based on the last applied config
+	Deviations []Deviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	RunningConfig is the Schema for the RunningConfig API
+//	UnManagedConfig is the Schema for the UnManagedConfig API
 //
 // +k8s:openapi-gen=true
-type RunningConfig struct {
+type UnManagedConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   RunningConfigSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
-	Status RunningConfigStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Spec   UnManagedConfigSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status UnManagedConfigStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// RunningConfigList contains a list of RunningConfigs
+// UnManagedConfigList contains a list of UnManagedConfigs
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type RunningConfigList struct {
+type UnManagedConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []RunningConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
+	Items           []UnManagedConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-// RunningConfig type metadata.
-var (
-	RunningConfigKind = reflect.TypeOf(RunningConfig{}).Name()
-)

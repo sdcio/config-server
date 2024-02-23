@@ -40,3 +40,11 @@ type RunningConfigListerExpansion interface{}
 // RunningConfigNamespaceListerExpansion allows custom methods to be added to
 // RunningConfigNamespaceLister.
 type RunningConfigNamespaceListerExpansion interface{}
+
+// UnManagedConfigListerExpansion allows custom methods to be added to
+// UnManagedConfigLister.
+type UnManagedConfigListerExpansion interface{}
+
+// UnManagedConfigNamespaceListerExpansion allows custom methods to be added to
+// UnManagedConfigNamespaceLister.
+type UnManagedConfigNamespaceListerExpansion interface{}

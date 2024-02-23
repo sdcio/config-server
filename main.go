@@ -38,6 +38,7 @@ import (
 	"github.com/sdcio/config-server/pkg/configserver/configset"
 	"github.com/sdcio/config-server/pkg/configserver/runningconfig"
 	configserverstore "github.com/sdcio/config-server/pkg/configserver/store"
+	"github.com/sdcio/config-server/pkg/configserver/unmanagedconfig"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -166,6 +167,11 @@ func main() {
 				DB:     db,
 			})).
 			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
+			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, unmanagedconfig.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
+				Prefix: configDir,
+				Type:   configserverstore.StorageType_KV,
+				DB:     db,
+			})).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

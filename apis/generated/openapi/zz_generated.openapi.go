@@ -51,6 +51,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":             schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfig":                 schema_config_server_apis_config_v1alpha1_UnManagedConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigList":             schema_config_server_apis_config_v1alpha1_UnManagedConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigSpec":             schema_config_server_apis_config_v1alpha1_UnManagedConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigStatus":           schema_config_server_apis_config_v1alpha1_UnManagedConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.Condition":                          schema_config_server_apis_inv_v1alpha1_Condition(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.ConditionedStatus":                  schema_config_server_apis_inv_v1alpha1_ConditionedStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
@@ -949,6 +953,142 @@ func schema_config_server_apis_config_v1alpha1_TargetStatus(ref common.Reference
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_UnManagedConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "\tUnManagedConfig is the Schema for the UnManagedConfig API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_UnManagedConfigList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnManagedConfigList contains a list of UnManagedConfigs",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_UnManagedConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnManagedConfigSpec defines the desired state of UnManagedConfig",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_UnManagedConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnManagedConfigStatus defines the observed state of UnManagedConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"deviations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Deviations identify the configuration deviation based on the last applied config",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"},
 	}
 }
 

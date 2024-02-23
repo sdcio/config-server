@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // TODO based on the TargetConnectionProfile we might have to create a new Target
@@ -63,7 +63,12 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 	if err != nil {
 		return err
 	}
+	// add the children to the set, later it is used to delete the unwanted children
+	r.children.Insert(newTargetCR.Name)
 	if err := r.applyTarget(ctx, newTargetCR); err != nil {
+		return err
+	}
+	if err := r.applyUnManagedConfigCR(ctx, di); err != nil {
 		return err
 	}
 	return nil
@@ -104,7 +109,7 @@ func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *
 					Kind:       r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
 					Name:       r.cfg.CR.GetName(),
 					UID:        r.cfg.CR.GetUID(),
-					Controller: pointer.Bool(true),
+					Controller: ptr.To[bool](true),
 				}},
 		},
 		Spec: targetSpec,

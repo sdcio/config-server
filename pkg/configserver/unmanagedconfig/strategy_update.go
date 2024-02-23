@@ -14,21 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package configset
+package unmanagedconfig
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
-	"reflect"
 	"strconv"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -47,59 +41,17 @@ func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
-	newConfigSet, ok := obj.(*configv1alpha1.ConfigSet)
-	if !ok {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("."),
-			obj,
-			fmt.Sprintf("expecting %s, got %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj).Name()),
-		))
-		return allErrs
-	}
-
-	if _, err := metav1.LabelSelectorAsSelector(newConfigSet.Spec.Target.TargetSelector); err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec.target.selector"),
-			obj,
-			err.Error(),
-		))
-	}
-
 	return allErrs
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	log := log.FromContext(ctx)
-	// check if there is a change
-	newConfigSet, ok := obj.(*configv1alpha1.ConfigSet)
-	if !ok {
-		return obj, fmt.Errorf("unexpected new object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
-	}
-	oldConfigSet, ok := old.(*configv1alpha1.ConfigSet)
-	if !ok {
-		return obj, fmt.Errorf("unexpected old object, expecting: %s, got: %s", configv1alpha1.ConfigSetKind, reflect.TypeOf(obj))
-	}
-
-	newHash, err := newConfigSet.CalculateHash()
-	if err != nil {
-		return obj, err
-	}
-	oldHash, err := oldConfigSet.CalculateHash()
-	if err != nil {
-		return obj, err
-	}
-
-	if oldHash == newHash {
-		log.Debug("update nothing to do", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
-		return obj, nil
-	}
-	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
 	if dryrun {
 		return obj, nil
 	}
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}
+
 	if err := r.store.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}
