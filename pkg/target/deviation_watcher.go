@@ -65,8 +65,8 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) Start(ctx context.Context) {
-	ctx, r.cancel = context.WithCancel(ctx)
-	go r.start(ctx)
+	//ctx, r.cancel = context.WithCancel(ctx)
+	//go r.start(ctx)
 }
 
 func (r *DeviationWatcher) start(ctx context.Context) {
@@ -141,7 +141,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations[intent] = append(deviations[intent], resp)
 			continue
 		case sdcpb.DeviationEvent_END:
-			//fmt.Println("end", r.targetKey.String())
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 				stream = nil
@@ -151,7 +150,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 
 			started = false
 		case sdcpb.DeviationEvent_CLEAR:
-			//fmt.Println("end", r.targetKey.String())
 			// manage them in batches going fwd, not implemented right now
 			continue
 		default:
