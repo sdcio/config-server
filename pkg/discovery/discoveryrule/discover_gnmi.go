@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
@@ -33,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
+	"github.com/sdcio/config-server/pkg/lease"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -74,12 +74,12 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	b, _ := json.Marshal(di)
 	log.Info("discovery info", "info", string(b))
 
-	lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
+	l := lease.New(r.client, types.NamespacedName{
 		Namespace: r.cfg.CR.GetNamespace(),
 		Name:      getTargetName(di.HostName),
-	}))
-	if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
-		log.Info("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
+	})
+	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
+		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
 		return err
 	}
 

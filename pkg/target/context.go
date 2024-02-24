@@ -24,35 +24,112 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/lease"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	//"github.com/sdcio/config-server/pkg/lease"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Context struct {
-	Lease            lease.Lease
-	Ready            bool
-	DataStore        *sdcpb.CreateDataStoreRequest
-	Client           dsclient.Client
-	DeviationWatcher *DeviationWatcher
+	targetKey        storebackend.Key
+	ready            bool
+	dataStore        *sdcpb.CreateDataStoreRequest
+	client           client.Client
+	dsclient         dsclient.Client
+	deviationWatcher *DeviationWatcher
 }
 
-func getGVKNSN(obj *configv1alpha1.Config) string {
-	return fmt.Sprintf("%s.%s", obj.Namespace, obj.Name)
+func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
+	return &Context{
+		targetKey:        targetKey,
+		client:           client,
+		dsclient:         dsclient,
+		deviationWatcher: NewDeviationWatcher(targetKey, client, dsclient),
+	}
 }
 
-func (r *Context) Validate(ctx context.Context, key storebackend.Key) error {
-	if r.Client == nil {
-		return fmt.Errorf("client for target %s unavailable", key.String())
+func (r *Context) GetAddress() string {
+	if r.dsclient != nil {
+		return r.dsclient.GetAddress()
 	}
-	if r.DataStore == nil {
-		return fmt.Errorf("datastore for target %s does not exist", key.String())
+	return ""
+}
+
+func (r *Context) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSchema {
+	if r.dataStore == nil {
+		return &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	}
+	return &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    r.dataStore.Schema.Name,
+		Vendor:  r.dataStore.Schema.Vendor,
+		Version: r.dataStore.Schema.Version,
+	}
+}
+
+func (r *Context) DeleteDS(ctx context.Context) error {
+	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
+	r.ready = false
+	if r.deviationWatcher != nil {
+		r.deviationWatcher.Stop(ctx)
+	}
+	r.dataStore = nil
+	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
+	if err != nil {
+		log.Error("cannot delete datstore in dataserver", "error", err)
+		return err
+	}
+	log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
+}
+
+func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
+	rsp, err := r.createDataStore(ctx, req)
+	if err != nil {
+		log.Error("cannot create datastore in dataserver", "error", err)
+		return err
+	}
+	r.dataStore = req
+	r.ready = true
+	if r.deviationWatcher != nil {
+		r.deviationWatcher.Start(ctx)
+	}
+	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
+	return nil
+}
+
+func (r *Context) IsReady() bool {
+	if r.client != nil && r.dataStore != nil && r.ready {
+		return true
+	}
+	return false
+}
+
+func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
+	if r.dsclient == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
+	return r.dsclient.DeleteDataStore(ctx, in, opts...)
+}
+
+func (r *Context) createDataStore(ctx context.Context, in *sdcpb.CreateDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.CreateDataStoreResponse, error) {
+	if r.dsclient == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
+	return r.dsclient.CreateDataStore(ctx, in, opts...)
+}
+
+func (r *Context) GetDataStore(ctx context.Context, in *sdcpb.GetDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.GetDataStoreResponse, error) {
+	if r.dsclient == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
+	return r.dsclient.GetDataStore(ctx, in, opts...)
 }
 
 // useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
@@ -86,8 +163,8 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
-	if err := r.Validate(ctx, key); err != nil {
-		return config, err
+	if !r.IsReady() {
+		return nil, fmt.Errorf("target context not readu")
 	}
 
 	update, err := r.getIntentUpdate(ctx, key, config, useSpec)
@@ -96,7 +173,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	}
 	log.Debug("SetIntent", "update", update)
 
-	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
+	rsp, err := r.dsclient.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
 		Intent:   getGVKNSN(config),
 		Priority: int32(config.Spec.Priority),
@@ -112,8 +189,8 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 
 func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
-	if err := r.Validate(ctx, key); err != nil {
-		return config, err
+	if !r.IsReady() {
+		return nil, fmt.Errorf("target context not readu")
 	}
 
 	if config.Status.AppliedConfig == nil {
@@ -121,7 +198,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 		return config, nil
 	}
 
-	rsp, err := r.Client.SetIntent(ctx, &sdcpb.SetIntentRequest{
+	rsp, err := r.dsclient.SetIntent(ctx, &sdcpb.SetIntentRequest{
 		Name:     key.String(),
 		Intent:   getGVKNSN(config),
 		Priority: int32(config.Spec.Priority),
@@ -137,15 +214,15 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 
 func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1alpha1.RunningConfig, error) {
 	log := log.FromContext(ctx).With("target", key.String())
-	if err := r.Validate(ctx, key); err != nil {
-		return nil, err
+	if !r.IsReady() {
+		return nil, fmt.Errorf("target context not readu")
 	}
 	path, err := utils.ParsePath("/")
 	if err != nil {
 		return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), "/")
 	}
 
-	stream, err := r.Client.GetData(ctx, &sdcpb.GetDataRequest{
+	stream, err := r.dsclient.GetData(ctx, &sdcpb.GetDataRequest{
 		Name:      key.String(),
 		Datastore: &sdcpb.DataStore{Type: sdcpb.Type_MAIN},
 		Path:      []*sdcpb.Path{path},

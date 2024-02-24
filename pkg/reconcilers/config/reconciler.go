@@ -91,7 +91,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer   *resource.APIFinalizer
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
 	recorder    record.EventRecorder
 }
 
@@ -126,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 			}
 		}
-		log.Info("config delete", "targetKey",targetKey, "tctx", tctx )
+		log.Info("config delete", "targetKey", targetKey, "tctx", tctx)
 		if _, err := tctx.DeleteIntent(ctx, targetKey, cr, false); err != nil {
 			//log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
@@ -198,11 +198,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	cr.SetConditions(configv1alpha1.Ready())
-	cr.Status.LastKnownGoodSchema = &configv1alpha1.ConfigStatusLastKnownGoodSchema{
-		Type:    tctx.DataStore.Schema.Name,
-		Vendor:  tctx.DataStore.Schema.Vendor,
-		Version: tctx.DataStore.Schema.Version,
-	}
+	cr.Status.LastKnownGoodSchema = tctx.GetSchema()
 	cr.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	cr.Status.AppliedConfig = &cr.Spec
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
@@ -235,7 +231,7 @@ func (r *reconciler) getTargetContext(ctx context.Context, targetKey storebacken
 	if err != nil {
 		return nil, errors.New(string(configv1alpha1.ConditionReasonTargetNotFound))
 	}
-	return &tctx, nil
+	return tctx, nil
 }
 
 func getTargetKey(labels map[string]string) (storebackend.Key, error) {

@@ -62,5 +62,5 @@ func (r *strategy) getTargetRunningContext(ctx context.Context, targetKey types.
 	if err != nil {
 		return nil, nil, apierrors.NewNotFound(r.gr, targetKey.Name)
 	}
-	return target, &tctx, nil
+	return target, tctx, nil
 }

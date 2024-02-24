@@ -32,11 +32,11 @@ import (
 
 type targetDataStoreWatcher struct {
 	cancel      context.CancelFunc
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
 	client.Client
 }
 
-func newTargetDataStoreWatcher(client client.Client, targetStore storebackend.Storer[target.Context]) *targetDataStoreWatcher {
+func newTargetDataStoreWatcher(client client.Client, targetStore storebackend.Storer[*target.Context]) *targetDataStoreWatcher {
 	return &targetDataStoreWatcher{
 		Client:      client,
 		targetStore: targetStore,
@@ -73,12 +73,12 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					log.Error("k8s target does not have a corresponding k8s ctx", "key", key.String(), "error", err)
 					continue
 				}
-				if tctx.Client == nil {
+				if !tctx.IsReady()  {
 					log.Error("k8s target does not have a corresponding dataserver client", "key", key.String(), "error", err)
 					continue
 				}
 				condition := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
-				resp, err := tctx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
+				resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
 				if err != nil {
 					log.Error("cannot get target from the datastore", "key", key.String(), "error", err)
 					if condition.Status == metav1.ConditionTrue {

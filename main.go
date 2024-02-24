@@ -83,7 +83,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	targetStore := memstore.NewStore[target.Context]()
+	targetStore := memstore.NewStore[*target.Context]()
 	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
 	time.Sleep(5 * time.Second)
 	dataServerStore := memstore.NewStore[sdcctx.DSContext]()

@@ -85,7 +85,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer   *resource.APIFinalizer
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
 	recorder    record.EventRecorder
 }
 
@@ -108,7 +108,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 
-	l := r.getLease(ctx, targetKey)
+	l := lease.New(r.Client, targetKey.NamespacedName)
 	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
 		//log.Info("cannot acquire lease", "error", err.Error())
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
@@ -190,11 +190,10 @@ func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Ke
 	if err != nil {
 		return false, nil
 	}
-	if cr.IsDatastoreReady() && tctx.Client != nil && tctx.DataStore != nil && tctx.Ready {
-		// target is trustable
-		return true, &tctx
+	if cr.IsDatastoreReady() && tctx.IsReady() {
+		return true, tctx
 	}
-	return false, &tctx
+	return false, tctx
 }
 
 func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Target) ([]*configv1alpha1.Config, error) {
@@ -214,20 +213,4 @@ func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Targ
 	})
 
 	return configs, err
-}
-
-func (r *reconciler) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
-	tctx, err := r.targetStore.Get(ctx, targetKey)
-	if err != nil {
-		lease := lease.New(r.Client, targetKey.NamespacedName)
-		r.targetStore.Create(ctx, targetKey, target.Context{Lease: lease})
-		return lease
-	}
-	if tctx.Lease == nil {
-		lease := lease.New(r.Client, targetKey.NamespacedName)
-		tctx.Lease = lease
-		r.targetStore.Update(ctx, targetKey, target.Context{Lease: lease})
-		return lease
-	}
-	return tctx.Lease
 }

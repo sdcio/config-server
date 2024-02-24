@@ -34,7 +34,6 @@ import (
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/protobuf/encoding/prototext"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -99,7 +98,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer       *resource.APIFinalizer
-	targetStore     storebackend.Storer[target.Context]
+	targetStore     storebackend.Storer[*target.Context]
 	dataServerStore storebackend.Storer[sdcctx.DSContext]
 	recorder        record.EventRecorder
 }
@@ -123,7 +122,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 
-	l := r.getLease(ctx, targetKey)
+	l := lease.New(r.Client, targetKey.NamespacedName)
 	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
 		log.Debug("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
@@ -143,7 +142,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		log.Debug("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
-		targetCtx, err := r.targetStore.Get(ctx, targetKey)
+		tctx, err := r.targetStore.Get(ctx, targetKey)
 		if err != nil {
 			// client does not exist
 			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
@@ -162,10 +161,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		r.deleteTargetFromDataServer(ctx, targetKey)
 		log.Debug("deleted target from dataserver...")
 		// delete the datastore
-		if targetCtx.DataStore != nil && targetCtx.Client != nil {
+		if tctx.IsReady() {
 			log.Debug("deleting datastore", "key", targetKey.String())
-			rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: targetKey.String()})
-			if err != nil {
+
+			if err := tctx.DeleteDS(ctx); err != nil {
 				//log.Error("cannot delete datastore", "error", err)
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -174,9 +173,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					"Error", "error %s", err.Error())
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
-			// TODO Add when Deviation Watcher is implemented
-			targetCtx.DeviationWatcher.Stop(ctx)
-			log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
+			log.Debug("delete datastore succeeded")
 		}
 
 		// delete the target from the target store
@@ -221,10 +218,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// first check if the target has an assigned dataserver, if not allocate one
 	// update the target store with the updated information
-	currentTargetCtx, err := r.targetStore.Get(ctx, targetKey)
-	if err != nil || currentTargetCtx.Client == nil {
-		selectedDSctx, err := r.selectDataServerContext(ctx)
-		if err != nil {
+	curtctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil || !curtctx.IsReady() {
+		selectedDSctx, serr := r.selectDataServerContext(ctx)
+		if serr != nil {
 			log.Debug("cannot select a dataserver", "error", err)
 			cr.Status.UsedReferences = nil
 			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -235,11 +232,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
-		// create the target in the target store
-		if currentTargetCtx.Client == nil {
-			currentTargetCtx.Client = selectedDSctx.DSClient
-			//currentTargetCtx.DeviationWatcher = target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient)
-			if err := r.targetStore.Update(ctx, targetKey, currentTargetCtx); err != nil {
+		tctx := target.New(targetKey, r.Client, selectedDSctx.DSClient)
+		if err != nil {
+			r.recorder.Eventf(cr, corev1.EventTypeNormal,
+				"datastore", "create")
+			if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
@@ -248,23 +245,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		} else {
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"datastore", "create")
-			if err := r.targetStore.Create(ctx, targetKey, target.Context{
-				Client:           selectedDSctx.DSClient,
-				DeviationWatcher: target.NewDeviationWatcher(targetKey, r.Client, selectedDSctx.DSClient),
-			}); err != nil {
+			r.recorder.Eventf(cr, corev1.EventTypeNormal,
+				"datastore", "update")
+			if err := r.targetStore.Create(ctx, targetKey, tctx); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 	} else {
 		// safety
-		r.addTargetToDataServer(ctx, storebackend.ToKey(currentTargetCtx.Client.GetAddress()), targetKey)
+		r.addTargetToDataServer(ctx, storebackend.ToKey(curtctx.GetAddress()), targetKey)
 	}
-
 	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 	if err != nil {
 		log.Debug("cannot get schema ready state", "error", err)
@@ -386,8 +381,8 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 // 2. delete/update the datastore if changes were detected
 // 3. do nothing if no changes were detected.
 func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1alpha1.Target) (bool, *invv1alpha1.TargetStatusUsedReferences, error) {
-	key := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
-	log := log.FromContext(ctx).With("targetkey", key.String())
+	targetKey := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
+	log := log.FromContext(ctx).With("targetkey", targetKey.String())
 	changed := false
 	req, usedRefs, err := r.getCreateDataStoreRequest(ctx, cr)
 	if err != nil {
@@ -395,58 +390,47 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		return changed, nil, err
 	}
 	// this should always succeed
-	targetCtx, err := r.targetStore.Get(ctx, key)
+	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		log.Error("cannot get datastore from store", "error", err)
 		return changed, nil, err
 	}
 	// get the datastore from the dataserver
-	getRsp, err := targetCtx.Client.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: key.String()})
+	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
+		// datastore does not exist
 		if !strings.Contains(err.Error(), "unknown datastore") {
 			log.Error("cannot get datastore from dataserver", "error", err)
 			return changed, nil, err
 		}
-		log.Debug("datastore does not exist")
-		// datastore does not exist
-	} else {
-		// datastore exists -> validate changes and if so delete the datastore
-		if !r.hasDataStoreChanged(ctx, req, getRsp, cr, usedRefs) {
-			log.Debug("datastore exist -> no change")
-			return changed, usedRefs, nil
-		}
 		changed = true
-		log.Debug("datastore exist -> changed")
-		targetCtx.Ready = false
-		targetCtx.DataStore = nil
-		r.targetStore.Update(ctx, key, targetCtx)
-		rsp, err := targetCtx.Client.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: key.String()})
-		if err != nil {
-			log.Error("cannot delete datstore in dataserver", "error", err)
+		log.Debug("datastore does not exist -> create")
+		if err := tctx.CreateDS(ctx, req); err != nil {
 			return changed, nil, err
 		}
-		// TODO Add when Deviation Watcher is implemented
-		targetCtx.DeviationWatcher.Stop(ctx)
-		log.Debug("delete datastore succeeded", "resp", prototext.Format(rsp))
+		if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
+			log.Error("cannot update datastore in store", "error", err)
+			return changed, nil, err
+		}
+		return changed, usedRefs, nil
 	}
-	// datastore does not exist -> create datastore
-	log.Debug("create datastore", "req name", req.Name, "schema", req.GetSchema(), "target", req.GetTarget(), "sync", req.GetSync())
+	// datastore exists -> validate changes and if so delete the datastore
+	if !r.hasDataStoreChanged(ctx, req, getRsp, cr, usedRefs) {
+		log.Debug("datastore exist -> no change")
+		return changed, usedRefs, nil
+	}
 	changed = true
-	rsp, err := targetCtx.Client.CreateDataStore(ctx, req)
-	if err != nil {
-		log.Error("cannot create datastore in dataserver", "error", err)
+	log.Debug("datastore exist -> changed")
+	if err := tctx.DeleteDS(ctx); err != nil {
 		return changed, nil, err
 	}
-	targetCtx.DataStore = req
-	targetCtx.Ready = true
-	if err := r.targetStore.Update(ctx, key, targetCtx); err != nil {
+	if err := tctx.CreateDS(ctx, req); err != nil {
+		return changed, nil, err
+	}
+	if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
 		log.Error("cannot update datastore in store", "error", err)
 		return changed, nil, err
 	}
-	// TODO Add when Deviation Watcher is implemented
-	targetCtx.DeviationWatcher = target.NewDeviationWatcher(key, r.Client, targetCtx.Client)
-	targetCtx.DeviationWatcher.Start(ctx)
-	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return changed, usedRefs, nil
 }
 
@@ -630,20 +614,4 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 			Version: cr.Status.DiscoveryInfo.Version,
 		},
 	}, usedReferences, nil
-}
-
-func (r *reconciler) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
-	tctx, err := r.targetStore.Get(ctx, targetKey)
-	if err != nil {
-		lease := lease.New(r.Client, targetKey.NamespacedName)
-		r.targetStore.Create(ctx, targetKey, target.Context{Lease: lease})
-		return lease
-	}
-	if tctx.Lease == nil {
-		lease := lease.New(r.Client, targetKey.NamespacedName)
-		tctx.Lease = lease
-		r.targetStore.Update(ctx, targetKey, target.Context{Lease: lease})
-		return lease
-	}
-	return tctx.Lease
 }

@@ -27,7 +27,7 @@ import (
 )
 
 type ControllerConfig struct {
-	TargetStore       storebackend.Storer[target.Context]
+	TargetStore       storebackend.Storer[*target.Context]
 	DataServerStore   storebackend.Storer[sdcctx.DSContext]
 	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string

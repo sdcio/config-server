@@ -38,7 +38,7 @@ type DiscoveryRule interface {
 	GetDiscoveryRulConfig() *DiscoveryRuleConfig
 }
 
-func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[target.Context]) DiscoveryRule {
+func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[*target.Context]) DiscoveryRule {
 	r := &dr{}
 	r.client = client
 	r.cfg = cfg
@@ -52,7 +52,7 @@ type dr struct {
 	client      client.Client
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
 	children    sets.Set[string]
 
 	cancel context.CancelFunc
@@ -129,12 +129,11 @@ func (r *dr) run(ctx context.Context) error {
 				if !r.cfg.Discovery {
 					// discovery disabled
 					log.Debug("disovery disabled")
-					lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
+					l := lease.New(r.client, types.NamespacedName{
 						Namespace: r.cfg.CR.GetNamespace(),
 						Name:      getTargetName(h.hostName),
-					}))
-
-					if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
+					})
+					if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
 						log.Debug("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
 						return
 					}
@@ -181,6 +180,7 @@ func (r *dr) run(ctx context.Context) error {
 	return nil
 }
 
+/*
 func (r *dr) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
@@ -196,3 +196,4 @@ func (r *dr) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lea
 	}
 	return tctx.Lease
 }
+*/

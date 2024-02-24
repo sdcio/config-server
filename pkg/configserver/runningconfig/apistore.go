@@ -32,14 +32,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewProvider(ctx context.Context, client client.Client, targetStore storebackend.Storer[target.Context]) builderrest.ResourceHandlerProvider {
+func NewProvider(ctx context.Context, client client.Client, targetStore storebackend.Storer[*target.Context]) builderrest.ResourceHandlerProvider {
 	return func(ctx context.Context, scheme *runtime.Scheme, getter generic.RESTOptionsGetter) (rest.Storage, error) {
 		return NewREST(ctx, scheme, getter, client, targetStore)
 	}
 }
 
 // NewPackageRevisionREST returns a RESTStorage object that will work against API services.
-func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter, client client.Client, targetStore storebackend.Storer[target.Context]) (rest.Storage, error) {
+func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter, client client.Client, targetStore storebackend.Storer[*target.Context]) (rest.Storage, error) {
 	scheme.AddFieldLabelConversionFunc(
 		schema.GroupVersionKind{
 			Group:   configv1alpha1.Group,
