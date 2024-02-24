@@ -68,7 +68,7 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 	if err := r.applyTarget(ctx, newTargetCR); err != nil {
 		return err
 	}
-	if err := r.applyUnManagedConfigCR(ctx, di); err != nil {
+	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
 		return err
 	}
 	return nil

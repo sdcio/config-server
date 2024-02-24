@@ -21,7 +21,6 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,8 +28,8 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func (r *dr) applyUnManagedConfigCR(ctx context.Context, di *invv1alpha1.DiscoveryInfo) error {
-	newUnManagedConfigCR, err := r.newUnManagedConfigCR(ctx, di)
+func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) error {
+	newUnManagedConfigCR, err := r.newUnManagedConfigCR(ctx, targetName)
 	if err != nil {
 		return err
 	}
@@ -55,7 +54,7 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, di *invv1alpha1.Discove
 	return nil
 }
 
-func (r *dr) newUnManagedConfigCR(ctx context.Context, di *invv1alpha1.DiscoveryInfo) (*configv1alpha1.UnManagedConfig, error) {
+func (r *dr) newUnManagedConfigCR(ctx context.Context, targetName string) (*configv1alpha1.UnManagedConfig, error) {
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
@@ -67,7 +66,7 @@ func (r *dr) newUnManagedConfigCR(ctx context.Context, di *invv1alpha1.Discovery
 
 	return &configv1alpha1.UnManagedConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getTargetName(di.HostName),
+			Name:        targetName,
 			Namespace:   r.cfg.CR.GetNamespace(),
 			Labels:      labels,
 			Annotations: anno,

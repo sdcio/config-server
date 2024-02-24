@@ -83,7 +83,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 
-	newTargetCr, err := r.newTargetCR(
+	newTargetCR, err := r.newTargetCR(
 		ctx,
 		discoverer.GetProvider(),
 		t.Config.Address,
@@ -93,16 +93,20 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 
-	if err := r.applyTarget(ctx, newTargetCr); err != nil {
+	r.children.Insert(newTargetCR.Name)
+	if err := r.applyTarget(ctx, newTargetCR); err != nil {
 		// TODO reapply if update failed
 		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
 			// we will rety once, sometimes we get an error
-			if err := r.applyTarget(ctx, newTargetCr); err != nil {
+			if err := r.applyTarget(ctx, newTargetCR); err != nil {
 				log.Info("dynamic target creation retry failed", "error", err)
 			}
 		} else {
 			log.Info("dynamic target creation failed", "error", err)
 		}
+	}
+	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
+		return err
 	}
 	return nil
 }

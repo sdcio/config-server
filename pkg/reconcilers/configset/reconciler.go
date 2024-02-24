@@ -275,7 +275,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 
 	// These configs no longer match a target
 	for _, existingConfig := range existingConfigs {
-		log.Error("existing config delete", "existingConfig", existingConfig.Name)
+		log.Info("existing config delete", "existingConfig", existingConfig.Name)
 		if err := r.Delete(ctx, existingConfig); err != nil {
 			log.Error("delete existing intent failed", "error", err)
 		}
