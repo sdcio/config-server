@@ -50,6 +50,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 
 	for _, target := range targetList.Items {
 		if !r.children.Has(target.Name) {
+			log.Info("target delete, not available as child", "name", target.Name, "children", r.children.UnsortedList())
 			if err := r.client.Delete(ctx, &target); err != nil {
 				log.Error("cannot delete target")
 			}
