@@ -44,6 +44,7 @@ func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebacken
 	r.cfg = cfg
 	r.protocols = r.newDiscoveryProtocols()
 	r.targetStore = targetStore
+	r.children = sets.New[string]()
 	return r
 }
 

@@ -59,6 +59,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ConfigSetList{},
 		&RunningConfig{},
 		&RunningConfigList{},
+		&UnManagedConfig{},
+		&UnManagedConfigList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
