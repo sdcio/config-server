@@ -174,7 +174,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 					continue
 				}
 			}
-			log.Info("deviations", "config", configName, "devs", devs)
+			//log.Info("deviations", "config", configName, "devs", devs)
 			parts := strings.SplitN(configName, ".", 2)
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
