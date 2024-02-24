@@ -126,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 			}
 		}
-
+		log.Info("config delete", "targetKey",targetKey, "tctx", tctx )
 		if _, err := tctx.DeleteIntent(ctx, targetKey, cr, false); err != nil {
 			//log.Error("delete intent failed", "error", err.Error())
 			cr.SetConditions(configv1alpha1.Failed(err.Error()))
