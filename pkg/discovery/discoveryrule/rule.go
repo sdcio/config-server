@@ -127,6 +127,7 @@ func (r *dr) run(ctx context.Context) error {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
+					r.children.Insert(getTargetName(h.hostName)) // this should be done here
 					// discovery disabled
 					log.Debug("disovery disabled")
 					l := lease.New(r.client, types.NamespacedName{

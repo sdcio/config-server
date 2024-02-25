@@ -74,6 +74,8 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	b, _ := json.Marshal(di)
 	log.Info("discovery info", "info", string(b))
 
+	r.children.Insert(getTargetName(di.HostName))
+
 	l := lease.New(r.client, types.NamespacedName{
 		Namespace: r.cfg.CR.GetNamespace(),
 		Name:      getTargetName(di.HostName),
@@ -93,7 +95,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 
-	r.children.Insert(newTargetCR.Name)
+	
 	if err := r.applyTarget(ctx, newTargetCR); err != nil {
 		// TODO reapply if update failed
 		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
