@@ -61,6 +61,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 			targetList := &invv1alpha1.TargetList{}
 			if err := r.List(ctx, targetList); err != nil {
 				log.Error("cannot get target list", "error", err)
+				continue
 			}
 
 			for _, target := range targetList.Items {
