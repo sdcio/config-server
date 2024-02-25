@@ -42,6 +42,7 @@ const (
 	Protocol_GNMI    Protocol = "gnmi"
 	Protocol_NETCONF Protocol = "netconf"
 	Protocol_NOOP    Protocol = "noop"
+	Protocol_None    Protocol = "none"
 )
 
 type CommitCandidate string

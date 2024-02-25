@@ -18,30 +18,27 @@ package discoveryrule
 
 import (
 	"context"
-	"sync"
+	"fmt"
 
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *dr) newDiscoveryProtocols() *protocols {
-	return &protocols{
-		protocols: map[invv1alpha1.Protocol]discover{
-			invv1alpha1.Protocol_GNMI:   r.discoverWithGNMI,
-			invv1alpha1.Protocol_None: r.discoverWithNone,
-		},
+func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
+	//log := log.FromContext(ctx)
+	provider := r.cfg.DefaultSchema.Provider
+	version := r.cfg.DefaultSchema.Version
+	address := fmt.Sprintf("%s:%d",
+		h.Address,
+		r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
+	)
+	di := &invv1alpha1.DiscoveryInfo{
+		Protocol: "static",
+		Provider: provider,
+		Version:  version,
+		HostName: h.hostName,
+		LastSeen: metav1.Now(),
 	}
-}
 
-type discover func(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error
-
-type protocols struct {
-	m         sync.RWMutex
-	protocols map[invv1alpha1.Protocol]discover
-}
-
-func (r *protocols) get(p invv1alpha1.Protocol) (discover, bool) {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	d, ok := r.protocols[p]
-	return d, ok
+	return r.createTarget(ctx, provider, address, di)
 }

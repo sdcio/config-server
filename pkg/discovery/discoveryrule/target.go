@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,6 +32,47 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
+	log := log.FromContext(ctx)
+	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
+
+	l := lease.New(r.client, types.NamespacedName{
+		Namespace: r.cfg.CR.GetNamespace(),
+		Name:      getTargetName(di.HostName),
+	})
+	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
+		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
+		return err
+	}
+
+	newTargetCR, err := r.newTargetCR(
+		ctx,
+		provider,
+		address,
+		di,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := r.applyTarget(ctx, newTargetCR); err != nil {
+		// TODO reapply if update failed
+		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
+			// we will rety once, sometimes we get an error
+			if err := r.applyTarget(ctx, newTargetCR); err != nil {
+				log.Info("dynamic target creation retry failed", "error", err)
+			}
+		} else {
+			log.Info("dynamic target creation failed", "error", err)
+		}
+	}
+	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
 // TODO based on the TargetConnectionProfile we might have to create a new Target
 func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 	if h.hostName == "" {
@@ -72,6 +115,7 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 	}
 	return nil
 }
+*/
 
 func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetSpec := invv1alpha1.TargetSpec{

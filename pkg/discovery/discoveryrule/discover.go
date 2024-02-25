@@ -30,7 +30,29 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 	// if discovery was already done use the same initial discovery protocol
 	address := h.Address
 	log := log.FromContext(ctx).With("address", address)
-
+	if !r.cfg.Discovery {
+		// discovery disabled
+		if h.hostName == "" {
+			return fmt.Errorf("cannot create a static target w/o a hostname")
+		}
+		if len(r.cfg.TargetConnectionProfiles) == 0 {
+			return fmt.Errorf("cannot create a static target w/o a connectivity profile")
+		}
+		if r.cfg.DefaultSchema == nil {
+			return fmt.Errorf("cannot create a static target w/o a default schema")
+		}
+		discover, ok := r.protocols.get(invv1alpha1.Protocol_None)
+		if !ok {
+			return fmt.Errorf("unsupported protocol :%s", string(invv1alpha1.Protocol_None))
+		}
+		if err := discover(ctx, h, r.cfg.TargetConnectionProfiles[0].Connectionprofile); err != nil {
+			log.Error("discovery failed", "error", err.Error())
+			return err
+		}
+		// discover w/o discovery succeeded
+		return nil
+	}
+	// discovery enabled
 	var err error
 	for _, connProfile := range r.getDiscoveryProfiles(ctx, h) {
 		discover, ok := r.protocols.get(connProfile.Spec.Protocol)
@@ -39,7 +61,7 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 			err = errors.Join(err, fmt.Errorf("unsupported protocol :%s", string(connProfile.Spec.Protocol)))
 			continue
 		}
-		if derr := discover(ctx, address, connProfile); derr != nil {
+		if derr := discover(ctx, h, connProfile); derr != nil {
 			log.Info("discovery failed", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, derr)
 			continue

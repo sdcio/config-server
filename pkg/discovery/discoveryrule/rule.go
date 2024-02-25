@@ -25,10 +25,8 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -97,7 +95,7 @@ func (r *dr) run(ctx context.Context) error {
 	}
 
 	// clear the children list
-	r.children =  memory.NewStore[string]()
+	r.children = memory.NewStore[string]()
 	/*
 		// targets get re
 		tgts, err := r.getTargets(ctx)
@@ -125,37 +123,39 @@ func (r *dr) run(ctx context.Context) error {
 			go func(h *hostInfo) {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
-				if !r.cfg.Discovery {
-					r.children.Create(ctx, storebackend.ToKey(getTargetName(h.hostName)), "") // this should be done here
-					// discovery disabled
-					log.Debug("disovery disabled")
-					l := lease.New(r.client, types.NamespacedName{
-						Namespace: r.cfg.CR.GetNamespace(),
-						Name:      getTargetName(h.hostName),
-					})
-					if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
-						log.Debug("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+				/*
+					if !r.cfg.Discovery {
+						r.children.Create(ctx, storebackend.ToKey(getTargetName(h.hostName)), "") // this should be done here
+						// discovery disabled
+						log.Debug("disovery disabled")
+						l := lease.New(r.client, types.NamespacedName{
+							Namespace: r.cfg.CR.GetNamespace(),
+							Name:      getTargetName(h.hostName),
+						})
+						if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
+							log.Debug("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+							return
+						}
+						// No discovery this is a static target
+						if err := r.applyStaticTarget(ctx, h); err != nil {
+							// TODO reapply if update failed
+							if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
+								// we will rety once, sometimes we get an error
+								if err := r.applyStaticTarget(ctx, h); err != nil {
+									log.Info("static target creation retry failed", "error", err)
+								}
+							} else {
+								log.Info("static target creation failed", "error", err)
+							}
+						}
 						return
 					}
-					// No discovery this is a static target
-					if err := r.applyStaticTarget(ctx, h); err != nil {
-						// TODO reapply if update failed
-						if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-							// we will rety once, sometimes we get an error
-							if err := r.applyStaticTarget(ctx, h); err != nil {
-								log.Info("static target creation retry failed", "error", err)
-							}
-						} else {
-							log.Info("static target creation failed", "error", err)
-						}
-					}
-					return
-				}
+				*/
 				// discovery enabled
-				log.Debug("disovery enabled")
+				//log.Debug("disovery enabled")
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
-					if strings.Contains(err.Error(), "context canceled") {
+					if strings.Contains(err.Error(), "context cancelled") {
 						log.Info("discovery cancelled")
 					} else {
 						log.Info("discovery failed", "error", err)
