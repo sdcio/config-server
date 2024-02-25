@@ -22,3 +22,5 @@ type ConfigExpansion interface{}
 type ConfigSetExpansion interface{}
 
 type RunningConfigExpansion interface{}
+
+type UnManagedConfigExpansion interface{}

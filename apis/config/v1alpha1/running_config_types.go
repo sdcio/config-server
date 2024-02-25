@@ -55,16 +55,7 @@ type RunningConfigList struct {
 	Items           []RunningConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-/*
-func init() {
-	localSchemeBuilder.Register(&RunningConfig{}, &RunningConfigList{})
-}
-*/
-
 // RunningConfig type metadata.
 var (
 	RunningConfigKind = reflect.TypeOf(RunningConfig{}).Name()
-	//RunningConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: RunningConfigKind}.String()
-	//RunningConfigKindAPIVersion   = RunningConfigKind + "." + GroupVersion.String()
-	//RunningConfigGroupVersionKind = SchemeGroupVersion.WithKind(RunningConfigKind)
 )

@@ -45,10 +45,7 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 		if !ok {
 			return obj, fmt.Errorf("unexpected objext, got")
 		}
-		if err := tctx.DeleteIntent(ctx, targetKey, config, dryrun); err != nil {
-			return obj, err
-		}
-		return obj, nil
+		return tctx.DeleteIntent(ctx, targetKey, config, dryrun)
 	}
 
 	if err := r.store.Delete(ctx, storebackend.KeyFromNSN(key)); err != nil {

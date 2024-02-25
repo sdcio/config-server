@@ -36,7 +36,7 @@ import (
 )
 
 // NewStrategy creates and returns a fischerStrategy instance
-func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, targetStore storebackend.Storer[target.Context]) *strategy {
+func NewStrategy(ctx context.Context, typer runtime.ObjectTyper, client client.Client, targetStore storebackend.Storer[*target.Context]) *strategy {
 	//watcherManager := watchermanager.New(32)
 
 	//go watcherManager.Start(ctx)
@@ -87,7 +87,7 @@ type strategy struct {
 	runtime.ObjectTyper
 	names.NameGenerator
 	client      client.Client
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
 	gr          schema.GroupResource
 	resource    resource.Object
 	//watcherManager watchermanager.WatcherManager

@@ -26,12 +26,13 @@ import (
 func (r *dr) newDiscoveryProtocols() *protocols {
 	return &protocols{
 		protocols: map[invv1alpha1.Protocol]discover{
-			invv1alpha1.Protocol_GNMI: r.discoverWithGNMI,
+			invv1alpha1.Protocol_GNMI:   r.discoverWithGNMI,
+			invv1alpha1.Protocol_None: r.discoverWithNone,
 		},
 	}
 }
 
-type discover func(ctx context.Context, ip string, connProfile *invv1alpha1.TargetConnectionProfile) error
+type discover func(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error
 
 type protocols struct {
 	m         sync.RWMutex

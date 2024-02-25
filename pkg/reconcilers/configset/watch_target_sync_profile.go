@@ -74,7 +74,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 	}
 	configsets := &configv1alpha1.ConfigSetList{}
 	if err := r.client.List(ctx, configsets, opts...); err != nil {
-		log.Error("cannot list targets", "error", err)
+		log.Error("cannot list configsets", "error", err)
 		return
 	}
 

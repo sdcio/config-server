@@ -121,6 +121,22 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return obj, nil
 	}
 	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
+	if dryrun {
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			return obj, err
+		}
+		tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
+		if err != nil {
+			return obj, err
+		}
+		config, ok := obj.(*configv1alpha1.Config)
+		if !ok {
+			return obj, fmt.Errorf("unexpected objext, got")
+		}
+		return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
+	}
+
 	if err := updateResourceVersion(ctx, obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}

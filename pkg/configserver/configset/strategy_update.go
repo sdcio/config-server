@@ -94,14 +94,12 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return obj, nil
 	}
 	log.Debug("updating", "oldHash", hex.EncodeToString(oldHash[:]), "newHash", hex.EncodeToString(newHash[:]))
-	if err := updateResourceVersion(ctx, obj, old); err != nil {
-		return obj, apierrors.NewInternalError(err)
-	}
-
 	if dryrun {
 		return obj, nil
 	}
-
+	if err := updateResourceVersion(ctx, obj, old); err != nil {
+		return obj, apierrors.NewInternalError(err)
+	}
 	if err := r.store.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}

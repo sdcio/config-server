@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
@@ -37,7 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1alpha1.TargetConnectionProfile) error {
+func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
 	log := log.FromContext(ctx)
 	secret := &corev1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{
@@ -47,9 +46,9 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	if err != nil {
 		return err
 	}
-	address := fmt.Sprintf("%s:%d", ip, connProfile.Spec.Port)
+	address := fmt.Sprintf("%s:%d", h.Address, connProfile.Spec.Port)
 
-	t, err := CreateTarget(ctx, address, secret, connProfile)
+	t, err := createTarget(ctx, address, secret, connProfile)
 	if err != nil {
 		return err
 	}
@@ -72,43 +71,12 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 	b, _ := json.Marshal(di)
-	log.Info("discovery info", "info", string(b))
+	log.Debug("discovery info", "info", string(b))
 
-	lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
-		Namespace: r.cfg.CR.GetNamespace(),
-		Name:      getTargetName(di.HostName),
-	}))
-	if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
-		log.Info("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
-		return err
-	}
-
-	newTargetCr, err := r.newTargetCR(
-		ctx,
-		discoverer.GetProvider(),
-		t.Config.Address,
-		di,
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := r.applyTarget(ctx, newTargetCr); err != nil {
-		// TODO reapply if update failed
-		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-			// we will rety once, sometimes we get an error
-			if err := r.applyTarget(ctx, newTargetCr); err != nil {
-				log.Info("dynamic target creation retry failed", "error", err)
-			}
-		} else {
-			log.Info("dynamic target creation failed", "error", err)
-		}
-	}
-	return nil
+	return r.createTarget(ctx, discoverer.GetProvider(), t.Config.Address, di)
 }
 
-func CreateTarget(ctx context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
-
+func createTarget(ctx context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
 	tOpts := []api.TargetOption{
 		//api.Name(req.NamespacedName.String()),
 		api.Address(address),

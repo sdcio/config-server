@@ -23,11 +23,10 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,7 +36,7 @@ type DiscoveryRule interface {
 	GetDiscoveryRulConfig() *DiscoveryRuleConfig
 }
 
-func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[target.Context]) DiscoveryRule {
+func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[*target.Context]) DiscoveryRule {
 	r := &dr{}
 	r.client = client
 	r.cfg = cfg
@@ -50,7 +49,8 @@ type dr struct {
 	client      client.Client
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
-	targetStore storebackend.Storer[target.Context]
+	targetStore storebackend.Storer[*target.Context]
+	children    storebackend.Storer[string]
 
 	cancel context.CancelFunc
 }
@@ -93,11 +93,16 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
-	// targets
-	t, err := r.getTargets(ctx)
-	if err != nil {
-		return err // happens only of the apiserver is unresponsive
-	}
+
+	// clear the children list
+	r.children = memory.NewStore[string]()
+	/*
+		// targets get re
+		tgts, err := r.getTargets(ctx)
+		if err != nil {
+			return err // happens only of the apiserver is unresponsive
+		}
+	*/
 
 	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().GetConcurrentScans())
 	for {
@@ -115,61 +120,67 @@ func (r *dr) run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			go func(h *hostInfo, targets *targets) {
+			go func(h *hostInfo) {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
-				if !r.cfg.Discovery {
-					log.Info("disovery disabled")
-
-					lease := r.getLease(ctx, storebackend.KeyFromNSN(types.NamespacedName{
-						Namespace: r.cfg.CR.GetNamespace(),
-						Name:      getTargetName(h.hostName),
-					}))
-
-					if err := lease.AcquireLease(ctx, "DiscoveryController"); err != nil {
-						log.Info("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+				/*
+					if !r.cfg.Discovery {
+						r.children.Create(ctx, storebackend.ToKey(getTargetName(h.hostName)), "") // this should be done here
+						// discovery disabled
+						log.Debug("disovery disabled")
+						l := lease.New(r.client, types.NamespacedName{
+							Namespace: r.cfg.CR.GetNamespace(),
+							Name:      getTargetName(h.hostName),
+						})
+						if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
+							log.Debug("cannot acquire lease", "target", getTargetName(h.hostName), "error", err.Error())
+							return
+						}
+						// No discovery this is a static target
+						if err := r.applyStaticTarget(ctx, h); err != nil {
+							// TODO reapply if update failed
+							if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
+								// we will rety once, sometimes we get an error
+								if err := r.applyStaticTarget(ctx, h); err != nil {
+									log.Info("static target creation retry failed", "error", err)
+								}
+							} else {
+								log.Info("static target creation failed", "error", err)
+							}
+						}
 						return
 					}
-					// No discovery this is a static target
-					if err := r.applyStaticTarget(ctx, h); err != nil {
-						// TODO reapply if update failed
-						if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-							// we will rety once, sometimes we get an error
-							if err := r.applyStaticTarget(ctx, h); err != nil {
-								log.Info("static target creation retry failed", "error", err)
-							}
-						} else {
-							log.Info("static target creation failed", "error", err)
-						}
-					}
-					return
-				}
-				log.Info("disovery enabled")
-				// Discovery
+				*/
+				// discovery enabled
+				//log.Debug("disovery enabled")
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
-					if strings.Contains(err.Error(), "context canceled") {
+					if strings.Contains(err.Error(), "context cancelled") {
 						log.Info("discovery cancelled")
 					} else {
 						log.Info("discovery failed", "error", err)
 					}
 					// TBD update status
 				}
-			}(h, t)
+			}(h)
 			// delete the target since we processed it
-			t.del(h.Address)
+			//tgts.del(h.Address)
 		}
 	}
 	// any target that was not processed we can delete as the ip rules dont cover this any longer
-	for _, t := range t.list() {
-		if err := r.client.Delete(ctx, t); err != nil {
-			log.Error("cannot delete target")
+	r.deleteUnWantedChildren(ctx)
+	/*
+		for _, t := range tgts.list() {
+			if err := r.client.Delete(ctx, t); err != nil {
+				log.Error("cannot delete target")
+			}
 		}
-	}
+	*/
 
 	return nil
 }
 
+/*
 func (r *dr) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lease {
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
@@ -185,3 +196,4 @@ func (r *dr) getLease(ctx context.Context, targetKey storebackend.Key) lease.Lea
 	}
 	return tctx.Lease
 }
+*/

@@ -76,7 +76,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 	}
 	configs := &configv1alpha1.ConfigList{}
 	if err := r.client.List(ctx, configs, opts...); err != nil {
-		log.Error("cannot list targets", "error", err)
+		log.Error("cannot list configs", "error", err)
 		return
 	}
 	for _, config := range configs.Items {

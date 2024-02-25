@@ -102,7 +102,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
-	targetStore    storebackend.Storer[target.Context]
+	targetStore    storebackend.Storer[*target.Context]
 	recorder       record.EventRecorder
 }
 

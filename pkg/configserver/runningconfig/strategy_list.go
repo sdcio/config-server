@@ -57,7 +57,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		return nil, err
 	}
 
-	runningConfigListFunc := func(ctx context.Context, key storebackend.Key, tctx target.Context) {
+	runningConfigListFunc := func(ctx context.Context, key storebackend.Key, tctx *target.Context) {
 		target := &invv1alpha1.Target{}
 		if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
 			log.Error("cannot get target", "key", key.String(), "error", err.Error())

@@ -78,10 +78,7 @@ func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj run
 		if !ok {
 			return obj, fmt.Errorf("unexpected objext, got")
 		}
-		if err := tctx.SetIntent(ctx, targetKey, config, true, dryrun); err != nil {
-			return obj, err
-		}
-		return obj, nil
+		return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
 	}
 	if err := r.store.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
 		return obj, apierrors.NewInternalError(err)
