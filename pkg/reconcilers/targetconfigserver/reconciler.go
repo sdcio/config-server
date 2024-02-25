@@ -110,7 +110,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	l := lease.New(r.Client, targetKey.NamespacedName)
 	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
-		//log.Info("cannot acquire lease", "error", err.Error())
+		log.Debug("cannot acquire lease", "error", err.Error())
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"lease", "error %s", err.Error())
 		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
