@@ -19,6 +19,7 @@ package discoveryrule
 import (
 	"context"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -49,8 +50,16 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 	}
 
 	for _, target := range targetList.Items {
-		if !r.children.Has(target.Name) {
-			log.Info("target delete, not available as child", "name", target.Name, "children", r.children.UnsortedList())
+		found := false
+		keys := []string{}
+		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
+			keys = append(keys, key.Name)
+			if key.Name == target.Name {
+				found = true
+			}
+		})
+		if !found {
+			log.Info("target delete, not available as child", "name", target.Name, "children", keys)
 			if err := r.client.Delete(ctx, &target); err != nil {
 				log.Error("cannot delete target")
 			}
@@ -73,7 +82,13 @@ func (r *dr) deleteUnWantedUnManagedConfigs(ctx context.Context) error {
 	}
 
 	for _, unmanagedConfig := range unmanagedConfigList.Items {
-		if !r.children.Has(unmanagedConfig.Name) {
+		found := false
+		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
+			if key.Name == unmanagedConfig.Name {
+				found = true
+			}
+		})
+		if !found {
 			if err := r.client.Delete(ctx, &unmanagedConfig); err != nil {
 				log.Error("cannot delete unmanagedConfig")
 			}

@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -44,7 +44,6 @@ func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebacken
 	r.cfg = cfg
 	r.protocols = r.newDiscoveryProtocols()
 	r.targetStore = targetStore
-	r.children = sets.New[string]()
 	return r
 }
 
@@ -53,7 +52,7 @@ type dr struct {
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
 	targetStore storebackend.Storer[*target.Context]
-	children    sets.Set[string]
+	children    storebackend.Storer[string]
 
 	cancel context.CancelFunc
 }
@@ -98,7 +97,7 @@ func (r *dr) run(ctx context.Context) error {
 	}
 
 	// clear the children list
-	r.children.Clear()
+	r.children =  memory.NewStore[string]()
 	/*
 		// targets get re
 		tgts, err := r.getTargets(ctx)
@@ -127,7 +126,7 @@ func (r *dr) run(ctx context.Context) error {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
 				if !r.cfg.Discovery {
-					r.children.Insert(getTargetName(h.hostName)) // this should be done here
+					r.children.Create(ctx, storebackend.ToKey(getTargetName(h.hostName)), "") // this should be done here
 					// discovery disabled
 					log.Debug("disovery disabled")
 					l := lease.New(r.client, types.NamespacedName{

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
@@ -74,7 +75,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 	b, _ := json.Marshal(di)
 	log.Info("discovery info", "info", string(b))
 
-	r.children.Insert(getTargetName(di.HostName))
+	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
 
 	l := lease.New(r.client, types.NamespacedName{
 		Namespace: r.cfg.CR.GetNamespace(),
@@ -95,7 +96,6 @@ func (r *dr) discoverWithGNMI(ctx context.Context, ip string, connProfile *invv1
 		return err
 	}
 
-	
 	if err := r.applyTarget(ctx, newTargetCR); err != nil {
 		// TODO reapply if update failed
 		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {

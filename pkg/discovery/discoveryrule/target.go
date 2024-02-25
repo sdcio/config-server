@@ -64,7 +64,6 @@ func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
 		return err
 	}
 	// add the children to the set, later it is used to delete the unwanted children
-	r.children.Insert(newTargetCR.Name)
 	if err := r.applyTarget(ctx, newTargetCR); err != nil {
 		return err
 	}
