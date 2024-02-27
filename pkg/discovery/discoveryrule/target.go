@@ -72,51 +72,6 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	return nil
 }
 
-/*
-// TODO based on the TargetConnectionProfile we might have to create a new Target
-func (r *dr) applyStaticTarget(ctx context.Context, h *hostInfo) error {
-	if h.hostName == "" {
-		return fmt.Errorf("cannot create a static target w/o a hostname")
-	}
-	if len(r.cfg.TargetConnectionProfiles) == 0 {
-		return fmt.Errorf("cannot create a static target w/o a connectivity profile")
-	}
-	if r.cfg.DefaultSchema == nil {
-		return fmt.Errorf("cannot create a static target w/o a default schema")
-	}
-	provider := r.cfg.DefaultSchema.Provider
-	version := r.cfg.DefaultSchema.Version
-	address := fmt.Sprintf("%s:%d",
-		h.Address,
-		r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
-	)
-	di := &invv1alpha1.DiscoveryInfo{
-		Protocol: "static",
-		Provider: provider,
-		Version:  version,
-		HostName: h.hostName,
-		LastSeen: metav1.Now(),
-	}
-	newTargetCR, err := r.newTargetCR(
-		ctx,
-		provider,
-		address,
-		di,
-	)
-	if err != nil {
-		return err
-	}
-	// add the children to the set, later it is used to delete the unwanted children
-	if err := r.applyTarget(ctx, newTargetCR); err != nil {
-		return err
-	}
-	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
-		return err
-	}
-	return nil
-}
-*/
-
 func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
