@@ -298,14 +298,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.Status.UsedReferences = usedRefs
 		cr.SetConditions(invv1alpha1.DatastoreReady())
 		cr.SetOverallStatus()
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.Status.UsedReferences = usedRefs
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
-	r.recorder.Eventf(cr, corev1.EventTypeWarning,
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"datastore", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 
@@ -405,6 +405,8 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 		}
 		changed = true
 		log.Debug("datastore does not exist -> create")
+		r.recorder.Eventf(cr, corev1.EventTypeNormal,
+			"datastore", "create")
 		if err := tctx.CreateDS(ctx, req); err != nil {
 			return changed, nil, err
 		}
@@ -421,9 +423,13 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 	}
 	changed = true
 	log.Debug("datastore exist -> changed")
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		"datastore", "delete")
 	if err := tctx.DeleteDS(ctx); err != nil {
 		return changed, nil, err
 	}
+	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		"datastore", "create")
 	if err := tctx.CreateDS(ctx, req); err != nil {
 		return changed, nil, err
 	}
