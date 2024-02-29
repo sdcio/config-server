@@ -164,7 +164,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
-		return nil, fmt.Errorf("target context not readu")
+		return nil, fmt.Errorf("target context not ready")
 	}
 
 	update, err := r.getIntentUpdate(ctx, key, config, useSpec)
@@ -190,7 +190,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) (*configv1alpha1.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
-		return nil, fmt.Errorf("target context not readu")
+		return nil, fmt.Errorf("target context not ready")
 	}
 
 	if config.Status.AppliedConfig == nil {
@@ -215,7 +215,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1alpha1.RunningConfig, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
-		return nil, fmt.Errorf("target context not readu")
+		return nil, fmt.Errorf("target context not ready")
 	}
 	path, err := utils.ParsePath("/")
 	if err != nil {
