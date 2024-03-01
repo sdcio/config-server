@@ -240,6 +240,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// update the target store with the updated information
 	curtctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil || !curtctx.IsReady() {
+		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
 		if serr != nil {
 			log.Debug("cannot select a dataserver", "error", err)
@@ -253,27 +254,28 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
 		tctx := target.New(targetKey, r.Client, selectedDSctx.DSClient)
+		// either update or create based on the previous error
 		if err != nil {
 			r.recorder.Eventf(cr, corev1.EventTypeNormal,
 				"datastore", "create")
-			if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
-				cr.Status.UsedReferences = nil
-				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
-				cr.SetOverallStatus()
-				r.recorder.Eventf(cr, corev1.EventTypeWarning,
-					"Error", "error %s", err.Error())
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-			}
-		} else {
-			r.recorder.Eventf(cr, corev1.EventTypeNormal,
-				"datastore", "update")
 			if err := r.targetStore.Create(ctx, targetKey, tctx); err != nil {
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
 				r.recorder.Eventf(cr, corev1.EventTypeWarning,
 					"Error", "error %s", err.Error())
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+		} else {
+			r.recorder.Eventf(cr, corev1.EventTypeNormal,
+				"datastore", "update")
+			if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
+				cr.Status.UsedReferences = nil
+				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+				cr.SetOverallStatus()
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 	} else {
