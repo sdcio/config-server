@@ -263,13 +263,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
 	if err != nil {
-		log.Debug("cannot get schema ready state", "error", err)
+		log.Error("cannot get schema ready state", "error", err)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"datastore", "schema not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	log.Debug("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 	if !isSchemaReady {
