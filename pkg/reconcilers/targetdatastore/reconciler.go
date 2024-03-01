@@ -259,7 +259,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.recorder.Eventf(cr, corev1.EventTypeNormal,
 				"datastore", "create")
 			if err := r.targetStore.Create(ctx, targetKey, tctx); err != nil {
-				log.Info("create targetStore failed", "error", err.Error())
+				log.Error("create targetStore failed", "error", err.Error())
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
@@ -271,7 +271,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			r.recorder.Eventf(cr, corev1.EventTypeNormal,
 				"datastore", "update")
 			if err := r.targetStore.Update(ctx, targetKey, tctx); err != nil {
-				log.Info("update targetStore failed", "error", err.Error())
+				log.Error("update targetStore failed", "error", err.Error())
 				cr.Status.UsedReferences = nil
 				cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 				cr.SetOverallStatus()
