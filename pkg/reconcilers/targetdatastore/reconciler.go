@@ -216,6 +216,25 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			"datastore", "discovery not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
+	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
+	if err != nil {
+		log.Error("cannot get schema ready state", "error", err)
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "schema not ready")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
+	if !isSchemaReady {
+		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
+		cr.Status.UsedReferences = nil
+		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
+		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			"datastore", "schema not ready")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
 
 	// first check if the target has an assigned dataserver, if not allocate one
 	// update the target store with the updated information
@@ -261,25 +280,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// safety
 		r.addTargetToDataServer(ctx, storebackend.ToKey(curtctx.GetAddress()), targetKey)
 	}
-	isSchemaReady, schemaMsg, err := r.isSchemaReady(ctx, cr)
-	if err != nil {
-		log.Error("cannot get schema ready state", "error", err)
-		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
-		cr.SetOverallStatus()
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
-			"datastore", "schema not ready")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
-	if !isSchemaReady {
-		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
-		cr.Status.UsedReferences = nil
-		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
-		cr.SetOverallStatus()
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
-			"datastore", "schema not ready")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
-	}
+	
 
 	// Now that the target store is up to date and we have an assigned dataserver
 	// we will create/update the datastore for the target
