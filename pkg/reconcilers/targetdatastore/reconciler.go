@@ -224,7 +224,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"datastore", "schema not ready")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if !isSchemaReady {
 		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
@@ -280,8 +280,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// safety
 		r.addTargetToDataServer(ctx, storebackend.ToKey(curtctx.GetAddress()), targetKey)
 	}
-	
-
 	// Now that the target store is up to date and we have an assigned dataserver
 	// we will create/update the datastore for the target
 	// Target is ready
