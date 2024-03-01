@@ -271,8 +271,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			"datastore", "schema not ready")
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	log.Debug("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 	if !isSchemaReady {
+		log.Info("schema ready state", "ready", isSchemaReady, "msg", schemaMsg)
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreSchemaNotReady(schemaMsg))
 		cr.SetOverallStatus()
