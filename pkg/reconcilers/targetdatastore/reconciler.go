@@ -291,7 +291,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	// robustness avoid to update status when there is no change
 	// avoid retriggering reconcile
