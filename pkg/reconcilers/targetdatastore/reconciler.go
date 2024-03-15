@@ -404,8 +404,9 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 	// get the datastore from the dataserver
 	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
-		// datastore does not exist
+		// datastore does not exist or dataserver is unhealthy
 		if !strings.Contains(err.Error(), "unknown datastore") {
+			tctx.SetReady(ctx, false)
 			log.Error("cannot get datastore from dataserver", "error", err)
 			return changed, nil, err
 		}
