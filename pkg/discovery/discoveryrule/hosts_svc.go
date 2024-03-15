@@ -49,6 +49,8 @@ func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 }
 
 func (r *dr) getServices(ctx context.Context) (*corev1.ServiceList, error) {
+	log := log.FromContext(ctx)
+	log.Info("get services", "cr", r.cfg.CR)
 	if r.cfg.CR.GetSvcSelector() == nil {
 		return nil, fmt.Errorf("get services w/o a labelselector is not supported")
 	}
