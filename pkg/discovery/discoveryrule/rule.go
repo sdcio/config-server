@@ -107,6 +107,8 @@ func (r *dr) run(ctx context.Context) error {
 		h, ok := iter.Next()
 		if !ok {
 			sem.Release(1)
+			// any target that was not processed we can delete as the ip rules dont cover this any longer
+			r.deleteUnWantedChildren(ctx)
 			break
 		}
 		select {
@@ -128,7 +130,5 @@ func (r *dr) run(ctx context.Context) error {
 			}(h)
 		}
 	}
-	// any target that was not processed we can delete as the ip rules dont cover this any longer
-	r.deleteUnWantedChildren(ctx)
 	return nil
 }

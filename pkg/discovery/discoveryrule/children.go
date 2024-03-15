@@ -60,7 +60,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 			}
 		})
 		if !found {
-			log.Info("target delete, not available as child", "name", target.Name, "children", keys)
+			log.Info("target delete, not available as child", "name", target.Name, "children", keys, "len", )
 			if err := r.client.Delete(ctx, &target); err != nil {
 				log.Error("cannot delete target")
 			}

@@ -20,12 +20,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
-	//log := log.FromContext(ctx)
+	log := log.FromContext(ctx)
+	log.Info("discover protocol none", "hostName", h.hostName)
 	provider := r.cfg.DefaultSchema.Provider
 	version := r.cfg.DefaultSchema.Version
 	address := fmt.Sprintf("%s:%d",
@@ -39,6 +41,5 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 		HostName: h.hostName,
 		LastSeen: metav1.Now(),
 	}
-
 	return r.createTarget(ctx, provider, address, di)
 }
