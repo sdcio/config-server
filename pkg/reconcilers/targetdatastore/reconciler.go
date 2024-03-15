@@ -289,7 +289,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Now that the target store is up to date and we have an assigned dataserver
 	// we will create/update the datastore for the target
 	// Target is ready
-	changed, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
+	_, usedRefs, err := r.updateDataStoreTargetReady(ctx, cr)
 	if err != nil {
 		cr.Status.UsedReferences = nil
 		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
@@ -300,15 +300,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	// robustness avoid to update status when there is no change
 	// avoid retriggering reconcile
-	if changed {
-		cr.Status.UsedReferences = usedRefs
-		cr.SetConditions(invv1alpha1.DatastoreReady())
+	/*
+		if changed {
+			cr.Status.UsedReferences = usedRefs
+			cr.SetConditions(invv1alpha1.DatastoreReady())
+			cr.SetOverallStatus()
+			r.recorder.Eventf(cr, corev1.EventTypeNormal,
+				"datastore", "ready")
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+	*/
+	cr.Status.UsedReferences = usedRefs
+	ready, err := r.getTargetStatus(ctx, cr)
+	if err != nil {
+		cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
-			"datastore", "ready")
+			"datastore", "not ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
-	cr.Status.UsedReferences = usedRefs
+	if !ready {
+		cr.SetConditions(invv1alpha1.DatastoreFailed("not ready"))
+		cr.SetOverallStatus()
+		r.recorder.Eventf(cr, corev1.EventTypeNormal,
+			"datastore", "not ready")
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	}
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
@@ -382,6 +399,28 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	return selectedDSctx, nil
 }
 
+// getTargetStatus
+func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target) (bool, error) {
+	targetKey := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
+	log := log.FromContext(ctx).With("targetkey", targetKey.String())
+
+	// this should always succeed
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		log.Error("cannot get datastore from store", "error", err)
+		return false, err
+	}
+	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	if err != nil {
+		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
+		return false, err
+	}
+	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
+		return false, nil
+	}
+	return true, nil
+}
+
 // updateDataStore will do 1 of 3 things
 // 1. create a datastore if none exists
 // 2. delete/update the datastore if changes were detected
@@ -404,8 +443,9 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, cr *invv1al
 	// get the datastore from the dataserver
 	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
-		// datastore does not exist
+		// datastore does not exist or dataserver is unhealthy
 		if !strings.Contains(err.Error(), "unknown datastore") {
+			tctx.SetReady(ctx, false)
 			log.Error("cannot get datastore from dataserver", "error", err)
 			return changed, nil, err
 		}

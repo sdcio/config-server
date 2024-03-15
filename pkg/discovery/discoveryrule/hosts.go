@@ -44,9 +44,9 @@ func (r *dr) getHosts(ctx context.Context) (Iterator, error) {
 	case invv1alpha1.DiscoveryRuleSpecKindAddress:
 		return newIterator(r.cfg.CR.GetAddresses(), r.cfg.CR.GetDefaultSchema()), nil
 	case invv1alpha1.DiscoveryRuleSpecKindPod:
-		return newIterator(r.GetSVCDiscoveryAddresses(ctx), r.cfg.CR.GetDefaultSchema()), nil
-	case invv1alpha1.DiscoveryRuleSpecKindSvc:
 		return newIterator(r.GetPODDiscoveryAddresses(ctx), r.cfg.CR.GetDefaultSchema()), nil
+	case invv1alpha1.DiscoveryRuleSpecKindSvc:
+		return newIterator(r.GetSVCDiscoveryAddresses(ctx), r.cfg.CR.GetDefaultSchema()), nil
 	default:
 		return nil, fmt.Errorf("unsupported discovery rule kind, supporting %v, got %s",
 			[]string{

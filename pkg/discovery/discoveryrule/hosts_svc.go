@@ -35,13 +35,13 @@ func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 		log.Error("cannot get service list", "error", err)
 		return addresses
 	}
-	domainName := "cluster.local"
+	serviceDomainName := "cluster.local"
 	if r.cfg.CR.GetServiceDomain() != "" {
-		domainName = r.cfg.CR.GetServiceDomain()
+		serviceDomainName = r.cfg.CR.GetServiceDomain()
 	}
 	for _, svc := range svcList.Items {
 		addresses = append(addresses, invv1alpha1.DiscoveryRuleAddress{
-			Address:  fmt.Sprintf("%s.%s.svc.%s", svc.Name, svc.Namespace, domainName),
+			Address:  fmt.Sprintf("%s.%s.svc.%s", svc.Name, svc.Namespace, serviceDomainName),
 			HostName: svc.Name,
 		})
 	}
@@ -49,6 +49,8 @@ func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 }
 
 func (r *dr) getServices(ctx context.Context) (*corev1.ServiceList, error) {
+	log := log.FromContext(ctx)
+	log.Info("get services", "cr", r.cfg.CR)
 	if r.cfg.CR.GetSvcSelector() == nil {
 		return nil, fmt.Errorf("get services w/o a labelselector is not supported")
 	}

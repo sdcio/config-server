@@ -65,6 +65,7 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) Start(ctx context.Context) {
+	r.Stop(ctx)
 	ctx, r.cancel = context.WithCancel(ctx)
 	go r.start(ctx)
 }
