@@ -81,6 +81,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 					continue
 				}
 				if !tctx.IsReady() {
+					tctx.SetReady(ctx, false)
 					log.Error("k8s target does not have a corresponding dataserver client", "key", key.String(), "error", err)
 					target.SetConditions(invv1alpha1.DatastoreFailed("target ctx not ready"))
 					target.SetOverallStatus()
@@ -95,6 +96,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if err != nil {
 					log.Error("cannot get target from the datastore", "key", key.String(), "error", err)
 					if condition.Status == metav1.ConditionTrue {
+						tctx.SetReady(ctx, false)
 						target.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
 						target.SetOverallStatus()
 						if err := r.Status().Update(ctx, &target); err != nil {
@@ -107,6 +109,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				}
 				if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 					// Target is not connected
+					tctx.SetReady(ctx, false)
 					if condition.Status == metav1.ConditionTrue {
 						target.SetConditions(invv1alpha1.DatastoreFailed(resp.Target.StatusDetails))
 						target.SetOverallStatus()
@@ -119,6 +122,7 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				} else {
 					// Target is connected
 					if condition.Status == metav1.ConditionFalse {
+						tctx.SetReady(ctx, true)
 						target.SetConditions(invv1alpha1.DatastoreReady())
 						target.SetOverallStatus()
 						if err := r.Status().Update(ctx, &target); err != nil {
