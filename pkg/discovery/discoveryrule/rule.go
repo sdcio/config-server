@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -93,9 +94,11 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
-
+	
+	var wg sync.WaitGroup
 	// clear the children list
 	r.children = memory.NewStore[string]()
+	defer r.deleteUnWantedChildren(ctx) // delete unwanted children
 
 	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().GetConcurrentScans())
 	for {
@@ -106,18 +109,18 @@ func (r *dr) run(ctx context.Context) error {
 		}
 		h, ok := iter.Next()
 		if !ok {
-			sem.Release(1)
-			// any target that was not processed we can delete as the ip rules dont cover this any longer
-			r.deleteUnWantedChildren(ctx)
+			//sem.Release(1)
 			break
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			wg.Add(1)
 			go func(h *hostInfo) {
 				log := log.With("address", h.Address)
 				defer sem.Release(1)
+				defer wg.Done()
 				// discover irrespective if discovery is enabled or disabled
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
@@ -130,5 +133,6 @@ func (r *dr) run(ctx context.Context) error {
 			}(h)
 		}
 	}
+	wg.Wait() // Wait for all goroutines to finish
 	return nil
 }
