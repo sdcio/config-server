@@ -111,14 +111,15 @@ func (r *Context) IsReady() bool {
 	return false
 }
 
-func (r *Context) SetReady(ctx context.Context, ready bool) bool {
+func (r *Context) SetReady(ctx context.Context, ready bool) {
 	r.ready = ready
-	if ready {
-		r.deviationWatcher.Stop(ctx)
-	} else {
-		r.deviationWatcher.Start(ctx)
+	if r.deviationWatcher != nil {
+		if ready {
+			r.deviationWatcher.Stop(ctx)
+		} else {
+			r.deviationWatcher.Start(ctx)
+		}
 	}
-	return false
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
