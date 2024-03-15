@@ -72,10 +72,22 @@ func (r *targetDataStoreWatcher) Start(ctx context.Context) {
 				if err != nil {
 					// not found
 					log.Error("k8s target does not have a corresponding k8s ctx", "key", key.String(), "error", err)
+					target.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
+					target.SetOverallStatus()
+					if err := r.Status().Update(ctx, &target); err != nil {
+						log.Error("cannot update target status", "key", key.String(), "error", err)
+					}
+					log.Info("target status changed true -> false", "key", key.String())
 					continue
 				}
-				if !tctx.IsReady()  {
+				if !tctx.IsReady() {
 					log.Error("k8s target does not have a corresponding dataserver client", "key", key.String(), "error", err)
+					target.SetConditions(invv1alpha1.DatastoreFailed("target ctx not ready"))
+					target.SetOverallStatus()
+					if err := r.Status().Update(ctx, &target); err != nil {
+						log.Error("cannot update target status", "key", key.String(), "error", err)
+					}
+					log.Info("target status changed true -> false", "key", key.String())
 					continue
 				}
 				condition := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
