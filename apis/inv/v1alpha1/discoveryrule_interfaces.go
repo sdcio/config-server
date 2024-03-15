@@ -125,7 +125,7 @@ func (r *DiscoveryRule) GetPodSelector() *metav1.LabelSelector {
 }
 
 func (r *DiscoveryRule) GetSvcSelector() *metav1.LabelSelector {
-	return r.Spec.PodSelector
+	return r.Spec.ServiceSelector
 }
 
 func (r *DiscoveryRule) GetServiceDomain() string {
