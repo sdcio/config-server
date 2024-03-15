@@ -127,6 +127,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 			return ctrl.Result{}, nil
 		}
+		if !tctx.IsReady() {
+			// Since the target is not available we delete the resource
+			// The target config might not be deleted
+			//log.Error("delete config with unavailable target", "error", err)
+			if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
+				//log.Error("cannot remove finalizer", "error", err)
+				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					"Error", "error %s", err.Error())
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			}
+			return ctrl.Result{}, nil
+		}
 		log.Info("config delete", "targetKey", targetKey, "tctx", tctx)
 		if _, err := tctx.DeleteIntent(ctx, targetKey, cr, false); err != nil {
 			//log.Error("delete intent failed", "error", err.Error())

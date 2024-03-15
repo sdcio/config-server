@@ -50,6 +50,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 	}
 
 	for _, target := range targetList.Items {
+		target := target
 		found := false
 		keys := []string{}
 		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
