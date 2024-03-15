@@ -76,7 +76,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	return r.createTarget(ctx, discoverer.GetProvider(), t.Config.Address, di)
 }
 
-func createGNMITarget(ctx context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
+func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {
 	tOpts := []api.TargetOption{
 		//api.Name(req.NamespacedName.String()),
 		api.Address(address),

@@ -51,7 +51,7 @@ func (r *dr) GetPODDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 
 func (r *dr) getPods(ctx context.Context) (*corev1.PodList, error) {
 	if r.cfg.CR.GetPodSelector() == nil {
-		return nil, fmt.Errorf("get services w/o a labelselector is not supported")
+		return nil, fmt.Errorf("get pods w/o a labelselector is not supported")
 	}
 	labelsSelector, err := metav1.LabelSelectorAsSelector(r.cfg.CR.GetSvcSelector())
 	if err != nil {

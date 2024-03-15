@@ -54,7 +54,7 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) erro
 	return nil
 }
 
-func (r *dr) newUnManagedConfigCR(ctx context.Context, targetName string) (*configv1alpha1.UnManagedConfig, error) {
+func (r *dr) newUnManagedConfigCR(_ context.Context, targetName string) (*configv1alpha1.UnManagedConfig, error) {
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err

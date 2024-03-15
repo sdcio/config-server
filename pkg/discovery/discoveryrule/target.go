@@ -72,7 +72,7 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	return nil
 }
 
-func (r *dr) newTargetCR(ctx context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
+func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
