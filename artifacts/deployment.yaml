@@ -37,6 +37,9 @@ spec:
         - "--audit-log-maxage=0"
         - "--audit-log-maxbackup=0"
         - "--secure-port=6443"
+        ports:
+        - name: api-service
+          containerPort: 6443
         env:
         - name: POD_IP
           valueFrom:
