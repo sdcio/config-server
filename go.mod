@@ -52,7 +52,7 @@ require (
 	k8s.io/apimachinery v0.29.1
 	k8s.io/apiserver v0.29.1
 	k8s.io/client-go v0.29.1
-	k8s.io/code-generator v0.29.2
+	k8s.io/code-generator v0.29.3
 	k8s.io/component-base v0.29.1
 	k8s.io/kube-openapi v0.0.0-20240126223410-2919ad4fcfec
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
@@ -98,7 +98,7 @@ require (
 	github.com/go-openapi/swag v0.22.9 // indirect
 	github.com/golang/glog v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/cel-go v0.18.2 // indirect
 	github.com/google/flatbuffers v23.5.26+incompatible // indirect
