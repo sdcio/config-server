@@ -196,6 +196,7 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 				SingleBranch: true,
 				Force:        true,
 				Auth:         auth,
+				ProxyOptions: transport.ProxyOptions{},
 			})
 		}); err {
 		case nil, gogit.NoErrAlreadyUpToDate:
@@ -226,6 +227,9 @@ func (g *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 			Depth:    1,
 			RefSpecs: []config.RefSpec{refSpec},
 			Auth:     auth,
+			ProxyOptions: transport.ProxyOptions{
+
+			},
 		})
 	}); err {
 	case nil, gogit.NoErrAlreadyUpToDate:

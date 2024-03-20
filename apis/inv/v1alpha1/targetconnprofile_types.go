@@ -84,7 +84,7 @@ type TargetConnectionProfileSpec struct {
 	SkipVerify bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
 	// +kubebuilder:default:=false
-	IncludeNS bool `json:"includeNS,omitempty" yaml:"include-ns,omitempty"`
+	IncludeNS bool `json:"includeNS,omitempty" yaml:"includeNS,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
 	// +kubebuilder:default:=false
 	OperationWithNS bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty"`
