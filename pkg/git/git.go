@@ -95,7 +95,7 @@ func (g *GoGit) getDefaultBranch(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("unable to determine default branch for %q", g.gitRepo.GetCloneURL().String())
 }
 
-func (g *GoGit) openRepo(ctx context.Context) error {
+func (g *GoGit) openRepo(_ context.Context) error {
 	var err error
 
 	// load the git repository
@@ -196,7 +196,6 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 				SingleBranch: true,
 				Force:        true,
 				Auth:         auth,
-				ProxyOptions: transport.ProxyOptions{},
 			})
 		}); err {
 		case nil, gogit.NoErrAlreadyUpToDate:
@@ -227,9 +226,6 @@ func (g *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 			Depth:    1,
 			RefSpecs: []config.RefSpec{refSpec},
 			Auth:     auth,
-			ProxyOptions: transport.ProxyOptions{
-
-			},
 		})
 	}); err {
 	case nil, gogit.NoErrAlreadyUpToDate:
