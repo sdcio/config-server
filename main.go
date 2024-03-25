@@ -128,6 +128,11 @@ func main() {
 		schemaBaseDir = envDir
 	}
 
+	// SchemaServerBaseDir is overwritable via Environment var
+	if envDir, found := os.LookupEnv("SDC_CONFIG_DIR"); found {
+		configDir = envDir
+	}
+
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,

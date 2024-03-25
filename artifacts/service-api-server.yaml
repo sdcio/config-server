@@ -7,8 +7,8 @@ metadata:
     sdcio.dev/config-server: "true"
 spec:
   ports:
-  - port: 6443
-    protocol: TCP
-    targetPort: 6443
+  - name: api-service
+    port: 6443
+    targetPort: api-service
   selector:
     sdcio.dev/config-server: "true"
