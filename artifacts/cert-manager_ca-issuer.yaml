@@ -1,0 +1,8 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: my-ca-issuer
+  namespace: network-system
+spec:
+  ca:
+    secretName: my-selfsigned-ca-secret
