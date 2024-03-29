@@ -415,9 +415,12 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
 		return false, err
 	}
+	log.Info("target status", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
+		tctx.SetReady(ctx, false)
 		return false, nil
 	}
+	tctx.SetReady(ctx, true)
 	return true, nil
 }
 

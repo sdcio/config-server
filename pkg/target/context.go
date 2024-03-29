@@ -113,12 +113,10 @@ func (r *Context) IsReady() bool {
 
 func (r *Context) SetReady(ctx context.Context, ready bool) {
 	r.ready = ready
-	if r.deviationWatcher != nil {
-		if ready {
-			r.deviationWatcher.Stop(ctx)
-		} else {
-			r.deviationWatcher.Start(ctx)
-		}
+	if ready {
+		r.deviationWatcher.Start(ctx)
+	} else {
+		r.deviationWatcher.Stop(ctx)
 	}
 }
 
