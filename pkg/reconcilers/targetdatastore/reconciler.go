@@ -317,14 +317,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if !ready {
 		cr.SetConditions(invv1alpha1.DatastoreFailed("not ready"))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
@@ -401,6 +401,7 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 
 // getTargetStatus
 func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target) (bool, error) {
+	time.Sleep(1 * time.Second)
 	targetKey := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).With("targetkey", targetKey.String())
 
@@ -415,6 +416,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
 		return false, err
 	}
+	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		return false, nil
 	}
