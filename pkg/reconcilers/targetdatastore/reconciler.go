@@ -401,7 +401,6 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 
 // getTargetStatus
 func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target) (bool, error) {
-	time.Sleep(1 * time.Second)
 	targetKey := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).With("targetkey", targetKey.String())
 
@@ -411,6 +410,8 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		log.Error("cannot get datastore from store", "error", err)
 		return false, err
 	}
+	// timeout to wait for target connection in the data-server since it is just created
+	time.Sleep(1 * time.Second)
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
