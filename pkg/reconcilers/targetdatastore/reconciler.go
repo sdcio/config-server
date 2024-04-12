@@ -317,14 +317,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if !ready {
 		cr.SetConditions(invv1alpha1.DatastoreFailed("not ready"))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
@@ -410,11 +410,14 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		log.Error("cannot get datastore from store", "error", err)
 		return false, err
 	}
+	// timeout to wait for target connection in the data-server since it is just created
+	time.Sleep(1 * time.Second)
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
 		return false, err
 	}
+	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		return false, nil
 	}
