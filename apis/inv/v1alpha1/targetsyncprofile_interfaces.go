@@ -61,6 +61,8 @@ func getSyncMode(mode SyncMode) sdcpb.SyncMode {
 		return sdcpb.SyncMode_SM_SAMPLE
 	case SyncMode_Once:
 		return sdcpb.SyncMode_SM_ONCE
+	case SyncMode_Get:
+		return sdcpb.SyncMode_SM_GET
 	default:
 		return sdcpb.SyncMode_SM_ON_CHANGE
 	}
