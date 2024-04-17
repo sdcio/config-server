@@ -317,14 +317,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if !ready {
 		cr.SetConditions(invv1alpha1.DatastoreFailed("not ready"))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
