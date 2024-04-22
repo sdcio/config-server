@@ -114,7 +114,7 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 	return nil
 }
 
-func updateResourceVersion(ctx context.Context, obj, old runtime.Object) error {
+func updateResourceVersion(_ context.Context, obj, old runtime.Object) error {
 	accessorNew, err := meta.Accessor(obj)
 	if err != nil {
 		return nil
