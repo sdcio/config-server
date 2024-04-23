@@ -1,6 +1,7 @@
 module github.com/sdcio/config-server
 
-go 1.21.4
+go 1.22.0
+
 toolchain go1.22.2
 
 replace github.com/google/cel-go => github.com/google/cel-go v0.16.1
