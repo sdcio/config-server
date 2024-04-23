@@ -69,6 +69,7 @@ spec:
                       - onChange
                       - sample
                       - once
+                      - get
                       type: string
                     name:
                       type: string

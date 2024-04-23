@@ -29,6 +29,7 @@ const (
 	SyncMode_Unknown  SyncMode = "unknown"
 	SyncMode_OnChange SyncMode = "onChange"
 	SyncMode_Sample   SyncMode = "sample"
+	SyncMode_Get      SyncMode = "get"
 	SyncMode_Once     SyncMode = "once"
 )
 
@@ -58,7 +59,7 @@ type TargetSyncProfileSync struct {
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
 	// +kubebuilder:validation:MaxItems=10
 	Paths []string `json:"paths" yaml:"paths"`
-	//+kubebuilder:validation:Enum=unknown;onChange;sample;once;
+	//+kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
 	Mode SyncMode `json:"mode" yaml:"mode"`
 	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
 	// +kubebuilder:default:="ASCII"
