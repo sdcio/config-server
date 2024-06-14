@@ -46,10 +46,11 @@ import (
 )
 
 func init() {
-	reconcilers.Register("targetdatastore", &reconciler{})
+	reconcilers.Register(crName, &reconciler{})
 }
 
 const (
+	crName         = "targetdatastore"
 	controllerName = "TargetDataStoreController"
 	finalizer      = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
@@ -123,12 +124,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	cr = cr.DeepCopy()
 
-	l := lease.New(r.Client, targetKey.NamespacedName)
+	l := lease.New(r.Client, cr)
 	if err := l.AcquireLease(ctx, "TargetDataStoreController"); err != nil {
 		log.Debug("cannot acquire lease", "targetKey", targetKey.String(), "error", err.Error())
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"lease", "error %s", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.GetRandaomRequeueTimout()}, nil
 	}
 	r.recorder.Eventf(cr, corev1.EventTypeWarning,
 		"lease", "acquired")
@@ -317,21 +318,33 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if !ready {
 		cr.SetConditions(invv1alpha1.DatastoreFailed("not ready"))
 		cr.SetOverallStatus()
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"datastore", "not ready")
-		return ctrl.Result{RequeueAfter: 5 *time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	cr.SetConditions(invv1alpha1.DatastoreReady())
 	cr.SetOverallStatus()
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"datastore", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+}
 
+func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Target, msg string, err error) {
+	log := log.FromContext(ctx)
+	if err == nil {
+		cr.SetConditions(invv1alpha1.Failed(msg))
+		log.Error(msg)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+	} else {
+		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+	}
 }
 
 func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey storebackend.Key) {

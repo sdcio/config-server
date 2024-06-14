@@ -43,10 +43,11 @@ import (
 )
 
 func init() {
-	reconcilers.Register("targetconfigserver", &reconciler{})
+	reconcilers.Register(crName, &reconciler{})
 }
 
 const (
+	crName         = "targetconfigserver"
 	controllerName = "TargetConfigServerController"
 	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
@@ -96,8 +97,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
-	cr := &invv1alpha1.Target{}
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+	target := &invv1alpha1.Target{}
+	if err := r.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -106,37 +107,37 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	cr = cr.DeepCopy()
+	target = target.DeepCopy()
 
-	l := lease.New(r.Client, targetKey.NamespacedName)
+	l := lease.New(r.Client, target)
 	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
 		log.Debug("cannot acquire lease", "error", err.Error())
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		r.recorder.Eventf(target, corev1.EventTypeWarning,
 			"lease", "error %s", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.RequeueInterval}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: lease.GetRandaomRequeueTimout()}, nil
 	}
-	r.recorder.Eventf(cr, corev1.EventTypeWarning,
+	r.recorder.Eventf(target, corev1.EventTypeWarning,
 		"lease", "acquired")
 
-	if !cr.GetDeletionTimestamp().IsZero() {
+	if !target.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
 	}
 
 	// handle transition
-	ready, tctx := r.GetTargetReadiness(ctx, targetKey, cr)
+	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	//log.Info("readiness", "ready", ready)
 	if ready {
-		cfgCondition := cr.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+		cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
 		if cfgCondition.Status == metav1.ConditionFalse &&
 			cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
 
 			//log.Info("target reapply config")
 			// we split the config in config that were successfully applied and config that was not yet
-			reApplyConfigs, err := r.getReApplyConfigs(ctx, cr)
+			reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
 			if err != nil {
-				cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-				cr.SetOverallStatus()
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+				target.SetOverallStatus()
+				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
 			}
 
 			// We need to restore the config on the target
@@ -145,25 +146,38 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					// This is bad since this means we cannot recover the applied config
 					// on a target. We set the target config status to Failed.
 					// Most likely a human intervention is needed
-					cr.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-					cr.SetOverallStatus()
-					r.recorder.Eventf(cr, corev1.EventTypeWarning,
+					target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
+					target.SetOverallStatus()
+					r.recorder.Eventf(target, corev1.EventTypeWarning,
 						"Error", "error %s", err.Error())
-					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
 				}
 			}
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			r.recorder.Eventf(target, corev1.EventTypeWarning,
 				"Config", "ready")
-			cr.SetConditions(invv1alpha1.ConfigReady())
-			cr.SetOverallStatus()
+			target.SetConditions(invv1alpha1.ConfigReady())
+			target.SetOverallStatus()
 		}
 	} else {
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		r.recorder.Eventf(target, corev1.EventTypeWarning,
 			"Config", "target not ready")
-		cr.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
-		cr.SetOverallStatus()
+		target.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
+		target.SetOverallStatus()
 	}
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+}
+
+func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Target, msg string, err error) {
+	log := log.FromContext(ctx)
+	if err == nil {
+		cr.SetConditions(invv1alpha1.Failed(msg))
+		log.Error(msg)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+	} else {
+		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+	}
 }
 
 func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
