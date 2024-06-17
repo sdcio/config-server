@@ -19,6 +19,7 @@ package lease
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/henderiw/logger/log"
@@ -32,34 +33,52 @@ import (
 
 const (
 	defaultLeaseInterval = 1 * time.Second
-	RequeueInterval      = 2 * defaultLeaseInterval
+	minInterval          = 1
+	maxInterval          = 2
 )
+
+func GetRandaomRequeueTimout() time.Duration {
+	// Seed the random number generator
+	rand.Seed(time.Now().UnixNano())
+
+	randomSeconds := minInterval + rand.Intn(maxInterval-minInterval+1)
+	return time.Duration(randomSeconds) * time.Second
+}
 
 type Lease interface {
 	AcquireLease(ctx context.Context, holderIdentity string) error
 }
 
-func New(c client.Client, leaseNSN types.NamespacedName) Lease {
+func New(c client.Client, obj client.Object) Lease {
 	return &lease{
-		Client:         c,
-		leasName:       leaseNSN.Name,
-		leaseNamespace: leaseNSN.Namespace,
+		Client: c,
+		obj:    obj,
 	}
 }
 
 type lease struct {
 	client.Client
 
-	leasName       string
-	leaseNamespace string
+	obj client.Object
 }
 
 func (r *lease) getLease(holderIdentity string) *coordinationv1.Lease {
 	now := metav1.NowMicro()
 	return &coordinationv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.leasName,
-			Namespace: r.leaseNamespace,
+			Name:      r.obj.GetName(),
+			Namespace: r.obj.GetNamespace(),
+			// by setting the owner reference the object will be deleted once the
+			// parent object gets deleted (k8s garbage collection)
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: r.obj.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+					Kind:       r.obj.GetObjectKind().GroupVersionKind().Kind,
+					Name:       r.obj.GetName(),
+					UID:        r.obj.GetUID(),
+					Controller: ptr.To[bool](true),
+				},
+			},
 		},
 		Spec: coordinationv1.LeaseSpec{
 			HolderIdentity:       ptr.To[string](holderIdentity),
@@ -72,10 +91,10 @@ func (r *lease) getLease(holderIdentity string) *coordinationv1.Lease {
 
 func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 	log := log.FromContext(ctx)
-	log.Debug("attempting to acquire lease to update the resource", "lease", r.leasName)
+	log.Debug("attempting to acquire lease to update the resource", "lease", r.obj.GetName())
 	interconnectLeaseNSN := types.NamespacedName{
-		Name:      r.leasName,
-		Namespace: r.leaseNamespace,
+		Name:      r.obj.GetName(),
+		Namespace: r.obj.GetNamespace(),
 	}
 
 	lease := &coordinationv1.Lease{}
@@ -83,7 +102,7 @@ func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
-		log.Debug("lease not found, creating it", "lease", r.leasName)
+		log.Debug("lease not found, creating it", "lease", r.obj.GetName())
 
 		lease = r.getLease(holderIdentity)
 		if err := r.Create(ctx, lease); err != nil {
@@ -101,7 +120,7 @@ func (r *lease) AcquireLease(ctx context.Context, holderIdentity string) error {
 
 	now := metav1.NowMicro()
 	if *lease.Spec.HolderIdentity != holderIdentity {
-		// lease is held by another
+		// lease is held by another identity
 		log.Debug("lease held by another identity", "identity", *lease.Spec.HolderIdentity)
 		if lease.Spec.RenewTime != nil {
 			expectedRenewTime := lease.Spec.RenewTime.Add(time.Duration(*lease.Spec.LeaseDurationSeconds) * time.Second)

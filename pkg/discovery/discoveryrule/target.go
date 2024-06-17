@@ -36,15 +36,6 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	log := log.FromContext(ctx)
 	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
 
-	l := lease.New(r.client, types.NamespacedName{
-		Namespace: r.cfg.CR.GetNamespace(),
-		Name:      getTargetName(di.HostName),
-	})
-	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
-		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
-		return err
-	}
-
 	newTargetCR, err := r.newTargetCR(
 		ctx,
 		provider,
@@ -147,6 +138,14 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 		}
 		return nil
 	}
+
+	// we only need to acquire a lease if the target exists
+	l := lease.New(r.client, curTargetCR)
+	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
+		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
+		return err
+	}
+
 	curTargetCR = curTargetCR.DeepCopy()
 	newTargetCR = newTargetCR.DeepCopy()
 	// target already exists -> validate changes to avoid triggering a reconcile loop
