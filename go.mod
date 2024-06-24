@@ -41,8 +41,8 @@ require (
 	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sdcio/data-server v0.0.37
-	github.com/sdcio/sdc-protos v0.0.24
+	github.com/sdcio/data-server v0.0.39
+	github.com/sdcio/sdc-protos v0.0.25
 	github.com/spf13/cobra v1.8.0
 	go.opentelemetry.io/otel v1.27.0
 	go.uber.org/zap v1.27.0
@@ -97,6 +97,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.20.2 // indirect
 	github.com/go-openapi/jsonreference v0.20.4 // indirect
 	github.com/go-openapi/swag v0.22.9 // indirect
+	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/golang/glog v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
