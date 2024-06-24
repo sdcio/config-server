@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
@@ -40,10 +41,11 @@ import (
 )
 
 func init() {
-	reconcilers.Register("configset", &reconciler{})
+	reconcilers.Register(crName, &reconciler{})
 }
 
 const (
+	crName         = "configset"
 	controllerName = "ConfigSetController"
 	finalizer      = "configset.config.sdcio.dev/finalizer"
 	// errors
@@ -97,8 +99,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	cr := &configv1alpha1.ConfigSet{}
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+	configSet := &configv1alpha1.ConfigSet{}
+	if err := r.Get(ctx, req.NamespacedName, configSet); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -106,60 +108,65 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, nil
 	}
-	cr = cr.DeepCopy()
+	configSet = configSet.DeepCopy()
 
-	if !cr.GetDeletionTimestamp().IsZero() {
+	if !configSet.GetDeletionTimestamp().IsZero() {
 		//log.Info("delete")
 		// list the configs per target
-		existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, cr)
+		existingChildConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 		//log.Info("delete existingConfigs", "total", len(existingChildConfigs))
 
 		for nsn, existingChildConfig := range existingChildConfigs {
 			//log.Info("delete existingChildConfig", "nsn", nsn)
 			if err := r.Delete(ctx, existingChildConfig); err != nil {
 				//log.Error("cannot delete config", "error", err.Error())
-				r.recorder.Eventf(cr, corev1.EventTypeWarning,
+				r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 					"Error", "delete child config : %s error %s", nsn.String(), err.Error())
 			}
 		}
 
-		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
+		if err := r.finalizer.RemoveFinalizer(ctx, configSet); err != nil {
 			//log.Error("cannot remove finalizer", "error", err)
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
+			r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
 		}
 		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
+	if err := r.finalizer.AddFinalizer(ctx, configSet); err != nil {
 		//log.Error("cannot add finalizer", "error", err)
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
 	}
 
-	targets, err := r.unrollDownstreamTargets(ctx, cr)
+	targets, err := r.unrollDownstreamTargets(ctx, configSet)
 	if err != nil {
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
 	}
 
-	if err := r.ensureConfigs(ctx, cr, targets); err != nil {
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
+	if err := r.ensureConfigs(ctx, configSet, targets); err != nil {
+		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
 	}
 
-	cr.SetConditions(configv1alpha1.Ready())
-	r.recorder.Eventf(cr, corev1.EventTypeNormal,
-		"configset", "ready")
-	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+	msg := r.determineOverallStatus(ctx, configSet)
+	if msg != "" {
+		r.handleError(ctx, configSet, msg, nil)
+	} else {
+		configSet.SetConditions(configv1alpha1.Ready())
+		r.recorder.Eventf(configSet, corev1.EventTypeNormal,
+			"configset", "ready")
+	}
+	return ctrl.Result{}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
 }
 
 // unrollDownstreamTargets list the targets
@@ -226,6 +233,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		} else {
 			//log.Info("config exists", "nsn", nsnKey.String())
 			// TODO better logic to validate changes
+			TargetsStatus[i].Condition = oldConfig.GetCondition(configv1alpha1.ConditionTypeReady)
 			newConfig = oldConfig.DeepCopy()
 			newConfig.Spec = configv1alpha1.ConfigSpec{
 				Lifecycle: configSet.Spec.Lifecycle,
@@ -270,6 +278,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
+			TargetsStatus[i].Condition = configv1alpha1.Updating()
 		}
 	}
 
@@ -341,4 +350,27 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 		},
 		configv1alpha1.ConfigStatus{},
 	)
+}
+
+func (r *reconciler) handleError(ctx context.Context, cr *configv1alpha1.ConfigSet, msg string, err error) {
+	log := log.FromContext(ctx)
+	if err == nil {
+		cr.SetConditions(configv1alpha1.Failed(msg))
+		log.Error(msg)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+	} else {
+		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+	}
+}
+
+func (r *reconciler) determineOverallStatus(ctx context.Context, configSet *configv1alpha1.ConfigSet) string {
+	var sb strings.Builder
+	for _, targetStatus := range configSet.Status.Targets {
+		if targetStatus.Condition.Status != metav1.ConditionFalse { 
+			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Condition.Message))
+		}
+	}
+	return sb.String()
 }
