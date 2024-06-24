@@ -57,10 +57,11 @@ type SchemaSpec struct {
 	// Dirs defines the list of directories that identified the provider schema in src/dst pairs
 	// relative within the repository
 	Dirs []SrcDstPath `json:"dirs,omitempty" yaml:"dirs,omitempty"`
-
 	// Schema provides the details of which files must be used for the models and which files/directories
-	// cana be excludes
+	// can be excludes
 	Schema SchemaSpecSchema `json:"schema" yaml:"schema"`
+	// SensitivePaths defines the paths in the schema that have sensitive data
+	SensitivePaths []string `json:"sensitivePaths,omitempty" yaml:"schema,omitempty"`
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src

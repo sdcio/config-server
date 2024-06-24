@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -36,8 +37,19 @@ type ConfigSpec struct {
 type ConfigBlob struct {
 	// Path defines the path relative to which the value is applicable
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=config"`
+	// Value defines the value used within the path, which is the YANG data
+	// for the particular path
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
+	// SensitivePaths define the paths for which sensitive value, like passwords, keys are referenced
+	SensitivePaths []*ConfigBlobSensitiveData `json:"sensitivePaths" protobuf:"bytes,3,opt,name=sensitivePaths"`
+}
+
+type ConfigBlobSensitiveData struct {
+	// Path defines the path to the sensitive data leaf
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=config"`
+	// Selects a key of a secret in the pod's namespace
+	SecretKeyRef corev1.SecretKeySelector `json:"secretKeyRef" protobuf:"bytes,2,opt,name=secretKeyRef"`
 }
 
 // ConfigStatus defines the observed state of Config
