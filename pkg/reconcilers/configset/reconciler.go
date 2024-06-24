@@ -28,6 +28,7 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +85,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Named(controllerName).
 		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
-		Watches(&invv1alpha1.Target{}, &targetEventHandler{client: mgr.GetClient()}).
+		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: controllerName}).
+		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForConfigSetEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
 		Complete(r)
 }
 
@@ -368,7 +370,7 @@ func (r *reconciler) handleError(ctx context.Context, cr *configv1alpha1.ConfigS
 func (r *reconciler) determineOverallStatus(ctx context.Context, configSet *configv1alpha1.ConfigSet) string {
 	var sb strings.Builder
 	for _, targetStatus := range configSet.Status.Targets {
-		if targetStatus.Condition.Status != metav1.ConditionFalse { 
+		if targetStatus.Condition.Status != metav1.ConditionFalse {
 			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Condition.Message))
 		}
 	}

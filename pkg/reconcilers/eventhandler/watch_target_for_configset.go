@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package configset
+package eventhandler
 
 import (
 	"context"
@@ -33,47 +33,48 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetEventHandler struct {
-	client client.Client
+type TargetForConfigSet struct {
+	Client         client.Client
+	ControllerName string
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigSet) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigSet) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigSet) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigSet) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.Target)
+func (r *TargetForConfigSet) add(ctx context.Context, obj runtime.Object, queue adder) {
+	target, ok := obj.(*invv1alpha1.Target)
 	if !ok {
 		return
 	}
-	ctx = ctrlconfig.InitContext(ctx, controllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
+	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())
+	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list the configsets and see
 	opts := []client.ListOption{
-		client.InNamespace(cr.Namespace),
+		client.InNamespace(target.Namespace),
 	}
 	configsets := &configv1alpha1.ConfigSetList{}
-	if err := r.client.List(ctx, configsets, opts...); err != nil {
+	if err := r.Client.List(ctx, configsets, opts...); err != nil {
 		log.Error("cannot list configsets", "error", err)
 		return
 	}
@@ -85,18 +86,18 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 			continue
 		}
 		found := false
-		if selector.Matches(labels.Set(cr.GetLabels())) {
+		if selector.Matches(labels.Set(target.GetLabels())) {
 			log.Info("event target selector matches")
 			// we always requeue since it allows to handle delete of targets that were previously there
 			key := types.NamespacedName{
 				Namespace: configset.Namespace,
 				Name:      configset.Name}
-			log.Info("event requeue configset with target create", "key", key.String(), "target", cr.GetName())
+			log.Info("event requeue configset with target create", "key", key.String(), "target", target.GetName())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
-			for _, target := range configset.Status.Targets {
-				if target.Name == cr.Name {
+			for _, configSetTarget := range configset.Status.Targets {
+				if configSetTarget.Name == target.Name {
 					found = true
 					break
 				}
@@ -105,7 +106,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 				key := types.NamespacedName{
 					Namespace: configset.Namespace,
 					Name:      configset.Name}
-				log.Info("event requeue configset with target delete", "key", key.String(), "target", cr.GetName())
+				log.Info("event requeue configset with target delete", "key", key.String(), "target", target.GetName())
 				queue.Add(reconcile.Request{NamespacedName: key})
 			}
 		}
