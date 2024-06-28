@@ -370,7 +370,7 @@ func (r *reconciler) handleError(ctx context.Context, cr *configv1alpha1.ConfigS
 func (r *reconciler) determineOverallStatus(ctx context.Context, configSet *configv1alpha1.ConfigSet) string {
 	var sb strings.Builder
 	for _, targetStatus := range configSet.Status.Targets {
-		if targetStatus.Condition.Status != metav1.ConditionFalse {
+		if targetStatus.Condition.Status == metav1.ConditionFalse {
 			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Condition.Message))
 		}
 	}
