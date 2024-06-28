@@ -86,7 +86,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
 		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: controllerName}).
-		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForConfigSetEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
+		//Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForConfigSetEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
 		Complete(r)
 }
 
