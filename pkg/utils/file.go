@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 )
 
 // FileExists returns true if a file referenced by filename exists & accessible.
@@ -51,7 +52,7 @@ func DirExists(filename string) bool {
 func CreateDirectory(path string, perm os.FileMode) error {
 	err := os.MkdirAll(path, perm)
 	if err != nil {
-		return fmt.Errorf("error while creating a directory path %v: %v", path, err)
+		return &myerror.MyError{Type: myerror.NonRecoverableErrorType, Message: fmt.Sprintf("cannot create directory path %s", path), OrigError: err}
 	}
 	return nil
 }
@@ -60,14 +61,17 @@ func ErrNotIsSubfolder(base, specific string) error {
 	var err error
 	rel, err := filepath.Rel(base, specific)
 	if err != nil {
-		return err
+		 return &myerror.MyError{Type: myerror.NonRecoverableErrorType, Message: fmt.Sprintf("cannot create relative path from base %s and specific %s", base, specific), OrigError: err}
 	}
 	if strings.HasPrefix(rel, "../") {
-		err = fmt.Errorf("folder %q is not located within the defined base folder %q", specific, base)
+		return &myerror.MyError{Type: myerror.NonRecoverableErrorType, Message: fmt.Sprintf("folder %q is not located within the defined base folder %q", specific, base)}
 	}
 	return err
 }
 
 func RemoveDirectory(path string) error {
-	return os.RemoveAll(path)
+	if err := os.RemoveAll(path); err != nil {
+		return &myerror.MyError{Type: myerror.NonRecoverableErrorType, Message: fmt.Sprintf("cannot delete directory path %s", path), OrigError: err}
+	}
+	return nil
 }
