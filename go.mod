@@ -43,7 +43,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sdcio/data-server v0.0.39
 	github.com/sdcio/sdc-protos v0.0.25
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.27.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.17.0
