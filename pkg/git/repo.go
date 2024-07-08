@@ -17,7 +17,10 @@ limitations under the License.
 package git
 
 import (
+	"fmt"
 	"net/url"
+
+	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 )
 
 // GitRepoStruct is a struct that contains all the fields
@@ -88,7 +91,7 @@ func NewRepo(urlPath string) (GitRepo, error) {
 
 	u, err := url.Parse(urlPath)
 	if err != nil {
-		return nil, err
+		return nil, &myerror.MyError{Type: myerror.NonRecoverableErrorType, Message: fmt.Sprintf("cannot parse urlPath: %s", urlPath), OrigError: err}
 	}
 
 	r = &GitRepoStruct{

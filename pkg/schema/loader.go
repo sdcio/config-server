@@ -78,7 +78,7 @@ func (r *Loader) AddRef(ctx context.Context, spec *invv1alpha1.SchemaSpec) {
 func (r *Loader) DelRef(ctx context.Context, key string) error {
 	ref, dirExists, err := r.GetRef(ctx, key)
 	if err != nil {
-		// ref does not exist
+		// ref does not exist -> we dont return an error
 		return nil
 	}
 	if dirExists {
@@ -96,7 +96,7 @@ func (r *Loader) del(key string) {
 	delete(r.schemas, key)
 }
 
-// GetRef return an error of the ref does not exist
+// GetRef return an error if the ref does not exist
 // If the ref exists the ref is retrieved with an inidcation if the base provider schema version dir exists
 func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpec, bool, error) {
 	ref, exists := r.get(key)

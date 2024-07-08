@@ -42,13 +42,15 @@ import (
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
+	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 )
 
 func init() {
-	reconcilers.Register("schema", &reconciler{})
+	reconcilers.Register(crName, &reconciler{})
 }
 
 const (
+	crName         = "schema"
 	controllerName = "SchemaController"
 	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
@@ -138,64 +140,54 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
-				//log.Error("cannot delete schema from schemaserver", "error", err)
-				cr.SetConditions(invv1alpha1.Failed(err.Error()))
-				r.recorder.Eventf(cr, corev1.EventTypeWarning,
-					"Error", "error %s", err.Error())
-				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				if r.handleError(ctx, cr, "cannot delete schema from schemaserver", err) {
+					return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+				}
+				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 		}
 
 		// delete the reference from disk
 		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
-			//log.Error("cannot delete schema from disk", "error", err)
-			cr.SetConditions(invv1alpha1.Failed(err.Error()))
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			if r.handleError(ctx, cr, "cannot delete reference", err) {
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			//log.Error("cannot remove finalizer", "error", err)
-			cr.SetConditions(invv1alpha1.DatastoreFailed(err.Error()))
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
+			r.handleError(ctx, cr, "cannot remove finalizer", err)
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
-
-		//log.Info("Successfully deleted resource")
+		// done deleting
 		return ctrl.Result{}, nil
 	}
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
-		//log.Error("cannot add finalizer", "error", err)
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
-			"Error", "error %s", err.Error())
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		r.handleError(ctx, cr, "cannot add finalizer", err)
+		// we always retry when status fails -> optimistoc concurrency
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus) 
 	}
 
 	// we just insert the schema again
-	//log.Info("schema", "key", spec.GetKey())
 	r.schemaLoader.AddRef(ctx, spec)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
-		//log.Error("cannot get schema", "error", err)
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
-		r.recorder.Eventf(cr, corev1.EventTypeWarning,
-			"Error", "error %s", err.Error())
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		if r.handleError(ctx, cr, "cannot get schema reference", err) {
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if !dirExists {
 		// we set the loading condition to know loading started
 		cr.SetConditions(invv1alpha1.Loading())
 		if err := r.Status().Update(ctx, cr); err != nil {
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, err
+			r.handleError(ctx, cr, "cannot update status", err)
+			// we always retry when status fails -> optimistoc concurrency
+			return ctrl.Result{Requeue: true}, err 
 		}
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"schema", "loading")
@@ -203,29 +195,27 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Namespace: cr.Namespace,
 			Name:      cr.Spec.Credentials,
 		}); err != nil {
-			//log.Error("cannot load schema", "error", err)
-			cr.SetConditions(invv1alpha1.Failed(err.Error()))
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			if r.handleError(ctx, cr, "cannot load schema", err) {
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 	// check if the schema exists
 	if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
 	}); err != nil {
-		// schema does not exists in schema-server
+		// schema does not exists in schema-server -> create it
 		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
 			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			//log.Error("cannot load schema", "error", err)
-			cr.SetConditions(invv1alpha1.Failed(err.Error()))
-			r.recorder.Eventf(cr, corev1.EventTypeWarning,
-				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			if r.handleError(ctx, cr, "cannot load schema", err) {
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			}
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 
@@ -234,5 +224,28 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"schema", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+}
 
+func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, msg string, err error) bool {
+	log := log.FromContext(ctx)
+	if err == nil {
+		cr.SetConditions(invv1alpha1.Failed(msg))
+		log.Error(msg)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+		myError, ok := err.(*myerror.MyError)
+		if ok {
+			switch myError.Type {
+			case myerror.NonRecoverableErrorType:
+				return false
+			default:
+				return true
+			}
+		}
+		return true
+	} else {
+		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+		return true // recoverable error
+	}
 }
