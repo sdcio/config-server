@@ -232,20 +232,20 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		cr.SetConditions(invv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+		return true // recoverable error
+	} else {
+		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		myError, ok := err.(*myerror.MyError)
 		if ok {
 			switch myError.Type {
 			case myerror.NonRecoverableErrorType:
 				return false
 			default:
-				return true
+				return true // recoverable error
 			}
 		}
-		return true
-	} else {
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
-		log.Error(msg, "error", err)
-		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		return true // recoverable error
 	}
 }
