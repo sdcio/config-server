@@ -57,13 +57,13 @@ func (r *ConfigSet) GetObjectMeta() *metav1.ObjectMeta {
 // New return an empty resource
 // New implements resource.Object
 func (ConfigSet) New() runtime.Object {
-	return &Config{}
+	return &ConfigSet{}
 }
 
 // NewList return an empty resourceList
 // NewList implements resource.Object
 func (ConfigSet) NewList() runtime.Object {
-	return &ConfigList{}
+	return &ConfigSetList{}
 }
 
 // GetListMeta returns the ListMeta
