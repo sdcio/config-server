@@ -91,9 +91,15 @@ func (r *statusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.
 
 	// Status updates are for only for updating status, not objectmeta.
 	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+
+	log := log.FromContext(ctx)
+	log.Info("unmanaged config status prepare for update", "new object", newObj)
 }
 
 func (r *statusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	log := log.FromContext(ctx)
+	log.Info("unmanaged config status validateupdate", "new object", obj)
+	
 	var allErrs field.ErrorList
 	return allErrs
 }
@@ -109,6 +115,8 @@ func (r *statusStrategy) Update(ctx context.Context, key types.NamespacedName, o
 	if !ok {
 		return obj, fmt.Errorf("unexpected old object, expecting: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj))
 	}
+
+	log.Info("unmanaged config status update", "new object", obj, "old object", old)
 
 	if apiequality.Semantic.DeepEqual(oldConfig.Status, newConfig.Status) {
 		log.Debug("update nothing to do")
