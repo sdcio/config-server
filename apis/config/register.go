@@ -21,8 +21,8 @@ import (
 
 const (
 	GroupName = "config.sdcio.dev"
-	Version = "v1alpha1"
-	//Version = runtime.APIVersionInternal
+	//Version = "v1alpha1"
+	Version = runtime.APIVersionInternal
 )
 
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
