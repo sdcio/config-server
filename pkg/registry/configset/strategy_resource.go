@@ -47,7 +47,7 @@ import (
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
-	obj resource.Object,
+	obj resource.InternalObject,
 	typer runtime.ObjectTyper,
 	storage storebackend.Storer[runtime.Object],
 	watcherManager watchermanager.WatcherManager,
@@ -77,7 +77,7 @@ type strategy struct {
 	runtime.ObjectTyper
 	names.NameGenerator
 	gr             schema.GroupResource
-	obj            resource.Object
+	obj            resource.InternalObject
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	opts           *options.Options

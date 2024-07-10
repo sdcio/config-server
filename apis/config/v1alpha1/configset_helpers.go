@@ -53,11 +53,6 @@ func (r *ConfigSet) GetTarget() string {
 	return sb.String()
 }
 
-// GetListMeta returns the ListMeta
-func (r *ConfigSetList) GetListMeta() *metav1.ListMeta {
-	return &r.ListMeta
-}
-
 // BuildConfig returns a reource from a client Object a Spec/Status
 func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSetStatus) *ConfigSet {
 	return &ConfigSet{

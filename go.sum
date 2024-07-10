@@ -167,8 +167,10 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 h1:YBftPWNWd4WwGqtY2yeZL2ef8rHAxPBD8KFhJpmcqms=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0/go.mod h1:YN5jB8ie0yfIUg6VvR9Kz84aCaG7AsGZnLjhHbUqwPg=
-github.com/henderiw/apiserver-builder v0.0.2-0.20240709145231-078f4c50a1a4 h1:I0ltVO8mHdCXcGmg6iOUcqCa8sX0JMPtYbh7gtvlVQk=
-github.com/henderiw/apiserver-builder v0.0.2-0.20240709145231-078f4c50a1a4/go.mod h1:qkTyi9HklSqPAbYiU/Ol+E+mYlNwVVC1F1TPW1nAqh0=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240710064029-566bddc089cf h1:sgiaiEDWXCUJ8cIhfvzqRHocv00cUKiTipEpFGkORto=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240710064029-566bddc089cf/go.mod h1:qkTyi9HklSqPAbYiU/Ol+E+mYlNwVVC1F1TPW1nAqh0=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240710064835-55ec0e598646 h1:KpSG+6HY62Tz2EivpEd3Ki+OFOPQ4NiqQy2WkQ9oXwU=
+github.com/henderiw/apiserver-builder v0.0.2-0.20240710064835-55ec0e598646/go.mod h1:qkTyi9HklSqPAbYiU/Ol+E+mYlNwVVC1F1TPW1nAqh0=
 github.com/henderiw/apiserver-store v0.0.0-20240709194646-89bc71dc62b1 h1:QE9W9/jiQqcX29Y1+yY/jMUsupA+l6tFFCvX5qgXSYA=
 github.com/henderiw/apiserver-store v0.0.0-20240709194646-89bc71dc62b1/go.mod h1:HoUkT0QxIDN0q06xetJG607gNaWlG+roGsSkj0TcztY=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
@@ -512,8 +514,6 @@ k8s.io/utils v0.0.0-20240102154912-e7106e64919e h1:eQ/4ljkx21sObifjzXwlPKpdGLrCf
 k8s.io/utils v0.0.0-20240102154912-e7106e64919e/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.29.0 h1:/U5vjBbQn3RChhv7P11uhYvCSm5G2GaIi5AIGBS6r4c=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.29.0/go.mod h1:z7+wmGM2dfIiLRfrC6jb5kV2Mq/sK1ZP303cxzkV5Y4=
-sigs.k8s.io/apiserver-runtime v1.1.1 h1:cN/+Gq78DKGxQHi7j+bET4/h54vg9VEwg5atJV5YbCI=
-sigs.k8s.io/apiserver-runtime v1.1.1/go.mod h1:cmahVEn9R791yUnSiFMFdwTqi2dOe5WQRNwcY6jb7l0=
 sigs.k8s.io/controller-runtime v0.18.4 h1:87+guW1zhvuPLh1PHybKdYFLU0YJp4FhJRmiHvm5BZw=
 sigs.k8s.io/controller-runtime v0.18.4/go.mod h1:TVoGrfdpbA9VRFaRnKgk9P5/atA0pMwq+f+msb9M8Sg=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=

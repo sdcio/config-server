@@ -47,7 +47,7 @@ var (
 )
 
 // +k8s:deepcopy-gen=false
-var _ resource.Object = &Config{}
+var _ resource.InternalObject = &Config{}
 var _ resource.ObjectList = &ConfigList{}
 
 func (Config) GetGroupVersionResource() schema.GroupVersionResource {

@@ -91,11 +91,6 @@ func (r *Config) Validate() error {
 	return errm
 }
 
-// GetListMeta returns the ListMeta
-func (r *ConfigList) GetListMeta() *metav1.ListMeta {
-	return &r.ListMeta
-}
-
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }

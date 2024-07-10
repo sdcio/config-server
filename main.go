@@ -162,46 +162,28 @@ func main() {
 		TargetStore: targetStore,
 	}
 
+	configStorageProvider := registryconfig.NewStorageProvider(ctx, &config.Config{}, registryOptions)
+	configSetStorageProvider := registryconfig.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
+	unmanagedConfigStorageProvider := registryconfig.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
+	// no storage required since the targetStore is acting as the storage for the running config resource
+	runningConfigStorageProvider := registryconfig.NewStorageProvider(ctx, &config.RunningConfig{}, &options.Options{
+		Client:      mgr.GetClient(),
+		TargetStore: targetStore,
+	})
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			//WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(&config.Config{}, registryconfig.NewStorageProvider(
-				ctx, &config.Config{}, registryOptions,
-			)).
-			WithResourceAndHandler(&config.ConfigSet{}, registryconfig.NewStorageProvider(
-				ctx, &config.ConfigSet{}, registryOptions,
-			)).
-			WithResourceAndHandler(&config.UnManagedConfig{}, registryconfig.NewStorageProvider(
-				ctx, &config.UnManagedConfig{}, registryOptions,
-			)).
-			// no storage required since the targetStore is acting as the storage for the running config resource
-			WithResourceAndHandler(&config.RunningConfig{}, registryconfig.NewStorageProvider(
-				ctx, &config.RunningConfig{}, &options.Options{
-					Client:      mgr.GetClient(),
-					TargetStore: targetStore,
-				},
-			)).
-
-			/*
-				WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), targetStore, &configserverstore.Config{
-					Prefix: configDir,
-					Type:   configserverstore.StorageType_KV,
-					DB:     db,
-				})).
-				WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configset.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-					Prefix: configDir,
-					Type:   configserverstore.StorageType_KV,
-					DB:     db,
-				})).
-				WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
-				WithResourceAndHandler(ctx, &configv1alpha1.UnManagedConfig{}, unmanagedconfig.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-					Prefix: configDir,
-					Type:   configserverstore.StorageType_KV,
-					DB:     db,
-				})).
-			*/
+			WithResourceAndHandler(&config.Config{}, configStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
+			WithResourceAndHandler(&config.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&config.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&config.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

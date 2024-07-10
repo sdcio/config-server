@@ -49,7 +49,7 @@ import (
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
-	obj resource.Object,
+	obj resource.InternalObject,
 	typer runtime.ObjectTyper,
 	storage storebackend.Storer[runtime.Object],
 	watcherManager watchermanager.WatcherManager,

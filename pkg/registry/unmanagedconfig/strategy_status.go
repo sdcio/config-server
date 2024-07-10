@@ -43,7 +43,7 @@ import (
 
 // NewStatusStrategy creates and returns a sttaus strategy instance
 func NewStatusStrategy(
-	obj resource.Object,
+	obj resource.InternalObject,
 	typer runtime.ObjectTyper,
 	storage storebackend.Storer[runtime.Object],
 	watcherManager watchermanager.WatcherManager,
