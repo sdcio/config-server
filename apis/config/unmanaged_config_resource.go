@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	UnManagedConfigPlural   = "UnManagedConfigs"
-	UnManagedConfigSingular = "UnManagedConfig"
+	UnManagedConfigPlural   = "unmanagedconfigs"
+	UnManagedConfigSingular = "unmanagedconfig"
 )
 
 var (
