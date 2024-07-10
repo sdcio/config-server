@@ -39,6 +39,9 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	registryconfig "github.com/sdcio/config-server/pkg/registry/config"
+	registryconfigset "github.com/sdcio/config-server/pkg/registry/configset"
+	registryunmanagedconfig "github.com/sdcio/config-server/pkg/registry/unmanagedconfig"
+	registryrunningconfig "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
@@ -164,10 +167,10 @@ func main() {
 	}
 
 	configStorageProvider := registryconfig.NewStorageProvider(ctx, &config.Config{}, registryOptions)
-	configSetStorageProvider := registryconfig.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
-	unmanagedConfigStorageProvider := registryconfig.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
+	configSetStorageProvider := registryconfigset.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
+	unmanagedConfigStorageProvider := registryunmanagedconfig.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	runningConfigStorageProvider := registryconfig.NewStorageProvider(ctx, &config.RunningConfig{}, &options.Options{
+	runningConfigStorageProvider := registryrunningconfig.NewStorageProvider(ctx, &config.RunningConfig{}, &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
