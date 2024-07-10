@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	ConfigSetPlural   = "configs"
-	ConfigSetSingular = "config"
+	ConfigSetPlural   = "configsets"
+	ConfigSetSingular = "configset"
 )
 
 var (

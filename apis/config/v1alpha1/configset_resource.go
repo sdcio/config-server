@@ -37,7 +37,7 @@ func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	}
 }
 
-// IsStorageVersion returns true -- Config is used as the internal version.
+// IsStorageVersion returns false.
 // IsStorageVersion implements resource.Object
 func (ConfigSet) IsStorageVersion() bool {
 	return false
