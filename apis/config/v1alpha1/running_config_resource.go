@@ -70,3 +70,23 @@ func (RunningConfig) NewList() runtime.Object {
 func (r *RunningConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
+
+// NewStorageVersionObject returns a new empty instance of storage version.
+// NewStorageVersionObject implements resource.MultiVersionObject
+func (r *RunningConfig) NewStorageVersionObject() runtime.Object {
+	return r.New()
+}
+
+// ConvertToStorageVersion receives an new instance of storage version object as the conversion target
+// and overwrites it to the equal form of the current resource version.
+// ConvertToStorageVersion implements resource.MultiVersionObject
+func (r *RunningConfig) ConvertToStorageVersion(storageObj runtime.Object) error {
+	return Convert_v1alpha1_RunningConfig_To_config_RunningConfig(r, storageObj.(*config.RunningConfig), nil)
+}
+
+// ConvertFromStorageVersion receives an instance of storage version as the conversion source and
+// in-place mutates the current object to the equal form of the storage version object.
+// ConvertFromStorageVersion implements resource.MultiVersionObject
+func (r *RunningConfig) ConvertFromStorageVersion(storageObj runtime.Object) error {
+	return Convert_config_RunningConfig_To_v1alpha1_RunningConfig(storageObj.(*config.RunningConfig), r, nil)
+}
