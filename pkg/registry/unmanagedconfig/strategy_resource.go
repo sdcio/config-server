@@ -100,6 +100,16 @@ func (r *strategy) BeginCreate(ctx context.Context) error { return nil }
 func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {}
 
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	_, ok := obj.(*config.UnManagedConfig)
+	if !ok {
+		var allErrs field.ErrorList
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath(""),
+			obj,
+			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.UnManagedConfigKind, reflect.TypeOf(obj).Name()),
+		))
+		return allErrs
+	}	
 	var allErrs field.ErrorList
 	return allErrs
 }
@@ -135,6 +145,16 @@ func (r *strategy) AllowCreateOnUpdate() bool { return false }
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	_, ok := obj.(*config.UnManagedConfig)
+	if !ok {
+		var allErrs field.ErrorList
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath(""),
+			obj,
+			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.UnManagedConfigKind, reflect.TypeOf(obj).Name()),
+		))
+		return allErrs
+	}	
 	var allErrs field.ErrorList
 	return allErrs
 }

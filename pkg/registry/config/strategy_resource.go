@@ -100,6 +100,16 @@ func (r *strategy) BeginCreate(ctx context.Context) error { return nil }
 func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {}
 
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	_, ok := obj.(*config.Config)
+	if !ok {
+		var allErrs field.ErrorList
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath(""),
+			obj,
+			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj).Name()),
+		))
+		return allErrs
+	}
 	return obj.(*config.Config).ValidateCreate(ctx)
 }
 
@@ -139,7 +149,7 @@ func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []s
 func (r *strategy) BeginUpdate(ctx context.Context) error { return nil }
 
 func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
-    newObj := obj.(*config.Config)
+	newObj := obj.(*config.Config)
 	oldObj := old.(*config.Config)
 	newObj.Status = oldObj.Status
 }
@@ -149,6 +159,16 @@ func (r *strategy) AllowCreateOnUpdate() bool { return false }
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	_, ok := obj.(*config.Config)
+	if !ok {
+		var allErrs field.ErrorList
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath(""),
+			obj,
+			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj).Name()),
+		))
+		return allErrs
+	}
 	return obj.(*config.Config).ValidateUpdate(ctx, old)
 }
 
