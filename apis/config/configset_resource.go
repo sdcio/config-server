@@ -52,7 +52,7 @@ func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ConfigPlural,
+		Resource: ConfigSetPlural,
 	}
 }
 
@@ -76,19 +76,19 @@ func (r *ConfigSet) GetObjectMeta() *metav1.ObjectMeta {
 // GetSingularName returns the singular name of the resource
 // GetSingularName implements resource.Object
 func (ConfigSet) GetSingularName() string {
-	return ConfigSingular
+	return ConfigSetSingular
 }
 
 // GetShortNames returns the shortnames for the resource
 // GetShortNames implements resource.Object
 func (ConfigSet) GetShortNames() []string {
-	return ConfigShortNames
+	return ConfigSetShortNames
 }
 
 // GetCategories return the categories of the resource
 // GetCategories implements resource.Object
 func (ConfigSet) GetCategories() []string {
-	return ConfigCategories
+	return ConfigSetCategories
 }
 
 // New return an empty resource
@@ -111,7 +111,7 @@ func (r *ConfigSet) GetStatus() resource.StatusSubResource {
 // SubResourceName resturns the name of the subresource
 // SubResourceName implements the resource.StatusSubResource
 func (ConfigSetStatus) SubResourceName() string {
-	return fmt.Sprintf("%s/%s", ConfigPlural, "status")
+	return fmt.Sprintf("%s/%s", ConfigSetPlural, "status")
 }
 
 // CopyTo copies the content of the status subresource to a parent resource.

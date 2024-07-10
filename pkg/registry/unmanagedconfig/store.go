@@ -33,12 +33,12 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *options.Options) builderrest.StorageProvider {
+func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *options.Options) *builderrest.StorageProvider {
 	watcherManager := watchermanager.New(64)
 
 	go watcherManager.Start(ctx)
 
-	sp := builderrest.StorageProvider{
+	sp := &builderrest.StorageProvider{
 		ResourceStorageProviderFn: func(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
 			return NewREST(obj, scheme, watcherManager, optsGetter, opts)
 		},
