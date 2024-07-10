@@ -181,7 +181,7 @@ func doGen() error {
 
 	if gen["defaulter-gen"] {
 		defaultArgs := []string{"--output-file", "zz_generated.defaults.go"}
-		defaultArgs = append(defaultArgs, versions...)
+		defaultArgs = append(defaultArgs, clientgenVersions...)
 		err := run(getCmd("defaulter-gen",
 			defaultArgs...,
 		))
