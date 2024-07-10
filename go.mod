@@ -32,7 +32,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.2-0.20240710081428-2021424f1822
+	github.com/henderiw/apiserver-builder v0.0.2-0.20240710081954-192aff04961e
 	github.com/henderiw/apiserver-store v0.0.0-20240709194646-89bc71dc62b1
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
