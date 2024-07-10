@@ -74,7 +74,7 @@ func (r *ConfigSetList) GetListMeta() *metav1.ListMeta {
 // NewStorageVersionObject returns a new empty instance of storage version.
 // NewStorageVersionObject implements resource.MultiVersionObject
 func (r *ConfigSet) NewStorageVersionObject() runtime.Object {
-	return r.New()
+	return &config.ConfigSet{}
 }
 
 // ConvertToStorageVersion receives an new instance of storage version object as the conversion target
