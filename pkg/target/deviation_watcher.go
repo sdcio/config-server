@@ -167,7 +167,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 					continue
 				}
 				cfg.Status.Deviations = configDevs
-				if err := r.client.Update(ctx, cfg); err != nil {
+				if err := r.client.Status().Update(ctx, cfg); err != nil {
 					log.Error("cannot update intent for recieved deviation", "config", configName)
 					if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 						goto UpdateUnManagedConfig
