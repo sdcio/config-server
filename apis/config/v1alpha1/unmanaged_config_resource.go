@@ -27,6 +27,7 @@ import (
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &UnManagedConfig{}
 var _ resource.ObjectList = &UnManagedConfigList{}
+var _ resource.MultiVersionObject = &UnManagedConfig{}
 
 func (UnManagedConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -69,4 +70,10 @@ func (UnManagedConfig) NewList() runtime.Object {
 // GetListMeta returns the ListMeta
 func (r *UnManagedConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
+}
+
+// RegisterConversions registers the conversions.
+// RegisterConversions implements resource.MultiVersionObject
+func (UnManagedConfig) RegisterConversions() func(s *runtime.Scheme) error {
+	return RegisterConversions
 }

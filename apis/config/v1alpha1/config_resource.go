@@ -75,6 +75,6 @@ func (r *ConfigList) GetListMeta() *metav1.ListMeta {
 
 // RegisterConversions registers the conversions.
 // RegisterConversions implements resource.MultiVersionObject
-func (r *Config) RegisterConversions() func(s *runtime.Scheme) error {
+func (Config) RegisterConversions() func(s *runtime.Scheme) error {
 	return RegisterConversions
 }

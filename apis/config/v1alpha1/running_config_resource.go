@@ -27,6 +27,7 @@ import (
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &RunningConfig{}
 var _ resource.ObjectList = &RunningConfigList{}
+var _ resource.MultiVersionObject = &RunningConfig{}
 
 func (RunningConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -69,4 +70,10 @@ func (RunningConfig) NewList() runtime.Object {
 // GetListMeta returns the ListMeta
 func (r *RunningConfigList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
+}
+
+// RegisterConversions registers the conversions.
+// RegisterConversions implements resource.MultiVersionObject
+func (RunningConfig) RegisterConversions() func(s *runtime.Scheme) error {
+	return RegisterConversions
 }
