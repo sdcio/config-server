@@ -23,6 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -223,7 +224,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	return config, nil
 }
 
-func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1alpha1.RunningConfig, error) {
+func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.RunningConfig, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
@@ -266,13 +267,13 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*configv1a
 		}
 	}
 
-	return configv1alpha1.BuildRunningConfig(
+	return config.BuildRunningConfig(
 		metav1.ObjectMeta{
 			Name:      key.Name,
 			Namespace: key.Namespace,
 		},
-		configv1alpha1.RunningConfigSpec{},
-		configv1alpha1.RunningConfigStatus{
+		config.RunningConfigSpec{},
+		config.RunningConfigStatus{
 			Value: runtime.RawExtension{
 				Raw: b,
 			},

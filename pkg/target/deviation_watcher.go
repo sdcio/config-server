@@ -189,7 +189,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 			cfg.Status.Deviations = configDevs
-			if err := r.client.Update(ctx, cfg); err != nil {
+			if err := r.client.Status().Update(ctx, cfg); err != nil {
 				log.Error("cannot update config for received deviation", "config", configName)
 				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 					goto UpdateConfig

@@ -102,6 +102,27 @@ func (UnManagedConfig) NewList() runtime.Object {
 	return &UnManagedConfigList{}
 }
 
+// GetStatus return the resource.StatusSubResource interface
+func (r *UnManagedConfig) GetStatus() resource.StatusSubResource {
+	return r.Status
+}
+
+// SubResourceName resturns the name of the subresource
+// SubResourceName implements the resource.StatusSubResource
+func (UnManagedConfigStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s", UnManagedConfigPlural, "status")
+}
+
+// CopyTo copies the content of the status subresource to a parent resource.
+// CopyTo implements the resource.StatusSubResource
+func (r UnManagedConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*UnManagedConfig)
+	if ok {
+		cfg.Status = r
+	}
+}
+
+
 // GetListMeta returns the ListMeta
 // GetListMeta implements the resource.ObjectList
 func (r *UnManagedConfigList) GetListMeta() *metav1.ListMeta {
