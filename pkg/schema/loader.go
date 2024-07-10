@@ -97,7 +97,7 @@ func (r *Loader) del(key string) {
 }
 
 // GetRef return an error if the ref does not exist
-// If the ref exists the ref is retrieved with an inidcation if the base provider schema version dir exists
+// If the ref exists the ref is retrieved with an indcation if the base provider schema version dir exists
 func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpec, bool, error) {
 	ref, exists := r.get(key)
 	if !exists {

@@ -34,7 +34,6 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
-	"github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	configopenapi "github.com/sdcio/config-server/pkg/generated/openapi"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -97,10 +96,12 @@ func main() {
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
-	if err := scheme.AddToScheme(runScheme); err != nil {
-		log.Error("cannot initialize schema", "error", err)
-		os.Exit(1)
-	}
+	/*
+		if err := scheme.AddToScheme(runScheme); err != nil {
+			log.Error("cannot initialize schema", "error", err)
+			os.Exit(1)
+		}
+	*/
 	// add the core object to the scheme
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
