@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: context
 data: 
-  configServerImage: ghcr.io/sdcio/config-server:latest
-  dataServerImage: ghcr.io/sdcio/data-server:latest
+  configServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
+  dataServerImage: ghcr.io/sdcio/data-server:v0.0.39
