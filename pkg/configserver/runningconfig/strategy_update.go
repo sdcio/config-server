@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package runningconfig
-
+/*
 import (
 	"context"
 
@@ -48,3 +48,4 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
 	return nil
 }
+*/

@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package runningconfig
-
+/*
 import (
 	"context"
 	"fmt"
@@ -64,3 +64,4 @@ func (r *strategy) getTargetRunningContext(ctx context.Context, targetKey types.
 	}
 	return target, tctx, nil
 }
+*/

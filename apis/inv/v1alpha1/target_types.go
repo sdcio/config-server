@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // TargetSpec defines the desired state of Target
@@ -36,11 +37,7 @@ type TargetSpec struct {
 // TargetStatus defines the observed state of Target
 type TargetStatus struct {
 	// ConditionedStatus provides the status of the Target using conditions
-	// 2 conditions are used:
-	// - a condition for the ready status
-	// - a condition for the datastore status
-	// if both are true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" yaml:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 	// Discovery info defines the information retrieved during discovery
 	DiscoveryInfo *DiscoveryInfo `json:"discoveryInfo,omitempty" yaml:"discoveryInfo,omitempty"`
 	// UsedReferences track the resource used to reconcile the cr

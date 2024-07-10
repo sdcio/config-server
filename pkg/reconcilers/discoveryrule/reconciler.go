@@ -25,6 +25,7 @@ import (
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	errors "github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -182,7 +183,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		cr.Status.StartTime = metav1.Time{}
 		r.handleError(ctx, cr, "cannot create discovery rule in discovery store", err)
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"discoveryRule", "ready")
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus) // do not requeue
@@ -192,7 +193,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		currentDRConfig := dr.GetDiscoveryRulConfig()
 		if !r.HasChanged(ctx, newDRConfig, currentDRConfig) {
 			//log.Info("refs -> no change")
-			cr.SetConditions(invv1alpha1.Ready())
+			cr.SetConditions(condv1alpha1.Ready())
 			r.recorder.Eventf(cr, corev1.EventTypeNormal,
 				"discoveryRule", "ready")
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -220,7 +221,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// update discovery rule start time
 	cr.Status.StartTime = metav1.Now()
-	cr.SetConditions(invv1alpha1.Ready())
+	cr.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"discoveryRule", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -229,11 +230,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleError(ctx context.Context, dr *invv1alpha1.DiscoveryRule, msg string, err error) {
 	log := log.FromContext(ctx)
 	if err == nil {
-		dr.SetConditions(invv1alpha1.Failed(msg))
+		dr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(dr, corev1.EventTypeWarning, crName, msg)
 	} else {
-		dr.SetConditions(invv1alpha1.Failed(err.Error()))
+		dr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(dr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 	}

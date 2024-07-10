@@ -44,6 +44,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ConfigSetList{},
 		&RunningConfig{},
 		&RunningConfigList{},
+		&UnManagedConfig{},
+		&UnManagedConfigList{},
 	)
 	return nil
 }

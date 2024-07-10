@@ -17,8 +17,11 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/sdcio/config-server/apis/condition"
 )
 
 // ConfigSpec defines the desired state of Config
@@ -44,7 +47,7 @@ type ConfigBlob struct {
 type ConfigStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	condition.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
 	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
 	// AppliedConfig defines the config applied to the target
@@ -58,9 +61,9 @@ type Deviation struct {
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
-	// ActualValue defines the actual value of the config belonging to the path
-	// that is actually configured on the target
-	ActualValue string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
+	// CurrentValue defines the current value of the config belonging to the path
+	// that is currently configured on the target
+	CurrentValue string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
 	// Reason defines the reason of the deviation
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
@@ -77,9 +80,7 @@ type ConfigStatusLastKnownGoodSchema struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	Config is the Schema for the Config API
-//
-// +k8s:openapi-gen=true
+//	Config defines the Schema for the Config API
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -95,3 +96,8 @@ type ConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Config `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+// Config type metadata.
+var (
+	ConfigKind = reflect.TypeOf(Config{}).Name()
+)

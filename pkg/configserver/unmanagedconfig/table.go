@@ -16,6 +16,7 @@ limitations under the License.
 
 package unmanagedconfig
 
+/*
 import (
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -43,3 +44,4 @@ func NewTableConvertor(gr schema.GroupResource) registry.TableConvertor {
 		},
 	}
 }
+*/

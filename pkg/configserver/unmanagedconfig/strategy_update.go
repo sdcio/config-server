@@ -16,6 +16,7 @@ limitations under the License.
 
 package unmanagedconfig
 
+/*
 import (
 	"context"
 	"strconv"
@@ -83,3 +84,4 @@ func updateResourceVersion(ctx context.Context, obj, old runtime.Object) error {
 	accessorNew.SetResourceVersion(strconv.Itoa(resourceVersion))
 	return nil
 }
+*/

@@ -25,7 +25,9 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -59,9 +61,6 @@ const (
 type adder interface {
 	Add(item interface{})
 }
-
-//+kubebuilder:rbac:groups=config.sdcio.dev,resources=configs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=config.sdcio.dev,resources=configs/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -123,7 +122,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				//log.Error("cannot remove finalizer", "error", err)
 				r.recorder.Eventf(cr, corev1.EventTypeWarning,
 					"Error", "error %s", err.Error())
-				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -135,31 +134,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				//log.Error("cannot remove finalizer", "error", err)
 				r.recorder.Eventf(cr, corev1.EventTypeWarning,
 					"Error", "error %s", err.Error())
-				return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+				return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 			}
 			return ctrl.Result{}, nil
 		}
 		log.Info("config delete", "targetKey", targetKey, "tctx", tctx)
 		if _, err := tctx.DeleteIntent(ctx, targetKey, cr, false); err != nil {
 			//log.Error("delete intent failed", "error", err.Error())
-			cr.SetConditions(configv1alpha1.Failed(err.Error()))
+			cr.SetConditions(condv1alpha1.Failed(err.Error()))
 			r.recorder.Eventf(cr, corev1.EventTypeWarning,
 				"Error", "delete error %s", err.Error())
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
 			if er, ok := status.FromError(err); ok {
 				if er.Code() == codes.ResourceExhausted {
-					return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+					return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 				}
 			}
-			return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
 			//log.Error("cannot remove finalizer", "error", err)
 			r.recorder.Eventf(cr, corev1.EventTypeWarning,
 				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
@@ -171,10 +170,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// validation already does some checks before accepting the object,
 		// but there can still be errors.
 		// The target watch should retrigger the reconciler
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
@@ -189,7 +188,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// if the applied Config is not set -> reapply the config
 	// if the applied Config is different than the spec -> reapply the config
 	// if the deviation is having the reason xx -> reapply the config
-	if cr.GetCondition(configv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
+	if cr.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
 		cr.Status.AppliedConfig != nil &&
 		cr.Spec.GetShaSum(ctx) == cr.Status.AppliedConfig.GetShaSum(ctx) &&
 		!cr.Status.HasNotAppliedDeviation() {
@@ -197,7 +196,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if _, err := tctx.SetIntent(ctx, targetKey, cr, true, false); err != nil {
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		r.recorder.Eventf(cr, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
 		// all grpc errors except resource exhausted will not retry
@@ -207,16 +206,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
 			}
 		}
-		return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	cr.SetConditions(configv1alpha1.Ready())
+	cr.SetConditions(condv1alpha1.Ready())
 	cr.Status.LastKnownGoodSchema = tctx.GetSchema()
 	cr.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	cr.Status.AppliedConfig = &cr.Spec
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"config", "ready")
-	return ctrl.Result{}, errors.Wrap(r.Update(ctx, cr), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 }
 
 func (r *reconciler) getTargetInfo(ctx context.Context, cr *configv1alpha1.Config) (*target.Context, storebackend.Key, error) {
@@ -250,8 +249,8 @@ func (r *reconciler) getTargetContext(ctx context.Context, targetKey storebacken
 func getTargetKey(labels map[string]string) (storebackend.Key, error) {
 	var targetName, targetNamespace string
 	if labels != nil {
-		targetName = labels[configv1alpha1.TargetNameKey]
-		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
+		targetName = labels[config.TargetNameKey]
+		targetNamespace = labels[config.TargetNamespaceKey]
 	}
 	if targetName == "" || targetNamespace == "" {
 		return storebackend.Key{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)

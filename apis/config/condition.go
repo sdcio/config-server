@@ -16,21 +16,15 @@ limitations under the License.
 
 package config
 
-import (
-	"sort"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
 // A ConditionType represents a condition type for a given KRM resource
 type ConditionType string
 
 // Condition Types.
 const (
-	// ConditionTypeReady represents the resource ready condition
-	ConditionTypeReady ConditionType = "Ready"
-	// ConditionTypeTargetReady represents the resource target ready condition
-	//ConditionTypeTargetReady ConditionType = "Ready"
+// ConditionTypeReady represents the resource ready condition
+// ConditionTypeReady ConditionType = "Ready"
+// ConditionTypeTargetReady represents the resource target ready condition
+// ConditionTypeTargetReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -50,6 +44,7 @@ const (
 	ConditionReasonTargetNotFound ConditionReason = "target not found"
 )
 
+/*
 type Condition struct {
 	metav1.Condition `json:",inline" protobuf:"bytes,1,opt,name=condition"`
 }
@@ -149,41 +144,9 @@ func (r *ConditionedStatus) Equal(other *ConditionedStatus) bool {
 	}
 	return true
 }
+*/
 
-// Ready returns a condition that indicates the resource is
-// ready for use.
-func Ready() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
-	}}
-}
-
-// Unknown returns a condition that indicates the resource is in an
-// unknown status.
-func Unknown() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonUnknown),
-	}}
-}
-
-// Failed returns a condition that indicates the resource
-// failed to get reconciled.
-func Failed(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
+/*
 // Creating returns a condition that indicates a create transaction
 // is ongoing
 func Creating() Condition {
@@ -216,3 +179,4 @@ func Updating() Condition {
 		Reason:             string(ConditionReasonUpdating),
 	}}
 }
+*/

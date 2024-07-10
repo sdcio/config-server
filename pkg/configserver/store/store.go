@@ -46,18 +46,6 @@ type Config struct {
 }
 
 func CreateFileStore(ctx context.Context, scheme *runtime.Scheme, obj resource.Object, prefix string) (storebackend.Storer[runtime.Object], error) {
-	/*
-		scheme := runtime.NewScheme()
-		// add the core object to the scheme
-		for _, api := range (runtime.SchemeBuilder{
-			configv1alpha1.AddToScheme,
-		}) {
-			if err := api(scheme); err != nil {
-				return nil, err
-			}
-		}
-	*/
-
 	gr := obj.GetGroupVersionResource().GroupResource()
 	codec, _, err := storage.NewStorageCodec(storage.StorageCodecConfig{
 		StorageMediaType:  runtime.ContentTypeJSON,

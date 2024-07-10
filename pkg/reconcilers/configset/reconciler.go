@@ -24,6 +24,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -39,6 +40,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 func init() {
@@ -54,13 +56,6 @@ const (
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
 )
-
-type adder interface {
-	Add(item interface{})
-}
-
-//+kubebuilder:rbac:groups=config.sdcio.dev,resources=configsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=config.sdcio.dev,resources=configsets/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -131,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			//log.Error("cannot remove finalizer", "error", err)
 			r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 				"Error", "error %s", err.Error())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 		}
 		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
@@ -141,34 +136,34 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		//log.Error("cannot add finalizer", "error", err)
 		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
+		configSet.SetConditions(condv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 	}
 
 	targets, err := r.unrollDownstreamTargets(ctx, configSet)
 	if err != nil {
 		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
+		configSet.SetConditions(condv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 	}
 
 	if err := r.ensureConfigs(ctx, configSet, targets); err != nil {
 		r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 			"Error", "error %s", err.Error())
-		configSet.SetConditions(configv1alpha1.Failed(err.Error()))
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
+		configSet.SetConditions(condv1alpha1.Failed(err.Error()))
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 	}
 
 	msg := r.determineOverallStatus(ctx, configSet)
 	if msg != "" {
 		r.handleError(ctx, configSet, msg, nil)
 	} else {
-		configSet.SetConditions(configv1alpha1.Ready())
+		configSet.SetConditions(condv1alpha1.Ready())
 		r.recorder.Eventf(configSet, corev1.EventTypeNormal,
 			"configset", "ready")
 	}
-	return ctrl.Result{}, errors.Wrap(r.Update(ctx, configSet), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 }
 
 // unrollDownstreamTargets list the targets
@@ -227,7 +222,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			//log.Info("config does not exist", "nsn", nsnKey.String())
 
 			if err := r.Create(ctx, newConfig); err != nil {
-				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
@@ -235,7 +230,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		} else {
 			//log.Info("config exists", "nsn", nsnKey.String())
 			// TODO better logic to validate changes
-			TargetsStatus[i].Condition = oldConfig.GetCondition(configv1alpha1.ConditionTypeReady)
+			TargetsStatus[i].Condition = oldConfig.GetCondition(condv1alpha1.ConditionTypeReady)
 			newConfig = oldConfig.DeepCopy()
 			newConfig.Spec = configv1alpha1.ConfigSpec{
 				Lifecycle: configSet.Spec.Lifecycle,
@@ -257,13 +252,13 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 
 			newHash, err := newConfig.CalculateHash()
 			if err != nil {
-				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
 			oldHash, err := oldConfig.CalculateHash()
 			if err != nil {
-				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
@@ -271,12 +266,12 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			if oldHash == newHash {
 				TargetsStatus[i] = configv1alpha1.TargetStatus{
 					Name:      target.Name,
-					Condition: oldConfig.GetCondition(configv1alpha1.ConditionTypeReady),
+					Condition: oldConfig.GetCondition(condv1alpha1.ConditionTypeReady),
 				}
 				continue
 			}
 			if err := r.Update(ctx, newConfig); err != nil {
-				TargetsStatus[i].Condition = configv1alpha1.Failed(err.Error())
+				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
@@ -321,13 +316,13 @@ func (r *reconciler) getOrphanConfigsFromConfigSet(ctx context.Context, configSe
 	return existingConfigs
 }
 
-func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, target types.NamespacedName) *configv1alpha1.Config {
+func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target types.NamespacedName) *configv1alpha1.Config {
 	labels := configSet.Labels
 	if len(labels) == 0 {
 		labels = map[string]string{}
 	}
-	labels[configv1alpha1.TargetNameKey] = target.Name
-	labels[configv1alpha1.TargetNamespaceKey] = target.Namespace
+	labels[config.TargetNameKey] = target.Name
+	labels[config.TargetNamespaceKey] = target.Namespace
 
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
@@ -357,17 +352,17 @@ func buildConfig(ctx context.Context, configSet *configv1alpha1.ConfigSet, targe
 func (r *reconciler) handleError(ctx context.Context, cr *configv1alpha1.ConfigSet, msg string, err error) {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(configv1alpha1.Failed(msg))
+		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
 	} else {
-		cr.SetConditions(configv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 	}
 }
 
-func (r *reconciler) determineOverallStatus(ctx context.Context, configSet *configv1alpha1.ConfigSet) string {
+func (r *reconciler) determineOverallStatus(_ context.Context, configSet *configv1alpha1.ConfigSet) string {
 	var sb strings.Builder
 	for _, targetStatus := range configSet.Status.Targets {
 		if targetStatus.Condition.Status == metav1.ConditionFalse {

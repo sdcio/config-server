@@ -16,6 +16,7 @@ limitations under the License.
 
 package config
 
+/*
 import (
 	"context"
 	"fmt"
@@ -222,3 +223,4 @@ func (r *watcher) setDone() {
 	defer r.m.Unlock()
 	r.done = true
 }
+*/

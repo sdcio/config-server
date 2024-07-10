@@ -16,6 +16,7 @@ limitations under the License.
 
 package unmanagedconfig
 
+/*
 import (
 	"context"
 
@@ -55,3 +56,4 @@ func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj run
 func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {
 	return nil
 }
+*/

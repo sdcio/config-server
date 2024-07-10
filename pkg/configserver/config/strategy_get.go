@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package config
-
+/*
 import (
 	"context"
 
@@ -32,3 +32,4 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 	}
 	return obj, nil
 }
+*/

@@ -26,6 +26,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -140,7 +141,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if len(cr.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the taregtStore
 			log.Debug("requeue delete, not all finalizers removed", "finalizers", cr.GetFinalizers())
-			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+			return ctrl.Result{Requeue: true}, errors.Wrap(r.Client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 		log.Debug("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
@@ -337,11 +338,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Target, msg string, err error) {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(invv1alpha1.Failed(msg))
+		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
 	} else {
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 	}
@@ -603,8 +604,8 @@ func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) 
 	for _, schema := range schemaList.Items {
 		if schema.Spec.Provider == cr.Status.DiscoveryInfo.Provider &&
 			schema.Spec.Version == cr.Status.DiscoveryInfo.Version {
-			schemaCondition := schemaList.Items[0].GetCondition(invv1alpha1.ConditionTypeReady)
-			return schemaCondition.Status == metav1.ConditionTrue, schemaCondition.Message, nil
+			schemaCondition := schemaList.Items[0].GetCondition(condv1alpha1.ConditionTypeReady)
+			return schemaCondition.IsTrue(), schemaCondition.Message, nil
 		}
 	}
 	return false, "schema referenced by target not found", nil

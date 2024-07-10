@@ -20,8 +20,6 @@ type Lifecycle struct {
 	// DeletionPolicy specifies what will happen to the underlying resource
 	// when this resource is deleted - either "delete" or "orphan" the
 	// resource.
-	// +kubebuilder:validation:Enum=`delete`;`orphan`
-	// +kubebuilder:default=delete
 	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty" protobuf:"bytes,1,opt,name=deletionPolicy,casttype=DeletionPolicy"`
 }
 

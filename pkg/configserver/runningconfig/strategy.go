@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package runningconfig
-
+/*
 import (
 	"context"
 	"fmt"
@@ -98,3 +98,4 @@ func (r *strategy) NamespaceScoped() bool {
 }
 
 func (r *strategy) Canonicalize(obj runtime.Object) {}
+*/

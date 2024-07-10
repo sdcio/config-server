@@ -17,5 +17,5 @@ limitations under the License.
 // +k8s:deepcopy-gen=package,register
 // +groupName=config.sdcio.dev
 
-// Package v1alpha1 is the v1alpha1 version of the API.
-package config
+// Package v1alpha1 is the internal version of the API.
+package config // import "github.com/sdcio/config-server/apis/config"

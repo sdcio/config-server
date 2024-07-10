@@ -32,17 +32,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
-	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 )
 
 func init() {
@@ -168,7 +169,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
 		r.handleError(ctx, cr, "cannot add finalizer", err)
 		// we always retry when status fails -> optimistoc concurrency
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus) 
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// we just insert the schema again
@@ -187,7 +188,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.Status().Update(ctx, cr); err != nil {
 			r.handleError(ctx, cr, "cannot update status", err)
 			// we always retry when status fails -> optimistoc concurrency
-			return ctrl.Result{Requeue: true}, err 
+			return ctrl.Result{Requeue: true}, err
 		}
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"schema", "loading")
@@ -220,7 +221,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// schema ready
-	cr.SetConditions(invv1alpha1.Ready())
+	cr.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"schema", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -229,9 +230,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, msg string, err error) bool {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(invv1alpha1.Failed(msg))
+		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+		return true
+	} else {
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
+		log.Error(msg, "error", err)
+		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		myError, ok := err.(*myerror.MyError)
 		if ok {
 			switch myError.Type {
@@ -241,11 +247,6 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 				return true
 			}
 		}
-		return true
-	} else {
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
-		log.Error(msg, "error", err)
-		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		return true // recoverable error
 	}
 }

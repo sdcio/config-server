@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package configset
-
+/*
 import (
 	"context"
 	"fmt"
@@ -80,3 +80,4 @@ func parseFieldSelector(ctx context.Context, fieldSelector fields.Selector) (*Fi
 
 	return filter, nil
 }
+*/

@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -129,7 +130,7 @@ type DiscoveryRuleStatus struct {
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" yaml:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 	// StartTime identifies when the dr got started
 	StartTime metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty"`
 }

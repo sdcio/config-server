@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 type BranchTagKind string
@@ -90,11 +91,7 @@ type SchemaSpecSchema struct {
 // SchemaStatus defines the observed state of Schema
 type SchemaStatus struct {
 	// ConditionedStatus provides the status of the Schema using conditions
-	// 2 conditions are used:
-	// - a condition for the reconcilation status
-	// - a condition for the ready status
-	// if both are true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" yaml:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
 }
 
 // +kubebuilder:object:root=true

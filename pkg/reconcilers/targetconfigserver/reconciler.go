@@ -25,6 +25,8 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/lease"
@@ -170,11 +172,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Target, msg string, err error) {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(invv1alpha1.Failed(msg))
+		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
 	} else {
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 	}
@@ -185,8 +187,8 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Targ
 
 	opts := []client.ListOption{
 		client.MatchingLabels{
-			configv1alpha1.TargetNamespaceKey: cr.GetNamespace(),
-			configv1alpha1.TargetNameKey:      cr.GetName(),
+			config.TargetNamespaceKey: cr.GetNamespace(),
+			config.TargetNameKey:      cr.GetName(),
 		},
 	}
 

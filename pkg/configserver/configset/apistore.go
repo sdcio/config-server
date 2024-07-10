@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package configset
-
+/*
 import (
 	"context"
 
@@ -95,3 +95,4 @@ func NewREST(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RES
 	}
 	return store, nil
 }
+*/

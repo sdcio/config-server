@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -70,8 +71,8 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
 		client.MatchingLabels{
-			configv1alpha1.TargetNameKey:      cr.GetName(),
-			configv1alpha1.TargetNamespaceKey: cr.GetNamespace(),
+			config.TargetNameKey:      cr.GetName(),
+			config.TargetNamespaceKey: cr.GetNamespace(),
 		},
 	}
 	configs := &configv1alpha1.ConfigList{}

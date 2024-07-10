@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package config
-
+/*
 import (
 	"context"
 	"fmt"
@@ -26,6 +26,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/target"
 	watchermanager "github.com/sdcio/config-server/pkg/watcher-manager"
@@ -111,8 +112,8 @@ func (r *strategy) Canonicalize(obj runtime.Object) {}
 func getTargetKey(labels map[string]string) (types.NamespacedName, error) {
 	var targetName, targetNamespace string
 	if labels != nil {
-		targetName = labels[configv1alpha1.TargetNameKey]
-		targetNamespace = labels[configv1alpha1.TargetNamespaceKey]
+		targetName = labels[config.TargetNameKey]
+		targetNamespace = labels[config.TargetNamespaceKey]
 	}
 	if targetName == "" || targetNamespace == "" {
 		return types.NamespacedName{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
@@ -157,3 +158,4 @@ func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

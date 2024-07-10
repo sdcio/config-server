@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package runningconfig
-
+/*
 import (
 	"context"
 
@@ -32,3 +32,4 @@ func (r *strategy) BeginWatch(ctx context.Context) error {
 func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListOptions) (watch.Interface, error) {
 	return nil, apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "update")
 }
+*/

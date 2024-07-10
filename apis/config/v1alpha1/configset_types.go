@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,7 +46,7 @@ type Target struct {
 type ConfigSetStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the configSet resource on the respective target
 	Targets []TargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
@@ -55,15 +56,13 @@ type TargetStatus struct {
 	// right now we assume the namespace of the config and target are aligned
 	//NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
 	// Condition of the configCR status
-	Condition `json:",inline" protobuf:"bytes,3,opt,name=condition"`
+	condv1alpha1.Condition `json:",inline" protobuf:"bytes,3,opt,name=condition"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	ConfigSet is the Schema for the ConfigSet API
-//
-// +k8s:openapi-gen=true
+// ConfigSet is the Schema for the ConfigSet API
 type ConfigSet struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -80,16 +79,7 @@ type ConfigSetList struct {
 	Items           []ConfigSet `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-/*
-func init() {
-	localSchemeBuilder.Register(&ConfigSet{}, &ConfigSetList{})
-}
-*/
-
 // Config type metadata.
 var (
 	ConfigSetKind = reflect.TypeOf(ConfigSet{}).Name()
-	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
-	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
-	//ConfigSetGroupVersionKind = SchemeGroupVersion.WithKind(ConfigSetKind)
 )

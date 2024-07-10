@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package runningconfig
-
+/*
 import (
 	"context"
 
@@ -32,3 +32,4 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return obj, nil
 	//return apierrors.NewMethodNotSupported(configv1alpha1.Resource(configv1alpha1.RunningConfigPlural), "delete")
 }
+*/
