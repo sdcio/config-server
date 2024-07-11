@@ -17,9 +17,13 @@ limitations under the License.
 package options
 
 import (
+	"context"
+
 	"github.com/dgraph-io/badger/v4"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/pkg/target"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,6 +41,11 @@ type Options struct {
 	Type   StorageType
 	DB     *badger.DB
 	// Target
-	Client      client.Client
-	TargetStore storebackend.Storer[*target.Context]
+	Client        client.Client
+	TargetStore   storebackend.Storer[*target.Context]
+	TargetHandler *target.TargetHandler
+	// specific functions
+	DryRunCreateFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
+	DryRunUpdateFn func(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error)
+	DryRunDeleteFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
 }

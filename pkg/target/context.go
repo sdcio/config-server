@@ -24,7 +24,6 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -32,6 +31,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Context struct {

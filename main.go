@@ -31,6 +31,7 @@ import (
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
+	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
@@ -39,8 +40,8 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
-	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
@@ -157,14 +158,19 @@ func main() {
 	}
 
 	registryOptions := &options.Options{
-		Prefix:      configDir,
-		Type:        options.StorageType_KV,
-		DB:          db,
-		Client:      mgr.GetClient(),
-		TargetStore: targetStore,
+		Prefix: configDir,
+		Type:   options.StorageType_KV,
+		DB:     db,
 	}
 
-	configStorageProvider := genericregistry.NewStorageProvider(ctx, &config.Config{}, registryOptions)
+	configHandler := handlers.ConfigStoreHandler{Handler: target.NewTargetHandler(mgr.GetClient(), targetStore)}
+
+	configregistryOptions := *registryOptions
+	configregistryOptions.DryRunCreateFn = configHandler.DryRunCreateFn
+	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
+	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
+
+	configStorageProvider := genericregistry.NewStorageProvider(ctx, &config.Config{}, &configregistryOptions)
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
 	unmanagedConfigStorageProvider := genericregistry.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource

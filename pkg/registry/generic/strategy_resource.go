@@ -101,6 +101,9 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	if dryrun {
+		if r.opts != nil && r.opts.DryRunCreateFn != nil {
+			return r.opts.DryRunCreateFn(ctx, key, obj, dryrun)
+		}
 		/*
 			accessor, err := meta.Accessor(obj)
 			if err != nil {
@@ -152,6 +155,9 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	}
 
 	if dryrun {
+		if r.opts != nil && r.opts.DryRunUpdateFn != nil {
+			return r.opts.DryRunUpdateFn(ctx, key, obj, old, dryrun)
+		}
 		/*
 			accessor, err := meta.Accessor(obj)
 			if err != nil {
@@ -191,7 +197,11 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 func (r *strategy) BeginDelete(ctx context.Context) error { return nil }
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+
 	if dryrun {
+		if r.opts != nil && r.opts.DryRunDeleteFn != nil {
+			return r.opts.DryRunDeleteFn(ctx, key, obj, dryrun)
+		}
 		/*
 			accessor, err := meta.Accessor(obj)
 			if err != nil {
