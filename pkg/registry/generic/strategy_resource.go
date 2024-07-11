@@ -18,7 +18,6 @@ package generic
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -180,14 +179,15 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 	return nil
 }
 
-func (r *strategy) BeginDelete(ctx context.Context) error { 
+func (r *strategy) BeginDelete(ctx context.Context) error {
 	log := log.FromContext(ctx)
-	log.Info("begin create")
-	
-	return nil }
+	log.Info("BeginDelete strategy")
+	return nil
+}
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	fmt.Println("delete", key.String(), obj, dryrun)
+	log := log.FromContext(ctx)
+	log.Info("Delete strategy", "key", key, "obj", obj, "dryrun", dryrun)
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunDeleteFn != nil {
 			return r.opts.DryRunDeleteFn(ctx, key, obj, dryrun)
