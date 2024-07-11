@@ -279,7 +279,7 @@ func (r *strategy) getTargetContext(ctx context.Context, targetKey types.Namespa
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		return nil, nil, err
 	}
-	if !target.IsConfigReady() {
+	if !target.IsReady() {
 		return nil, nil, errors.New(string(config.ConditionReasonTargetNotReady))
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})

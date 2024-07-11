@@ -38,6 +38,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
+	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
@@ -103,6 +104,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&invv1alpha1.Schema{}).
+		Watches(&corev1.Secret{}, &eventhandler.SecretForSchemaEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
 		Complete(r)
 }
 
@@ -240,11 +242,8 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		myError, ok := err.(*myerror.MyError)
 		if ok {
-			switch myError.Type {
-			case myerror.NonRecoverableErrorType:
+			if myError.Type == myerror.NonRecoverableErrorType {
 				return false
-			default:
-				return true
 			}
 		}
 		return true // recoverable error

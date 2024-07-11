@@ -59,18 +59,6 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
-	/*
-		cfg, ok := c.(*ctrlconfig.ControllerConfig)
-		if !ok {
-			return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
-		}
-	*/
-
-	/*
-		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-			return nil, err
-		}
-	*/
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
@@ -81,7 +69,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
 		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: controllerName}).
-		//Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForConfigSetEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
 		Complete(r)
 }
 
@@ -123,12 +110,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, configSet); err != nil {
-			//log.Error("cannot remove finalizer", "error", err)
 			r.recorder.Eventf(configSet, corev1.EventTypeWarning,
 				"Error", "error %s", err.Error())
 			return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, configSet), errUpdateStatus)
 		}
-		//log.Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 

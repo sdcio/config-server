@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package eventhandler
 
 import (
 	"context"
@@ -32,37 +32,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetEventHandler struct {
-	client client.Client
+type TargetForConfigEventHandler struct {
+	Client         client.Client
+	ControllerName string
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *targetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetForConfigEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*invv1alpha1.Target)
 	if !ok {
 		return
 	}
-	ctx = ctrlconfig.InitContext(ctx, controllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
+	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
 	log := log.FromContext(ctx)
 
 	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())
@@ -76,7 +77,7 @@ func (r *targetEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 		},
 	}
 	configs := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, configs, opts...); err != nil {
+	if err := r.Client.List(ctx, configs, opts...); err != nil {
 		log.Error("cannot list configs", "error", err)
 		return
 	}

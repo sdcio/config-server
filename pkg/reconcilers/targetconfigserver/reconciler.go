@@ -25,7 +25,6 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -58,21 +57,12 @@ const (
 	errUpdateStatus    = "cannot update status"
 )
 
-//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets/status,verbs=get;update;patch
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	cfg, ok := c.(*ctrlconfig.ControllerConfig)
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
-
-	/*
-		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-			return nil, err
-		}
-	*/
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
@@ -128,93 +118,92 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// handle transition
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	//log.Info("readiness", "ready", ready)
-	if ready {
-		cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-		if cfgCondition.Status == metav1.ConditionFalse &&
-			cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
+	if !ready {
+		r.handleError(ctx, target, string(configv1alpha1.ConditionReasonTargetNotReady), nil)
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+	}
 
-			//log.Info("target reapply config")
-			// we split the config in config that were successfully applied and config that was not yet
-			reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
-			if err != nil {
-				target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-				target.SetOverallStatus()
+	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+	if cfgCondition.Status == metav1.ConditionFalse &&
+		cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
+
+		//log.Info("target reapply config")
+		// we split the config in config that were successfully applied and config that was not yet
+		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
+		if err != nil {
+			r.handleError(ctx, target, "reapply config failed", err)
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+		}
+
+		// We need to restore the config on the target
+		for _, config := range reApplyConfigs {
+			if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
+				// This is bad since this means we cannot recover the applied config
+				// on a target. We set the target config status to Failed.
+				// Most likely a human intervention is needed
+				r.handleError(ctx, target, "setIntent failed", err)
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
 			}
-
-			// We need to restore the config on the target
-			for _, config := range reApplyConfigs {
-				if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
-					// This is bad since this means we cannot recover the applied config
-					// on a target. We set the target config status to Failed.
-					// Most likely a human intervention is needed
-					target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-					target.SetOverallStatus()
-					r.recorder.Eventf(target, corev1.EventTypeWarning,
-						"Error", "error %s", err.Error())
-					return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
-				}
-			}
-			r.recorder.Eventf(target, corev1.EventTypeWarning,
-				"Config", "ready")
-			target.SetConditions(invv1alpha1.ConfigReady())
-			target.SetOverallStatus()
 		}
-	} else {
 		r.recorder.Eventf(target, corev1.EventTypeWarning,
-			"Config", "target not ready")
-		target.SetConditions(invv1alpha1.ConfigFailed(string(configv1alpha1.ConditionReasonTargetNotReady)))
+			"Config", "ready")
+		target.SetConditions(invv1alpha1.ConfigReady())
 		target.SetOverallStatus()
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
 	}
-	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+
+	return ctrl.Result{}, nil
 }
 
-func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Target, msg string, err error) {
+func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(condv1alpha1.Failed(msg))
+		target.SetConditions(invv1alpha1.ConfigFailed(msg))
 		log.Error(msg)
-		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
+		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, msg)
 	} else {
-		cr.SetConditions(condv1alpha1.Failed(err.Error()))
+		target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
 		log.Error(msg, "error", err)
-		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 	}
+	target.SetOverallStatus()
 }
 
-func (r *reconciler) listTargetConfigs(ctx context.Context, cr *invv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
-	ctx = genericapirequest.WithNamespace(ctx, cr.GetNamespace())
+func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
+	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
 
 	opts := []client.ListOption{
 		client.MatchingLabels{
-			config.TargetNamespaceKey: cr.GetNamespace(),
-			config.TargetNameKey:      cr.GetName(),
+			config.TargetNamespaceKey: target.GetNamespace(),
+			config.TargetNameKey:      target.GetName(),
 		},
 	}
 
-	configList := &configv1alpha1.ConfigList{}
-	if err := r.List(ctx, configList, opts...); err != nil {
+	v1alpha1configList := &configv1alpha1.ConfigList{}
+	if err := r.List(ctx, v1alpha1configList, opts...); err != nil {
 		return nil, err
 	}
+	configList := &config.ConfigList{}
+	configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil)
 
 	return configList, nil
 }
 
-func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, cr *invv1alpha1.Target) (bool, *target.Context) {
+func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
 		return false, nil
 	}
-	if cr.IsDatastoreReady() && tctx.IsReady() {
+	if target.IsDatastoreReady() && tctx.IsReady() {
 		return true, tctx
 	}
 	return false, tctx
 }
 
-func (r *reconciler) getReApplyConfigs(ctx context.Context, cr *invv1alpha1.Target) ([]*configv1alpha1.Config, error) {
-	configs := []*configv1alpha1.Config{}
-	configList, err := r.listTargetConfigs(ctx, cr)
+func (r *reconciler) getReApplyConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
+	configs := []*config.Config{}
+	configList, err := r.listTargetConfigs(ctx, target)
 	if err != nil {
 		return nil, err
 	}

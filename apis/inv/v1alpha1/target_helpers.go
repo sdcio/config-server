@@ -62,7 +62,7 @@ func (r *Target) IsDatastoreReady() bool {
 		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue
 }
 
-func (r *Target) IsConfigReady() bool {
+func (r *Target) IsReady() bool {
 	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue

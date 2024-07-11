@@ -24,10 +24,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	//"github.com/sdcio/config-server/pkg/lease"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -62,11 +59,11 @@ func (r *Context) GetAddress() string {
 	return ""
 }
 
-func (r *Context) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSchema {
+func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
 	if r.dataStore == nil {
-		return &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
+		return &config.ConfigStatusLastKnownGoodSchema{}
 	}
-	return &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+	return &config.ConfigStatusLastKnownGoodSchema{
 		Type:    r.dataStore.Schema.Name,
 		Vendor:  r.dataStore.Schema.Vendor,
 		Version: r.dataStore.Schema.Version,
@@ -146,7 +143,7 @@ func (r *Context) GetDataStore(ctx context.Context, in *sdcpb.GetDataStoreReques
 
 // useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
 // the config
-func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec bool) ([]*sdcpb.Update, error) {
+func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, config *config.Config, useSpec bool) ([]*sdcpb.Update, error) {
 	log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(config.Spec.Config))
 	configSpec := config.Spec.Config
@@ -173,7 +170,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, useSpec, dryRun bool) (*configv1alpha1.Config, error) {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, useSpec, dryRun bool) (*config.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
@@ -199,7 +196,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	return config, nil
 }
 
-func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *configv1alpha1.Config, dryRun bool) (*configv1alpha1.Config, error) {
+func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (*config.Config, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
