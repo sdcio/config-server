@@ -295,7 +295,7 @@ func (r *Config) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 // ValidateCreate statically validates
 func (r *Config) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
-	accessor, err := meta.Accessor(r)
+	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath(""),
@@ -324,7 +324,7 @@ func (r *Config) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) 
 func (r *Config) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
-	newaccessor, err := meta.Accessor(r)
+	newaccessor, err := meta.Accessor(obj)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath(""),
