@@ -112,7 +112,12 @@ func (Config) NewList() runtime.Object {
 func (r *Config) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
 	newobj := obj.(*Config)
 	oldobj := old.(*Config)
-	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
+
+	if !apiequality.Semantic.DeepEqual(oldobj.ObjectMeta, newobj.ObjectMeta) {
+		return false
+	}
+	// if equal we also test the spec
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec) 
 }
 
 // GetStatus return the resource.StatusSubResource interface
