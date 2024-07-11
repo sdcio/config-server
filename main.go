@@ -134,11 +134,14 @@ func main() {
 		configDir = envDir
 	}
 
+	targetHandler := target.NewTargetHandler(mgr.GetClient(), targetStore)
+
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
+		TargetHandler: targetHandler,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -163,7 +166,7 @@ func main() {
 		DB:     db,
 	}
 
-	configHandler := handlers.ConfigStoreHandler{Handler: target.NewTargetHandler(mgr.GetClient(), targetStore)}
+	configHandler := handlers.ConfigStoreHandler{Handler: targetHandler}
 
 	configregistryOptions := *registryOptions
 	configregistryOptions.DryRunCreateFn = configHandler.DryRunCreateFn
