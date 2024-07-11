@@ -18,6 +18,7 @@ package generic
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -158,21 +159,6 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		if r.opts != nil && r.opts.DryRunUpdateFn != nil {
 			return r.opts.DryRunUpdateFn(ctx, key, obj, old, dryrun)
 		}
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
-		*/
 		return obj, nil
 	}
 
@@ -194,29 +180,18 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 	return nil
 }
 
-func (r *strategy) BeginDelete(ctx context.Context) error { return nil }
+func (r *strategy) BeginDelete(ctx context.Context) error { 
+	log := log.FromContext(ctx)
+	log.Debug("begin create")
+	
+	return nil }
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-
+	fmt.Println("delete", key.String(), obj, dryrun)
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunDeleteFn != nil {
 			return r.opts.DryRunDeleteFn(ctx, key, obj, dryrun)
 		}
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.DeleteIntent(ctx, targetKey, config, dryrun)
-		*/
 		return obj, nil
 	}
 
