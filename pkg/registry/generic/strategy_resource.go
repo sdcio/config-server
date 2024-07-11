@@ -14,27 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package generic
 
 import (
 	"context"
-	"fmt"
-	"reflect"
-	"strconv"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
-	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/registry/options"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -97,20 +91,12 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 
 func (r *strategy) BeginCreate(ctx context.Context) error { return nil }
 
-func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {}
+func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	r.obj.PrepareForCreate(ctx, obj)
+}
 
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
-	_, ok := obj.(*config.Config)
-	if !ok {
-		var allErrs field.ErrorList
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj).Name()),
-		))
-		return allErrs
-	}
-	return obj.(*config.Config).ValidateCreate(ctx)
+	return r.obj.ValidateCreate(ctx, obj)
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
@@ -149,9 +135,7 @@ func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []s
 func (r *strategy) BeginUpdate(ctx context.Context) error { return nil }
 
 func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
-	newObj := obj.(*config.Config)
-	oldObj := old.(*config.Config)
-	newObj.Status = oldObj.Status
+	r.obj.PrepareForUpdate(ctx, obj, old)
 }
 
 func (r *strategy) AllowCreateOnUpdate() bool { return false }
@@ -159,37 +143,13 @@ func (r *strategy) AllowCreateOnUpdate() bool { return false }
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	_, ok := obj.(*config.Config)
-	if !ok {
-		var allErrs field.ErrorList
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			fmt.Sprintf("unexpected object, expected: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj).Name()),
-		))
-		return allErrs
-	}
-	return obj.(*config.Config).ValidateUpdate(ctx, old)
+	return r.obj.ValidateUpdate(ctx, obj, old)
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	log := log.FromContext(ctx)
-	// check if there is a change
-	newConfig, ok := obj.(*config.Config)
-	if !ok {
-		return obj, fmt.Errorf("unexpected new object, expecting: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj))
-	}
-	oldConfig, ok := old.(*config.Config)
-	if !ok {
-		return obj, fmt.Errorf("unexpected old object, expecting: %s, got: %s", config.ConfigKind, reflect.TypeOf(obj))
-	}
-
-	if apiequality.Semantic.DeepEqual(oldConfig.Spec, newConfig.Spec) {
-		log.Debug("update nothing to do")
+	if r.obj.IsEqual(ctx, obj, old) {
 		return obj, nil
-
 	}
-	newConfig.Generation = oldConfig.Generation + 1
 
 	if dryrun {
 		/*
@@ -210,7 +170,7 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return obj, nil
 	}
 
-	if err := updateResourceVersion(ctx, obj, old); err != nil {
+	if err := utils.UpdateResourceVersionAndGeneration(obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}
 
@@ -222,24 +182,6 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		Object: obj,
 	})
 	return obj, nil
-}
-
-func updateResourceVersion(_ context.Context, obj, old runtime.Object) error {
-	accessorNew, err := meta.Accessor(obj)
-	if err != nil {
-		return nil
-	}
-	accessorOld, err := meta.Accessor(old)
-	if err != nil {
-		return nil
-	}
-	resourceVersion, err := strconv.Atoi(accessorOld.GetResourceVersion())
-	if err != nil {
-		return err
-	}
-	resourceVersion++
-	accessorNew.SetResourceVersion(strconv.Itoa(resourceVersion))
-	return nil
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
@@ -289,14 +231,14 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 			return nil, err
 		}
 	} else {
-		filter, err = builderrest.ParseFieldSelector(ctx, options.FieldSelector)
+		filter, err = utils.ParseFieldSelector(ctx, options.FieldSelector)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	newListObj := r.obj.NewList()
-	v, err := getListPrt(newListObj)
+	v, err := utils.GetListPrt(newListObj)
 	if err != nil {
 		return nil, err
 	}
@@ -324,10 +266,10 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 			}
 
 			if !f {
-				appendItem(v, obj)
+				utils.AppendItem(v, obj)
 			}
 		} else {
-			appendItem(v, obj)
+			utils.AppendItem(v, obj)
 		}
 	}
 
@@ -359,26 +301,14 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 			fieldpath.MakePathOrDie("status"),
 		),
 	}
-
 	return fields
 }
 
-// Support Functions
+func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
+	log := log.FromContext(ctx).With("eventType", event.Type)
+	log.Info("notify watcherManager")
 
-func getListPrt(listObj runtime.Object) (reflect.Value, error) {
-	listPtr, err := meta.GetItemsPtr(listObj)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-	v, err := conversion.EnforcePtr(listPtr)
-	if err != nil || v.Kind() != reflect.Slice {
-		return reflect.Value{}, fmt.Errorf("need ptr to slice: %v", err)
-	}
-	return v, nil
-}
-
-func appendItem(v reflect.Value, obj runtime.Object) {
-	v.Set(reflect.Append(v, reflect.ValueOf(obj).Elem()))
+	r.watcherManager.WatchChan() <- event
 }
 
 /*
@@ -410,10 +340,3 @@ func (r *strategy) getTargetContext(ctx context.Context, targetKey types.Namespa
 	return tctx, nil
 }
 */
-
-func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
-}

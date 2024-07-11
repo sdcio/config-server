@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package unmanagedconfig
-
+/*
 import (
 	"context"
 	"fmt"
@@ -32,7 +32,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
-
 func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *options.Options) *builderrest.StorageProvider {
 	watcherManager := watchermanager.New(64)
 
@@ -136,3 +135,4 @@ func NewStatusREST(
 	statusStore.ResetFieldsStrategy = statusStrategy
 	return &statusStore, nil
 }
+*/

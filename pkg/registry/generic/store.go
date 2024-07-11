@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package generic
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
@@ -43,9 +44,9 @@ func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *
 			return NewREST(obj, scheme, watcherManager, optsGetter, opts)
 		},
 	}
-	if _, ok := obj.(resource.ObjectWithStatusSubResource); ok {
+	if statusobj, ok := obj.(resource.ObjectWithStatusSubResource); ok {
 		sp.StatusSubResourceStorageProviderFn = func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error) {
-			return NewStatusREST(obj, scheme, watcherManager, opts, store)
+			return NewStatusREST(statusobj, scheme, watcherManager, opts, store)
 		}
 	}
 	// Add addtional subresources
@@ -91,7 +92,7 @@ func NewREST(
 		Tracer:                    otel.Tracer(obj.GetSingularName()),
 		NewFunc:                   obj.New,
 		NewListFunc:               obj.NewList,
-		PredicateFunc:             builderrest.Match,
+		PredicateFunc:             utils.Match,
 		DefaultQualifiedResource:  gr,
 		SingularQualifiedResource: singlularResource,
 		GetStrategy:               strategy,
@@ -108,7 +109,7 @@ func NewREST(
 	}
 	options := &generic.StoreOptions{
 		RESTOptions: optsGetter,
-		AttrFunc:    builderrest.GetAttrs,
+		AttrFunc:    utils.GetAttrs,
 	}
 	if err := store.CompleteWithOptions(options); err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func NewREST(
 }
 
 func NewStatusREST(
-	obj resource.InternalObject,
+	obj resource.ObjectWithStatusSubResource,
 	scheme *runtime.Scheme,
 	watcherManager watchermanager.WatcherManager,
 	opts *options.Options,

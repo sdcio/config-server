@@ -16,6 +16,7 @@ limitations under the License.
 
 package configset
 
+/*
 import (
 	"context"
 	"fmt"
@@ -155,3 +156,4 @@ func (r *statusStrategy) notifyWatcher(ctx context.Context, event watch.Event) {
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

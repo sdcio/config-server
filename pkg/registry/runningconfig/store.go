@@ -21,6 +21,7 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/sdcio/config-server/pkg/registry/options"
@@ -65,7 +66,7 @@ func NewREST(
 		Tracer:                    otel.Tracer(obj.GetSingularName()),
 		NewFunc:                   obj.New,
 		NewListFunc:               obj.NewList,
-		PredicateFunc:             builderrest.Match,
+		PredicateFunc:             utils.Match,
 		DefaultQualifiedResource:  gr,
 		SingularQualifiedResource: singlularResource,
 		GetStrategy:               strategy,
@@ -82,7 +83,7 @@ func NewREST(
 	}
 	options := &generic.StoreOptions{
 		RESTOptions: optsGetter,
-		AttrFunc:    builderrest.GetAttrs,
+		AttrFunc:    utils.GetAttrs,
 	}
 	if err := store.CompleteWithOptions(options); err != nil {
 		return nil, err

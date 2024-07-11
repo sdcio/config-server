@@ -22,8 +22,8 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +49,8 @@ var (
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &Config{}
 var _ resource.ObjectList = &ConfigList{}
+var _ resource.ObjectWithStatusSubResource = &Config{}
+var _ resource.StatusSubResource = &ConfigStatus{}
 
 func (Config) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -106,9 +108,39 @@ func (Config) NewList() runtime.Object {
 	return &ConfigList{}
 }
 
+// IsEqual returns a bool indicating if the desired state of both resources is equal or not
+func (r *Config) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*Config)
+	oldobj := old.(*Config)
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
+}
+
 // GetStatus return the resource.StatusSubResource interface
 func (r *Config) GetStatus() resource.StatusSubResource {
 	return r.Status
+}
+
+// IsStatusEqual returns a bool indicating if the status of both resources is equal or not
+func (r *Config) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*Config)
+	oldobj := old.(*Config)
+	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
+}
+
+// PrepareForStatusUpdate prepares the status update
+func (r *Config) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
+	newObj := obj.(*Config)
+	oldObj := old.(*Config)
+	newObj.Spec = oldObj.Spec
+
+	// Status updates are for only for updating status, not objectmeta.
+	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+}
+
+// ValidateStatusUpdate validates status updates
+func (r *Config) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
 }
 
 // SubResourceName resturns the name of the subresource
@@ -120,9 +152,9 @@ func (ConfigStatus) SubResourceName() string {
 // CopyTo copies the content of the status subresource to a parent resource.
 // CopyTo implements the resource.StatusSubResource
 func (r ConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
-	cfg, ok := obj.(*Config)
+	parent, ok := obj.(*Config)
 	if ok {
-		cfg.Status = r
+		parent.Status = r
 	}
 }
 
@@ -254,38 +286,49 @@ func (r *ConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 	return f
 }
 
+func (r *Config) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	// status cannot be set upon create -> reset it
+	newobj := obj.(*Config)
+	newobj.Status = ConfigStatus{}
+}
+
 // ValidateCreate statically validates
-func (r *Config) ValidateCreate(ctx context.Context) field.ErrorList {
+func (r *Config) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
-	log := log.FromContext(ctx)
 	accessor, err := meta.Accessor(r)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath(""),
-			r,
+			obj,
 			err.Error(),
 		))
 		return allErrs
 	}
-	log.Info("validate create", "name", accessor.GetName(), "resourceVersion", accessor.GetResourceVersion())
 	if _, err := GetTargetKey(accessor.GetLabels()); err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),
-			r,
+			obj,
 			err.Error(),
 		))
 	}
 	return allErrs
 }
 
-func (r *Config) ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList {
+func (r *Config) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	// ensure the sttaus dont get updated
+	newobj := obj.(*Config)
+	oldObj := old.(*Config)
+	newobj.Status = oldObj.Status
+}
+
+func (r *Config) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
 	newaccessor, err := meta.Accessor(r)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath(""),
-			r,
+			obj,
 			err.Error(),
 		))
 		return allErrs
@@ -294,7 +337,7 @@ func (r *Config) ValidateUpdate(ctx context.Context, old runtime.Object) field.E
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),
-			r,
+			obj,
 			err.Error(),
 		))
 	}
@@ -302,7 +345,7 @@ func (r *Config) ValidateUpdate(ctx context.Context, old runtime.Object) field.E
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath(""),
-			r,
+			obj,
 			err.Error(),
 		))
 		return allErrs
@@ -311,7 +354,7 @@ func (r *Config) ValidateUpdate(ctx context.Context, old runtime.Object) field.E
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),
-			r,
+			obj,
 			err.Error(),
 		))
 	}
@@ -322,10 +365,9 @@ func (r *Config) ValidateUpdate(ctx context.Context, old runtime.Object) field.E
 	if oldKey.String() != newKey.String() {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("metadata.labels"),
-			r,
+			obj,
 			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
 		))
 	}
-
 	return allErrs
 }

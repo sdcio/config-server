@@ -4,35 +4,13 @@ go 1.22.0
 
 toolchain go1.22.2
 
-//replace github.com/google/cel-go => github.com/google/cel-go v0.16.1
-
-//replace k8s.io/client-go => k8s.io/client-go v0.28.6
-
-//replace k8s.io/api => k8s.io/api v0.28.6
-
-//replace k8s.io/apimachinery => k8s.io/apimachinery v0.28.6
-
-//replace k8s.io/component-base => k8s.io/component-base v0.28.6
-
-//replace k8s.io/cli-runtime => k8s.io/cli-runtime v0.28.6
-
-//replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
-
-//replace k8s.io/apiserver => k8s.io/apiserver v0.28.6
-
-//replace sigs.k8s.io/kustomize/kyaml => sigs.k8s.io/kustomize/kyaml v0.15.0
-
-//replace sigs.k8s.io/kustomize/api => sigs.k8s.io/kustomize/api v0.15.0
-
-//replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.6
-
 require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.2-0.20240710155051-0b434fb8d631
+	github.com/henderiw/apiserver-builder v0.0.2-0.20240711075742-c2c4ca8dfd9c
 	github.com/henderiw/apiserver-store v0.0.0-20240709194646-89bc71dc62b1
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
@@ -51,7 +29,6 @@ require (
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
 	k8s.io/api v0.30.2
-	k8s.io/apiextensions-apiserver v0.30.1
 	k8s.io/apimachinery v0.30.2
 	k8s.io/apiserver v0.30.2
 	k8s.io/client-go v0.30.2
@@ -68,7 +45,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
-	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
@@ -133,6 +110,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	go.etcd.io/bbolt v1.3.10 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.10 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.10 // indirect
 	go.etcd.io/etcd/client/v3 v3.5.10 // indirect
@@ -165,6 +143,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/apiextensions-apiserver v0.30.1 // indirect
 	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kms v0.30.2 // indirect

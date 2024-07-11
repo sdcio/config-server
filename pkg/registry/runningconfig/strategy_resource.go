@@ -19,10 +19,9 @@ package runningconfig
 import (
 	"context"
 	"errors"
-	"fmt"
-	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
@@ -32,9 +31,7 @@ import (
 	"github.com/sdcio/config-server/pkg/registry/options"
 	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -80,7 +77,7 @@ type strategy struct {
 	runtime.ObjectTyper
 	names.NameGenerator
 	gr             schema.GroupResource
-	obj            resource.Object
+	obj            resource.InternalObject
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	client         client.Client
@@ -95,10 +92,12 @@ func (r *strategy) BeginCreate(ctx context.Context) error {
 	return apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "create")
 }
 
-func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {}
+func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	r.obj.PrepareForCreate(ctx, obj)
+}
 
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
-	return field.ErrorList{}
+	return r.obj.ValidateCreate(ctx, obj)
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
@@ -114,6 +113,7 @@ func (r *strategy) BeginUpdate(ctx context.Context) error {
 }
 
 func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	r.obj.PrepareForUpdate(ctx, obj, old)
 }
 
 func (r *strategy) AllowCreateOnUpdate() bool { return false }
@@ -121,7 +121,7 @@ func (r *strategy) AllowCreateOnUpdate() bool { return false }
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
 func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	return field.ErrorList{}
+	return r.obj.ValidateUpdate(ctx, obj, old)
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
@@ -177,7 +177,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 	}
 
 	newListObj := r.obj.NewList()
-	v, err := getListPrt(newListObj)
+	v, err := utils.GetListPrt(newListObj)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 				obj.SetResourceVersion(target.ResourceVersion)
 				obj.SetAnnotations(target.Annotations)
 				obj.SetLabels(target.Labels)
-				appendItem(v, obj)
+				utils.AppendItem(v, obj)
 			}
 		} else {
 			obj, err := tctx.GetData(ctx, key)
@@ -238,7 +238,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 			obj.SetResourceVersion(target.ResourceVersion)
 			obj.SetAnnotations(target.Annotations)
 			obj.SetLabels(target.Labels)
-			appendItem(v, obj)
+			utils.AppendItem(v, obj)
 		}
 	}
 
@@ -272,24 +272,6 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 	}
 
 	return fields
-}
-
-// Support Functions
-
-func getListPrt(listObj runtime.Object) (reflect.Value, error) {
-	listPtr, err := meta.GetItemsPtr(listObj)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-	v, err := conversion.EnforcePtr(listPtr)
-	if err != nil || v.Kind() != reflect.Slice {
-		return reflect.Value{}, fmt.Errorf("need ptr to slice: %v", err)
-	}
-	return v, nil
-}
-
-func appendItem(v reflect.Value, obj runtime.Object) {
-	v.Set(reflect.Append(v, reflect.ValueOf(obj).Elem()))
 }
 
 func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *target.Context, error) {

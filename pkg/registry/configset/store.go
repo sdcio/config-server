@@ -16,6 +16,7 @@ limitations under the License.
 
 package configset
 
+/*
 import (
 	"context"
 	"fmt"
@@ -137,3 +138,4 @@ func NewStatusREST(
 	statusStore.ResetFieldsStrategy = statusStrategy
 	return &statusStore, nil
 }
+*/

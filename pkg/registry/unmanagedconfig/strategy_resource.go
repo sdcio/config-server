@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package unmanagedconfig
-
+/*
 import (
 	"context"
 	"fmt"
@@ -343,3 +343,4 @@ func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

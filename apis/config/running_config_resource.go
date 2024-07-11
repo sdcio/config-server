@@ -22,12 +22,14 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -100,6 +102,13 @@ func (RunningConfig) New() runtime.Object {
 // NewList implements resource.Object
 func (RunningConfig) NewList() runtime.Object {
 	return &RunningConfigList{}
+}
+
+// IsEqual returns a bool indicating if the desired state of both resources is equal or not
+func (r *RunningConfig) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*RunningConfig)
+	oldobj := old.(*RunningConfig)
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
 }
 
 // GetListMeta returns the ListMeta
@@ -220,4 +229,21 @@ func (r *RunningConfigFilter) Filter(ctx context.Context, obj runtime.Object) bo
 		}
 	}
 	return f
+}
+
+func (r *RunningConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+}
+
+// ValidateCreate statically validates
+func (r *RunningConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
+}
+
+func (r *RunningConfig) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+}
+
+func (r *RunningConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
 }

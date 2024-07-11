@@ -22,12 +22,14 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -45,6 +47,8 @@ var (
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &UnManagedConfig{}
 var _ resource.ObjectList = &UnManagedConfigList{}
+var _ resource.ObjectWithStatusSubResource = &UnManagedConfig{}
+var _ resource.StatusSubResource = &UnManagedConfigStatus{}
 
 func (UnManagedConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -102,9 +106,39 @@ func (UnManagedConfig) NewList() runtime.Object {
 	return &UnManagedConfigList{}
 }
 
+// IsEqual returns a bool indicating if the desired state of both resources is equal or not
+func (r *UnManagedConfig) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*UnManagedConfig)
+	oldobj := old.(*UnManagedConfig)
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
+}
+
 // GetStatus return the resource.StatusSubResource interface
 func (r *UnManagedConfig) GetStatus() resource.StatusSubResource {
 	return r.Status
+}
+
+// IsStatusEqual returns a bool indicating if the status of both resources is equal or not
+func (r *UnManagedConfig) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*UnManagedConfig)
+	oldobj := old.(*UnManagedConfig)
+	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
+}
+
+// PrepareForStatusUpdate prepares the status update
+func (r *UnManagedConfig) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
+	newObj := obj.(*UnManagedConfig)
+	oldObj := old.(*UnManagedConfig)
+	newObj.Spec = oldObj.Spec
+
+	// Status updates are for only for updating status, not objectmeta.
+	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+}
+
+// ValidateStatusUpdate validates status updates
+func (r *UnManagedConfig) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
 }
 
 // SubResourceName resturns the name of the subresource
@@ -121,7 +155,6 @@ func (r UnManagedConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) 
 		cfg.Status = r
 	}
 }
-
 
 // GetListMeta returns the ListMeta
 // GetListMeta implements the resource.ObjectList
@@ -243,4 +276,28 @@ func (r *UnManagedConfigFilter) Filter(ctx context.Context, obj runtime.Object) 
 		}
 	}
 	return f
+}
+
+func (r *UnManagedConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	// status cannot be set upon create -> reset it
+	newobj := obj.(*UnManagedConfig)
+	newobj.Status = UnManagedConfigStatus{}
+}
+
+// ValidateCreate statically validates
+func (r *UnManagedConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
+}
+
+func (r *UnManagedConfig) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	// ensure the sttaus dont get updated
+	newobj := obj.(*UnManagedConfig)
+	oldObj := old.(*UnManagedConfig)
+	newobj.Status = oldObj.Status
+}
+
+func (r *UnManagedConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
 }

@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package configset
-
+/*
 import (
 	"context"
 	"fmt"
@@ -44,7 +44,6 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 )
-
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
 	obj resource.InternalObject,
@@ -115,21 +114,6 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	if dryrun {
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
-		*/
 		return obj, nil
 	}
 	if err := r.storage.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
@@ -192,21 +176,6 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 	newConfig.Generation = oldConfig.Generation + 1
 
 	if dryrun {
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
-		*/
 		return obj, nil
 	}
 
@@ -250,21 +219,6 @@ func (r *strategy) BeginDelete(ctx context.Context) error { return nil }
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	if dryrun {
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.DeleteIntent(ctx, targetKey, config, dryrun)
-		*/
 		return obj, nil
 	}
 
@@ -381,39 +335,10 @@ func appendItem(v reflect.Value, obj runtime.Object) {
 	v.Set(reflect.Append(v, reflect.ValueOf(obj).Elem()))
 }
 
-/*
-func (r *strategy) getTargetInfo(ctx context.Context, accessor metav1.Object) (*target.Context, storebackend.Key, error) {
-	targetKey, err := config.GetTargetKey(accessor.GetLabels())
-	if err != nil {
-		return nil, storebackend.Key{}, errors.Wrap(err, "target key invalid")
-	}
-
-	tctx, err := r.getTargetContext(ctx, targetKey)
-	if err != nil {
-		return nil, storebackend.Key{}, err
-	}
-	return tctx, storebackend.Key{NamespacedName: targetKey}, nil
-}
-
-func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*target.Context, error) {
-	target := &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, err
-	}
-	if !target.IsConfigReady() {
-		return nil, errors.New(string(config.ConditionReasonTargetNotReady))
-	}
-	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
-	if err != nil {
-		return nil, errors.New(string(config.ConditionReasonTargetNotFound))
-	}
-	return tctx, nil
-}
-*/
-
 func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
 	log.Info("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

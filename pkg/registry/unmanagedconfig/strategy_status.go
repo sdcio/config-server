@@ -16,6 +16,7 @@ limitations under the License.
 
 package unmanagedconfig
 
+/*
 import (
 	"context"
 	"fmt"
@@ -99,7 +100,7 @@ func (r *statusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.
 func (r *statusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	//log := log.FromContext(ctx)
 	//log.Info("unmanaged config status validateupdate", "new object", obj)
-	
+
 	var allErrs field.ErrorList
 	return allErrs
 }
@@ -163,3 +164,4 @@ func (r *statusStrategy) notifyWatcher(ctx context.Context, event watch.Event) {
 
 	r.watcherManager.WatchChan() <- event
 }
+*/

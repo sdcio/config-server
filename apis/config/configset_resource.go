@@ -23,6 +23,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	"github.com/sdcio/config-server/apis/condition"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -47,6 +48,8 @@ var (
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &ConfigSet{}
 var _ resource.ObjectList = &ConfigSetList{}
+var _ resource.ObjectWithStatusSubResource = &ConfigSet{}
+var _ resource.StatusSubResource = &ConfigSetStatus{}
 
 func (ConfigSet) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -103,9 +106,39 @@ func (ConfigSet) NewList() runtime.Object {
 	return &ConfigSetList{}
 }
 
+// IsEqual returns a bool indicating if the desired state of both resources is equal or not
+func (r *ConfigSet) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*ConfigSet)
+	oldobj := old.(*ConfigSet)
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
+}
+
 // GetStatus return the resource.StatusSubResource interface
 func (r *ConfigSet) GetStatus() resource.StatusSubResource {
 	return r.Status
+}
+
+// IsStatusEqual returns a bool indicating if the status of both resources is equal or not
+func (r *ConfigSet) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*ConfigSet)
+	oldobj := old.(*ConfigSet)
+	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
+}
+
+// PrepareForStatusUpdate prepares the status update
+func (r *ConfigSet) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
+	newObj := obj.(*Config)
+	oldObj := old.(*Config)
+	newObj.Spec = oldObj.Spec
+
+	// Status updates are for only for updating status, not objectmeta.
+	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+}
+
+// ValidateStatusUpdate validates status updates
+func (r *ConfigSet) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	var allErrs field.ErrorList
+	return allErrs
 }
 
 // SubResourceName resturns the name of the subresource
@@ -247,14 +280,20 @@ func (r *ConfigSetFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 	return f
 }
 
+func (r *ConfigSet) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	newobj := obj.(*ConfigSet)
+	// status cannot be set upon create -> reset it
+	newobj.Status = ConfigSetStatus{}
+}
+
 // ValidateCreate statically validates
-func (r *ConfigSet) ValidateCreate(ctx context.Context) field.ErrorList {
+func (r *ConfigSet) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if _, err := metav1.LabelSelectorAsSelector(r.Spec.Target.TargetSelector); err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec.target.selector"),
-			r,
+			obj,
 			err.Error(),
 		))
 	}
@@ -262,13 +301,20 @@ func (r *ConfigSet) ValidateCreate(ctx context.Context) field.ErrorList {
 	return allErrs
 }
 
-func (r *ConfigSet) ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList {
+func (r *ConfigSet) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	// ensure the sttaus dont get updated
+	newobj := obj.(*ConfigSet)
+	oldObj := old.(*ConfigSet)
+	newobj.Status = oldObj.Status
+}
+
+func (r *ConfigSet) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
 	if _, err := metav1.LabelSelectorAsSelector(r.Spec.Target.TargetSelector); err != nil {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec.target.selector"),
-			r,
+			obj,
 			err.Error(),
 		))
 	}
