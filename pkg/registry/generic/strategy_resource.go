@@ -182,7 +182,7 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 
 func (r *strategy) BeginDelete(ctx context.Context) error { 
 	log := log.FromContext(ctx)
-	log.Debug("begin create")
+	log.Info("begin create")
 	
 	return nil }
 
