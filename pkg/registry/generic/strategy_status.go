@@ -127,7 +127,7 @@ func (r *statusStrategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Se
 
 func (r *statusStrategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
+	log.Debug("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
 }

@@ -185,7 +185,6 @@ func main() {
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
-			//WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
 			WithResourceAndHandler(&config.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).

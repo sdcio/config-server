@@ -10,8 +10,8 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.2-0.20240711075742-c2c4ca8dfd9c
-	github.com/henderiw/apiserver-store v0.0.0-20240711162235-55606cb076ed
+	github.com/henderiw/apiserver-builder v0.0.2
+	github.com/henderiw/apiserver-store v0.0.1
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.11.0

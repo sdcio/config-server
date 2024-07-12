@@ -104,21 +104,6 @@ func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj run
 		if r.opts != nil && r.opts.DryRunCreateFn != nil {
 			return r.opts.DryRunCreateFn(ctx, key, obj, dryrun)
 		}
-		/*
-			accessor, err := meta.Accessor(obj)
-			if err != nil {
-				return obj, err
-			}
-			tctx, targetKey, err := r.getTargetInfo(ctx, accessor)
-			if err != nil {
-				return obj, err
-			}
-			config, ok := obj.(*config.Config)
-			if !ok {
-				return obj, fmt.Errorf("unexpected objext, got")
-			}
-			return tctx.SetIntent(ctx, targetKey, config, true, dryrun)
-		*/
 		return obj, nil
 	}
 	if err := r.storage.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
@@ -181,13 +166,13 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 
 func (r *strategy) BeginDelete(ctx context.Context) error {
 	log := log.FromContext(ctx)
-	log.Info("BeginDelete strategy")
+	log.Debug("BeginDelete strategy")
 	return nil
 }
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	log := log.FromContext(ctx)
-	log.Info("Delete strategy", "key", key, "obj", obj, "dryrun", dryrun)
+	log.Debug("Delete strategy", "key", key, "obj", obj, "dryrun", dryrun)
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunDeleteFn != nil {
 			return r.opts.DryRunDeleteFn(ctx, key, obj, dryrun)
@@ -291,37 +276,7 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 
 func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Info("notify watcherManager")
+	log.Debug("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
 }
-
-/*
-func (r *strategy) getTargetInfo(ctx context.Context, accessor metav1.Object) (*target.Context, storebackend.Key, error) {
-	targetKey, err := config.GetTargetKey(accessor.GetLabels())
-	if err != nil {
-		return nil, storebackend.Key{}, errors.Wrap(err, "target key invalid")
-	}
-
-	tctx, err := r.getTargetContext(ctx, targetKey)
-	if err != nil {
-		return nil, storebackend.Key{}, err
-	}
-	return tctx, storebackend.Key{NamespacedName: targetKey}, nil
-}
-
-func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*target.Context, error) {
-	target := &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, err
-	}
-	if !target.IsConfigReady() {
-		return nil, errors.New(string(config.ConditionReasonTargetNotReady))
-	}
-	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
-	if err != nil {
-		return nil, errors.New(string(config.ConditionReasonTargetNotFound))
-	}
-	return tctx, nil
-}
-*/
