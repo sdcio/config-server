@@ -43,7 +43,6 @@ type Options struct {
 	// Target
 	Client        client.Client
 	TargetStore   storebackend.Storer[*target.Context]
-	TargetHandler *target.TargetHandler
 	// specific functions
 	DryRunCreateFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
 	DryRunUpdateFn func(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error)
