@@ -111,6 +111,9 @@ func (ConfigSet) NewList() runtime.Object {
 func (r *ConfigSet) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
 	newobj := obj.(*ConfigSet)
 	oldobj := old.(*ConfigSet)
+	if !apiequality.Semantic.DeepEqual(oldobj.ObjectMeta, newobj.ObjectMeta) {
+		return false
+	}
 	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
 }
 

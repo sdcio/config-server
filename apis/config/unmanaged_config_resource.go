@@ -110,6 +110,9 @@ func (UnManagedConfig) NewList() runtime.Object {
 func (r *UnManagedConfig) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
 	newobj := obj.(*UnManagedConfig)
 	oldobj := old.(*UnManagedConfig)
+	if !apiequality.Semantic.DeepEqual(oldobj.ObjectMeta, newobj.ObjectMeta) {
+		return false
+	}
 	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
 }
 
