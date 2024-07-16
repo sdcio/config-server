@@ -228,7 +228,7 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
 		return true // recoverable error
 	} else {
-		cr.SetConditions(invv1alpha1.Failed(err.Error()))
+		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		myError, ok := err.(*myerror.MyError)
