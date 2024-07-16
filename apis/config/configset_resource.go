@@ -131,8 +131,8 @@ func (r *ConfigSet) IsStatusEqual(ctx context.Context, obj, old runtime.Object) 
 
 // PrepareForStatusUpdate prepares the status update
 func (r *ConfigSet) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
-	newObj := obj.(*Config)
-	oldObj := old.(*Config)
+	newObj := obj.(*ConfigSet)
+	oldObj := old.(*ConfigSet)
 	newObj.Spec = oldObj.Spec
 
 	// Status updates are for only for updating status, not objectmeta.
@@ -213,7 +213,7 @@ func (r *ConfigSet) FieldSelector() func(ctx context.Context, fieldSelector fiel
 		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if fieldSelector == nil {
 			if ok {
-				return &ConfigFilter{Namespace: namespace}, nil
+				return &ConfigSetFilter{Namespace: namespace}, nil
 			}
 			return filter, nil
 		}
@@ -248,7 +248,7 @@ func (r *ConfigSet) FieldSelector() func(ctx context.Context, fieldSelector fiel
 			return filter, nil
 		}
 
-		return &ConfigFilter{}, nil
+		return &ConfigSetFilter{}, nil
 	}
 
 }
