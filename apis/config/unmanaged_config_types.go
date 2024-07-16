@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,3 +53,8 @@ type UnManagedConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []UnManagedConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+// ConfigSet type metadata.
+var (
+	UnManagedConfigKind = reflect.TypeOf(UnManagedConfig{}).Name()
+)

@@ -32,17 +32,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
+	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
-	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 )
 
 func init() {
@@ -59,9 +61,6 @@ const (
 	errUpdateStatus    = "cannot update status"
 )
 
-//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=schemas,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=inv.sdcio.dev,resources=schemas/status,verbs=get;update;patch
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	var err error
@@ -69,12 +68,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
-
-	/*
-		if err := invv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-			return nil, err
-		}
-	*/
 
 	cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key storebackend.Key, dsCtx sdcctx.SSContext) {
 		r.schemaclient = dsCtx.SSClient
@@ -102,6 +95,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&invv1alpha1.Schema{}).
+		Watches(&corev1.Secret{}, &eventhandler.SecretForSchemaEventHandler{Client: mgr.GetClient(), ControllerName: controllerName}).
 		Complete(r)
 }
 
@@ -168,7 +162,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
 		r.handleError(ctx, cr, "cannot add finalizer", err)
 		// we always retry when status fails -> optimistoc concurrency
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus) 
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// we just insert the schema again
@@ -187,7 +181,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.Status().Update(ctx, cr); err != nil {
 			r.handleError(ctx, cr, "cannot update status", err)
 			// we always retry when status fails -> optimistoc concurrency
-			return ctrl.Result{Requeue: true}, err 
+			return ctrl.Result{Requeue: true}, err
 		}
 		r.recorder.Eventf(cr, corev1.EventTypeNormal,
 			"schema", "loading")
@@ -220,7 +214,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// schema ready
-	cr.SetConditions(invv1alpha1.Ready())
+	cr.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"schema", "ready")
 	return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
@@ -229,7 +223,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, msg string, err error) bool {
 	log := log.FromContext(ctx)
 	if err == nil {
-		cr.SetConditions(invv1alpha1.Failed(msg))
+		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
 		return true // recoverable error
@@ -238,14 +232,9 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
 		myError, ok := err.(*myerror.MyError)
-		if ok {
-			switch myError.Type {
-			case myerror.NonRecoverableErrorType:
-				return false
-			default:
-				return true // recoverable error
-			}
-		}
+		if ok && myError.Type == myerror.NonRecoverableErrorType {
+			return false
+    }
 		return true // recoverable error
 	}
 }

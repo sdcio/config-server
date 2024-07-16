@@ -17,24 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"sort"
-
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// A ConditionType represents a condition type for a given KRM resource
-type ConditionType string
-
 // Condition Types.
 const (
-	// ConditionTypeReady represents the resource ready condition
-	ConditionTypeReady ConditionType = "Ready"
 	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
-	ConditionTypeDiscoveryReady ConditionType = "DiscoveryReady"
+	ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
 	// ConditionTypeDatastoreReady represents the resource datastore ready condition
-	ConditionTypeDatastoreReady ConditionType = "DatastoreReady"
+	ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
 	// ConditionTypeCfgReady represents the resource config ready condition
-	ConditionTypeConfigReady ConditionType = "ConfigReady"
+	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -42,9 +35,6 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady          ConditionReason = "Ready"
-	ConditionReasonFailed         ConditionReason = "Failed"
-	ConditionReasonUnknown        ConditionReason = "Unknown"
 	ConditionReasonNotReady       ConditionReason = "NotReady"
 	ConditionReasonAction         ConditionReason = "Action"
 	ConditionReasonLoading        ConditionReason = "Loading"
@@ -52,133 +42,11 @@ const (
 	ConditionReasonReApplyFailed  ConditionReason = "ReApplyConfigFailed"
 )
 
-type Condition struct {
-	metav1.Condition `json:",inline" yaml:",inline"`
-}
-
-// Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime.
-func (c Condition) Equal(other Condition) bool {
-	return c.Type == other.Type &&
-		c.Status == other.Status &&
-		c.Reason == other.Reason &&
-		c.Message == other.Message
-}
-
-// WithMessage returns a condition by adding the provided message to existing
-// condition.
-func (c Condition) WithMessage(msg string) Condition {
-	c.Message = msg
-	return c
-}
-
-// A ConditionedStatus reflects the observed status of a resource. Only
-// one condition of each type may exist.
-type ConditionedStatus struct {
-	// Conditions of the resource.
-	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
-}
-
-// NewConditionedStatus returns a stat with the supplied conditions set.
-func NewConditionedStatus(c ...Condition) *ConditionedStatus {
-	r := &ConditionedStatus{}
-	r.SetConditions(c...)
-	return r
-}
-
-// GetCondition returns the condition for the given ConditionKind if exists,
-// otherwise returns nil
-func (r *ConditionedStatus) GetCondition(t ConditionType) Condition {
-	for _, c := range r.Conditions {
-		if c.Type == string(t) {
-			return c
-		}
-	}
-	return Condition{metav1.Condition{Type: string(t), Status: metav1.ConditionFalse, Reason: string(ConditionReasonUnknown)}}
-}
-
-// SetConditions sets the supplied conditions, replacing any existing conditions
-// of the same type. This is a no-op if all supplied conditions are identical,
-// ignoring the last transition time, to those already set.
-func (r *ConditionedStatus) SetConditions(c ...Condition) {
-	for _, new := range c {
-		exists := false
-		for i, existing := range r.Conditions {
-			if existing.Type != new.Type {
-				continue
-			}
-
-			if existing.Equal(new) {
-				exists = true
-				continue
-			}
-
-			r.Conditions[i] = new
-			exists = true
-		}
-		if !exists {
-			r.Conditions = append(r.Conditions, new)
-		}
-	}
-}
-
-// Equal returns true if the status is identical to the supplied status,
-// ignoring the LastTransitionTimes and order of statuses.
-func (r *ConditionedStatus) Equal(other *ConditionedStatus) bool {
-	if r == nil || other == nil {
-		return r == nil && other == nil
-	}
-
-	if len(other.Conditions) != len(r.Conditions) {
-		return false
-	}
-
-	sc := make([]Condition, len(r.Conditions))
-	copy(sc, r.Conditions)
-
-	oc := make([]Condition, len(other.Conditions))
-	copy(oc, other.Conditions)
-
-	// We should not have more than one condition of each type.
-	sort.Slice(sc, func(i, j int) bool { return sc[i].Type < sc[j].Type })
-	sort.Slice(oc, func(i, j int) bool { return oc[i].Type < oc[j].Type })
-
-	for i := range sc {
-		if !sc[i].Equal(oc[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// Ready returns a condition that indicates the resource is
-// ready for use.
-func Ready() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
-	}}
-}
-
-// Unknown returns a condition that indicates the resource is in an
-// unknown status.
-func Unknown() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonUnknown),
-	}}
-}
-
 // Action returns a condition that indicates the resource is in an
 // action status.
-func Action(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
+func Action(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(condv1alpha1.ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonAction),
@@ -188,9 +56,9 @@ func Action(msg string) Condition {
 
 // NotReady returns a condition that indicates the resource is in an
 // not ready status.
-func NotReady(msg string) Condition {
-	return Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeReady),
+func NotReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(condv1alpha1.ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonNotReady),
@@ -198,11 +66,11 @@ func NotReady(msg string) Condition {
 	}}
 }
 
-// Failed returns a condition that indicates the resource
-// failed to get reconciled.
-func Loading() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
+// Loading returns a condition that indicates the resource
+// is loading.
+func Loading() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(condv1alpha1.ConditionTypeReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonLoading),
@@ -210,44 +78,32 @@ func Loading() Condition {
 	}}
 }
 
-// Failed returns a condition that indicates the resource
-// failed to get reconciled.
-func Failed(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// not ready status.
-func DatastoreReady() Condition {
-	return Condition{metav1.Condition{
+// DatastoreReady indicates the datastire is ready
+func DatastoreReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
 	}}
 }
 
-// Failed returns a condition that indicates the resource
+// DatastoreFailed returns a condition that indicates the datastore
 // failed to get reconciled.
-func DatastoreFailed(msg string) Condition {
-	return Condition{metav1.Condition{
+func DatastoreFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
 		Message:            msg,
 	}}
 }
 
-// Failed returns a condition that indicates the resource
-// failed to get reconciled.
-func DatastoreSchemaNotReady(msg string) Condition {
-	return Condition{metav1.Condition{
+// DatastoreSchemaNotReady returns a condition that indicates the schema
+// of the datastore is not ready.
+func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDatastoreReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -258,31 +114,31 @@ func DatastoreSchemaNotReady(msg string) Condition {
 
 // ConfigReady return a condition that indicates the config
 // get re-applied when the target became ready
-func ConfigReady() Condition {
-	return Condition{metav1.Condition{
+func ConfigReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
 	}}
 }
 
 // ConfigFailed returns a condition that indicates the config
 // is in failed condition due to a dependency
-func ConfigFailed(msg string) Condition {
-	return Condition{metav1.Condition{
+func ConfigFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
 		Message:            msg,
 	}}
 }
 
 // ConfigReApplyFailed returns a condition that indicates the config
 // we we reapplied to the target
-func ConfigReApplyFailed(msg string) Condition {
-	return Condition{metav1.Condition{
+func ConfigReApplyFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -293,23 +149,23 @@ func ConfigReApplyFailed(msg string) Condition {
 
 // DiscoveryReady return a condition that indicates the discovery
 // is ready
-func DiscoveryReady() Condition {
-	return Condition{metav1.Condition{
+func DiscoveryReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDiscoveryReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
 	}}
 }
 
 // DiscoveryFailed returns a condition that indicates the discovery
 // is in failed condition
-func DiscoveryFailed(msg string) Condition {
-	return Condition{metav1.Condition{
+func DiscoveryFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDiscoveryReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
 		Message:            msg,
 	}}
 }

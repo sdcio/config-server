@@ -19,9 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const GroupName = "config.sdcio.dev"
+const (
+	GroupName = "config.sdcio.dev"
+	//Version = "v1alpha1"
+	Version = runtime.APIVersionInternal
+)
 
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal}
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: Version}
 
 func Kind(kind string) schema.GroupKind {
 	return SchemeGroupVersion.WithKind(kind).GroupKind()
@@ -44,6 +48,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ConfigSetList{},
 		&RunningConfig{},
 		&RunningConfigList{},
+		&UnManagedConfig{},
+		&UnManagedConfigList{},
 	)
 	return nil
 }

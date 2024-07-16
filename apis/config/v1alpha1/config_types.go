@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // ConfigSpec defines the desired state of Config
@@ -46,7 +47,7 @@ type ConfigBlob struct {
 type ConfigStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
-	ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
 	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
 	// AppliedConfig defines the config applied to the target
@@ -79,9 +80,7 @@ type ConfigStatusLastKnownGoodSchema struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	Config is the Schema for the Config API
-//
-// +k8s:openapi-gen=true
+//	Config defines the Schema for the Config API
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -101,7 +100,4 @@ type ConfigList struct {
 // Config type metadata.
 var (
 	ConfigKind = reflect.TypeOf(Config{}).Name()
-	//ConfigGroupKind        = schema.GroupKind{Group: GroupVersion.Group, Kind: ConfigKind}.String()
-	//ConfigKindAPIVersion   = ConfigKind + "." + GroupVersion.String()
-	//ConfigGroupVersionKind = SchemeGroupVersion.WithKind(ConfigKind)
 )

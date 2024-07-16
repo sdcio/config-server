@@ -20,7 +20,6 @@ limitations under the License.
 
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/sdcio/config-server/apis/inv
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=inv.sdcio.dev
 

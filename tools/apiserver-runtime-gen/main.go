@@ -18,6 +18,7 @@ package main // nolint:revive
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -30,7 +31,7 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-var bin, output string
+var bin string
 
 var cmd = cobra.Command{
 	Use:     "apiserver-runtime-gen",
@@ -43,6 +44,7 @@ func preRunE(cmd *cobra.Command, args []string) error {
 	if module == "" {
 		return fmt.Errorf("must specify module")
 	}
+	// we use the default versions now so the version input is derived from that
 	if len(versions) == 0 {
 		return fmt.Errorf("must specify versions")
 	}
@@ -50,8 +52,6 @@ func preRunE(cmd *cobra.Command, args []string) error {
 }
 
 func runE(cmd *cobra.Command, args []string) error {
-	var err error
-
 	// get the location the generators are installed
 	bin = os.Getenv("GOBIN")
 	if bin == "" {
@@ -61,70 +61,54 @@ func runE(cmd *cobra.Command, args []string) error {
 	if install {
 		for _, gen := range generators {
 			// nolint:gosec
-			err := run(exec.Command("go", "install", path.Join("k8s.io/code-generator/cmd", gen)))
-			if err != nil {
-				return err
-			}
-			if gen == "go-to-protobuf" {
-				err := run(exec.Command("go", "mod", "vendor"))
+			if gen == "openapi-gen" {
+				err := run(exec.Command("go", "install", "k8s.io/kube-openapi/cmd/openapi-gen@latest"))
 				if err != nil {
 					return err
 				}
-				err = run(exec.Command("go", "mod", "tidy"))
+			} else {
+				err := run(exec.Command("go", "install", path.Join("k8s.io/code-generator/cmd", gen)))
 				if err != nil {
 					return err
 				}
-				/*
-					pkgs := []string{
-						"golang.org/x/tools/cmd/goimports",
-						"github.com/gogo/protobuf/protoc-gen-gogo",
-					}
-					for _, pkg := range pkgs {
-						fmt.Println(pkg)
-						err := run(exec.Command("go", "install", pkg))
-						if err != nil {
-							return err
-						}
-					}
-				*/
 			}
-		}
-	}
+			/*
+				if gen == "go-to-protobuf" {
 
-	// setup the directory to generate the code to.
-	// code generators don't work with go modules, and try the full path of the module
-	output, err = os.MkdirTemp("", "gen")
-	if err != nil {
-		return err
-	}
-	if clean {
-		// nolint:errcheck
-		defer os.RemoveAll(output)
-	}
-	d, l := path.Split(module)                   // split the directory from the link we will create
-	p := filepath.Join(strings.Split(d, "/")...) // convert module path to os filepath
-	p = filepath.Join(output, p)                 // create the directory which will contain the link
-	err = os.MkdirAll(p, 0700)
-	if err != nil {
-		return err
-	}
-	// link the tmp location to this one so the code generator writes to the correct path
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	err = os.Symlink(wd, filepath.Join(p, l))
-	if err != nil {
-		return err
+					err := run(exec.Command("go", "mod", "vendor"))
+					if err != nil {
+						return err
+					}
+					err = run(exec.Command("go", "mod", "tidy"))
+					if err != nil {
+						return err
+					}
+
+				}
+			*/
+		}
 	}
 
 	return doGen()
 }
 
 func doGen() error {
-	inputs := strings.Join(versions, ",")
-	// proto-gen, conversion-gen only runs on the apiServer resources
-	apiServerInput := versions[0]
+	// exclude condition from versions for clientgen, listergen, informergen
+	// clientgen
+	clientgenVersions := []string{}
+	informerListergenVersions := []string{}
+	protobufVersions := []string{}
+	for _, version := range versions {
+		if !strings.Contains(version, "condition") {
+			// expand the path with the module
+			clientgenVersions = append(clientgenVersions, path.Join(module, version))
+			// dont expand the versions with modules
+			informerListergenVersions = append(informerListergenVersions, fmt.Sprintf("./%s", path.Join(version, "...")))
+		}
+		protobufVersions = append(protobufVersions, version)
+	}
+
+	//protoInputs := strings.Join(rawVersions, ",")
 
 	gen := map[string]bool{}
 	for _, g := range generators {
@@ -133,9 +117,8 @@ func doGen() error {
 
 	if gen["deepcopy-gen"] {
 		err := run(getCmd("deepcopy-gen",
-			"--input-dirs", inputs,
-			"-O", "zz_generated.deepcopy",
-			"--bounding-dirs", path.Join(module, "apis")))
+			"--output-file", "zz_generated.deepcopy.go",
+			"./apis/..."))
 		if err != nil {
 			return err
 		}
@@ -143,50 +126,65 @@ func doGen() error {
 
 	if gen["openapi-gen"] {
 		err := run(getCmd("openapi-gen",
-			"--input-dirs", "k8s.io/apimachinery/pkg/api/resource,"+
-				"k8s.io/apimachinery/pkg/apis/meta/v1,"+
-				"k8s.io/apimachinery/pkg/runtime,"+
-				"k8s.io/apimachinery/pkg/version,"+
-				inputs,
-			"-O", "zz_generated.openapi",
-			"--output-package", path.Join(module, "apis/generated/openapi")))
+			"--output-file", "zz_generated.openapi.go",
+			"--output-dir", "pkg/generated/openapi",
+			"--output-pkg", "openapi",
+			"./apis/...",
+			"k8s.io/apimachinery/pkg/apis/meta/v1",
+			"k8s.io/apimachinery/pkg/api/resource",
+			"k8s.io/apimachinery/pkg/runtime",
+			"k8s.io/apimachinery/pkg/version",
+		))
 		if err != nil {
 			return err
 		}
 	}
 
 	if gen["client-gen"] {
-		inputBase := ""
-		versionsInputs := inputs
-		// e.g. base = "example.io/foo/api", strippedVersions = "v1,v1beta1"
-		// e.g. base = "example.io/foo/pkg/apis", strippedVersions = "test/v1,test/v1beta1"
-		if base, strippedVersions, ok := findInputBase(module, versions); ok {
-			inputBase = base
-			versionsInputs = strings.Join(strippedVersions, ",")
-		}
-		fmt.Println("inputBase", inputBase)
-		err := run(getCmd("client-gen",
-			"--clientset-name", "versioned", "--input-base", "",
-			"--input", versionsInputs, "--output-package", path.Join(module, "apis/generated/clientset")))
+		err := run(getCmd(
+			"client-gen",
+			"--clientset-name", "versioned",
+			"--input-base", "",
+			"--input", strings.Join(clientgenVersions, ","),
+			"--output-dir", "pkg/generated/clientset",
+			"--output-pkg", fmt.Sprintf("%s/pkg/generated/clientset", module),
+		))
 		if err != nil {
 			return err
 		}
 	}
 
+	listerGenStringer := []string{
+		"--output-dir", "pkg/generated/listers",
+		"--output-pkg", fmt.Sprintf("%s/pkg/generated/listers", module),
+	}
+	listerGenStringer = append(listerGenStringer, informerListergenVersions...)
 	if gen["lister-gen"] {
-		err := run(getCmd("lister-gen",
-			"--input-dirs", inputs, "--output-package", path.Join(module, "apis/generated/listers")))
-		if err != nil {
+		if err := run(getCmd("lister-gen", listerGenStringer...)); err != nil {
 			return err
 		}
 	}
 
+	informerGenStringer := []string{
+		"--versioned-clientset-package", fmt.Sprintf("%s/pkg/generated/clientset/versioned", module),
+		"--internal-clientset-package", fmt.Sprintf("%s/pkg/generated/clientset/versioned", module),
+		"--listers-package", fmt.Sprintf("%s/pkg/generated/listers", module),
+		"--output-dir", "pkg/generated/informers",
+		"--output-pkg", fmt.Sprintf("%s/pkg/generated/informers", module),
+	}
+	informerGenStringer = append(informerGenStringer, informerListergenVersions...)
 	if gen["informer-gen"] {
-		err := run(getCmd("informer-gen",
-			"--input-dirs", inputs,
-			"--versioned-clientset-package", path.Join(module, "apis/generated/clientset/versioned"),
-			"--listers-package", path.Join(module, "apis/generated/listers"),
-			"--output-package", path.Join(module, "apis/generated/informers")))
+		if err := run(getCmd("informer-gen", informerGenStringer...)); err != nil {
+			return err
+		}
+	}
+
+	if gen["defaulter-gen"] {
+		defaultArgs := []string{"--output-file", "zz_generated.defaults.go"}
+		defaultArgs = append(defaultArgs, clientgenVersions...)
+		err := run(getCmd("defaulter-gen",
+			defaultArgs...,
+		))
 		if err != nil {
 			return err
 		}
@@ -194,18 +192,20 @@ func doGen() error {
 
 	if gen["conversion-gen"] {
 		err := run(getCmd("conversion-gen",
-			"--input-dirs", apiServerInput,
-			"-O", "zz_generated.conversion"))
+			"--output-file", "zz_generated.conversion.go",
+			"./apis/...",
+		))
 		if err != nil {
 			return err
 		}
 	}
 
 	if gen["go-to-protobuf"] {
-		err := run(getCmd("go-to-protobuf",
-			"--packages", apiServerInput,
+		err := run(getCmd(
+			"go-to-protobuf",
+			"--packages", strings.Join(protobufVersions, ","),
 			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
-			"--proto-import", "./vendor",
+			//"--proto-import", "./vendor",
 		))
 		if err != nil {
 			return err
@@ -220,6 +220,7 @@ var (
 	header         string
 	module         string
 	versions       []string
+	rawVersions    []string
 	clean, install bool
 )
 
@@ -246,30 +247,27 @@ func main() {
 
 	// calculate the versions
 	var defaultVersions []string
-	if files, err := os.ReadDir(filepath.Join("apis")); err == nil {
-		for _, f := range files {
-			if f.IsDir() {
-				versionFiles, err := os.ReadDir(filepath.Join("apis", f.Name()))
-				if err != nil {
-					log.Fatal(err)
-				}
-				for _, v := range versionFiles {
-					if v.IsDir() {
-						match := versionRegexp.MatchString(v.Name())
-						if !match {
-							continue
-						}
-						defaultVersions = append(defaultVersions, path.Join(module, "apis", f.Name(), v.Name()))
-					}
-				}
-			}
+	if err := fs.WalkDir(os.DirFS("apis"), ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-	} else {
-		fmt.Fprintf(os.Stderr, "cannot parse api versions: %v\n", err)
+		if d.IsDir() {
+			if strings.HasPrefix(p, "generated") { // skip the generated directory
+				return nil
+			}
+			match := versionRegexp.MatchString(filepath.Base(p))
+			if match {
+				defaultVersions = append(defaultVersions, path.Join("apis", p))
+			}
+
+		}
+		return nil
+	}); err != nil {
+		panic(err)
 	}
+
 	cmd.Flags().StringSliceVar(
 		&versions, "versions", defaultVersions, "Go packages of API versions to generate code for.")
-
 	if err := cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
@@ -287,7 +285,7 @@ func run(cmd *exec.Cmd) error {
 
 func getCmd(cmd string, args ...string) *exec.Cmd {
 	// nolint:gosec
-	e := exec.Command(filepath.Join(bin, cmd), "--output-base", output, "--go-header-file", header)
+	e := exec.Command(filepath.Join(bin, cmd), "--go-header-file", header)
 
 	e.Args = append(e.Args, args...)
 	return e
@@ -307,43 +305,3 @@ func findModuleRoot(dir string) string {
 	}
 	return ""
 }
-
-func findInputBase(module string, versions []string) (string, []string, bool) {
-	if allHasPrefix(filepath.Join(module, "api"), versions) {
-		base := filepath.Join(module, "api")
-		return base, allTrimPrefix(base+"/", versions), true
-	}
-	if allHasPrefix(filepath.Join(module, "apis"), versions) {
-		base := filepath.Join(module, "apis")
-		return base, allTrimPrefix(base+"/", versions), true
-	}
-	return "", nil, false
-}
-
-func allHasPrefix(prefix string, paths []string) bool {
-	for _, p := range paths {
-		if !strings.HasPrefix(p, prefix) {
-			return false
-		}
-	}
-	return true
-}
-
-func allTrimPrefix(prefix string, versions []string) []string {
-	vs := make([]string, 0)
-	for _, v := range versions {
-		vs = append(vs, strings.TrimPrefix(v, prefix))
-	}
-	return vs
-}
-
-/*
-
-
-go-to-protobuf \
-	--go-header-file=./hack/boilerplate.go.txt \
-	--packages=github.com/sdcio/config-server/apis/config/v1alpha1 \
-	--apimachinery-packages=-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1 \
-	--proto-import ./vendor \
-	--output-base ./test
-*/

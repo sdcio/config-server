@@ -30,19 +30,18 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/config"
+	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/apis/generated/clientset/versioned/scheme"
-	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/configserver/config"
-	"github.com/sdcio/config-server/pkg/configserver/configset"
-	"github.com/sdcio/config-server/pkg/configserver/runningconfig"
-	configserverstore "github.com/sdcio/config-server/pkg/configserver/store"
-	"github.com/sdcio/config-server/pkg/configserver/unmanagedconfig"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
+	configopenapi "github.com/sdcio/config-server/pkg/generated/openapi"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
+	"github.com/sdcio/config-server/pkg/registry/options"
+	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
@@ -99,10 +98,12 @@ func main() {
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
-	if err := scheme.AddToScheme(runScheme); err != nil {
-		log.Error("cannot initialize schema", "error", err)
-		os.Exit(1)
-	}
+	/*
+		if err := scheme.AddToScheme(runScheme); err != nil {
+			log.Error("cannot initialize schema", "error", err)
+			os.Exit(1)
+		}
+	*/
 	// add the core object to the scheme
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
@@ -133,11 +134,14 @@ func main() {
 		configDir = envDir
 	}
 
+	targetHandler := target.NewTargetHandler(mgr.GetClient(), targetStore)
+
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		DataServerStore:   dataServerStore,
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
+		TargetHandler: targetHandler,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -156,27 +160,40 @@ func main() {
 		os.Exit(1)
 	}
 
+	registryOptions := &options.Options{
+		Prefix: configDir,
+		Type:   options.StorageType_KV,
+		DB:     db,
+	}
+
+	configHandler := handlers.ConfigStoreHandler{Handler: targetHandler}
+
+	configregistryOptions := *registryOptions
+	configregistryOptions.DryRunCreateFn = configHandler.DryRunCreateFn
+	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
+	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
+
+	configStorageProvider := genericregistry.NewStorageProvider(ctx, &config.Config{}, &configregistryOptions)
+	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
+	unmanagedConfigStorageProvider := genericregistry.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
+	// no storage required since the targetStore is acting as the storage for the running config resource
+	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &config.RunningConfig{}, &options.Options{
+		Client:      mgr.GetClient(),
+		TargetStore: targetStore,
+	})
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
-			WithEtcdPath(defaultEtcdPathPrefix).
 			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(ctx, &configv1alpha1.Config{}, config.NewProvider(ctx, mgr.GetClient(), targetStore, &configserverstore.Config{
-				Prefix: configDir,
-				Type:   configserverstore.StorageType_KV,
-				DB:     db,
-			})).
-			WithResourceAndHandler(ctx, &configv1alpha1.ConfigSet{}, configset.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-				Prefix: configDir,
-				Type:   configserverstore.StorageType_KV,
-				DB:     db,
-			})).
-			WithResourceAndHandler(ctx, &configv1alpha1.RunningConfig{}, runningconfig.NewProvider(ctx, mgr.GetClient(), targetStore)).
-			WithResourceAndHandler(ctx, &configv1alpha1.UnManagedConfig{}, unmanagedconfig.NewProvider(ctx, mgr.GetClient(), &configserverstore.Config{
-				Prefix: configDir,
-				Type:   configserverstore.StorageType_KV,
-				DB:     db,
-			})).
+			WithResourceAndHandler(&config.Config{}, configStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
+			WithResourceAndHandler(&config.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&config.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&config.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

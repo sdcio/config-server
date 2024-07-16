@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -34,9 +36,7 @@ type RunningConfigStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//	RunningConfig is the Schema for the RunningConfig API
-//
-// +k8s:openapi-gen=true
+//	RunningConfig defines the Schema for the RunningConfig API
 type RunningConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -52,3 +52,8 @@ type RunningConfigList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []RunningConfig `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+// RunningConfig type metadata.
+var (
+	RunningConfigKind = reflect.TypeOf(RunningConfig{}).Name()
+)

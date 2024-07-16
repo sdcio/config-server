@@ -10,7 +10,7 @@ rules:
   resources: ["events"]
   verbs: ["create", "patch"]
 - apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations", "validatingadmissionpolicies", "validatingadmissionpolicybindings"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["flowcontrol.apiserver.k8s.io"]
   resources: ["flowschemas", "prioritylevelconfigurations"]

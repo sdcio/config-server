@@ -21,8 +21,9 @@ import "fmt"
 type ErrorType string
 
 const (
-	RecoverableErrorType    ErrorType = "recoverable"
+	//RecoverableErrorType    ErrorType = "recoverable"
 	NonRecoverableErrorType ErrorType = "nonrecoverable"
+	TargetLookupError       ErrorType = "targetLookupError"
 )
 
 type MyError struct {

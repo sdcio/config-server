@@ -34,7 +34,6 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) erro
 		return err
 	}
 	log := log.FromContext(ctx).With("targetName", newUnManagedConfigCR.Name)
-
 	// check if the target already exists
 	curUnManagedConfigCR := &configv1alpha1.UnManagedConfig{}
 	if err := r.client.Get(ctx, types.NamespacedName{
@@ -44,9 +43,8 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) erro
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
-		log.Info("unmanagedConfig does not exist -> create")
-
 		if err := r.client.Create(ctx, newUnManagedConfigCR); err != nil {
+			log.Error("cannot create unmanaged config", "name", newUnManagedConfigCR.Name, "error", err)
 			return err
 		}
 		return nil

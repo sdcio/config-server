@@ -19,9 +19,9 @@ package target
 import (
 	"fmt"
 
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 )
 
-func getGVKNSN(obj *configv1alpha1.Config) string {
+func getGVKNSN(obj *config.Config) string {
 	return fmt.Sprintf("%s.%s", obj.Namespace, obj.Name)
 }

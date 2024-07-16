@@ -167,7 +167,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 					continue
 				}
 				cfg.Status.Deviations = configDevs
-				if err := r.client.Update(ctx, cfg); err != nil {
+				if err := r.client.Status().Update(ctx, cfg); err != nil {
 					log.Error("cannot update intent for recieved deviation", "config", configName)
 					if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 						goto UpdateUnManagedConfig
@@ -185,12 +185,12 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		UpdateConfig:
 			cfg := &configv1alpha1.Config{}
 			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, cfg); err != nil {
-				log.Error("cannot get config for recieved deviation", "config", configName)
+				log.Error("cannot get config for received deviation", "config", configName)
 				continue
 			}
 			cfg.Status.Deviations = configDevs
-			if err := r.client.Update(ctx, cfg); err != nil {
-				log.Error("cannot update config for recieved deviation", "config", configName)
+			if err := r.client.Status().Update(ctx, cfg); err != nil {
+				log.Error("cannot update config for received deviation", "config", configName)
 				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
 					goto UpdateConfig
 				}

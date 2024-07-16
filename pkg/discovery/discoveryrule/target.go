@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
@@ -162,7 +163,7 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 	curTargetCR.SetOverallStatus()
 	curTargetCR.Status.DiscoveryInfo = di
 	log.Info("discovery target apply",
-		"Ready", curTargetCR.GetCondition(invv1alpha1.ConditionTypeReady).Status,
+		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
 		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
 		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
 	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
@@ -174,8 +175,8 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Target) bool {
 	log := log.FromContext(ctx).With("target", newTargetCR.GetName(), "address", newTargetCR.Spec.Address)
 
-	log.Info("validateDataStoreChanges", "current target status", curTargetCR.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status)
-	if curTargetCR.Status.GetCondition(invv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
+	log.Info("validateDataStoreChanges", "current target status", curTargetCR.Status.GetCondition(condv1alpha1.ConditionTypeReady).Status)
+	if curTargetCR.Status.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
 		return true
 	}
 
