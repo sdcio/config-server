@@ -255,7 +255,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				}
 				continue
 			}
-			if err := r.Status().Update(ctx, newConfig); err != nil {
+			if err := r.Update(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 				continue

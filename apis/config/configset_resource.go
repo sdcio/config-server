@@ -22,6 +22,7 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
+	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -120,8 +121,11 @@ func (r *ConfigSet) GetStatus() resource.StatusSubResource {
 
 // IsStatusEqual returns a bool indicating if the status of both resources is equal or not
 func (r *ConfigSet) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
+	
+	log := log.FromContext(ctx)
 	newobj := obj.(*ConfigSet)
 	oldobj := old.(*ConfigSet)
+	log.Info("IsStatusEqual configset", "old status", oldobj.Status, "newstatus ", newobj.Status)
 	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
 }
 
