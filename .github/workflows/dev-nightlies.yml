@@ -48,12 +48,12 @@ jobs:
           username: iptecharch-builder
           password: ${{ secrets.K8S_REGISTRY_HANS }}
 
-      - name: Login to Karim's Private k8s Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.kmrd.dev
-          username: iptecharch-builder
-          password: ${{ secrets.K8S_REGISTRY_HANS }}
+      #- name: Login to Karim's Private k8s Container Registry
+      #  uses: docker/login-action@v3
+      #  with:
+      #    registry: registry.kmrd.dev
+      #    username: iptecharch-builder
+      #    password: ${{ secrets.K8S_REGISTRY_HANS }}
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
