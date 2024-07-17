@@ -18,7 +18,6 @@ package secret
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -57,7 +56,6 @@ func (b *BasicAuthCredential) Valid() bool {
 }
 
 func (b *BasicAuthCredential) ToAuthMethod() transport.AuthMethod {
-	fmt.Println("auth: username/password", string(b.Username), string(b.Password))
 	return &http.BasicAuth{
 		Username: string(b.Username),
 		Password: string(b.Password),
