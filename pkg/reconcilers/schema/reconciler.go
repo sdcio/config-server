@@ -213,14 +213,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cr.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(cr, corev1.EventTypeNormal,
 		"schema", "ready")
-	return ctrl.Result{}, pkgerrors.Wrap(r.Status().Update(ctx, cr), errUpdateStatus)
+	err = r.Status().Update(ctx, cr)
+	if err != nil {
+		return ctrl.Result{}, pkgerrors.Wrap(err, errUpdateStatus)
+	}
+	return ctrl.Result{}, nil
 }
 
 func (r *reconciler) handleErrorWithStatus(ctx context.Context, cr *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
 	res, err := r.handleError(ctx, cr, msg, err)
 	sErr := r.Status().Update(ctx, cr)
 	if sErr != nil {
-		return ctrl.Result{Requeue: true}, pkgerrors.Wrap(sErr, errUpdateStatus)
+		return ctrl.Result{}, pkgerrors.Wrap(sErr, errUpdateStatus)
 	}
 	return res, err
 }
@@ -231,7 +235,7 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		cr.SetConditions(condv1alpha1.Failed(msg))
 		log.Error(msg)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, msg)
-		return ctrl.Result{Requeue: true}, err // recoverable error
+		return ctrl.Result{}, err // recoverable error
 	} else {
 		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
@@ -240,11 +244,11 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		var unrecoverableError *sdcerror.UnrecoverableError
 		switch {
 		case errors.As(err, &recoverableError):
-			return ctrl.Result{Requeue: true}, recoverableError // recoverable error
+			return ctrl.Result{}, recoverableError // recoverable error
 		case errors.As(err, &unrecoverableError):
 			return ctrl.Result{Requeue: false}, nil // unrecoverable error - setting an error here would result in ignoring a request to not requeue
 		default:
-			return ctrl.Result{Requeue: true}, err // recoverable error
+			return ctrl.Result{}, err // recoverable error
 		}
 	}
 }
