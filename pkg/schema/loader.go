@@ -32,7 +32,7 @@ import (
 )
 
 type Loader struct {
-	tempDir            string
+	tmpDir             string
 	schemaDir          string
 	credentialResolver auth.CredentialResolver
 
@@ -53,8 +53,15 @@ type ProviderDownloader struct {
 	credentialResolver auth.CredentialResolver
 }
 
-func NewLoader(tempDir string, schemaDir string, credentialResolver auth.CredentialResolver) (*Loader, error) {
+func NewLoader(tmpDir string, schemaDir string, credentialResolver auth.CredentialResolver) (*Loader, error) {
 	var err error
+
+	if !utils.DirExists(tmpDir) {
+		err = utils.CreateDirectory(tmpDir, 0766)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if !utils.DirExists(schemaDir) {
 		err = utils.CreateDirectory(schemaDir, 0766)
@@ -62,15 +69,9 @@ func NewLoader(tempDir string, schemaDir string, credentialResolver auth.Credent
 			return nil, err
 		}
 	}
-	if !utils.DirExists(tempDir) {
-		err = utils.CreateDirectory(tempDir, 0766)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	return &Loader{
-		tempDir:            tempDir,
+		tmpDir:             tmpDir,
 		schemaDir:          schemaDir,
 		schemas:            map[string]*invv1alpha1.SchemaSpec{},
 		credentialResolver: credentialResolver,
@@ -138,7 +139,7 @@ func (r *Loader) Load(ctx context.Context, key string, credentialNSN types.Names
 
 	// maybe there is a better way to verify this?
 	if strings.HasSuffix(schemaSpec.RepositoryURL, ".git") {
-		providerDownloader = NewGitDownloader(r.tempDir, schemaSpec, r.credentialResolver, credentialNSN)
+		providerDownloader = NewGitDownloader(r.tmpDir, schemaSpec, r.credentialResolver, credentialNSN)
 	}
 	// here we can use other downloaders e.g. OCI, ...
 
