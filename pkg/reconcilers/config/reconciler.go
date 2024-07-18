@@ -30,7 +30,6 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
-	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
@@ -102,7 +101,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	v1alpha1config = v1alpha1config.DeepCopy()
 	cfg := &config.Config{}
 	if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(v1alpha1config, cfg, nil); err != nil {
-		r.handleError(ctx, v1alpha1config, "cannot comvert config", err)
+		r.handleError(ctx, v1alpha1config, "cannot convert config", err)
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, v1alpha1config), errUpdateStatus)
 	}
 
@@ -115,8 +114,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !v1alpha1config.GetDeletionTimestamp().IsZero() {
 		_, err := r.targetHandler.DeleteIntent(ctx, targetKey, cfg, false)
 		if err != nil {
-			myError, ok := err.(*myerror.MyError)
-			if ok && myError.Type == myerror.TargetLookupError {
+			if errors.Is(err, target.LookupError) {
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
 				if err := r.finalizer.RemoveFinalizer(ctx, v1alpha1config); err != nil {
