@@ -57,17 +57,17 @@ func NewGoGit(gitRepo GitRepo, secret types.NamespacedName, credentialResolver a
 
 // Clone takes the given GitRepo reference and clones the repo
 // with its internal implementation.
-func (r *GoGit) Clone(ctx context.Context) error {
+func (g *GoGit) Clone(ctx context.Context) error {
 	log := log.FromContext(ctx)
 	// if the directory is not present
-	if s, err := os.Stat(r.gitRepo.GetLocalPath()); errors.Is(err, fs.ErrNotExist) {
+	if s, err := os.Stat(g.gitRepo.GetLocalPath()); errors.Is(err, fs.ErrNotExist) {
 		log.Info("cloning a new local repository")
-		return r.cloneNonExisting(ctx)
+		return g.cloneNonExisting(ctx)
 	} else if s.IsDir() {
 		log.Info("updating an existing local repository")
-		return r.cloneExistingRepo(ctx)
+		return g.cloneExistingRepo(ctx)
 	}
-	return &sdcerror.UnrecoverableError{Message: fmt.Sprintf("repo %q exists, but is a file", r.gitRepo.GetName())}
+	return &sdcerror.UnrecoverableError{Message: fmt.Sprintf("repo %q exists, but is a file", g.gitRepo.GetName())}
 }
 
 func (g *GoGit) getDefaultBranch(ctx context.Context) (string, error) {
@@ -108,110 +108,98 @@ func (g *GoGit) openRepo(_ context.Context) error {
 	return nil
 }
 
-func (r *GoGit) cloneExistingRepo(ctx context.Context) error {
+func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 	log := log.FromContext(ctx)
-	log.Info("loading git", "repo", r.gitRepo.GetLocalPath())
+	log.Info("loading git", "repo", g.gitRepo.GetLocalPath())
 
 	// open the existing repo
-	err := r.openRepo(ctx)
+	err := g.openRepo(ctx)
 	if err != nil {
 		return err
 	}
 
 	// loading remote
-	remote, err := r.r.Remote("origin")
+	remote, err := g.r.Remote("origin")
 	if err != nil {
 		return &sdcerror.UnrecoverableError{Message: "cannot get remote from repo", WrappedError: err}
 	}
 
 	// checking that the configured remote equals the provided remote
-	if remote.Config().URLs[0] != r.gitRepo.GetCloneURL().String() {
+	if remote.Config().URLs[0] != g.gitRepo.GetCloneURL().String() {
 		return &sdcerror.UnrecoverableError{Message: fmt.Sprintf("repository url of %q differs (%q) from the provided url (%q). stopping",
-			r.gitRepo.GetName(), remote.Config().URLs[0], r.gitRepo.GetCloneURL().String())}
+			g.gitRepo.GetName(), remote.Config().URLs[0], g.gitRepo.GetCloneURL().String())}
+	}
+
+	// We have a shallow clone - we cannot simply pull new changes. See:
+	// https://stackoverflow.com/a/41081908 for a detailed explanation of how this works
+	// We need to fetch and then reset && clean to update the repo contents - otherwise can be left with
+	// 'object not found' error, presumably because there is no link between the two commits (due to shallow clone)
+
+	// get the branch or tag or figure out the default branch main / master / sth. else.
+	var refName plumbing.ReferenceName
+	branch := g.gitRepo.GetBranch()
+	tag := g.gitRepo.GetTag()
+	if branch != "" {
+		refName = plumbing.NewRemoteReferenceName("origin", branch)
+	} else if tag != "" {
+		refName = plumbing.NewTagReferenceName(tag)
+	} else {
+		log.Debug("default branch not set. determining it")
+		branch, err = g.getDefaultBranch(ctx)
+		if err != nil {
+			return err
+		}
+		refName = plumbing.NewRemoteReferenceName("origin", branch)
+		log.Debug("default", "branch", branch)
+	}
+
+	log.Debug("fetching latest repo data")
+	// execute the fetch
+	err = g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+		return remote.FetchContext(ctx, &gogit.FetchOptions{
+			Depth: 1,
+			Auth:  auth,
+			Force: true,
+			Prune: true,
+		})
+	})
+	switch {
+	case errors.Is(err, gogit.NoErrAlreadyUpToDate):
+		err = nil
+	}
+	if err != nil {
+		return &sdcerror.UnrecoverableError{Message: "cannot perform fetch", WrappedError: err}
 	}
 
 	// get the worktree reference
-	tree, err := r.r.Worktree()
+	tree, err := g.r.Worktree()
 	if err != nil {
 		return &sdcerror.UnrecoverableError{Message: "cannot get worktree", WrappedError: err}
 	}
 
-	// prepare the checkout options
-	checkoutOpts := &gogit.CheckoutOptions{}
-
-	// resolve the branch
-	// the branch ref from the URL might be empty -> ""
-	// then we need to figure out whats the default branch main / master / sth. else.
-	branch := r.gitRepo.GetBranch()
-	tag := r.gitRepo.GetTag()
-	isTag := false
-	if branch != "" {
-		checkoutOpts.Branch = plumbing.NewBranchReferenceName(branch)
-	} else if tag != "" {
-		checkoutOpts.Branch = plumbing.NewTagReferenceName(tag)
-		isTag = true
-	} else {
-		log.Debug("default branch not set. determining it")
-		branch, err = r.getDefaultBranch(ctx)
-		if err != nil {
-			return err
-		}
-		log.Debug("default", "branch", branch)
-	}
-
-	// check if the branch already exists locally.
-	// if not fetch it and check it out.
-	if _, err = r.r.Reference(plumbing.NewBranchReferenceName(branch), false); !isTag && err != nil {
-		err = r.fetchNonExistingBranch(ctx, branch)
-		if err != nil {
-			return &sdcerror.UnrecoverableError{Message: "cannot get reference", WrappedError: err}
-		}
-
-		ref, err := r.r.Reference(plumbing.NewRemoteReferenceName("origin", branch), true)
-		if err != nil {
-			return &sdcerror.UnrecoverableError{Message: "cannot get remote reference", WrappedError: err}
-		}
-
-		checkoutOpts.Hash = ref.Hash()
-		checkoutOpts.Create = true
-	}
-
-	if isTag {
-		log.Debug("checking out", "tag", tag)
-	} else {
-		log.Debug("checking out", "branch", branch)
-	}
-
-	// execute the checkout
-	err = tree.Checkout(checkoutOpts)
+	revisionHash, err := g.r.ResolveRevision(plumbing.Revision(refName))
 	if err != nil {
-		return &sdcerror.UnrecoverableError{Message: "cannot checkout tree", WrappedError: err}
+		return &sdcerror.UnrecoverableError{Message: fmt.Sprintf("unable to resolve revision '%s'", refName), WrappedError: err}
+	}
+	err = tree.Reset(&gogit.ResetOptions{
+		Mode:   gogit.HardReset,
+		Commit: *revisionHash,
+	})
+	if err != nil {
+		return &sdcerror.UnrecoverableError{Message: "cannot perform hard reset on repository", WrappedError: err}
 	}
 
-	if !isTag {
-		log.Debug("pulling latest repo data")
-		// execute the pull
-		err = r.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
-			return tree.Pull(&gogit.PullOptions{
-				Depth:        1,
-				SingleBranch: true,
-				Force:        true,
-				Auth:         auth,
-			})
-		})
-		switch {
-		case err == nil, errors.Is(err, gogit.NoErrAlreadyUpToDate):
-			return nil
-		default:
-			return err
-		}
+	err = tree.Clean(&gogit.CleanOptions{Dir: true})
+	if err != nil {
+		return &sdcerror.UnrecoverableError{Message: "cannot perform clean", WrappedError: err}
 	}
-	return err
+
+	return nil
 }
 
-func (r *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error {
+func (g *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error {
 	// init the remote
-	remote, err := r.r.Remote("origin")
+	remote, err := g.r.Remote("origin")
 	if err != nil {
 		return &sdcerror.UnrecoverableError{Message: "cannot get remote from repo", WrappedError: err}
 	}
@@ -222,7 +210,7 @@ func (r *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 	refSpec := config.RefSpec(fmt.Sprintf("+%s:%s", localRef, remoteRef))
 
 	// execute the fetch
-	err = r.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+	err = g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 		return remote.Fetch(&gogit.FetchOptions{
 			Depth:    1,
 			RefSpecs: []config.RefSpec{refSpec},
@@ -236,7 +224,7 @@ func (r *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 	}
 
 	// make sure the branch is also showing up in .git/config
-	err = r.r.CreateBranch(&config.Branch{
+	err = g.r.CreateBranch(&config.Branch{
 		Name:   branch,
 		Remote: "origin",
 		Merge:  localRef,
@@ -245,22 +233,22 @@ func (r *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 	return &sdcerror.UnrecoverableError{Message: "cannot create branch", WrappedError: err}
 }
 
-func (r *GoGit) cloneNonExisting(ctx context.Context) error {
+func (g *GoGit) cloneNonExisting(ctx context.Context) error {
 	var err error
 	// init clone options
 	co := &gogit.CloneOptions{
 		Depth:        1,
-		URL:          r.gitRepo.GetCloneURL().String(),
+		URL:          g.gitRepo.GetCloneURL().String(),
 		SingleBranch: true,
 	}
 
 	// set branch reference if set
-	if r.gitRepo.GetBranch() != "" {
-		co.ReferenceName = plumbing.NewBranchReferenceName(r.gitRepo.GetBranch())
-	} else if r.gitRepo.GetTag() != "" {
-		co.ReferenceName = plumbing.NewTagReferenceName(r.gitRepo.GetTag())
+	if g.gitRepo.GetBranch() != "" {
+		co.ReferenceName = plumbing.NewBranchReferenceName(g.gitRepo.GetBranch())
+	} else if g.gitRepo.GetTag() != "" {
+		co.ReferenceName = plumbing.NewTagReferenceName(g.gitRepo.GetTag())
 	} else {
-		branchName, err := r.getDefaultBranch(ctx)
+		branchName, err := g.getDefaultBranch(ctx)
 		if err != nil {
 			return err
 		}
@@ -268,9 +256,9 @@ func (r *GoGit) cloneNonExisting(ctx context.Context) error {
 	}
 
 	// perform clone
-	return r.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+	return g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 		co.Auth = auth
-		r.r, err = gogit.PlainClone(r.gitRepo.GetLocalPath(), false, co)
+		g.r, err = gogit.PlainClone(g.gitRepo.GetLocalPath(), false, co)
 		return err
 	})
 }
@@ -283,9 +271,9 @@ type Git interface {
 
 // doGitWithAuth fetches auth information for git and provides it
 // to the provided function which performs the operation against a git repo.
-func (r *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod) error) error {
+func (g *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod) error) error {
 	log := log.FromContext(ctx)
-	auth, err := r.getAuthMethod(ctx, false)
+	auth, err := g.getAuthMethod(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -296,7 +284,7 @@ func (r *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod)
 		}
 		log.Info("Authentication failed. Trying to refresh credentials")
 		// TODO: Consider having some kind of backoff here.
-		auth, err := r.getAuthMethod(ctx, true)
+		auth, err := g.getAuthMethod(ctx, true)
 		if err != nil {
 			return err
 		}
@@ -310,21 +298,21 @@ func (r *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod)
 
 // getAuthMethod fetches the credentials for authenticating to git. It caches the
 // credentials between calls and refresh credentials when the tokens have expired.
-func (r *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport.AuthMethod, error) {
+func (g *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport.AuthMethod, error) {
 	// If no secret is provided, we try without any auth.
 	log := log.FromContext(ctx)
-	log.Info("getAuthMethod", "secret", r.secret, "credential", r.credential)
-	if r.secret.Name == "" {
+	log.Info("getAuthMethod", "secret", g.secret, "credential", g.credential)
+	if g.secret.Name == "" {
 		return nil, nil
 	}
 
-	if r.credential == nil || !r.credential.Valid() || forceRefresh {
-		if cred, err := r.credentialResolver.ResolveCredential(ctx, r.secret); err != nil {
+	if g.credential == nil || !g.credential.Valid() || forceRefresh {
+		if cred, err := g.credentialResolver.ResolveCredential(ctx, g.secret); err != nil {
 			return nil, &sdcerror.UnrecoverableError{Message: "cannot obtain credentials", WrappedError: err}
 		} else {
-			r.credential = cred
+			g.credential = cred
 		}
 	}
 
-	return r.credential.ToAuthMethod(), nil
+	return g.credential.ToAuthMethod(), nil
 }
