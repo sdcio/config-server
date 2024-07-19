@@ -28,7 +28,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcerror "github.com/sdcio/config-server/pkg/error"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -239,8 +239,8 @@ func (r *reconciler) handleError(ctx context.Context, cr *invv1alpha1.Schema, ms
 		cr.SetConditions(condv1alpha1.Failed(err.Error()))
 		log.Error(msg, "error", err)
 		r.recorder.Eventf(cr, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
-		var recoverableError *sdcerror.RecoverableError
-		var unrecoverableError *sdcerror.UnrecoverableError
+		var recoverableError *sdcerrors.RecoverableError
+		var unrecoverableError *sdcerrors.UnrecoverableError
 		switch {
 		case errors.As(err, &recoverableError):
 			return ctrl.Result{}, recoverableError // recoverable error

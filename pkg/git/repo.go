@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/url"
 
-	sdcerror "github.com/sdcio/config-server/pkg/error"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 )
 
 // GitRepoStruct is a struct that contains all the fields
@@ -91,7 +91,7 @@ func NewRepo(urlPath string) (GitRepo, error) {
 
 	u, err := url.Parse(urlPath)
 	if err != nil {
-		return nil, &sdcerror.UnrecoverableError{Message: fmt.Sprintf("cannot parse urlPath: %s", urlPath), WrappedError: err}
+		return nil, &sdcerrors.UnrecoverableError{Message: fmt.Sprintf("cannot parse urlPath: %s", urlPath), WrappedError: err}
 	}
 
 	r = &GitRepoStruct{

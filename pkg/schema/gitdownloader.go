@@ -11,13 +11,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type GitDownloader struct {
-	ProviderDownloader
+type gitDownloader struct {
+	providerDownloader
 }
 
-func NewGitDownloader(destDir string, schemaSpec *invv1alpha1.SchemaSpec, credentialResolver auth.CredentialResolver, credentialNSN types.NamespacedName) *GitDownloader {
-	return &GitDownloader{
-		ProviderDownloader{
+func newGitDownloader(destDir string, schemaSpec *invv1alpha1.SchemaSpec, credentialResolver auth.CredentialResolver, credentialNSN types.NamespacedName) *gitDownloader {
+	return &gitDownloader{
+		providerDownloader{
 			destDir:            destDir,
 			schemaSpec:         schemaSpec,
 			credentialResolver: credentialResolver,
@@ -26,7 +26,7 @@ func NewGitDownloader(destDir string, schemaSpec *invv1alpha1.SchemaSpec, creden
 	}
 }
 
-func (l *GitDownloader) Download(ctx context.Context) error {
+func (l *gitDownloader) Download(ctx context.Context) error {
 	log := log.FromContext(ctx)
 
 	repo, err := git.NewRepo(l.schemaSpec.RepositoryURL)
@@ -59,7 +59,7 @@ func (l *GitDownloader) Download(ctx context.Context) error {
 	return nil
 }
 
-func (l *GitDownloader) LocalPath() (string, error) {
+func (l *gitDownloader) LocalPath() (string, error) {
 	repo, err := git.NewRepo(l.schemaSpec.RepositoryURL)
 	if err != nil {
 		return "", err

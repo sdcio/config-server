@@ -24,7 +24,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcerrors "github.com/sdcio/config-server/pkg/error"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

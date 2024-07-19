@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strings"
 	"sync"
 
 	"github.com/henderiw/logger/log"
 	"github.com/otiai10/copy"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,12 +41,12 @@ type Loader struct {
 	schemas map[string]*invv1alpha1.SchemaSpec
 }
 
-type Downloadable interface {
+type downloadable interface {
 	Download(ctx context.Context) error
 	LocalPath() (string, error)
 }
 
-type ProviderDownloader struct {
+type providerDownloader struct {
 	destDir            string
 	schemaSpec         *invv1alpha1.SchemaSpec
 	credentialNSN      types.NamespacedName
@@ -135,23 +135,26 @@ func (r *Loader) Load(ctx context.Context, key string, credentialNSN types.Names
 		return err
 	}
 
-	var providerDownloader Downloadable
+	var downloader downloadable
 
-	// maybe there is a better way to verify this?
-	if strings.HasSuffix(schemaSpec.RepositoryURL, ".git") {
-		providerDownloader = NewGitDownloader(r.tmpDir, schemaSpec, r.credentialResolver, credentialNSN)
+	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
+	switch {
+	default:
+		downloader = newGitDownloader(r.tmpDir, schemaSpec, r.credentialResolver, credentialNSN)
 	}
-	// here we can use other downloaders e.g. OCI, ...
 
-	if providerDownloader == nil {
-		return fmt.Errorf("no provider found for url %q", schemaSpec.RepositoryURL)
+	if downloader == nil {
+		return &sdcerrors.UnrecoverableError{
+			Message:      "could not detect repository type",
+			WrappedError: fmt.Errorf("no provider found for url %q", schemaSpec.RepositoryURL),
+		}
 	}
-	err = providerDownloader.Download(ctx)
+	err = downloader.Download(ctx)
 	if err != nil {
 		return err
 	}
 
-	localPath, err := providerDownloader.LocalPath()
+	localPath, err := downloader.LocalPath()
 	if err != nil {
 		return err
 	}
