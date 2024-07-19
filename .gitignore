@@ -30,3 +30,7 @@ design.md
 wimtest
 vendor
 scripts/
+.idea/
+kubeconfig
+tls.crt
+tls.key

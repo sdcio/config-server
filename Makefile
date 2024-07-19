@@ -24,12 +24,12 @@ all: codegen fmt vet lint test tidy
 
 docker:
 	GOOS=linux GOARCH=arm64 go build -o install/bin/apiserver
-	docker build install --tag apiserver-caas:v0.0.0 --ssh default=$(SSH_AUTH_SOCK)
+	docker build install --tag apiserver-caas:v0.0.0 --ssh default="$(SSH_AUTH_SOCK)"
 
 .PHONY:
 docker-build: ## Build docker image with the manager.
 	ssh-add ./keys/id_rsa 2>/dev/null; true
-	docker build --build-arg USERID=$(USERID) . -t ${IMG} --ssh default=$(SSH_AUTH_SOCK)
+	docker build --build-arg USERID="$(USERID)" . -t ${IMG} --ssh default="$(SSH_AUTH_SOCK)"
 
 .PHONY: docker-push
 docker-push:  docker-build ## Push docker image with the manager.

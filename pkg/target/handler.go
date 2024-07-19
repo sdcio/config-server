@@ -18,15 +18,18 @@ package target
 
 import (
 	"context"
+	errors "errors"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	myerror "github.com/sdcio/config-server/pkg/reconcilers/error"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var LookupError = errors.New("target lookup error")
 
 func NewTargetHandler(client client.Client, targetStore storebackend.Storer[*Context]) *TargetHandler {
 	return &TargetHandler{
@@ -40,29 +43,26 @@ type TargetHandler struct {
 	targetStore storebackend.Storer[*Context]
 }
 
-// GetTarget returns a invTarget and targetContext when the target is ready and the ctx is found
+// GetTargetContext returns a invTarget and targetContext when the target is ready and the ctx is found
 func (r *TargetHandler) GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, nil, &myerror.MyError{
-			Type:      myerror.TargetLookupError,
-			Message:   "target get failed",
-			OrigError: err,
+		return nil, nil, &sdcerrors.RecoverableError{
+			Message:      "target get failed",
+			WrappedError: errors.Join(LookupError, err),
 		}
 	}
 	if !target.IsReady() {
-		return nil, nil, &myerror.MyError{
-			Type:      myerror.TargetLookupError,
-			Message:   "target not ready",
-			OrigError: errors.New(string(config.ConditionReasonTargetNotReady)),
+		return nil, nil, &sdcerrors.RecoverableError{
+			Message:      "target not ready",
+			WrappedError: pkgerrors.Wrap(LookupError, string(config.ConditionReasonTargetNotReady)),
 		}
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
 	if err != nil {
-		return nil, nil, &myerror.MyError{
-			Type:      myerror.TargetLookupError,
-			Message:   "target not found",
-			OrigError: errors.New(string(config.ConditionReasonTargetNotFound)),
+		return nil, nil, &sdcerrors.RecoverableError{
+			Message:      "target not found",
+			WrappedError: pkgerrors.Wrap(LookupError, string(config.ConditionReasonTargetNotFound)),
 		}
 	}
 	return target, tctx, nil

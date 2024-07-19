@@ -25,7 +25,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/otiai10/copy"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/git"
+	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,7 +41,19 @@ type Loader struct {
 	schemas map[string]*invv1alpha1.SchemaSpec
 }
 
-func NewLoader(tmpDir, schemaDir string, credentialResolver auth.CredentialResolver) (*Loader, error) {
+type downloadable interface {
+	Download(ctx context.Context) error
+	LocalPath() (string, error)
+}
+
+type providerDownloader struct {
+	destDir            string
+	schemaSpec         *invv1alpha1.SchemaSpec
+	credentialNSN      types.NamespacedName
+	credentialResolver auth.CredentialResolver
+}
+
+func NewLoader(tmpDir string, schemaDir string, credentialResolver auth.CredentialResolver) (*Loader, error) {
 	var err error
 
 	if !utils.DirExists(tmpDir) {
@@ -104,10 +116,8 @@ func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpe
 		return nil, false, fmt.Errorf("no repository reference registered for key %q", key)
 	}
 	baseRefPath := ref.GetBasePath(r.schemaDir)
-	if utils.DirExists(baseRefPath) {
-		return ref, true, nil
-	}
-	return ref, false, nil
+
+	return ref, utils.DirExists(baseRefPath), nil
 }
 
 func (r *Loader) get(key string) (*invv1alpha1.SchemaSpec, bool) {
@@ -117,68 +127,67 @@ func (r *Loader) get(key string) (*invv1alpha1.SchemaSpec, bool) {
 	return ref, exists
 }
 
-func (r *Loader) Load(ctx context.Context, key string, secretNSN types.NamespacedName) error {
-	log := log.FromContext(ctx)
-	spec, _, err := r.GetRef(ctx, key)
+func (r *Loader) Load(ctx context.Context, key string, credentialNSN types.NamespacedName) error {
+	logger := log.FromContext(ctx)
+
+	schemaSpec, _, err := r.GetRef(ctx, key)
 	if err != nil {
 		return err
 	}
 
-	repo, err := git.NewRepo(spec.RepositoryURL)
+	var downloader downloadable
+
+	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
+	switch {
+	default:
+		downloader = newGitDownloader(r.tmpDir, schemaSpec, r.credentialResolver, credentialNSN)
+	}
+
+	if downloader == nil {
+		return &sdcerrors.UnrecoverableError{
+			Message:      "could not detect repository type",
+			WrappedError: fmt.Errorf("no provider found for url %q", schemaSpec.RepositoryURL),
+		}
+	}
+	err = downloader.Download(ctx)
 	if err != nil {
 		return err
 	}
 
-	repoPath := path.Join(r.tmpDir, repo.GetCloneURL().Path)
-	repo.SetLocalPath(repoPath)
-
-	// set branch or tag
-	if spec.Kind == invv1alpha1.BranchTagKindBranch {
-		repo.SetBranch(spec.Ref)
-	} else {
-		// set the git tag that we're after
-		// if both branch and tag are the empty string
-		// the git impl will retrieve the default branch
-		repo.SetTag(spec.Ref)
-	}
-
-	// init the actual git instance
-	gogit := git.NewGoGit(repo, secretNSN, r.credentialResolver)
-
-	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
-	err = gogit.Clone(ctx)
+	localPath, err := downloader.LocalPath()
 	if err != nil {
 		return err
 	}
+	providerVersionBasePath := schemaSpec.GetBasePath(r.schemaDir)
 
-	provVersionBasePath := spec.GetBasePath(r.schemaDir)
-
-	if len(spec.Dirs) == 0 {
-		spec.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
+	// copy data to correct destination
+	if len(schemaSpec.Dirs) == 0 {
+		schemaSpec.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
 	}
-	for i, dir := range spec.Dirs {
+	for i, dir := range schemaSpec.Dirs {
 		// build the source path
-		src := path.Join(repoPath, dir.Src)
+		src := path.Join(localPath, dir.Src)
 		// check path is still within the base schema folder
 		// -> prevent escaping the folder
-		err := utils.ErrNotIsSubfolder(repoPath, src)
+		err := utils.ErrNotIsSubfolder(localPath, src)
 		if err != nil {
 			return err
 		}
 		// build dst path
-		dst := path.Join(provVersionBasePath, dir.Dst)
+		dst := path.Join(providerVersionBasePath, dir.Dst)
 		// check path is still within the base schema folder
 		// -> prevent escaping the folder
-		err = utils.ErrNotIsSubfolder(provVersionBasePath, dst)
+		err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
 		if err != nil {
 			return err
 		}
 
-		log.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(spec.Dirs)), "from", src, "to", dst)
+		logger.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaSpec.Dirs)), "from", src, "to", dst)
 		err = copy.Copy(src, dst)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+
 }
