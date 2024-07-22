@@ -28,10 +28,10 @@ require (
 	golang.org/x/sync v0.7.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
-	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
 	k8s.io/apiserver v0.30.2
-	k8s.io/client-go v0.30.2
+	k8s.io/client-go v0.30.3
 	k8s.io/code-generator v0.30.2
 	k8s.io/component-base v0.30.2
 	k8s.io/kube-openapi v0.0.0-20240620174524-b456828f718b
