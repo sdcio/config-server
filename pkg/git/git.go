@@ -136,12 +136,15 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 	// 'object not found' error, presumably because there is no link between the two commits (due to shallow clone)
 
 	// get the branch or tag or figure out the default branch main / master / sth. else.
+	var refRemoteName plumbing.ReferenceName
 	var refName plumbing.ReferenceName
 	branch := g.gitRepo.GetBranch()
 	tag := g.gitRepo.GetTag()
 	if branch != "" {
-		refName = plumbing.NewRemoteReferenceName("origin", branch)
+		refName = plumbing.NewBranchReferenceName(branch)
+		refRemoteName = plumbing.NewRemoteReferenceName("origin", branch)
 	} else if tag != "" {
+		refRemoteName = plumbing.NewTagReferenceName(tag)
 		refName = plumbing.NewTagReferenceName(tag)
 	} else {
 		log.Debug("default branch not set. determining it")
@@ -149,18 +152,23 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		refName = plumbing.NewRemoteReferenceName("origin", branch)
+		refRemoteName = plumbing.NewRemoteReferenceName("origin", branch)
+		refName = plumbing.NewBranchReferenceName(branch)
 		log.Debug("default", "branch", branch)
 	}
+	refSpec := config.RefSpec(fmt.Sprintf("+%s:%s", refName, refRemoteName))
 
 	log.Debug("fetching latest repo data")
 	// execute the fetch
 	err = g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
-		return remote.FetchContext(ctx, &gogit.FetchOptions{
+		return g.r.FetchContext(ctx, &gogit.FetchOptions{
 			Depth: 1,
 			Auth:  auth,
 			Force: true,
 			Prune: true,
+			RefSpecs: []config.RefSpec{
+				refSpec,
+			},
 		})
 	})
 	switch {
@@ -177,7 +185,7 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 		return &sdcerrors.UnrecoverableError{Message: "cannot get worktree", WrappedError: err}
 	}
 
-	revisionHash, err := g.r.ResolveRevision(plumbing.Revision(refName))
+	revisionHash, err := g.r.ResolveRevision(plumbing.Revision(refRemoteName))
 	if err != nil {
 		return &sdcerrors.UnrecoverableError{Message: fmt.Sprintf("unable to resolve revision '%s'", refName), WrappedError: err}
 	}
