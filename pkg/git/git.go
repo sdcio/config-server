@@ -130,7 +130,6 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 
 	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
 	if g.ProxyURL != nil {
-		log.Info("Proxy is set to ", g.ProxyURL)
 		customClient := &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyURL(g.ProxyURL),
