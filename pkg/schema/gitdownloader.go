@@ -52,6 +52,14 @@ func (l *gitDownloader) Download(ctx context.Context) error {
 
 	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
 
+	if l.schemaSpec.Proxy.URL != "" {
+		err = goGit.SetProxy(l.schemaSpec.Proxy.URL)
+		if err != nil {
+			return err
+		}
+		log.Info("SetProxy", "proxy", l.schemaSpec.Proxy.URL)
+	}
+
 	err = goGit.Clone(ctx)
 	if err != nil {
 		return err

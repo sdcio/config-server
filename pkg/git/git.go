@@ -21,12 +21,16 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/client"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/henderiw/logger/log"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
@@ -42,6 +46,7 @@ type GoGit struct {
 	// credential contains the information needed to authenticate against
 	// a git repository.
 	credential auth.Credential
+	ProxyURL   *url.URL
 }
 
 // make sure GoGit satisfies the Git interface.
@@ -53,6 +58,15 @@ func NewGoGit(gitRepo GitRepo, secret types.NamespacedName, credentialResolver a
 		credentialResolver: credentialResolver,
 		secret:             secret,
 	}
+}
+
+func (g *GoGit) SetProxy(p string) error {
+	var err error
+	g.ProxyURL, err = url.Parse(p)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Clone takes the given GitRepo reference and clones the repo
@@ -109,11 +123,25 @@ func (g *GoGit) openRepo(_ context.Context) error {
 }
 
 func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
+	var err error
+
 	log := log.FromContext(ctx)
 	log.Info("loading git", "repo", g.gitRepo.GetLocalPath())
 
+	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
+	if g.ProxyURL != nil {
+		log.Info("Proxy is set to ", g.ProxyURL)
+		customClient := &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(g.ProxyURL),
+			},
+		}
+		client.InstallProtocol("https", githttp.NewClient(customClient))
+		client.InstallProtocol("http", githttp.NewClient(customClient))
+	}
+
 	// open the existing repo
-	err := g.openRepo(ctx)
+	err = g.openRepo(ctx)
 	if err != nil {
 		return err
 	}
@@ -243,6 +271,16 @@ func (g *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error
 
 func (g *GoGit) cloneNonExisting(ctx context.Context) error {
 	var err error
+	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
+	if g.ProxyURL != nil {
+		customClient := &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(g.ProxyURL),
+			},
+		}
+		client.InstallProtocol("https", githttp.NewClient(customClient))
+		client.InstallProtocol("http", githttp.NewClient(customClient))
+	}
 	// init clone options
 	co := &gogit.CloneOptions{
 		Depth:        1,

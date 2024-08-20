@@ -68,6 +68,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey":                          schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy":                    schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
@@ -1883,12 +1884,45 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema"),
 						},
 					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to download the models.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy"),
+						},
+					},
 				},
 				Required: []string{"repoURL", "provider", "version", "kind", "ref", "schema"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"URL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL specifies the base URL of the HTTP/HTTPS proxy server.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the proxy server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
