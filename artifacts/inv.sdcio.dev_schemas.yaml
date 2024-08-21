@@ -98,6 +98,25 @@ spec:
                 x-kubernetes-validations:
                 - message: provider is immutable
                   rule: self == oldSelf
+              proxy:
+                description: Proxy defines the HTTP/HTTPS proxy to be used to download
+                  the models.
+                properties:
+                  URL:
+                    description: URL specifies the base URL of the HTTP/HTTPS proxy
+                      server.
+                    type: string
+                    x-kubernetes-validations:
+                    - message: url is immutable
+                      rule: self == oldSelf
+                  credentials:
+                    description: Credentials defines the name of the secret that holds
+                      the credentials to connect to the proxy server
+                    type: string
+                    x-kubernetes-validations:
+                    - message: credentials is immutable
+                      rule: self == oldSelf
+                type: object
               ref:
                 description: Ref defines the branch or tag of the repository corresponding
                   to the provider schema version

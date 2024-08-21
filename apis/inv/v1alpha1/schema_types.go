@@ -19,9 +19,9 @@ package v1alpha1
 import (
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 type BranchTagKind string
@@ -62,6 +62,8 @@ type SchemaSpec struct {
 	// Schema provides the details of which files must be used for the models and which files/directories
 	// cana be excludes
 	Schema SchemaSpecSchema `json:"schema" yaml:"schema"`
+	// Proxy defines the HTTP/HTTPS proxy to be used to download the models.
+	Proxy SchemaSpecProxy `json:"proxy,omitempty" yaml:"proxy,omitempty"`
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src
@@ -86,6 +88,15 @@ type SchemaSpecSchema struct {
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="excludes is immutable"
 	// Excludes defines the list of files/directories to be excluded
 	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
+}
+
+type SchemaSpecProxy struct {
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
+	// URL specifies the base URL of the HTTP/HTTPS proxy server.
+	URL string `json:"URL,omitempty" yaml:"URL,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
+	// Credentials defines the name of the secret that holds the credentials to connect to the proxy server
+	Credentials string `json:"credentials,omitempty" yaml:"credentials,omitempty"`
 }
 
 // SchemaStatus defines the observed state of Schema
