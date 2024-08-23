@@ -630,7 +630,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	// and we need to provide the tls conext with the relevant info
 	// skipVery bool and secret information if the TLS secret is set.
 	var tls *sdcpb.TLS
-	if connProfile.Spec.SkipVerify || cr.Spec.TLSSecret != nil {
+	if !connProfile.Spec.Insecure {
 		tls = &sdcpb.TLS{
 			SkipVerify: connProfile.Spec.SkipVerify,
 		}
