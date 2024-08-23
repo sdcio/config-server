@@ -625,22 +625,25 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 	}
 	usedReferences.SecretResourceVersion = secret.ResourceVersion
 
+	// if insecure is set we expect tls == nil
+	// if either SkipVerify is true or a TLS secret is provided TLS is enabled
+	// and we need to provide the tls conext with the relevant info
+	// skipVery bool and secret information if the TLS secret is set.
 	var tls *sdcpb.TLS
-	tls = &sdcpb.TLS{
-		SkipVerify: connProfile.Spec.SkipVerify,
-	}
-	if cr.Spec.TLSSecret != nil {
+	if connProfile.Spec.SkipVerify || cr.Spec.TLSSecret != nil {
 		tls = &sdcpb.TLS{
 			SkipVerify: connProfile.Spec.SkipVerify,
 		}
-		tlsSecret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *cr.Spec.TLSSecret})
-		if err != nil {
-			return nil, nil, err
+		if cr.Spec.TLSSecret != nil {
+			tlsSecret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *cr.Spec.TLSSecret})
+			if err != nil {
+				return nil, nil, err
+			}
+			tls.Ca = string(tlsSecret.Data["ca"])
+			tls.Cert = string(tlsSecret.Data["cert"])
+			tls.Key = string(tlsSecret.Data["key"])
+			usedReferences.TLSSecretResourceVersion = tlsSecret.ResourceVersion
 		}
-		tls.Ca = string(tlsSecret.Data["ca"])
-		tls.Cert = string(tlsSecret.Data["cert"])
-		tls.Key = string(tlsSecret.Data["key"])
-		usedReferences.TLSSecretResourceVersion = tlsSecret.ResourceVersion
 	}
 
 	// check if the discovery info is complete
