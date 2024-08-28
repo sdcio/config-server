@@ -61,7 +61,7 @@ type TargetSyncProfileSync struct {
 	Paths []string `json:"paths" yaml:"paths"`
 	//+kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
 	Mode SyncMode `json:"mode" yaml:"mode"`
-	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;BYTES;PROTO;ASCII;CONFIG;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:default:="60s"

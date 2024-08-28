@@ -52,13 +52,13 @@ spec:
                     encoding:
                       default: ASCII
                       enum:
-                      - unknown
+                      - UNKNOWN
                       - JSON
                       - JSON_IETF
-                      - bytes
-                      - protobuf
+                      - BYTES
+                      - PROTO
                       - ASCII
-                      - config
+                      - CONFIG
                       type: string
                     interval:
                       default: 60s
