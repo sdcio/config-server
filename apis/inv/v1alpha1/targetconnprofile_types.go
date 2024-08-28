@@ -26,11 +26,11 @@ import (
 type Encoding string
 
 const (
-	Encoding_Unknown   Encoding = "unknown"
+	Encoding_Unknown   Encoding = "UNKNOWN"
 	Encoding_JSON      Encoding = "JSON"
 	Encoding_JSON_IETF Encoding = "JSON_IETF"
-	Encoding_Bytes     Encoding = "bytes"
-	Encoding_Protobuf  Encoding = "protobuf"
+	Encoding_Bytes     Encoding = "BYTES"
+	Encoding_Protobuf  Encoding = "PROTO"
 	Encoding_Ascii     Encoding = "ASCII"
 	Encoding_Config    Encoding = "config"
 )
@@ -69,7 +69,7 @@ type TargetConnectionProfileSpec struct {
 	// Port defines the port on which the scan runs
 	Port uint `json:"port" yaml:"port"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
-	// +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;BYTES;PROTO;ASCII;CONFIG;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
