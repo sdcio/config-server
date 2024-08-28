@@ -46,7 +46,7 @@ func GetSyncProfile(syncProfile *TargetSyncProfile) *sdcpb.Sync {
 
 func getEncoding(e Encoding) string {
 	switch e {
-	case Encoding_Config:
+	case Encoding_CONFIG:
 		return "45"
 	default:
 		return string(e)

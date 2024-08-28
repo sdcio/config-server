@@ -26,23 +26,23 @@ import (
 type Encoding string
 
 const (
-	Encoding_Unknown   Encoding = "UNKNOWN"
+	Encoding_UNKNOWN   Encoding = "UNKNOWN"
 	Encoding_JSON      Encoding = "JSON"
 	Encoding_JSON_IETF Encoding = "JSON_IETF"
-	Encoding_Bytes     Encoding = "BYTES"
-	Encoding_Protobuf  Encoding = "PROTO"
-	Encoding_Ascii     Encoding = "ASCII"
-	Encoding_Config    Encoding = "CONFIG"
+	Encoding_BYTES     Encoding = "BYTES"
+	Encoding_PROTO     Encoding = "PROTO"
+	Encoding_ASCII     Encoding = "ASCII"
+	Encoding_CONFIG    Encoding = "CONFIG"
 )
 
 type Protocol string
 
 const (
-	Protocol_Unknown Protocol = "unknown"
+	Protocol_UNKNOWN Protocol = "unknown"
 	Protocol_GNMI    Protocol = "gnmi"
 	Protocol_NETCONF Protocol = "netconf"
 	Protocol_NOOP    Protocol = "noop"
-	Protocol_None    Protocol = "none"
+	Protocol_NONE    Protocol = "none"
 )
 
 type CommitCandidate string

@@ -32,7 +32,7 @@ func DefaultTargetConnectionProfile() *TargetConnectionProfile {
 		},
 		TargetConnectionProfileSpec{
 			Protocol:   Protocol_GNMI,
-			Encoding:   Encoding_Ascii,
+			Encoding:   Encoding_ASCII,
 			Insecure:   false,
 			SkipVerify: true,
 		},
