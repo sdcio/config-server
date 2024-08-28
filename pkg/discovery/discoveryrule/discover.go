@@ -41,9 +41,9 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 		if r.cfg.DefaultSchema == nil {
 			return fmt.Errorf("cannot create a static target w/o a default schema")
 		}
-		discover, ok := r.protocols.get(invv1alpha1.Protocol_None)
+		discover, ok := r.protocols.get(invv1alpha1.Protocol_NONE)
 		if !ok {
-			return fmt.Errorf("unsupported protocol :%s", string(invv1alpha1.Protocol_None))
+			return fmt.Errorf("unsupported protocol :%s", string(invv1alpha1.Protocol_NONE))
 		}
 		if err := discover(ctx, h, r.cfg.TargetConnectionProfiles[0].Connectionprofile); err != nil {
 			log.Error("discovery failed", "error", err.Error())

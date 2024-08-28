@@ -26,8 +26,8 @@ import (
 func (r *dr) newDiscoveryProtocols() *protocols {
 	return &protocols{
 		protocols: map[invv1alpha1.Protocol]discover{
-			invv1alpha1.Protocol_GNMI:   r.discoverWithGNMI,
-			invv1alpha1.Protocol_None: r.discoverWithNone,
+			invv1alpha1.Protocol_GNMI: r.discoverWithGNMI,
+			invv1alpha1.Protocol_NONE: r.discoverWithNone,
 		},
 	}
 }
