@@ -32,7 +32,7 @@ const (
 	Encoding_Bytes     Encoding = "BYTES"
 	Encoding_Protobuf  Encoding = "PROTO"
 	Encoding_Ascii     Encoding = "ASCII"
-	Encoding_Config    Encoding = "config"
+	Encoding_Config    Encoding = "CONFIG"
 )
 
 type Protocol string
