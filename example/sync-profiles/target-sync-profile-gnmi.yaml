@@ -18,5 +18,5 @@ spec:
     paths:
     - /
     mode: onChange
-    encoding: config     # SRLinux specific encoding (id: 45)
+    encoding: CONFIG     # SRLinux specific encoding (id: 45)
  
