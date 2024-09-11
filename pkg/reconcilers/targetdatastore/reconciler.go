@@ -598,7 +598,7 @@ func (r *reconciler) isSchemaReady(ctx context.Context, cr *invv1alpha1.Target) 
 	for _, schema := range schemaList.Items {
 		if schema.Spec.Provider == cr.Status.DiscoveryInfo.Provider &&
 			schema.Spec.Version == cr.Status.DiscoveryInfo.Version {
-			schemaCondition := schemaList.Items[0].GetCondition(condv1alpha1.ConditionTypeReady)
+			schemaCondition := schema.GetCondition(condv1alpha1.ConditionTypeReady)
 			return schemaCondition.IsTrue(), schemaCondition.Message, nil
 		}
 	}
