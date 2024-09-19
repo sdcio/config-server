@@ -16,7 +16,8 @@ RUN adduser --shell /bin/false --uid $USERID --disabled-login --home /app/ --no-
     && sed -i -r 's#^(.*):[^:]*$#\1:/bin/false#' /etc/passwd
 
 #
-FROM scratch
+#FROM scratch
+FROM alpine:latest
 ARG USERID=10000
 # add-in our timezone data file
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
