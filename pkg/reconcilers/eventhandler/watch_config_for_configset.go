@@ -36,23 +36,23 @@ type ConfigForConfigSetEventHandler struct {
 }
 
 // Create enqueues a request
-func (r *ConfigForConfigSetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *ConfigForConfigSetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *ConfigForConfigSetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *ConfigForConfigSetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request
-func (r *ConfigForConfigSetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *ConfigForConfigSetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *ConfigForConfigSetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *ConfigForConfigSetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 

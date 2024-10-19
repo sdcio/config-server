@@ -37,23 +37,23 @@ type SecretForSchemaEventHandler struct {
 }
 
 // Create enqueues a request
-func (r *SecretForSchemaEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForSchemaEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *SecretForSchemaEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForSchemaEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request
-func (r *SecretForSchemaEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForSchemaEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request
-func (r *SecretForSchemaEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForSchemaEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
