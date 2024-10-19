@@ -30,7 +30,7 @@ import (
 	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
-	discoveryeventhandler "github.com/sdcio/config-server/pkg/reconcilers/discoveryeventhandlers"
+	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
@@ -54,10 +54,6 @@ const (
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
 )
-
-type adder interface {
-	Add(item interface{})
-}
 
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=discoveryrules,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=discoveryrules/status,verbs=get;update;patch
@@ -84,18 +80,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		For(&invv1alpha1.DiscoveryRule{}).
-		//Owns(&invv1alpha1.DiscoveryRule{}).
-		Watches(&invv1alpha1.TargetConnectionProfile{},
-			&discoveryeventhandler.TargetConnProfileEventHandler{
-				Client:  mgr.GetClient(),
-				ObjList: &invv1alpha1.DiscoveryRuleList{},
-			}).
-		Watches(&invv1alpha1.TargetSyncProfile{},
-			&discoveryeventhandler.TargetSyncProfileEventHandler{
-				Client:  mgr.GetClient(),
-				ObjList: &invv1alpha1.DiscoveryRuleList{},
-			}).
-		Watches(&corev1.Secret{}, &secretEventHandler{client: mgr.GetClient()}).
+		Watches(&invv1alpha1.TargetConnectionProfile{}, &eventhandler.TargetConnProfileForDiscoveryRuleEventHandler{Client: mgr.GetClient()}).
+		Watches(&invv1alpha1.TargetSyncProfile{}, &eventhandler.TargetSyncProfileForDiscoveryRuleEventHandler{Client: mgr.GetClient()}).
+		Watches(&corev1.Secret{}, &eventhandler.SecretForDiscoveryRuleEventHandler{Client: mgr.GetClient()}).
 		Complete(r)
 }
 
