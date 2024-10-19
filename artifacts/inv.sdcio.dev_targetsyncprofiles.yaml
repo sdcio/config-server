@@ -62,6 +62,7 @@ spec:
                       type: string
                     interval:
                       default: 60s
+                      format: duration
                       type: string
                     mode:
                       enum:
