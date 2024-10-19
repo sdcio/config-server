@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package discoveryrule
+package eventhandler
 
 import (
 	"context"
@@ -31,32 +31,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type secretEventHandler struct {
-	client client.Client
+type SecretForDiscoveryRuleEventHandler struct {
+	Client client.Client
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForDiscoveryRuleEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForDiscoveryRuleEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForDiscoveryRuleEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForDiscoveryRuleEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*corev1.Secret)
 	if !ok {
 		return
@@ -71,7 +71,7 @@ func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 		client.InNamespace(cr.Namespace),
 	}
 	drList := &invv1alpha1.DiscoveryRuleList{}
-	if err := r.client.List(ctx, drList, opts...); err != nil {
+	if err := r.Client.List(ctx, drList, opts...); err != nil {
 		log.Error("cannot list targets", "error", err)
 		return
 	}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package targetdatastore
+package eventhandler
 
 import (
 	"context"
@@ -30,33 +30,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type targetSyncProfileEventHandler struct {
-	client client.Client
+type TargetConnProfileForTargetEventHandler struct {
+	Client client.Client
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetConnProfileForTargetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetConnProfileForTargetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetConnProfileForTargetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *targetSyncProfileEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *TargetConnProfileForTargetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *targetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.TargetSyncProfile)
+func (r *TargetConnProfileForTargetEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+	cr, ok := obj.(*invv1alpha1.TargetConnectionProfile)
 	if !ok {
 		return
 	}
@@ -70,12 +70,12 @@ func (r *targetSyncProfileEventHandler) add(ctx context.Context, obj runtime.Obj
 		client.InNamespace(cr.Namespace),
 	}
 	targets := &invv1alpha1.TargetList{}
-	if err := r.client.List(ctx, targets, opts...); err != nil {
+	if err := r.Client.List(ctx, targets, opts...); err != nil {
 		log.Error("cannot list targets", "error", err)
 		return
 	}
 	for _, target := range targets.Items {
-		if *target.Spec.SyncProfile == cr.GetName() {
+		if target.Spec.ConnectionProfile == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}

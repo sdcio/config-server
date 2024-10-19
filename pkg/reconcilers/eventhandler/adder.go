@@ -16,6 +16,8 @@ limitations under the License.
 
 package eventhandler
 
+import "sigs.k8s.io/controller-runtime/pkg/reconcile"
+
 type adder interface {
-	Add(item interface{})
+	Add(item reconcile.Request)
 }

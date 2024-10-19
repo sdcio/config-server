@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package targetdatastore
+package eventhandler
 
 import (
 	"context"
@@ -31,32 +31,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type secretEventHandler struct {
-	client client.Client
+type SecretForTargetEventHandler struct {
+	Client client.Client
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForTargetEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForTargetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForTargetEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
 // Create enqueues a request for all ip allocation within the ipam
-func (r *secretEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (r *SecretForTargetEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	r.add(ctx, evt.Object, q)
 }
 
-func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
+func (r *SecretForTargetEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*corev1.Secret)
 	if !ok {
 		return
@@ -71,7 +71,7 @@ func (r *secretEventHandler) add(ctx context.Context, obj runtime.Object, queue 
 		client.InNamespace(cr.Namespace),
 	}
 	targets := &invv1alpha1.TargetList{}
-	if err := r.client.List(ctx, targets, opts...); err != nil {
+	if err := r.Client.List(ctx, targets, opts...); err != nil {
 		log.Error("cannot list targets", "error", err)
 		return
 	}
