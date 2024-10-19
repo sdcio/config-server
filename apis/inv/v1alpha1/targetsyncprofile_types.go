@@ -64,6 +64,9 @@ type TargetSyncProfileSync struct {
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;BYTES;PROTO;ASCII;CONFIG;
 	// +kubebuilder:default:="ASCII"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=duration
+    // +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
 	// +kubebuilder:default:="60s"
 	Interval metav1.Duration `json:"interval,omitempty" yaml:"interval,omitempty"`
 }
