@@ -40,22 +40,24 @@ var runningconfigsKind = v1alpha1.SchemeGroupVersion.WithKind("RunningConfig")
 
 // Get takes name of the runningConfig, and returns the corresponding runningConfig object, and an error if there is any.
 func (c *FakeRunningConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.RunningConfig, err error) {
+	emptyResult := &v1alpha1.RunningConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(runningconfigsResource, c.ns, name), &v1alpha1.RunningConfig{})
+		Invokes(testing.NewGetActionWithOptions(runningconfigsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.RunningConfig), err
 }
 
 // List takes label and field selectors, and returns the list of RunningConfigs that match those selectors.
 func (c *FakeRunningConfigs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.RunningConfigList, err error) {
+	emptyResult := &v1alpha1.RunningConfigList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(runningconfigsResource, runningconfigsKind, c.ns, opts), &v1alpha1.RunningConfigList{})
+		Invokes(testing.NewListActionWithOptions(runningconfigsResource, runningconfigsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeRunningConfigs) List(ctx context.Context, opts v1.ListOptions) (res
 // Watch returns a watch.Interface that watches the requested runningConfigs.
 func (c *FakeRunningConfigs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(runningconfigsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(runningconfigsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a runningConfig and creates it.  Returns the server's representation of the runningConfig, and an error, if there is any.
 func (c *FakeRunningConfigs) Create(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.CreateOptions) (result *v1alpha1.RunningConfig, err error) {
+	emptyResult := &v1alpha1.RunningConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(runningconfigsResource, c.ns, runningConfig), &v1alpha1.RunningConfig{})
+		Invokes(testing.NewCreateActionWithOptions(runningconfigsResource, c.ns, runningConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.RunningConfig), err
 }
 
 // Update takes the representation of a runningConfig and updates it. Returns the server's representation of the runningConfig, and an error, if there is any.
 func (c *FakeRunningConfigs) Update(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.UpdateOptions) (result *v1alpha1.RunningConfig, err error) {
+	emptyResult := &v1alpha1.RunningConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(runningconfigsResource, c.ns, runningConfig), &v1alpha1.RunningConfig{})
+		Invokes(testing.NewUpdateActionWithOptions(runningconfigsResource, c.ns, runningConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.RunningConfig), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRunningConfigs) UpdateStatus(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.UpdateOptions) (*v1alpha1.RunningConfig, error) {
+func (c *FakeRunningConfigs) UpdateStatus(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.UpdateOptions) (result *v1alpha1.RunningConfig, err error) {
+	emptyResult := &v1alpha1.RunningConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(runningconfigsResource, "status", c.ns, runningConfig), &v1alpha1.RunningConfig{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(runningconfigsResource, "status", c.ns, runningConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.RunningConfig), err
 }
@@ -122,7 +127,7 @@ func (c *FakeRunningConfigs) Delete(ctx context.Context, name string, opts v1.De
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeRunningConfigs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(runningconfigsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(runningconfigsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.RunningConfigList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeRunningConfigs) DeleteCollection(ctx context.Context, opts v1.Delet
 
 // Patch applies the patch and returns the patched runningConfig.
 func (c *FakeRunningConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.RunningConfig, err error) {
+	emptyResult := &v1alpha1.RunningConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(runningconfigsResource, c.ns, name, pt, data, subresources...), &v1alpha1.RunningConfig{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(runningconfigsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.RunningConfig), err
 }

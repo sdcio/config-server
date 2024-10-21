@@ -40,22 +40,24 @@ var schemasKind = v1alpha1.SchemeGroupVersion.WithKind("Schema")
 
 // Get takes name of the schema, and returns the corresponding schema object, and an error if there is any.
 func (c *FakeSchemas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Schema, err error) {
+	emptyResult := &v1alpha1.Schema{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(schemasResource, c.ns, name), &v1alpha1.Schema{})
+		Invokes(testing.NewGetActionWithOptions(schemasResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Schema), err
 }
 
 // List takes label and field selectors, and returns the list of Schemas that match those selectors.
 func (c *FakeSchemas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.SchemaList, err error) {
+	emptyResult := &v1alpha1.SchemaList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(schemasResource, schemasKind, c.ns, opts), &v1alpha1.SchemaList{})
+		Invokes(testing.NewListActionWithOptions(schemasResource, schemasKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeSchemas) List(ctx context.Context, opts v1.ListOptions) (result *v1
 // Watch returns a watch.Interface that watches the requested schemas.
 func (c *FakeSchemas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(schemasResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(schemasResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a schema and creates it.  Returns the server's representation of the schema, and an error, if there is any.
 func (c *FakeSchemas) Create(ctx context.Context, schema *v1alpha1.Schema, opts v1.CreateOptions) (result *v1alpha1.Schema, err error) {
+	emptyResult := &v1alpha1.Schema{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(schemasResource, c.ns, schema), &v1alpha1.Schema{})
+		Invokes(testing.NewCreateActionWithOptions(schemasResource, c.ns, schema, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Schema), err
 }
 
 // Update takes the representation of a schema and updates it. Returns the server's representation of the schema, and an error, if there is any.
 func (c *FakeSchemas) Update(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (result *v1alpha1.Schema, err error) {
+	emptyResult := &v1alpha1.Schema{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(schemasResource, c.ns, schema), &v1alpha1.Schema{})
+		Invokes(testing.NewUpdateActionWithOptions(schemasResource, c.ns, schema, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Schema), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSchemas) UpdateStatus(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (*v1alpha1.Schema, error) {
+func (c *FakeSchemas) UpdateStatus(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (result *v1alpha1.Schema, err error) {
+	emptyResult := &v1alpha1.Schema{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(schemasResource, "status", c.ns, schema), &v1alpha1.Schema{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(schemasResource, "status", c.ns, schema, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Schema), err
 }
@@ -122,7 +127,7 @@ func (c *FakeSchemas) Delete(ctx context.Context, name string, opts v1.DeleteOpt
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeSchemas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(schemasResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(schemasResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.SchemaList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeSchemas) DeleteCollection(ctx context.Context, opts v1.DeleteOption
 
 // Patch applies the patch and returns the patched schema.
 func (c *FakeSchemas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Schema, err error) {
+	emptyResult := &v1alpha1.Schema{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(schemasResource, c.ns, name, pt, data, subresources...), &v1alpha1.Schema{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(schemasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Schema), err
 }

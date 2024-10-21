@@ -79,6 +79,9 @@ type ConfigStatusLastKnownGoodSchema struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories={sdc}
 
 //	Config defines the Schema for the Config API
 type Config struct {
@@ -89,8 +92,10 @@ type Config struct {
 	Status ConfigStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// ConfigList contains a list of Configs
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// ConfigList contains a list of Configs
 type ConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

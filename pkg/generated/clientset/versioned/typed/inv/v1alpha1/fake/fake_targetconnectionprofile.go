@@ -40,22 +40,24 @@ var targetconnectionprofilesKind = v1alpha1.SchemeGroupVersion.WithKind("TargetC
 
 // Get takes name of the targetConnectionProfile, and returns the corresponding targetConnectionProfile object, and an error if there is any.
 func (c *FakeTargetConnectionProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetConnectionProfile, err error) {
+	emptyResult := &v1alpha1.TargetConnectionProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(targetconnectionprofilesResource, c.ns, name), &v1alpha1.TargetConnectionProfile{})
+		Invokes(testing.NewGetActionWithOptions(targetconnectionprofilesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetConnectionProfile), err
 }
 
 // List takes label and field selectors, and returns the list of TargetConnectionProfiles that match those selectors.
 func (c *FakeTargetConnectionProfiles) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.TargetConnectionProfileList, err error) {
+	emptyResult := &v1alpha1.TargetConnectionProfileList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(targetconnectionprofilesResource, targetconnectionprofilesKind, c.ns, opts), &v1alpha1.TargetConnectionProfileList{})
+		Invokes(testing.NewListActionWithOptions(targetconnectionprofilesResource, targetconnectionprofilesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,28 +76,30 @@ func (c *FakeTargetConnectionProfiles) List(ctx context.Context, opts v1.ListOpt
 // Watch returns a watch.Interface that watches the requested targetConnectionProfiles.
 func (c *FakeTargetConnectionProfiles) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(targetconnectionprofilesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(targetconnectionprofilesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a targetConnectionProfile and creates it.  Returns the server's representation of the targetConnectionProfile, and an error, if there is any.
 func (c *FakeTargetConnectionProfiles) Create(ctx context.Context, targetConnectionProfile *v1alpha1.TargetConnectionProfile, opts v1.CreateOptions) (result *v1alpha1.TargetConnectionProfile, err error) {
+	emptyResult := &v1alpha1.TargetConnectionProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(targetconnectionprofilesResource, c.ns, targetConnectionProfile), &v1alpha1.TargetConnectionProfile{})
+		Invokes(testing.NewCreateActionWithOptions(targetconnectionprofilesResource, c.ns, targetConnectionProfile, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetConnectionProfile), err
 }
 
 // Update takes the representation of a targetConnectionProfile and updates it. Returns the server's representation of the targetConnectionProfile, and an error, if there is any.
 func (c *FakeTargetConnectionProfiles) Update(ctx context.Context, targetConnectionProfile *v1alpha1.TargetConnectionProfile, opts v1.UpdateOptions) (result *v1alpha1.TargetConnectionProfile, err error) {
+	emptyResult := &v1alpha1.TargetConnectionProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(targetconnectionprofilesResource, c.ns, targetConnectionProfile), &v1alpha1.TargetConnectionProfile{})
+		Invokes(testing.NewUpdateActionWithOptions(targetconnectionprofilesResource, c.ns, targetConnectionProfile, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetConnectionProfile), err
 }
@@ -110,7 +114,7 @@ func (c *FakeTargetConnectionProfiles) Delete(ctx context.Context, name string, 
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeTargetConnectionProfiles) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(targetconnectionprofilesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(targetconnectionprofilesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.TargetConnectionProfileList{})
 	return err
@@ -118,11 +122,12 @@ func (c *FakeTargetConnectionProfiles) DeleteCollection(ctx context.Context, opt
 
 // Patch applies the patch and returns the patched targetConnectionProfile.
 func (c *FakeTargetConnectionProfiles) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.TargetConnectionProfile, err error) {
+	emptyResult := &v1alpha1.TargetConnectionProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(targetconnectionprofilesResource, c.ns, name, pt, data, subresources...), &v1alpha1.TargetConnectionProfile{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(targetconnectionprofilesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetConnectionProfile), err
 }

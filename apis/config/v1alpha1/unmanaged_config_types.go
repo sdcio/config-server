@@ -34,10 +34,11 @@ type UnManagedConfigStatus struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories={sdc}
 
 //	UnManagedConfig is the Schema for the UnManagedConfig API
-//
-// +k8s:openapi-gen=true
 type UnManagedConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -46,8 +47,11 @@ type UnManagedConfig struct {
 	Status UnManagedConfigStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// UnManagedConfigList contains a list of UnManagedConfigs
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// UnManagedConfigList contains a list of UnManagedConfigs
 type UnManagedConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

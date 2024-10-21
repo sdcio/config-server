@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type DiscoveryRuleLister interface {
 
 // discoveryRuleLister implements the DiscoveryRuleLister interface.
 type discoveryRuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.DiscoveryRule]
 }
 
 // NewDiscoveryRuleLister returns a new DiscoveryRuleLister.
 func NewDiscoveryRuleLister(indexer cache.Indexer) DiscoveryRuleLister {
-	return &discoveryRuleLister{indexer: indexer}
-}
-
-// List lists all DiscoveryRules in the indexer.
-func (s *discoveryRuleLister) List(selector labels.Selector) (ret []*v1alpha1.DiscoveryRule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.DiscoveryRule))
-	})
-	return ret, err
+	return &discoveryRuleLister{listers.New[*v1alpha1.DiscoveryRule](indexer, v1alpha1.Resource("discoveryrule"))}
 }
 
 // DiscoveryRules returns an object that can list and get DiscoveryRules.
 func (s *discoveryRuleLister) DiscoveryRules(namespace string) DiscoveryRuleNamespaceLister {
-	return discoveryRuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return discoveryRuleNamespaceLister{listers.NewNamespaced[*v1alpha1.DiscoveryRule](s.ResourceIndexer, namespace)}
 }
 
 // DiscoveryRuleNamespaceLister helps list and get DiscoveryRules.
@@ -73,26 +65,5 @@ type DiscoveryRuleNamespaceLister interface {
 // discoveryRuleNamespaceLister implements the DiscoveryRuleNamespaceLister
 // interface.
 type discoveryRuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all DiscoveryRules in the indexer for a given namespace.
-func (s discoveryRuleNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.DiscoveryRule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.DiscoveryRule))
-	})
-	return ret, err
-}
-
-// Get retrieves the DiscoveryRule from the indexer for a given namespace and name.
-func (s discoveryRuleNamespaceLister) Get(name string) (*v1alpha1.DiscoveryRule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("discoveryrule"), name)
-	}
-	return obj.(*v1alpha1.DiscoveryRule), nil
+	listers.ResourceIndexer[*v1alpha1.DiscoveryRule]
 }

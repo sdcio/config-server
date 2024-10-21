@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type TargetLister interface {
 
 // targetLister implements the TargetLister interface.
 type targetLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.Target]
 }
 
 // NewTargetLister returns a new TargetLister.
 func NewTargetLister(indexer cache.Indexer) TargetLister {
-	return &targetLister{indexer: indexer}
-}
-
-// List lists all Targets in the indexer.
-func (s *targetLister) List(selector labels.Selector) (ret []*v1alpha1.Target, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Target))
-	})
-	return ret, err
+	return &targetLister{listers.New[*v1alpha1.Target](indexer, v1alpha1.Resource("target"))}
 }
 
 // Targets returns an object that can list and get Targets.
 func (s *targetLister) Targets(namespace string) TargetNamespaceLister {
-	return targetNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return targetNamespaceLister{listers.NewNamespaced[*v1alpha1.Target](s.ResourceIndexer, namespace)}
 }
 
 // TargetNamespaceLister helps list and get Targets.
@@ -73,26 +65,5 @@ type TargetNamespaceLister interface {
 // targetNamespaceLister implements the TargetNamespaceLister
 // interface.
 type targetNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Targets in the indexer for a given namespace.
-func (s targetNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.Target, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.Target))
-	})
-	return ret, err
-}
-
-// Get retrieves the Target from the indexer for a given namespace and name.
-func (s targetNamespaceLister) Get(name string) (*v1alpha1.Target, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("target"), name)
-	}
-	return obj.(*v1alpha1.Target), nil
+	listers.ResourceIndexer[*v1alpha1.Target]
 }

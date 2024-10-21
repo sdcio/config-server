@@ -12,13 +12,13 @@ USERID := 10000
 
 ## Tool Binaries
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-CONTROLLER_TOOLS_VERSION ?= v0.12.1
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 KFORM ?= $(LOCALBIN)/kform
 KFORM_VERSION ?= v0.0.2
 
-.PHONY: codegen fix fmt vet lint test tidy
-
 GOBIN := $(shell go env GOPATH)/bin
+
+.PHONY: codegen fix fmt vet lint test tidy
 
 all: codegen fmt vet lint test tidy
 
@@ -68,7 +68,12 @@ generate: controller-gen
 .PHONY: manifests
 manifests: controller-gen artifacts ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/inv/..." output:crd:artifacts:config=artifacts
-	
+
+.PHONY: crds
+crds: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	mkdir -p crds
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/..." output:crd:artifacts:config=crds
+
 .PHONY: artifacts
 artifacts: kform
 	mkdir -p artifacts/out

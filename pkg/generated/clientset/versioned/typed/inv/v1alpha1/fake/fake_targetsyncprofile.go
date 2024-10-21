@@ -40,22 +40,24 @@ var targetsyncprofilesKind = v1alpha1.SchemeGroupVersion.WithKind("TargetSyncPro
 
 // Get takes name of the targetSyncProfile, and returns the corresponding targetSyncProfile object, and an error if there is any.
 func (c *FakeTargetSyncProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetSyncProfile, err error) {
+	emptyResult := &v1alpha1.TargetSyncProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(targetsyncprofilesResource, c.ns, name), &v1alpha1.TargetSyncProfile{})
+		Invokes(testing.NewGetActionWithOptions(targetsyncprofilesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetSyncProfile), err
 }
 
 // List takes label and field selectors, and returns the list of TargetSyncProfiles that match those selectors.
 func (c *FakeTargetSyncProfiles) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.TargetSyncProfileList, err error) {
+	emptyResult := &v1alpha1.TargetSyncProfileList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(targetsyncprofilesResource, targetsyncprofilesKind, c.ns, opts), &v1alpha1.TargetSyncProfileList{})
+		Invokes(testing.NewListActionWithOptions(targetsyncprofilesResource, targetsyncprofilesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,28 +76,30 @@ func (c *FakeTargetSyncProfiles) List(ctx context.Context, opts v1.ListOptions) 
 // Watch returns a watch.Interface that watches the requested targetSyncProfiles.
 func (c *FakeTargetSyncProfiles) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(targetsyncprofilesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(targetsyncprofilesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a targetSyncProfile and creates it.  Returns the server's representation of the targetSyncProfile, and an error, if there is any.
 func (c *FakeTargetSyncProfiles) Create(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.CreateOptions) (result *v1alpha1.TargetSyncProfile, err error) {
+	emptyResult := &v1alpha1.TargetSyncProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(targetsyncprofilesResource, c.ns, targetSyncProfile), &v1alpha1.TargetSyncProfile{})
+		Invokes(testing.NewCreateActionWithOptions(targetsyncprofilesResource, c.ns, targetSyncProfile, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetSyncProfile), err
 }
 
 // Update takes the representation of a targetSyncProfile and updates it. Returns the server's representation of the targetSyncProfile, and an error, if there is any.
 func (c *FakeTargetSyncProfiles) Update(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.UpdateOptions) (result *v1alpha1.TargetSyncProfile, err error) {
+	emptyResult := &v1alpha1.TargetSyncProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(targetsyncprofilesResource, c.ns, targetSyncProfile), &v1alpha1.TargetSyncProfile{})
+		Invokes(testing.NewUpdateActionWithOptions(targetsyncprofilesResource, c.ns, targetSyncProfile, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetSyncProfile), err
 }
@@ -110,7 +114,7 @@ func (c *FakeTargetSyncProfiles) Delete(ctx context.Context, name string, opts v
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeTargetSyncProfiles) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(targetsyncprofilesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(targetsyncprofilesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.TargetSyncProfileList{})
 	return err
@@ -118,11 +122,12 @@ func (c *FakeTargetSyncProfiles) DeleteCollection(ctx context.Context, opts v1.D
 
 // Patch applies the patch and returns the patched targetSyncProfile.
 func (c *FakeTargetSyncProfiles) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.TargetSyncProfile, err error) {
+	emptyResult := &v1alpha1.TargetSyncProfile{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(targetsyncprofilesResource, c.ns, name, pt, data, subresources...), &v1alpha1.TargetSyncProfile{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(targetsyncprofilesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.TargetSyncProfile), err
 }

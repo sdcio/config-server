@@ -40,22 +40,24 @@ var discoveryrulesKind = v1alpha1.SchemeGroupVersion.WithKind("DiscoveryRule")
 
 // Get takes name of the discoveryRule, and returns the corresponding discoveryRule object, and an error if there is any.
 func (c *FakeDiscoveryRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DiscoveryRule, err error) {
+	emptyResult := &v1alpha1.DiscoveryRule{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(discoveryrulesResource, c.ns, name), &v1alpha1.DiscoveryRule{})
+		Invokes(testing.NewGetActionWithOptions(discoveryrulesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.DiscoveryRule), err
 }
 
 // List takes label and field selectors, and returns the list of DiscoveryRules that match those selectors.
 func (c *FakeDiscoveryRules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.DiscoveryRuleList, err error) {
+	emptyResult := &v1alpha1.DiscoveryRuleList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(discoveryrulesResource, discoveryrulesKind, c.ns, opts), &v1alpha1.DiscoveryRuleList{})
+		Invokes(testing.NewListActionWithOptions(discoveryrulesResource, discoveryrulesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeDiscoveryRules) List(ctx context.Context, opts v1.ListOptions) (res
 // Watch returns a watch.Interface that watches the requested discoveryRules.
 func (c *FakeDiscoveryRules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(discoveryrulesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(discoveryrulesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a discoveryRule and creates it.  Returns the server's representation of the discoveryRule, and an error, if there is any.
 func (c *FakeDiscoveryRules) Create(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.CreateOptions) (result *v1alpha1.DiscoveryRule, err error) {
+	emptyResult := &v1alpha1.DiscoveryRule{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(discoveryrulesResource, c.ns, discoveryRule), &v1alpha1.DiscoveryRule{})
+		Invokes(testing.NewCreateActionWithOptions(discoveryrulesResource, c.ns, discoveryRule, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.DiscoveryRule), err
 }
 
 // Update takes the representation of a discoveryRule and updates it. Returns the server's representation of the discoveryRule, and an error, if there is any.
 func (c *FakeDiscoveryRules) Update(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.UpdateOptions) (result *v1alpha1.DiscoveryRule, err error) {
+	emptyResult := &v1alpha1.DiscoveryRule{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(discoveryrulesResource, c.ns, discoveryRule), &v1alpha1.DiscoveryRule{})
+		Invokes(testing.NewUpdateActionWithOptions(discoveryrulesResource, c.ns, discoveryRule, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.DiscoveryRule), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDiscoveryRules) UpdateStatus(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.UpdateOptions) (*v1alpha1.DiscoveryRule, error) {
+func (c *FakeDiscoveryRules) UpdateStatus(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.UpdateOptions) (result *v1alpha1.DiscoveryRule, err error) {
+	emptyResult := &v1alpha1.DiscoveryRule{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(discoveryrulesResource, "status", c.ns, discoveryRule), &v1alpha1.DiscoveryRule{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(discoveryrulesResource, "status", c.ns, discoveryRule, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.DiscoveryRule), err
 }
@@ -122,7 +127,7 @@ func (c *FakeDiscoveryRules) Delete(ctx context.Context, name string, opts v1.De
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeDiscoveryRules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(discoveryrulesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(discoveryrulesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.DiscoveryRuleList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeDiscoveryRules) DeleteCollection(ctx context.Context, opts v1.Delet
 
 // Patch applies the patch and returns the patched discoveryRule.
 func (c *FakeDiscoveryRules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DiscoveryRule, err error) {
+	emptyResult := &v1alpha1.DiscoveryRule{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(discoveryrulesResource, c.ns, name, pt, data, subresources...), &v1alpha1.DiscoveryRule{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(discoveryrulesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.DiscoveryRule), err
 }
