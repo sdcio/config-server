@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type TargetSyncProfileLister interface {
 
 // targetSyncProfileLister implements the TargetSyncProfileLister interface.
 type targetSyncProfileLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.TargetSyncProfile]
 }
 
 // NewTargetSyncProfileLister returns a new TargetSyncProfileLister.
 func NewTargetSyncProfileLister(indexer cache.Indexer) TargetSyncProfileLister {
-	return &targetSyncProfileLister{indexer: indexer}
-}
-
-// List lists all TargetSyncProfiles in the indexer.
-func (s *targetSyncProfileLister) List(selector labels.Selector) (ret []*v1alpha1.TargetSyncProfile, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.TargetSyncProfile))
-	})
-	return ret, err
+	return &targetSyncProfileLister{listers.New[*v1alpha1.TargetSyncProfile](indexer, v1alpha1.Resource("targetsyncprofile"))}
 }
 
 // TargetSyncProfiles returns an object that can list and get TargetSyncProfiles.
 func (s *targetSyncProfileLister) TargetSyncProfiles(namespace string) TargetSyncProfileNamespaceLister {
-	return targetSyncProfileNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return targetSyncProfileNamespaceLister{listers.NewNamespaced[*v1alpha1.TargetSyncProfile](s.ResourceIndexer, namespace)}
 }
 
 // TargetSyncProfileNamespaceLister helps list and get TargetSyncProfiles.
@@ -73,26 +65,5 @@ type TargetSyncProfileNamespaceLister interface {
 // targetSyncProfileNamespaceLister implements the TargetSyncProfileNamespaceLister
 // interface.
 type targetSyncProfileNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all TargetSyncProfiles in the indexer for a given namespace.
-func (s targetSyncProfileNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.TargetSyncProfile, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.TargetSyncProfile))
-	})
-	return ret, err
-}
-
-// Get retrieves the TargetSyncProfile from the indexer for a given namespace and name.
-func (s targetSyncProfileNamespaceLister) Get(name string) (*v1alpha1.TargetSyncProfile, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("targetsyncprofile"), name)
-	}
-	return obj.(*v1alpha1.TargetSyncProfile), nil
+	listers.ResourceIndexer[*v1alpha1.TargetSyncProfile]
 }

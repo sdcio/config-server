@@ -40,22 +40,24 @@ var unmanagedconfigsKind = v1alpha1.SchemeGroupVersion.WithKind("UnManagedConfig
 
 // Get takes name of the unManagedConfig, and returns the corresponding unManagedConfig object, and an error if there is any.
 func (c *FakeUnManagedConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.UnManagedConfig, err error) {
+	emptyResult := &v1alpha1.UnManagedConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(unmanagedconfigsResource, c.ns, name), &v1alpha1.UnManagedConfig{})
+		Invokes(testing.NewGetActionWithOptions(unmanagedconfigsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.UnManagedConfig), err
 }
 
 // List takes label and field selectors, and returns the list of UnManagedConfigs that match those selectors.
 func (c *FakeUnManagedConfigs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.UnManagedConfigList, err error) {
+	emptyResult := &v1alpha1.UnManagedConfigList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(unmanagedconfigsResource, unmanagedconfigsKind, c.ns, opts), &v1alpha1.UnManagedConfigList{})
+		Invokes(testing.NewListActionWithOptions(unmanagedconfigsResource, unmanagedconfigsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -74,40 +76,43 @@ func (c *FakeUnManagedConfigs) List(ctx context.Context, opts v1.ListOptions) (r
 // Watch returns a watch.Interface that watches the requested unManagedConfigs.
 func (c *FakeUnManagedConfigs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(unmanagedconfigsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(unmanagedconfigsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a unManagedConfig and creates it.  Returns the server's representation of the unManagedConfig, and an error, if there is any.
 func (c *FakeUnManagedConfigs) Create(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.CreateOptions) (result *v1alpha1.UnManagedConfig, err error) {
+	emptyResult := &v1alpha1.UnManagedConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(unmanagedconfigsResource, c.ns, unManagedConfig), &v1alpha1.UnManagedConfig{})
+		Invokes(testing.NewCreateActionWithOptions(unmanagedconfigsResource, c.ns, unManagedConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.UnManagedConfig), err
 }
 
 // Update takes the representation of a unManagedConfig and updates it. Returns the server's representation of the unManagedConfig, and an error, if there is any.
 func (c *FakeUnManagedConfigs) Update(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.UpdateOptions) (result *v1alpha1.UnManagedConfig, err error) {
+	emptyResult := &v1alpha1.UnManagedConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(unmanagedconfigsResource, c.ns, unManagedConfig), &v1alpha1.UnManagedConfig{})
+		Invokes(testing.NewUpdateActionWithOptions(unmanagedconfigsResource, c.ns, unManagedConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.UnManagedConfig), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeUnManagedConfigs) UpdateStatus(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.UpdateOptions) (*v1alpha1.UnManagedConfig, error) {
+func (c *FakeUnManagedConfigs) UpdateStatus(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.UpdateOptions) (result *v1alpha1.UnManagedConfig, err error) {
+	emptyResult := &v1alpha1.UnManagedConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(unmanagedconfigsResource, "status", c.ns, unManagedConfig), &v1alpha1.UnManagedConfig{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(unmanagedconfigsResource, "status", c.ns, unManagedConfig, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.UnManagedConfig), err
 }
@@ -122,7 +127,7 @@ func (c *FakeUnManagedConfigs) Delete(ctx context.Context, name string, opts v1.
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeUnManagedConfigs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(unmanagedconfigsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(unmanagedconfigsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.UnManagedConfigList{})
 	return err
@@ -130,11 +135,12 @@ func (c *FakeUnManagedConfigs) DeleteCollection(ctx context.Context, opts v1.Del
 
 // Patch applies the patch and returns the patched unManagedConfig.
 func (c *FakeUnManagedConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.UnManagedConfig, err error) {
+	emptyResult := &v1alpha1.UnManagedConfig{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(unmanagedconfigsResource, c.ns, name, pt, data, subresources...), &v1alpha1.UnManagedConfig{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(unmanagedconfigsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.UnManagedConfig), err
 }

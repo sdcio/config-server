@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type RunningConfigLister interface {
 
 // runningConfigLister implements the RunningConfigLister interface.
 type runningConfigLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.RunningConfig]
 }
 
 // NewRunningConfigLister returns a new RunningConfigLister.
 func NewRunningConfigLister(indexer cache.Indexer) RunningConfigLister {
-	return &runningConfigLister{indexer: indexer}
-}
-
-// List lists all RunningConfigs in the indexer.
-func (s *runningConfigLister) List(selector labels.Selector) (ret []*v1alpha1.RunningConfig, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.RunningConfig))
-	})
-	return ret, err
+	return &runningConfigLister{listers.New[*v1alpha1.RunningConfig](indexer, v1alpha1.Resource("runningconfig"))}
 }
 
 // RunningConfigs returns an object that can list and get RunningConfigs.
 func (s *runningConfigLister) RunningConfigs(namespace string) RunningConfigNamespaceLister {
-	return runningConfigNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return runningConfigNamespaceLister{listers.NewNamespaced[*v1alpha1.RunningConfig](s.ResourceIndexer, namespace)}
 }
 
 // RunningConfigNamespaceLister helps list and get RunningConfigs.
@@ -73,26 +65,5 @@ type RunningConfigNamespaceLister interface {
 // runningConfigNamespaceLister implements the RunningConfigNamespaceLister
 // interface.
 type runningConfigNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RunningConfigs in the indexer for a given namespace.
-func (s runningConfigNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.RunningConfig, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.RunningConfig))
-	})
-	return ret, err
-}
-
-// Get retrieves the RunningConfig from the indexer for a given namespace and name.
-func (s runningConfigNamespaceLister) Get(name string) (*v1alpha1.RunningConfig, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("runningconfig"), name)
-	}
-	return obj.(*v1alpha1.RunningConfig), nil
+	listers.ResourceIndexer[*v1alpha1.RunningConfig]
 }

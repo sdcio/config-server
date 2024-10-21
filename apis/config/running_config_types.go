@@ -35,6 +35,10 @@ type RunningConfigStatus struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories={sdc}
 
 //	RunningConfig defines the Schema for the RunningConfig API
 type RunningConfig struct {
@@ -47,6 +51,8 @@ type RunningConfig struct {
 
 // RunningConfigList contains a list of RunningConfigs
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
 type RunningConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type TargetConnectionProfileLister interface {
 
 // targetConnectionProfileLister implements the TargetConnectionProfileLister interface.
 type targetConnectionProfileLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.TargetConnectionProfile]
 }
 
 // NewTargetConnectionProfileLister returns a new TargetConnectionProfileLister.
 func NewTargetConnectionProfileLister(indexer cache.Indexer) TargetConnectionProfileLister {
-	return &targetConnectionProfileLister{indexer: indexer}
-}
-
-// List lists all TargetConnectionProfiles in the indexer.
-func (s *targetConnectionProfileLister) List(selector labels.Selector) (ret []*v1alpha1.TargetConnectionProfile, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.TargetConnectionProfile))
-	})
-	return ret, err
+	return &targetConnectionProfileLister{listers.New[*v1alpha1.TargetConnectionProfile](indexer, v1alpha1.Resource("targetconnectionprofile"))}
 }
 
 // TargetConnectionProfiles returns an object that can list and get TargetConnectionProfiles.
 func (s *targetConnectionProfileLister) TargetConnectionProfiles(namespace string) TargetConnectionProfileNamespaceLister {
-	return targetConnectionProfileNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return targetConnectionProfileNamespaceLister{listers.NewNamespaced[*v1alpha1.TargetConnectionProfile](s.ResourceIndexer, namespace)}
 }
 
 // TargetConnectionProfileNamespaceLister helps list and get TargetConnectionProfiles.
@@ -73,26 +65,5 @@ type TargetConnectionProfileNamespaceLister interface {
 // targetConnectionProfileNamespaceLister implements the TargetConnectionProfileNamespaceLister
 // interface.
 type targetConnectionProfileNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all TargetConnectionProfiles in the indexer for a given namespace.
-func (s targetConnectionProfileNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.TargetConnectionProfile, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.TargetConnectionProfile))
-	})
-	return ret, err
-}
-
-// Get retrieves the TargetConnectionProfile from the indexer for a given namespace and name.
-func (s targetConnectionProfileNamespaceLister) Get(name string) (*v1alpha1.TargetConnectionProfile, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("targetconnectionprofile"), name)
-	}
-	return obj.(*v1alpha1.TargetConnectionProfile), nil
+	listers.ResourceIndexer[*v1alpha1.TargetConnectionProfile]
 }

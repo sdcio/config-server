@@ -19,8 +19,8 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -37,25 +37,17 @@ type UnManagedConfigLister interface {
 
 // unManagedConfigLister implements the UnManagedConfigLister interface.
 type unManagedConfigLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1alpha1.UnManagedConfig]
 }
 
 // NewUnManagedConfigLister returns a new UnManagedConfigLister.
 func NewUnManagedConfigLister(indexer cache.Indexer) UnManagedConfigLister {
-	return &unManagedConfigLister{indexer: indexer}
-}
-
-// List lists all UnManagedConfigs in the indexer.
-func (s *unManagedConfigLister) List(selector labels.Selector) (ret []*v1alpha1.UnManagedConfig, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.UnManagedConfig))
-	})
-	return ret, err
+	return &unManagedConfigLister{listers.New[*v1alpha1.UnManagedConfig](indexer, v1alpha1.Resource("unmanagedconfig"))}
 }
 
 // UnManagedConfigs returns an object that can list and get UnManagedConfigs.
 func (s *unManagedConfigLister) UnManagedConfigs(namespace string) UnManagedConfigNamespaceLister {
-	return unManagedConfigNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return unManagedConfigNamespaceLister{listers.NewNamespaced[*v1alpha1.UnManagedConfig](s.ResourceIndexer, namespace)}
 }
 
 // UnManagedConfigNamespaceLister helps list and get UnManagedConfigs.
@@ -73,26 +65,5 @@ type UnManagedConfigNamespaceLister interface {
 // unManagedConfigNamespaceLister implements the UnManagedConfigNamespaceLister
 // interface.
 type unManagedConfigNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all UnManagedConfigs in the indexer for a given namespace.
-func (s unManagedConfigNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.UnManagedConfig, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.UnManagedConfig))
-	})
-	return ret, err
-}
-
-// Get retrieves the UnManagedConfig from the indexer for a given namespace and name.
-func (s unManagedConfigNamespaceLister) Get(name string) (*v1alpha1.UnManagedConfig, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("unmanagedconfig"), name)
-	}
-	return obj.(*v1alpha1.UnManagedConfig), nil
+	listers.ResourceIndexer[*v1alpha1.UnManagedConfig]
 }

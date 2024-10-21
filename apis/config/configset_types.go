@@ -61,6 +61,10 @@ type TargetStatus struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:categories={sdc}
 
 // ConfigSet is the Schema for the ConfigSet API
 type ConfigSet struct {
@@ -71,8 +75,11 @@ type ConfigSet struct {
 	Status ConfigSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// ConfigSetList contains a list of ConfigSets
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+
+// ConfigSetList contains a list of ConfigSets
 type ConfigSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
