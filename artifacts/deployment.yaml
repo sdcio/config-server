@@ -32,7 +32,6 @@ spec:
         args:
         - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
         - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
-        #- "--feature-gates=APIPriorityAndFairness=false"
         - "--audit-log-path=-"
         - "--audit-log-maxage=0"
         - "--audit-log-maxbackup=0"
@@ -72,6 +71,8 @@ spec:
           value: "true"
         - name: ENABLE_CONFIGSET
           value: "true"
+        - name: SDC_DATA_SERVER
+          value: data-server:56000
         volumeMounts:
         - name: apiserver-certs
           mountPath: /apiserver.local.config/certificates
@@ -96,6 +97,9 @@ spec:
           mountPath: /schemas
         - name: schema-db
           mountPath: /schemadb
+        ports:
+        - name: data-server
+          containerPort: 56000
       volumes:
       - name: data-server-config
         configMap:
