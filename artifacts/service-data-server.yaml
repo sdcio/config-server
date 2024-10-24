@@ -1,14 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: data-server
-  namespace: network-system
   labels:
     sdcio.dev/config-server: "true"
+  name: data-server
+  namespace: network-system
 spec:
   ports:
-  - port: 56000
+  - name: grpc
+    port: 56000
     protocol: TCP
-    targetPort: 56000
+    targetPort: data-server
   selector:
     sdcio.dev/data-server: "true"
