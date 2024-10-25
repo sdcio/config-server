@@ -79,6 +79,10 @@ spec:
                         type: string
                       maxItems: 10
                       type: array
+                    port:
+                      default: 57400
+                      description: Port defines the port on which the scan runs
+                      type: integer
                     protocol:
                       default: gnmi
                       enum:
@@ -91,6 +95,7 @@ spec:
                   - mode
                   - name
                   - paths
+                  - port
                   - protocol
                   type: object
                 maxItems: 10
