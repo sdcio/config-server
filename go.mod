@@ -21,14 +21,14 @@ require (
 	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sdcio/data-server v0.0.43
+	github.com/sdcio/data-server v0.0.44-0.20241028095321-82b9a0c9bc74
 	github.com/sdcio/sdc-protos v0.0.33-0.20241025141957-b66f3eef30d9
 	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.28.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.21.0
 	golang.org/x/sync v0.8.0
-	google.golang.org/grpc v1.67.0
+	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
@@ -52,6 +52,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
+	github.com/beevik/etree v1.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bufbuild/protocompile v0.14.0 // indirect
