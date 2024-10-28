@@ -69,8 +69,8 @@ type TargetConnectionProfileSpec struct {
 	// Port defines the port on which the scan runs
 	Port uint `json:"port" yaml:"port"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
-	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;BYTES;PROTO;ASCII;CONFIG;
-	// +kubebuilder:default:="ASCII"
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
+	// +kubebuilder:default:="JSON_IETF"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
 	// +kubebuilder:validation:Enum="1.0";"1.1";

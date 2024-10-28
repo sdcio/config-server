@@ -50,14 +50,12 @@ spec:
                     TargetSyncProfileSync
                   properties:
                     encoding:
-                      default: ASCII
+                      default: JSON_IETF
                       enum:
                       - UNKNOWN
                       - JSON
                       - JSON_IETF
-                      - BYTES
                       - PROTO
-                      - ASCII
                       - CONFIG
                       type: string
                     interval:
@@ -65,6 +63,7 @@ spec:
                       format: duration
                       type: string
                     mode:
+                      default: get
                       enum:
                       - unknown
                       - onChange
@@ -83,6 +82,9 @@ spec:
                       default: 57400
                       description: Port defines the port on which the scan runs
                       type: integer
+                      x-kubernetes-validations:
+                      - message: port is immutable
+                        rule: self == oldSelf
                     protocol:
                       default: gnmi
                       enum:
