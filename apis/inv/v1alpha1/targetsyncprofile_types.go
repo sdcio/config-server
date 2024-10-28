@@ -57,6 +57,7 @@ type TargetSyncProfileSync struct {
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="port is immutable"
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
 	Port uint `json:"port" yaml:"port"`
