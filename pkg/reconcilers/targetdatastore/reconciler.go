@@ -660,6 +660,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 				Password: string(secret.Data["password"]),
 			},
 			Tls: tls,
+			Port: uint32(connProfile.Spec.Port),
 		},
 		Schema: &sdcpb.Schema{
 			Name:    "",
