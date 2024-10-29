@@ -82,9 +82,6 @@ spec:
                       default: 57400
                       description: Port defines the port on which the scan runs
                       type: integer
-                      x-kubernetes-validations:
-                      - message: port is immutable
-                        rule: self == oldSelf
                     protocol:
                       default: gnmi
                       enum:
