@@ -9,22 +9,38 @@ metadata:
   name: eos.arista.4.31.2.f
   namespace: default
 spec:
-  repoURL: https://github.com/aristanetworks/yang
   provider: eos.arista.sdcio.dev
   version: 4.31.2.F
-  kind: branch
-  ref: master
-  dirs:
+  repositories:
+  - repoURL: https://github.com/aristanetworks/yang
+    kind: branch
+    ref: master
+    dirs:
     - src: EOS-4.31.2F
       dst: .
-  schema:
-    models:
-      - release/openconfig/models
-    includes:
-      - openconfig/public/release/models
-      - iana/iana-if-type@2023-01-26.yang
-      - ietf/ietf-inet-types.yang
-      - ietf/ietf-interfaces.yang
-      - ietf/ietf-yang-types.yang
-    excludes:
-      - .*notsupported.*
+    schema:
+      models:
+        - release/openconfig/models
+      includes:
+        - openconfig/public/release/models
+        - iana/iana-if-type@2023-01-26.yang
+        - ietf/ietf-inet-types.yang
+        - ietf/ietf-interfaces.yang
+        - ietf/ietf-yang-types.yang
+      excludes:
+        - .*notsupported.*
+  - repoURL: https://github.com/YangModels/yang
+    kind: branch
+    ref: main
+    dirs:
+      - src: standard/ietf/RFC
+        dst: ietf
+      - src: standard/iana
+        dst: iana
+    schema:
+      models:
+        - iana/iana-if-type@2023-01-26.yang
+        - ietf/ietf-inet-types.yang
+        - ietf/ietf-interfaces.yang
+        - ietf/ietf-yang-types.yang
+    
