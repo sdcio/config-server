@@ -21,8 +21,8 @@ require (
 	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sdcio/data-server v0.0.44-0.20241028095321-82b9a0c9bc74
-	github.com/sdcio/sdc-protos v0.0.33-0.20241025141957-b66f3eef30d9
+	github.com/sdcio/data-server v0.0.44
+	github.com/sdcio/sdc-protos v0.0.33
 	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.28.0
 	go.uber.org/zap v1.27.0
@@ -141,7 +141,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
