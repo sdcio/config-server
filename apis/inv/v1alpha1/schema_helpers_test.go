@@ -110,6 +110,10 @@ func TestExampleSchemas(t *testing.T) {
 			path:        "../../../example/schemas/schema-nokia-sros-23.10.yaml",
 			expectedErr: nil,
 		},
+		"Arista": {
+			path:        "../../../example/schemas/schema-arista-4.31.2.F.yaml",
+			expectedErr: nil,
+		},
 	}
 
 	for name, tc := range cases {

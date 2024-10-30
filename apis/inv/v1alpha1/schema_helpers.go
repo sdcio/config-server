@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"sort"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
@@ -75,9 +76,12 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 		mergeSetWithSlice(includesSet, repo.Schema.Includes)
 		mergeSetWithSlice(excludesSet, repo.Schema.Excludes)
 	}
-	models := initSlice(modelsSet.UnsortedList(), ".")
-	includes := initSlice(includesSet.UnsortedList(), "")
-	excludes := initSlice(excludesSet.UnsortedList(), "")
+	models := sort.StringSlice(modelsSet.UnsortedList())
+	if len(models) == 0 {
+		models = []string{"."}
+	}
+	includes := sort.StringSlice(includesSet.UnsortedList())
+	excludes := sort.StringSlice(excludesSet.UnsortedList())
 
 	return SchemaSpecSchema{
 		Models:   getNewBase(basePath, models),
@@ -94,17 +98,6 @@ func mergeSetWithSlice(set sets.Set[string], newSlice []string) {
 	}
 }
 
-func initSlice(in []string, init string) []string {
-	if len(in) == 0 {
-		if init != "" {
-			return []string{init}
-		} else {
-			return []string{}
-		}
-	}
-	return in
-}
-
 func getNewBase(basePath string, in []string) []string {
 	str := make([]string, 0, len(in))
 	for _, s := range in {
@@ -115,9 +108,9 @@ func getNewBase(basePath string, in []string) []string {
 
 // GetSchemaFromFile is a helper for tests to use the
 // examples and validate them in unit tests
-func GetSchemaFromFile(path string) (*DiscoveryRule, error) {
+func GetSchemaFromFile(path string) (*Schema, error) {
 	addToScheme := AddToScheme
-	obj := &DiscoveryRule{}
+	obj := &Schema{}
 	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
 	// build object from file
 	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
