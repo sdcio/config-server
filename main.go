@@ -35,7 +35,7 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
-	configopenapi "github.com/sdcio/config-server/pkg/generated/openapi"
+	"github.com/sdcio/config-server/pkg/generated/openapi"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -98,12 +98,6 @@ func main() {
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
-	/*
-		if err := scheme.AddToScheme(runScheme); err != nil {
-			log.Error("cannot initialize schema", "error", err)
-			os.Exit(1)
-		}
-	*/
 	// add the core object to the scheme
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
@@ -185,7 +179,7 @@ func main() {
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
-			WithOpenAPIDefinitions("Config", "v1alpha1", configopenapi.GetOpenAPIDefinitions).
+			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
 			WithResourceAndHandler(&config.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&config.ConfigSet{}, configSetStorageProvider).

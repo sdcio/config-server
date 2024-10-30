@@ -73,7 +73,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	b, _ := json.Marshal(di)
 	log.Debug("discovery info", "info", string(b))
 
-	return r.createTarget(ctx, discoverer.GetProvider(), t.Config.Address, di)
+	return r.createTarget(ctx, discoverer.GetProvider(), h.Address, di)
 }
 
 func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, connProfile *invv1alpha1.TargetConnectionProfile) (*target.Target, error) {

@@ -18,7 +18,6 @@ package discoveryrule
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -30,10 +29,10 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 	log.Info("discover protocol none", "hostName", h.hostName)
 	provider := r.cfg.DefaultSchema.Provider
 	version := r.cfg.DefaultSchema.Version
-	address := fmt.Sprintf("%s:%d",
-		h.Address,
-		r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
-	)
+	//address := fmt.Sprintf("%s:%d",
+	//	h.Address,
+	//	r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
+	//)
 	di := &invv1alpha1.DiscoveryInfo{
 		Protocol: "static",
 		Provider: provider,
@@ -41,5 +40,5 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 		HostName: h.hostName,
 		LastSeen: metav1.Now(),
 	}
-	return r.createTarget(ctx, provider, address, di)
+	return r.createTarget(ctx, provider, h.Address, di)
 }

@@ -57,12 +57,16 @@ type TargetSyncProfileSync struct {
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
 	Protocol Protocol `json:"protocol" yaml:"protocol"`
+	// +kubebuilder:default:=57400
+	// Port defines the port on which the scan runs
+	Port uint `json:"port" yaml:"port"`
 	// +kubebuilder:validation:MaxItems=10
 	Paths []string `json:"paths" yaml:"paths"`
-	//+kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
+	// +kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
+	// +kubebuilder:default:="get"
 	Mode SyncMode `json:"mode" yaml:"mode"`
-	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;BYTES;PROTO;ASCII;CONFIG;
-	// +kubebuilder:default:="ASCII"
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;CONFIG;
+	// +kubebuilder:default:="JSON_IETF"
 	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=duration

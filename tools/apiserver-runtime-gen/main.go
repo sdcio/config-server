@@ -98,6 +98,7 @@ func doGen() error {
 	clientgenVersions := []string{}
 	informerListergenVersions := []string{}
 	protobufVersions := []string{}
+	typeVersions := []string{}
 	for _, version := range versions {
 		if !strings.Contains(version, "condition") {
 			// expand the path with the module
@@ -106,6 +107,7 @@ func doGen() error {
 			informerListergenVersions = append(informerListergenVersions, fmt.Sprintf("./%s", path.Join(version, "...")))
 		}
 		protobufVersions = append(protobufVersions, version)
+		typeVersions = append(typeVersions, path.Join(module, version))
 	}
 
 	//protoInputs := strings.Join(rawVersions, ",")
@@ -125,16 +127,19 @@ func doGen() error {
 	}
 
 	if gen["openapi-gen"] {
-		err := run(getCmd("openapi-gen",
-			"--output-file", "zz_generated.openapi.go",
+		// HACK had to use openapi-gen and use go mod v1.23 iso go.mod v1.20
+		cmdArgs := []string{
 			"--output-dir", "pkg/generated/openapi",
 			"--output-pkg", "openapi",
-			"./apis/...",
+			"--output-file", "zz_generated.openapi.go",
 			"k8s.io/apimachinery/pkg/apis/meta/v1",
 			"k8s.io/apimachinery/pkg/api/resource",
 			"k8s.io/apimachinery/pkg/runtime",
 			"k8s.io/apimachinery/pkg/version",
-		))
+		}
+		cmdArgs = append(cmdArgs, typeVersions...)
+		err := run(getCmdSimple("bin/openapi-gen", cmdArgs...))
+
 		if err != nil {
 			return err
 		}
@@ -286,6 +291,14 @@ func run(cmd *exec.Cmd) error {
 func getCmd(cmd string, args ...string) *exec.Cmd {
 	// nolint:gosec
 	e := exec.Command(filepath.Join(bin, cmd), "--go-header-file", header)
+
+	e.Args = append(e.Args, args...)
+	return e
+}
+
+func getCmdSimple(cmd string, args ...string) *exec.Cmd {
+	// nolint:gosec
+	e := exec.Command(cmd, "--go-header-file", header)
 
 	e.Args = append(e.Args, args...)
 	return e

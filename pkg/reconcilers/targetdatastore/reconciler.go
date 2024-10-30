@@ -650,12 +650,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 		return nil, nil, fmt.Errorf("target not discovered, discovery incomplete, got: %v", cr.Status.DiscoveryInfo)
 	}
 
-	commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
-	if connProfile.Spec.CommitCandidate == invv1alpha1.CommitCandidate_Running {
-		commitCandidate = sdcpb.CommitCandidate_COMMIT_RUNNING
-	}
-
-	return &sdcpb.CreateDataStoreRequest{
+	req := &sdcpb.CreateDataStoreRequest{
 		Name: storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name}).String(),
 		Target: &sdcpb.Target{
 			Type:    string(connProfile.Spec.Protocol),
@@ -664,17 +659,39 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, cr *invv1alp
 				Username: string(secret.Data["username"]),
 				Password: string(secret.Data["password"]),
 			},
-			Tls:                tls,
-			IncludeNs:          connProfile.Spec.IncludeNS,
-			OperationWithNs:    connProfile.Spec.OperationWithNS,
-			UseOperationRemove: connProfile.Spec.UseOperationRemove,
-			CommitCandidate:    commitCandidate,
+			Tls: tls,
+			Port: uint32(connProfile.Spec.Port),
 		},
-		Sync: invv1alpha1.GetSyncProfile(syncProfile),
 		Schema: &sdcpb.Schema{
 			Name:    "",
 			Vendor:  cr.Status.DiscoveryInfo.Provider,
 			Version: cr.Status.DiscoveryInfo.Version,
 		},
-	}, usedReferences, nil
+	}
+
+	if connProfile.Spec.Protocol == invv1alpha1.Protocol_GNMI {
+		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
+			GnmiOpts: &sdcpb.GnmiOptions{
+				Encoding: string(connProfile.Spec.Encoding),
+			},
+		}
+	}
+	if connProfile.Spec.Protocol == invv1alpha1.Protocol_NETCONF {
+		commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
+		if connProfile.Spec.CommitCandidate == invv1alpha1.CommitCandidate_Running {
+			commitCandidate = sdcpb.CommitCandidate_COMMIT_RUNNING
+		}
+		req.Target.ProtocolOptions = &sdcpb.Target_NetconfOpts{
+			NetconfOpts: &sdcpb.NetconfOptions{
+				IncludeNs:          connProfile.Spec.IncludeNS,
+				OperationWithNs:    connProfile.Spec.OperationWithNS,
+				UseOperationRemove: connProfile.Spec.UseOperationRemove,
+				CommitCandidate:    commitCandidate,
+			},
+		}
+	}
+
+	req.Sync = invv1alpha1.GetSyncProfile(syncProfile, req.Target)
+
+	return req, usedReferences, nil
 }

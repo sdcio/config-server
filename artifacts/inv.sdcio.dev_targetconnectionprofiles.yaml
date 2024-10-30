@@ -55,15 +55,12 @@ spec:
                 - message: connectRetry is immutable
                   rule: self == oldSelf
               encoding:
-                default: ASCII
+                default: JSON_IETF
                 enum:
                 - UNKNOWN
                 - JSON
                 - JSON_IETF
-                - BYTES
                 - PROTO
-                - ASCII
-                - CONFIG
                 type: string
                 x-kubernetes-validations:
                 - message: encoding is immutable

@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetSyncProfile(syncProfile *TargetSyncProfile) *sdcpb.Sync {
+func GetSyncProfile(syncProfile *TargetSyncProfile, target *sdcpb.Target) *sdcpb.Sync {
 	sync := &sdcpb.Sync{
 		Validate:     false,
 		Buffer:       10000.,
@@ -32,14 +32,30 @@ func GetSyncProfile(syncProfile *TargetSyncProfile) *sdcpb.Sync {
 	}
 	sync.Config = make([]*sdcpb.SyncConfig, 0, len(syncProfile.Spec.Sync))
 	for _, syncConfig := range syncProfile.Spec.Sync {
-		sync.Config = append(sync.Config, &sdcpb.SyncConfig{
-			Name:     syncConfig.Name,
-			Protocol: string(syncConfig.Protocol),
+		synccfg := &sdcpb.SyncConfig{
+			Name: syncConfig.Name,
+			Target: &sdcpb.Target{
+				Type:        string(syncConfig.Protocol),
+				Address:     target.Address,
+				Port:        uint32(syncConfig.Port),
+				Tls:         target.Tls,
+				Credentials: target.Credentials,
+			},
 			Path:     syncConfig.Paths,
 			Mode:     getSyncMode(syncConfig.Mode),
-			Encoding: getEncoding(syncConfig.Encoding),
 			Interval: uint64(syncConfig.Interval.Nanoseconds()),
-		})
+		}
+
+		if syncConfig.Protocol == Protocol_GNMI {
+			synccfg.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
+				GnmiOpts: &sdcpb.GnmiOptions{
+					Encoding: getEncoding(syncConfig.Encoding),
+				},
+			}
+		}
+
+		sync.Config = append(sync.Config, synccfg)
+
 	}
 	return sync
 }

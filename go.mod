@@ -12,7 +12,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.4-0.20241021160127-f10a4b489c64
+	github.com/henderiw/apiserver-builder v0.0.4-0.20241023220418-f1bacfdbb4da
 	github.com/henderiw/apiserver-store v0.0.3-0.20240816041837-2a8a0a2f583e
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
@@ -21,14 +21,14 @@ require (
 	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sdcio/data-server v0.0.43
-	github.com/sdcio/sdc-protos v0.0.28
+	github.com/sdcio/data-server v0.0.44
+	github.com/sdcio/sdc-protos v0.0.33
 	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.28.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.21.0
 	golang.org/x/sync v0.8.0
-	google.golang.org/grpc v1.66.2
+	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
@@ -52,6 +52,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
+	github.com/beevik/etree v1.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bufbuild/protocompile v0.14.0 // indirect
@@ -139,8 +140,8 @@ require (
 	golang.org/x/tools v0.24.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240604185151-ef581f913117 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
