@@ -21,10 +21,11 @@ import (
 	"path"
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -66,14 +67,30 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 	basePath = r.GetBasePath(basePath)
 
 	// when no models are supplied we use the base dir
-	models := initSlice(r.Schema.Models, ".")
-	includes := initSlice(r.Schema.Includes, "")
-	excludes := initSlice(r.Schema.Excludes, "")
+	modelsSet := sets.New[string]()
+	includesSet := sets.New[string]()
+	excludesSet := sets.New[string]()
+	for _, repo := range r.Repositories {
+		mergeSetWithSlice(modelsSet, repo.Schema.Models)
+		mergeSetWithSlice(includesSet, repo.Schema.Includes)
+		mergeSetWithSlice(excludesSet, repo.Schema.Excludes)
+	}
+	models := initSlice(modelsSet.UnsortedList(), ".")
+	includes := initSlice(includesSet.UnsortedList(), "")
+	excludes := initSlice(excludesSet.UnsortedList(), "")
 
 	return SchemaSpecSchema{
 		Models:   getNewBase(basePath, models),
 		Includes: getNewBase(basePath, includes),
 		Excludes: excludes,
+	}
+}
+
+func mergeSetWithSlice(set sets.Set[string], newSlice []string) {
+	for _, item := range newSlice {
+		if !set.Has(item) {
+			sets.Insert(set, item)
+		}
 	}
 }
 

@@ -41,7 +41,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -120,8 +119,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	cr := &invv1alpha1.Schema{}
-	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+	schema := &invv1alpha1.Schema{}
+	if err := r.Get(ctx, req.NamespacedName, schema); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
@@ -129,10 +128,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{}, nil
 	}
-	cr = cr.DeepCopy()
-	spec := &cr.Spec
+	schema = schema.DeepCopy()
+	spec := &schema.Spec
 
-	if !cr.GetDeletionTimestamp().IsZero() {
+	if !schema.GetDeletionTimestamp().IsZero() {
 		// check if the schema exists; this is == nil check; in case of err it does not exist
 		if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 			Schema: spec.GetSchema(),
@@ -140,17 +139,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
-				return r.handleErrorWithStatus(ctx, cr, "cannot delete schema from schemaserver", err)
+				return r.handleErrorWithStatus(ctx, schema, "cannot delete schema from schemaserver", err)
 			}
 		}
 
 		// delete the reference from disk
 		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
-			return r.handleErrorWithStatus(ctx, cr, "cannot delete reference", err)
+			return r.handleErrorWithStatus(ctx, schema, "cannot delete reference", err)
 		}
 		// remove the finalizer
-		if err := r.finalizer.RemoveFinalizer(ctx, cr); err != nil {
-			return r.handleErrorWithStatus(ctx, cr, "cannot remove finalizer", err)
+		if err := r.finalizer.RemoveFinalizer(ctx, schema); err != nil {
+			return r.handleErrorWithStatus(ctx, schema, "cannot remove finalizer", err)
 		}
 		// done deleting
 		return ctrl.Result{}, nil
@@ -158,32 +157,29 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not ready (ready state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datastore/etc
-	if err := r.finalizer.AddFinalizer(ctx, cr); err != nil {
+	if err := r.finalizer.AddFinalizer(ctx, schema); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleErrorWithStatus(ctx, cr, "cannot add finalizer", err)
+		return r.handleErrorWithStatus(ctx, schema, "cannot add finalizer", err)
 	}
 
 	// we just insert the schema again
-	r.schemaLoader.AddRef(ctx, spec)
+	r.schemaLoader.AddRef(ctx, schema)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
-		return r.handleErrorWithStatus(ctx, cr, "cannot get schema reference", err)
+		return r.handleErrorWithStatus(ctx, schema, "cannot get schema reference", err)
 	}
 
 	if !dirExists {
 		// we set the loading condition to know loading started
-		cr.SetConditions(invv1alpha1.Loading())
-		if err := r.Status().Update(ctx, cr); err != nil {
+		schema.SetConditions(invv1alpha1.Loading())
+		if err := r.Status().Update(ctx, schema); err != nil {
 			// we always retry when status fails -> optimistic concurrency
-			return r.handleError(ctx, cr, "cannot update status", err)
+			return r.handleError(ctx, schema, "cannot update status", err)
 		}
-		r.recorder.Eventf(cr, corev1.EventTypeNormal,
+		r.recorder.Eventf(schema, corev1.EventTypeNormal,
 			"schema", "loading")
-		if err := r.schemaLoader.Load(ctx, spec.GetKey(), types.NamespacedName{
-			Namespace: cr.Namespace,
-			Name:      cr.Spec.Credentials,
-		}); err != nil {
-			return r.handleErrorWithStatus(ctx, cr, "cannot load schema", err)
+		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
+			return r.handleErrorWithStatus(ctx, schema, "cannot load schema", err)
 		}
 	}
 	// check if the schema exists
@@ -197,22 +193,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			return r.handleErrorWithStatus(ctx, cr, "cannot create schema", err)
+			return r.handleErrorWithStatus(ctx, schema, "cannot create schema", err)
 		}
 	} else {
 		// if schema exists, reload it from disk
-		// TODO: Does this actually reload schema from disk?
 		_, err := r.schemaclient.ReloadSchema(ctx, &sdcpb.ReloadSchemaRequest{Schema: spec.GetSchema()})
 		if err != nil {
-			return r.handleErrorWithStatus(ctx, cr, "cannot reload schema", err)
+			return r.handleErrorWithStatus(ctx, schema, "cannot reload schema", err)
 		}
 	}
 
 	// schema ready
-	cr.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(cr, corev1.EventTypeNormal,
+	schema.SetConditions(condv1alpha1.Ready())
+	r.recorder.Eventf(schema, corev1.EventTypeNormal,
 		"schema", "ready")
-	err = r.Status().Update(ctx, cr)
+	err = r.Status().Update(ctx, schema)
 	if err != nil {
 		return ctrl.Result{}, pkgerrors.Wrap(err, errUpdateStatus)
 	}

@@ -33,18 +33,27 @@ const (
 
 // SchemaSpec defines the desired state of Schema
 type SchemaSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
+	// Provider specifies the provider of the schema.
+	Provider string `json:"provider"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="version is immutable"
+	// Version defines the version of the schema
+	Version string `json:"version"`
+	// +kubebuilder:validation:MinItems:=1
+	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="repositories may only be added"
+	// Repositories define the repositories used for building the provider schema
+	Repositories []*SchemaSpecRepository `json:"repositories"`
+}
+
+type SchemaSpecRepository struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
-	// URL specifies the base URL for a given repository
+	// RepositoryURL specifies the base URL for a given repository
 	RepositoryURL string `json:"repoURL" yaml:"repoURL"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
 	// Credentials defines the name of the secret that holds the credentials to connect to the repo
 	Credentials string `json:"credentials,omitempty" yaml:"credentials,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
-	// Provider specifies the provider of the schema.
-	Provider string `json:"provider" yaml:"provider"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="version is immutable"
-	// Version defines the version of the schema
-	Version string `json:"version" yaml:"version"`
+	// Proxy defines the HTTP/HTTPS proxy to be used to download the models.
+	Proxy SchemaSpecProxy `json:"proxy,omitempty" yaml:"proxy,omitempty"`
 	// +kubebuilder:validation:Enum=branch;tag;
 	// +kubebuilder:default:=tag
 	// Kind defines the that the BranchOrTag string is a repository branch or a tag
@@ -58,12 +67,9 @@ type SchemaSpec struct {
 	// Dirs defines the list of directories that identified the provider schema in src/dst pairs
 	// relative within the repository
 	Dirs []SrcDstPath `json:"dirs,omitempty" yaml:"dirs,omitempty"`
-
 	// Schema provides the details of which files must be used for the models and which files/directories
 	// cana be excludes
 	Schema SchemaSpecSchema `json:"schema" yaml:"schema"`
-	// Proxy defines the HTTP/HTTPS proxy to be used to download the models.
-	Proxy SchemaSpecProxy `json:"proxy,omitempty" yaml:"proxy,omitempty"`
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src
@@ -111,10 +117,10 @@ type SchemaStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
-// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repositories[0].repoURL"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.repositories[0].ref"
 // +kubebuilder:resource:categories={sdc,inv}
 // Schema is the Schema for the Schema API
 // +k8s:openapi-gen=true
