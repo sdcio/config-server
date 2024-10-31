@@ -89,14 +89,6 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 	}
 }
 
-func mergeSetWithSlice(set sets.Set[string], newSlice []string) {
-	for _, item := range newSlice {
-		if !set.Has(item) {
-			sets.Insert(set, item)
-		}
-	}
-}
-
 func getNewBase(basePath string, in []string) []string {
 	str := make([]string, 0, len(in))
 	for _, s := range in {
