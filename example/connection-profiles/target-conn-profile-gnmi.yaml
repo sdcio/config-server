@@ -11,6 +11,6 @@ metadata:
 spec:
   port: 57400
   protocol: gnmi
-  encoding: ASCII
+  encoding: JSON_IETF
   skipVerify: true
   insecure: false

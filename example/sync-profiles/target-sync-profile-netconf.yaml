@@ -18,5 +18,4 @@ spec:
     paths:
     - /
     mode: sample
-    encoding: CONFIG
     interval: 10s

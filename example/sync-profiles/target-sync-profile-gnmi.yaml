@@ -17,6 +17,7 @@ spec:
     protocol: gnmi
     paths:
     - /
-    mode: onChange
-    encoding: CONFIG     # SRLinux specific encoding (id: 45)
+    mode: get
+    encoding: JSON_IETF
+    interval: 10s
  
