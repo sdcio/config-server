@@ -111,7 +111,7 @@ func TestExampleSchemas(t *testing.T) {
 			expectedErr: nil,
 		},
 		"Arista": {
-			path:        "../../../example/schemas/schema-arista-4.31.2.F.yaml",
+			path:        "../../../example/schemas/schema-arista-4.31.2.f.yaml",
 			expectedErr: nil,
 		},
 	}
