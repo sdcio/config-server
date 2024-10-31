@@ -47,7 +47,8 @@ type downloadable interface {
 
 type providerDownloader struct {
 	destDir            string
-	schema             *invv1alpha1.Schema
+	namespace string
+	schemaRepo             *invv1alpha1.SchemaSpecRepository
 	credentialResolver auth.CredentialResolver
 }
 
@@ -133,27 +134,25 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 		return err
 	}
 
-	
-
-	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
-	var downloader downloadable
-	switch {
-	default:
-		downloader = newGitDownloader(r.tmpDir, schema, r.credentialResolver)
-	}
-
-	if downloader == nil {
-		return &sdcerrors.UnrecoverableError{
-			Message:      "could not detect repository type",
-			WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
-		}
-	}
-	err = downloader.Download(ctx)
-	if err != nil {
-		return err
-	}
-
 	for _, schemaRepo := range schema.Spec.Repositories {
+		// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
+		var downloader downloadable
+		switch {
+		default:
+			downloader = newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
+		}
+
+		if downloader == nil {
+			return &sdcerrors.UnrecoverableError{
+				Message:      "could not detect repository type",
+				WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
+			}
+		}
+		err = downloader.Download(ctx)
+		if err != nil {
+			return err
+		}
+
 		localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
 		if err != nil {
 			return err
