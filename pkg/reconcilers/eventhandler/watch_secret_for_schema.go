@@ -73,14 +73,16 @@ func (r *SecretForSchemaEventHandler) add(ctx context.Context, obj runtime.Objec
 
 	// when config changes and is part of a configset we need to reconcile the configset
 	for _, schema := range schemaList.Items {
-		if schema.Spec.Credentials == secret.Name {
-			key := types.NamespacedName{
-				Name:      schema.GetName(),
-				Namespace: schema.GetNamespace(),
+		for _, repo := range schema.Spec.Repositories {
+			if repo.Credentials == secret.Name {
+				key := types.NamespacedName{
+					Name:      schema.GetName(),
+					Namespace: schema.GetNamespace(),
+				}
+				log.Info("event requeue", "key", key.String())
+				queue.Add(reconcile.Request{NamespacedName: key})
+				return // these should be 1 configset for a config
 			}
-			log.Info("event requeue", "key", key.String())
-			queue.Add(reconcile.Request{NamespacedName: key})
-			return // these should be 1 configset for a config
 		}
 	}
 }

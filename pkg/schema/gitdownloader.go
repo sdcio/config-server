@@ -4,24 +4,24 @@ import (
 	"context"
 	"path"
 
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type gitDownloader struct {
 	providerDownloader
 }
 
-func newGitDownloader(destDir string, schemaSpec *invv1alpha1.SchemaSpec, credentialResolver auth.CredentialResolver, credentialNSN types.NamespacedName) *gitDownloader {
+func newGitDownloader(destDir, namespace string, schemaRepo *invv1alpha1.SchemaSpecRepository, credentialResolver auth.CredentialResolver) *gitDownloader {
 	return &gitDownloader{
 		providerDownloader{
 			destDir:            destDir,
-			schemaSpec:         schemaSpec,
+			namespace:          namespace,
+			schemaRepo:         schemaRepo,
 			credentialResolver: credentialResolver,
-			credentialNSN:      credentialNSN,
 		},
 	}
 }
@@ -29,7 +29,7 @@ func newGitDownloader(destDir string, schemaSpec *invv1alpha1.SchemaSpec, creden
 func (l *gitDownloader) Download(ctx context.Context) error {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(l.schemaSpec.RepositoryURL)
+	repo, err := git.NewRepo(l.schemaRepo.RepositoryURL)
 	if err != nil {
 		return err
 	}
@@ -38,37 +38,38 @@ func (l *gitDownloader) Download(ctx context.Context) error {
 	repo.SetLocalPath(repoPath)
 
 	// set branch or tag
-	if l.schemaSpec.Kind == invv1alpha1.BranchTagKindBranch {
-		repo.SetBranch(l.schemaSpec.Ref)
+	if l.schemaRepo.Kind == invv1alpha1.BranchTagKindBranch {
+		repo.SetBranch(l.schemaRepo.Ref)
 	} else {
 		// set the git tag that we're after
 		// if both branch and tag are the empty string
 		// the git impl will retrieve the default branch
-		repo.SetTag(l.schemaSpec.Ref)
+		repo.SetTag(l.schemaRepo.Ref)
 	}
 
 	// init the actual git instance
-	goGit := git.NewGoGit(repo, l.credentialNSN, l.credentialResolver)
+	goGit := git.NewGoGit(repo,
+		types.NamespacedName{
+			Namespace: l.namespace,
+			Name:      l.schemaRepo.Credentials},
+		l.credentialResolver,
+	)
 
 	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
 
-	if l.schemaSpec.Proxy.URL != "" {
-		err = goGit.SetProxy(l.schemaSpec.Proxy.URL)
+	if l.schemaRepo.Proxy.URL != "" {
+		err = goGit.SetProxy(l.schemaRepo.Proxy.URL)
 		if err != nil {
 			return err
 		}
-		log.Info("SetProxy", "proxy", l.schemaSpec.Proxy.URL)
+		log.Debug("SetProxy", "proxy", l.schemaRepo.Proxy.URL)
 	}
 
-	err = goGit.Clone(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+	return goGit.Clone(ctx)
 }
 
-func (l *gitDownloader) LocalPath() (string, error) {
-	repo, err := git.NewRepo(l.schemaSpec.RepositoryURL)
+func (l *gitDownloader) LocalPath(urlPath string) (string, error) {
+	repo, err := git.NewRepo(urlPath)
 	if err != nil {
 		return "", err
 	}

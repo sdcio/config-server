@@ -9,18 +9,19 @@ metadata:
   name: mx.juniper.23.2r1
   namespace: default
 spec:
-  repoURL: https://github.com/Juniper/yang
   provider: mx.juniper.sdcio.dev
   version: 23.2R1
-  kind: branch
-  ref: master
-  dirs:
-  - src: 23.2/23.2R1/junos/conf
-    dst: junos
-  - src: 23.2/23.2R1/common
-    dst: common
-  schema:
-    models:
-    - junos
-    includes:
-    - common
+  repositories:
+  - repoURL: https://github.com/Juniper/yang
+    kind: branch
+    ref: master
+    dirs:
+    - src: 23.2/23.2R1/junos/conf
+      dst: junos
+    - src: 23.2/23.2R1/common
+      dst: common
+    schema:
+      models:
+      - junos
+      includes:
+      - common

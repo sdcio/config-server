@@ -31,10 +31,8 @@ func TestGetNewSchemaBase(t *testing.T) {
 		"Nil": {
 			basePath: "dummy",
 			input: &SchemaSpec{
-				Schema: SchemaSpecSchema{
-					Models:   nil,
-					Excludes: nil,
-					Includes: nil,
+				Repositories: []*SchemaSpecRepository{
+					{Schema: SchemaSpecSchema{Models: nil, Excludes: nil, Includes: nil}},
 				},
 			},
 			output: SchemaSpecSchema{
@@ -46,14 +44,26 @@ func TestGetNewSchemaBase(t *testing.T) {
 		"Init": {
 			basePath: "dummy",
 			input: &SchemaSpec{
-				Schema: SchemaSpecSchema{
-					Models:   []string{"a", "b"},
-					Excludes: []string{"a"},
-					Includes: []string{"a"},
+				Repositories: []*SchemaSpecRepository{
+					{Schema: SchemaSpecSchema{Models: []string{"a", "b"}, Excludes: []string{"a"}, Includes: []string{"a"}}},
 				},
 			},
 			output: SchemaSpecSchema{
 				Models:   []string{"dummy/a", "dummy/b"},
+				Includes: []string{"dummy/a"},
+				Excludes: []string{"a"},
+			},
+		},
+		"Multiple": {
+			basePath: "dummy",
+			input: &SchemaSpec{
+				Repositories: []*SchemaSpecRepository{
+					{Schema: SchemaSpecSchema{Models: []string{"a", "b"}, Excludes: []string{"a"}, Includes: []string{"a"}}},
+					{Schema: SchemaSpecSchema{Models: []string{"c", "b"}, Excludes: []string{"a"}, Includes: []string{"a"}}},
+				},
+			},
+			output: SchemaSpecSchema{
+				Models:   []string{"dummy/a", "dummy/b", "dummy/c"},
 				Includes: []string{"dummy/a"},
 				Excludes: []string{"a"},
 			},
@@ -98,6 +108,10 @@ func TestExampleSchemas(t *testing.T) {
 		},
 		"NokiaSros": {
 			path:        "../../../example/schemas/schema-nokia-sros-23.10.yaml",
+			expectedErr: nil,
+		},
+		"Arista": {
+			path:        "../../../example/schemas/schema-arista-4.31.2.F.yaml",
 			expectedErr: nil,
 		},
 	}

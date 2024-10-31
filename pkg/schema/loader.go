@@ -28,7 +28,6 @@ import (
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type Loader struct {
@@ -38,18 +37,18 @@ type Loader struct {
 
 	//schemas contains the Schema Reference indexed by Provider.Version key
 	m       sync.RWMutex
-	schemas map[string]*invv1alpha1.SchemaSpec
+	schemas map[string]*invv1alpha1.Schema
 }
 
 type downloadable interface {
 	Download(ctx context.Context) error
-	LocalPath() (string, error)
+	LocalPath(urlPath string) (string, error)
 }
 
 type providerDownloader struct {
 	destDir            string
-	schemaSpec         *invv1alpha1.SchemaSpec
-	credentialNSN      types.NamespacedName
+	namespace string
+	schemaRepo             *invv1alpha1.SchemaSpecRepository
 	credentialResolver auth.CredentialResolver
 }
 
@@ -73,28 +72,28 @@ func NewLoader(tmpDir string, schemaDir string, credentialResolver auth.Credenti
 	return &Loader{
 		tmpDir:             tmpDir,
 		schemaDir:          schemaDir,
-		schemas:            map[string]*invv1alpha1.SchemaSpec{},
+		schemas:            map[string]*invv1alpha1.Schema{},
 		credentialResolver: credentialResolver,
 	}, nil
 }
 
 // AddRef overwrites the provider schema version
 // The schemaRef is immutable
-func (r *Loader) AddRef(ctx context.Context, spec *invv1alpha1.SchemaSpec) {
+func (r *Loader) AddRef(ctx context.Context, schema *invv1alpha1.Schema) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.schemas[spec.GetKey()] = spec
+	r.schemas[schema.Spec.GetKey()] = schema
 }
 
 // DelRef deletes the provider schema version
 func (r *Loader) DelRef(ctx context.Context, key string) error {
-	ref, dirExists, err := r.GetRef(ctx, key)
+	schema, dirExists, err := r.GetRef(ctx, key)
 	if err != nil {
 		// ref does not exist -> we dont return an error
 		return nil
 	}
 	if dirExists {
-		if err := utils.RemoveDirectory(ref.GetBasePath(r.schemaDir)); err != nil {
+		if err := utils.RemoveDirectory(schema.Spec.GetBasePath(r.schemaDir)); err != nil {
 			return err
 		}
 	}
@@ -110,84 +109,86 @@ func (r *Loader) del(key string) {
 
 // GetRef return an error if the ref does not exist
 // If the ref exists the ref is retrieved with an indication if the base provider schema version dir exists
-func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.SchemaSpec, bool, error) {
-	ref, exists := r.get(key)
+func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.Schema, bool, error) {
+	schema, exists := r.get(key)
 	if !exists {
 		return nil, false, fmt.Errorf("no repository reference registered for key %q", key)
 	}
-	baseRefPath := ref.GetBasePath(r.schemaDir)
+	baseRefPath := schema.Spec.GetBasePath(r.schemaDir)
 
-	return ref, utils.DirExists(baseRefPath), nil
+	return schema, utils.DirExists(baseRefPath), nil
 }
 
-func (r *Loader) get(key string) (*invv1alpha1.SchemaSpec, bool) {
+func (r *Loader) get(key string) (*invv1alpha1.Schema, bool) {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	ref, exists := r.schemas[key]
-	return ref, exists
+	schema, exists := r.schemas[key]
+	return schema, exists
 }
 
-func (r *Loader) Load(ctx context.Context, key string, credentialNSN types.NamespacedName) error {
-	logger := log.FromContext(ctx)
+func (r *Loader) Load(ctx context.Context, key string) error {
+	log := log.FromContext(ctx)
 
-	schemaSpec, _, err := r.GetRef(ctx, key)
+	schema, _, err := r.GetRef(ctx, key)
 	if err != nil {
 		return err
 	}
 
-	var downloader downloadable
-
-	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
-	switch {
-	default:
-		downloader = newGitDownloader(r.tmpDir, schemaSpec, r.credentialResolver, credentialNSN)
-	}
-
-	if downloader == nil {
-		return &sdcerrors.UnrecoverableError{
-			Message:      "could not detect repository type",
-			WrappedError: fmt.Errorf("no provider found for url %q", schemaSpec.RepositoryURL),
+	for _, schemaRepo := range schema.Spec.Repositories {
+		// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
+		var downloader downloadable
+		switch {
+		default:
+			downloader = newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
 		}
-	}
-	err = downloader.Download(ctx)
-	if err != nil {
-		return err
-	}
 
-	localPath, err := downloader.LocalPath()
-	if err != nil {
-		return err
-	}
-	providerVersionBasePath := schemaSpec.GetBasePath(r.schemaDir)
-
-	// copy data to correct destination
-	if len(schemaSpec.Dirs) == 0 {
-		schemaSpec.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
-	}
-	for i, dir := range schemaSpec.Dirs {
-		// build the source path
-		src := path.Join(localPath, dir.Src)
-		// check path is still within the base schema folder
-		// -> prevent escaping the folder
-		err := utils.ErrNotIsSubfolder(localPath, src)
-		if err != nil {
-			return err
+		if downloader == nil {
+			return &sdcerrors.UnrecoverableError{
+				Message:      "could not detect repository type",
+				WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
+			}
 		}
-		// build dst path
-		dst := path.Join(providerVersionBasePath, dir.Dst)
-		// check path is still within the base schema folder
-		// -> prevent escaping the folder
-		err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
+		err = downloader.Download(ctx)
 		if err != nil {
 			return err
 		}
 
-		logger.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaSpec.Dirs)), "from", src, "to", dst)
-		err = copy.Copy(src, dst)
+		localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
 		if err != nil {
 			return err
 		}
+		providerVersionBasePath := schema.Spec.GetBasePath(r.schemaDir)
+
+		// copy data to correct destination
+		if len(schemaRepo.Dirs) == 0 {
+			schemaRepo.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
+		}
+		for i, dir := range schemaRepo.Dirs {
+			// build the source path
+			src := path.Join(localPath, dir.Src)
+			// check path is still within the base schema folder
+			// -> prevent escaping the folder
+			err := utils.ErrNotIsSubfolder(localPath, src)
+			if err != nil {
+				return err
+			}
+			// build dst path
+			dst := path.Join(providerVersionBasePath, dir.Dst)
+			// check path is still within the base schema folder
+			// -> prevent escaping the folder
+			err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
+			if err != nil {
+				return err
+			}
+
+			log.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaRepo.Dirs)), "from", src, "to", dst)
+			err = copy.Copy(src, dst)
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	return nil
 
 }

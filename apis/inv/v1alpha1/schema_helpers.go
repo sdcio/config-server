@@ -21,10 +21,11 @@ import (
 	"path"
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -66,26 +67,26 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 	basePath = r.GetBasePath(basePath)
 
 	// when no models are supplied we use the base dir
-	models := initSlice(r.Schema.Models, ".")
-	includes := initSlice(r.Schema.Includes, "")
-	excludes := initSlice(r.Schema.Excludes, "")
+	modelsSet := sets.New[string]()
+	includesSet := sets.New[string]()
+	excludesSet := sets.New[string]()
+	for _, repo := range r.Repositories {
+		modelsSet.Insert(repo.Schema.Models...)
+		includesSet.Insert(repo.Schema.Includes...)
+		excludesSet.Insert(repo.Schema.Excludes...)
+	}
+	models := sets.List(modelsSet)
+	if len(models) == 0 {
+		models = []string{"."}
+	}
+	includes := sets.List(includesSet)
+	excludes := sets.List(excludesSet)
 
 	return SchemaSpecSchema{
 		Models:   getNewBase(basePath, models),
 		Includes: getNewBase(basePath, includes),
 		Excludes: excludes,
 	}
-}
-
-func initSlice(in []string, init string) []string {
-	if len(in) == 0 {
-		if init != "" {
-			return []string{init}
-		} else {
-			return []string{}
-		}
-	}
-	return in
 }
 
 func getNewBase(basePath string, in []string) []string {
@@ -98,9 +99,9 @@ func getNewBase(basePath string, in []string) []string {
 
 // GetSchemaFromFile is a helper for tests to use the
 // examples and validate them in unit tests
-func GetSchemaFromFile(path string) (*DiscoveryRule, error) {
+func GetSchemaFromFile(path string) (*Schema, error) {
 	addToScheme := AddToScheme
-	obj := &DiscoveryRule{}
+	obj := &Schema{}
 	gvk := SchemeGroupVersion.WithKind(reflect.TypeOf(obj).Name())
 	// build object from file
 	if err := testhelper.GetKRMResource(path, obj, gvk, addToScheme); err != nil {
