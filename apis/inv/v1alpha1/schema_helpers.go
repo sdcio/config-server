@@ -76,12 +76,12 @@ func (r *SchemaSpec) GetNewSchemaBase(basePath string) SchemaSpecSchema {
 		includesSet.Insert(repo.Schema.Includes...)
 		excludesSet.Insert(repo.Schema.Excludes...)
 	}
-	models := sort.StringSlice(modelsSet.UnsortedList())
+	models := sets.List(modelsSet)
 	if len(models) == 0 {
 		models = []string{"."}
 	}
-	includes := sort.StringSlice(includesSet.UnsortedList())
-	excludes := sort.StringSlice(excludesSet.UnsortedList())
+	includes := sets.List(includesSet)
+	excludes := sets.List(excludesSet)
 
 	return SchemaSpecSchema{
 		Models:   getNewBase(basePath, models),
