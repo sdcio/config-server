@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"path"
 	"reflect"
-	"sort"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
