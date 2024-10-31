@@ -40,16 +40,14 @@ type SchemaSpec struct {
 	// Version defines the version of the schema
 	Version string `json:"version"`
 	// +kubebuilder:validation:MinItems:=1
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="repositories may only be added"
+	// +kubebuilder:validation:MaxItems:=10
 	// Repositories define the repositories used for building the provider schema
 	Repositories []*SchemaSpecRepository `json:"repositories"`
 }
 
 type SchemaSpecRepository struct {
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
 	// RepositoryURL specifies the base URL for a given repository
 	RepositoryURL string `json:"repoURL" yaml:"repoURL"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
 	// Credentials defines the name of the secret that holds the credentials to connect to the repo
 	Credentials string `json:"credentials,omitempty" yaml:"credentials,omitempty"`
 	// Proxy defines the HTTP/HTTPS proxy to be used to download the models.
@@ -58,12 +56,10 @@ type SchemaSpecRepository struct {
 	// +kubebuilder:default:=tag
 	// Kind defines the that the BranchOrTag string is a repository branch or a tag
 	Kind BranchTagKind `json:"kind" yaml:"kind"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ref is immutable"
 	// Ref defines the branch or tag of the repository corresponding to the
 	// provider schema version
 	Ref string `json:"ref" yaml:"ref"`
 	// +kubebuilder:validation:MaxItems=10
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="dirs is immutable"
 	// Dirs defines the list of directories that identified the provider schema in src/dst pairs
 	// relative within the repository
 	Dirs []SrcDstPath `json:"dirs,omitempty" yaml:"dirs,omitempty"`
@@ -83,24 +79,19 @@ type SrcDstPath struct {
 
 type SchemaSpecSchema struct {
 	// +kubebuilder:validation:MaxItems=64
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="models is immutable"
 	// Models defines the list of files/directories to be used as a model
 	Models []string `json:"models,omitempty" yaml:"models,omitempty"`
 	// +kubebuilder:validation:MaxItems=64
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="includes is immutable"
 	// Excludes defines the list of files/directories to be excluded
 	Includes []string `json:"includes,omitempty" yaml:"includes,omitempty"`
 	// +kubebuilder:validation:MaxItems=64
-	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="excludes is immutable"
 	// Excludes defines the list of files/directories to be excluded
 	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
 }
 
 type SchemaSpecProxy struct {
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
 	// URL specifies the base URL of the HTTP/HTTPS proxy server.
 	URL string `json:"URL,omitempty" yaml:"URL,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
 	// Credentials defines the name of the secret that holds the credentials to connect to the proxy server
 	Credentials string `json:"credentials,omitempty" yaml:"credentials,omitempty"`
 }

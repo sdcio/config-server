@@ -68,9 +68,6 @@ spec:
                       description: Credentials defines the name of the secret that
                         holds the credentials to connect to the repo
                       type: string
-                      x-kubernetes-validations:
-                      - message: credentials is immutable
-                        rule: self == oldSelf
                     dirs:
                       description: Dirs defines the list of directories that identified
                         the provider schema in src/dst pairs relative within the repository
@@ -93,9 +90,6 @@ spec:
                         type: object
                       maxItems: 10
                       type: array
-                      x-kubernetes-validations:
-                      - message: dirs is immutable
-                        rule: oldSelf.all(x, x in self)
                     kind:
                       default: tag
                       description: Kind defines the that the BranchOrTag string is
@@ -112,31 +106,19 @@ spec:
                           description: URL specifies the base URL of the HTTP/HTTPS
                             proxy server.
                           type: string
-                          x-kubernetes-validations:
-                          - message: url is immutable
-                            rule: self == oldSelf
                         credentials:
                           description: Credentials defines the name of the secret
                             that holds the credentials to connect to the proxy server
                           type: string
-                          x-kubernetes-validations:
-                          - message: credentials is immutable
-                            rule: self == oldSelf
                       type: object
                     ref:
                       description: Ref defines the branch or tag of the repository
                         corresponding to the provider schema version
                       type: string
-                      x-kubernetes-validations:
-                      - message: ref is immutable
-                        rule: self == oldSelf
                     repoURL:
                       description: RepositoryURL specifies the base URL for a given
                         repository
                       type: string
-                      x-kubernetes-validations:
-                      - message: url is immutable
-                        rule: self == oldSelf
                     schema:
                       description: Schema provides the details of which files must
                         be used for the models and which files/directories cana be
@@ -149,9 +131,6 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
-                          x-kubernetes-validations:
-                          - message: excludes is immutable
-                            rule: oldSelf.all(x, x in self)
                         includes:
                           description: Excludes defines the list of files/directories
                             to be excluded
@@ -159,9 +138,6 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
-                          x-kubernetes-validations:
-                          - message: includes is immutable
-                            rule: oldSelf.all(x, x in self)
                         models:
                           description: Models defines the list of files/directories
                             to be used as a model
@@ -169,9 +145,6 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
-                          x-kubernetes-validations:
-                          - message: models is immutable
-                            rule: oldSelf.all(x, x in self)
                       type: object
                   required:
                   - kind
@@ -179,11 +152,9 @@ spec:
                   - repoURL
                   - schema
                   type: object
+                maxItems: 10
                 minItems: 1
                 type: array
-                x-kubernetes-validations:
-                - message: repositories may only be added
-                  rule: oldSelf.all(x, x in self)
               version:
                 description: Version defines the version of the schema
                 type: string
