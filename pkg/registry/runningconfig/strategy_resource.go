@@ -139,10 +139,14 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 }
 
 func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
+	log := log.FromContext(ctx)
+	log.Info("get runningconfig", "key", key)
 	target, tctx, err := r.getTargetContext(ctx, key)
 	if err != nil {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
+
+	log.Info("get runningconfig from target", "key", storebackend.KeyFromNSN(key), "target", target, "tctx", tctx)
 
 	rc, err := tctx.GetData(ctx, storebackend.KeyFromNSN(key))
 	if err != nil {
