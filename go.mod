@@ -26,7 +26,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.28.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.21.0
+	golang.org/x/mod v0.22.0
 	golang.org/x/sync v0.8.0
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
