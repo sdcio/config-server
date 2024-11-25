@@ -42,7 +42,7 @@ const (
 )
 
 type Condition struct {
-	metav1.Condition `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=condition"`
+	metav1.Condition `json:",inline" protobuf:"bytes,1,opt,name=condition"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
