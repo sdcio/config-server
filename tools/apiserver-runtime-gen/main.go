@@ -106,7 +106,7 @@ func doGen() error {
 			// dont expand the versions with modules
 			informerListergenVersions = append(informerListergenVersions, fmt.Sprintf("./%s", path.Join(version, "...")))
 		}
-		protobufVersions = append(protobufVersions, version)
+		protobufVersions = append(protobufVersions, path.Join(module, version))
 		typeVersions = append(typeVersions, path.Join(module, version))
 	}
 
@@ -210,9 +210,11 @@ func doGen() error {
 			"go-to-protobuf",
 			"--packages", strings.Join(protobufVersions, ","),
 			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
-			//"--proto-import", "./vendor",
+			"--proto-import", "./vendor",
+			//"--v", "9",
 		))
 		if err != nil {
+			fmt.Println("go-to-protobuf error", err)
 			return err
 		}
 	}

@@ -20,6 +20,7 @@ syntax = "proto2";
 package github.com.sdcio.config_server.apis.config.v1alpha1;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/sdcio/config-server/apis/condition/v1alpha1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -36,19 +37,9 @@ option (gogoproto.goproto_enum_prefix_all) = false;
 option (gogoproto.goproto_getters_all) = false;
 option go_package = "github.com/sdcio/config-server/apis/config/v1alpha1";
 
-message Condition {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Condition condition = 1 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
-}
-
-message ConditionedStatus {
-  // Conditions of the resource.
-  // +optional
-  repeated Condition conditions = 1 [(gogoproto.customname) = "Conditions", (gogoproto.nullable) = false];
-}
-
 // 	Config defines the Schema for the Config API
 message Config {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   optional ConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
@@ -60,20 +51,19 @@ message ConfigBlob {
   optional string config = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 // ConfigList contains a list of Configs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ConfigList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
   repeated Config items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // ConfigSet is the Schema for the ConfigSet API
 message ConfigSet {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   optional ConfigSetSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
@@ -81,9 +71,8 @@ message ConfigSet {
 }
 
 // ConfigSetList contains a list of ConfigSets
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ConfigSetList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
   repeated ConfigSet items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
@@ -109,7 +98,7 @@ message ConfigSetSpec {
 message ConfigSetStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
-  optional ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
 
   // Targets defines the status of the configSet resource on the respective target
   repeated TargetStatus targets = 2 [(gogoproto.customname) = "Targets", (gogoproto.nullable) = false];
@@ -133,7 +122,7 @@ message ConfigSpec {
 message ConfigStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
-  optional ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
 
   // LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
   optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2 [(gogoproto.customname) = "LastKnownGoodSchema"];
@@ -181,10 +170,8 @@ message Lifecycle {
 }
 
 // 	RunningConfig is the Schema for the RunningConfig API
-//
-// +k8s:openapi-gen=true
 message RunningConfig {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   optional RunningConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
@@ -192,9 +179,8 @@ message RunningConfig {
 }
 
 // RunningConfigList contains a list of RunningConfigs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message RunningConfigList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
   repeated RunningConfig items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
@@ -206,12 +192,12 @@ message RunningConfigSpec {
 // RunningConfigStatus defines the observed state of RunningConfig
 message RunningConfigStatus {
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 message Target {
   // TargetSelector defines the selector used to select the targets to which the config applies
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1 [(gogoproto.customname) = "TargetSelector"];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1 [(gogoproto.customname) = "TargetSelector"];
 }
 
 message TargetStatus {
@@ -220,14 +206,12 @@ message TargetStatus {
   // right now we assume the namespace of the config and target are aligned
   // NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
   // Condition of the configCR status
-  optional Condition condition = 3 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
 }
 
 // 	UnManagedConfig is the Schema for the UnManagedConfig API
-//
-// +k8s:openapi-gen=true
 message UnManagedConfig {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   optional UnManagedConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
@@ -235,9 +219,8 @@ message UnManagedConfig {
 }
 
 // UnManagedConfigList contains a list of UnManagedConfigs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message UnManagedConfigList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
   repeated UnManagedConfig items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }

@@ -67,6 +67,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy":                    schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository":               schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
@@ -1708,21 +1709,6 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 				Description: "SchemaSpec defines the desired state of Schema",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"repoURL": {
-						SchemaProps: spec.SchemaProps{
-							Description: "URL specifies the base URL for a given repository",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"credentials": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"provider": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provider specifies the provider of the schema.",
@@ -1737,6 +1723,82 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"repositories": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repositories define the repositories used for building the provider schema",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"provider", "version", "repositories"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"URL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL specifies the base URL of the HTTP/HTTPS proxy server.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the proxy server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryURL specifies the base URL for a given repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to download the models.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy"),
 						},
 					},
 					"kind": {
@@ -1776,45 +1838,12 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema"),
 						},
 					},
-					"proxy": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Proxy defines the HTTP/HTTPS proxy to be used to download the models.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy"),
-						},
-					},
 				},
-				Required: []string{"repoURL", "provider", "version", "kind", "ref", "schema"},
+				Required: []string{"repoURL", "kind", "ref", "schema"},
 			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
-	}
-}
-
-func schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"URL": {
-						SchemaProps: spec.SchemaProps{
-							Description: "URL specifies the base URL of the HTTP/HTTPS proxy server.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"credentials": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Credentials defines the name of the secret that holds the credentials to connect to the proxy server",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
 	}
 }
 
@@ -2550,6 +2579,14 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 							Format:  "",
 						},
 					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port defines the port on which the scan runs",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"paths": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -2583,7 +2620,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 						},
 					},
 				},
-				Required: []string{"name", "protocol", "paths", "mode"},
+				Required: []string{"name", "protocol", "port", "paths", "mode"},
 			},
 		},
 		Dependencies: []string{

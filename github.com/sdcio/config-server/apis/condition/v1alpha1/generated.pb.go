@@ -26,7 +26,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// +k8s:openapi-gen=true
 type Condition struct {
 	Condition            v1.Condition `protobuf:"bytes,1,opt,name=condition" json:"condition"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`

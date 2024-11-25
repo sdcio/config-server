@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate protoc -I . ./generated.proto --gogo_out=./
+
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 package v1alpha1
