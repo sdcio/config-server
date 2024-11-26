@@ -50,20 +50,20 @@ spec:
                     TargetSyncProfileSync
                   properties:
                     encoding:
-                      default: ASCII
+                      default: JSON_IETF
                       enum:
                       - UNKNOWN
                       - JSON
                       - JSON_IETF
-                      - BYTES
                       - PROTO
-                      - ASCII
                       - CONFIG
                       type: string
                     interval:
                       default: 60s
+                      format: duration
                       type: string
                     mode:
+                      default: get
                       enum:
                       - unknown
                       - onChange
@@ -78,6 +78,10 @@ spec:
                         type: string
                       maxItems: 10
                       type: array
+                    port:
+                      default: 57400
+                      description: Port defines the port on which the scan runs
+                      type: integer
                     protocol:
                       default: gnmi
                       enum:
@@ -90,6 +94,7 @@ spec:
                   - mode
                   - name
                   - paths
+                  - port
                   - protocol
                   type: object
                 maxItems: 10
