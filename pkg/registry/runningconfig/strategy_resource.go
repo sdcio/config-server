@@ -100,6 +100,10 @@ func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.Error
 	return r.obj.ValidateCreate(ctx, obj)
 }
 
+func (r *strategy) InvokeCreate(ctx context.Context, obj runtime.Object, recursion bool) (runtime.Object, error) {
+	return obj, nil
+}
+
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	return obj, apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "create")
 }
@@ -124,6 +128,10 @@ func (r *strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) 
 	return r.obj.ValidateUpdate(ctx, obj, old)
 }
 
+func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, recursion bool) (runtime.Object, runtime.Object, error) {
+	return obj, old, nil
+}
+
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
 	return obj, apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "update")
 }
@@ -133,6 +141,10 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 }
 
 func (r *strategy) BeginDelete(ctx context.Context) error { return nil }
+
+func (r *strategy) InvokeDelete(ctx context.Context, obj runtime.Object, recursion bool) (runtime.Object, error) {
+	return obj, nil
+}
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	return obj, nil

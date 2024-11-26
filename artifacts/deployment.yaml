@@ -4,18 +4,18 @@ metadata:
   name: config-server
   namespace: network-system
   labels:
-    sdcio.dev/config-server: "true"
+    app.kubernetes.io/name: config-server
 spec:
   strategy:
     type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      sdcio.dev/config-server: "true"
+      app.kubernetes.io/name: config-server
   template:
     metadata:
       labels:
-        sdcio.dev/config-server: "true"
+        app.kubernetes.io/name: config-server
         sdcio.dev/data-server: "true"
     spec:
       securityContext:
