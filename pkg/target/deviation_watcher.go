@@ -19,6 +19,7 @@ package target
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -42,7 +43,8 @@ type DeviationWatcher struct {
 	targetKey storebackend.Key
 	client    client.Client   // k8 client
 	dsclient  dsclient.Client // datastore client
-	//targetStore storebackend.Storer[target.Context]
+
+	m      sync.RWMutex
 	cancel context.CancelFunc
 }
 
@@ -55,6 +57,8 @@ func NewDeviationWatcher(targetKey storebackend.Key, client client.Client, dscli
 }
 
 func (r *DeviationWatcher) Stop(ctx context.Context) {
+	r.m.Lock()
+	defer r.m.Unlock()
 	if r.cancel == nil {
 		return
 	}
@@ -66,6 +70,9 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 
 func (r *DeviationWatcher) Start(ctx context.Context) {
 	r.Stop(ctx)
+	// don't lock before since stop also locks
+	r.m.Lock()
+	defer r.m.Unlock()
 	ctx, r.cancel = context.WithCancel(ctx)
 	go r.start(ctx)
 }
