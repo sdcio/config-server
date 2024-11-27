@@ -103,7 +103,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	// handle transition
+	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
+		// datastore not ready so we can wait till the target goes to ready state
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not ready", nil), errUpdateStatus)
+	}
+
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	if !ready {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)

@@ -38,6 +38,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -103,26 +104,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	if target.Status.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status != metav1.ConditionTrue {
+		// datastore not ready so we can wait till the target goes to ready state
+		return ctrl.Result{}, // requeue will happen automatically when target gets updated
+			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not ready", nil), errUpdateStatus)
+	}
+
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{}, // requeue will happen automatically when target gets updated
 			errors.Wrap(r.handleError(ctx, targetOrig, "k8s target does not have a corresponding k8s ctx", nil), errUpdateStatus)
 	}
 	if !tctx.IsReady() {
 		tctx.SetReady(ctx, false)
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{}, // requeue will happen automatically when target gets updated
 			errors.Wrap(r.handleError(ctx, targetOrig, "target ctx not ready", nil), errUpdateStatus)
 	}
 
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
 		tctx.SetReady(ctx, false)
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore rsp error", err), errUpdateStatus)
 	}
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		tctx.SetReady(ctx, false)
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, // requeue will happen automatically when target gets updated
 			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected", err), errUpdateStatus)
 	}
 
