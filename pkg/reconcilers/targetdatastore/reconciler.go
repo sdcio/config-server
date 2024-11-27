@@ -223,7 +223,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot update target ready in dataserver", err, true), errUpdateStatus)
 	}
 
-	target.Status.UsedReferences = usedRefs
 	ready, err := r.getTargetStatus(ctx, target)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
@@ -233,16 +232,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "target not ready", err, false), errUpdateStatus)
 	}
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.DatastoreReady())
+	target.Status.UsedReferences = usedRefs
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 

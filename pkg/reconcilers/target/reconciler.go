@@ -18,13 +18,14 @@ package target
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -92,7 +93,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
-			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+			return ctrl.Result{}, pkgerrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -106,27 +107,45 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
 		return ctrl.Result{}, // requeue will happen automatically when target gets updated
-			errors.Wrap(r.handleError(ctx, targetOrig, "k8s target does not have a corresponding k8s ctx", nil), errUpdateStatus)
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "k8s target does not have a corresponding k8s ctx", nil), errUpdateStatus)
 	}
 
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
-		tctx.SetReady(ctx, false)
-		r.targetStore.Update(ctx, targetKey, tctx)
+		if errs := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+			tctx.SetReady(ctx, false)
+			return tctx
+		}); errs != nil {
+			errs = errors.Join(errs, err)
+			return ctrl.Result{Requeue: true},
+				pkgerrors.Wrap(r.handleError(ctx, targetOrig, "target datastore rsp error and update targetstore failed", errs), errUpdateStatus)
+		}
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore rsp error", err), errUpdateStatus)
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "target datastore rsp error", err), errUpdateStatus)
 	}
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
-		tctx.SetReady(ctx, false)
-		r.targetStore.Update(ctx, targetKey, tctx)
+		if errs := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+			tctx.SetReady(ctx, false)
+			return tctx
+		}); errs != nil {
+			errs = errors.Join(errs, err)
+			return ctrl.Result{Requeue: true},
+				pkgerrors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected and update targetstore failed", errs), errUpdateStatus)
+		}
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, // requeue will happen automatically when target gets updated
-			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected", err), errUpdateStatus)
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected", err), errUpdateStatus)
 	}
 
-	tctx.SetReady(ctx, true)
-	r.targetStore.Update(ctx, targetKey, tctx)
+	if errs := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+		tctx.SetReady(ctx, true)
+		return tctx
+	}); errs != nil {
+		errs = errors.Join(errs, err)
+		return ctrl.Result{Requeue: true},
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "update targetstore failed", errs), errUpdateStatus)
+	}
 
-	return ctrl.Result{RequeueAfter: 5 * time.Minute}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{RequeueAfter: 5 * time.Minute}, pkgerrors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
