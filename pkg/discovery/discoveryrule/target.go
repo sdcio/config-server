@@ -118,8 +118,6 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	di := targetNew.Status.DiscoveryInfo.DeepCopy()
 	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
 
-	targetOrig := targetNew.DeepCopy()
-
 	// Check if the target already exists
 	targetCurrent := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
@@ -135,25 +133,31 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 			return err
 		}
 	}
-
-	patch := client.MergeFrom(targetOrig.DeepCopy())
-	targetOrig.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	if di != nil {
-		if targetOrig.Status.DiscoveryInfo == nil {
-			targetOrig.Status.DiscoveryInfo = new(invv1alpha1.DiscoveryInfo)
-		}
-		*targetOrig.Status.DiscoveryInfo = *di
+	// we get the target again
+	targetCurrent = &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, types.NamespacedName{
+		Namespace: targetNew.Namespace,
+		Name:      targetNew.Name,
+	}, targetCurrent); err != nil {
+		// the resource should always exist
+		return err
 	}
 
+	targetPatch := targetCurrent.DeepCopy()
+
+	targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	targetPatch.Status.DiscoveryInfo = di
+	
+
 	log.Info("discovery target apply",
-		"Ready", targetCurrent.GetCondition(condv1alpha1.ConditionTypeReady).Status,
-		"DSReady", targetCurrent.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-		"ConfigReady", targetCurrent.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
-		"DiscoveryInfo", di,
+		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
+		"DSReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
+		"ConfigReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
+		"DiscoveryInfo", targetPatch.Status.DiscoveryInfo,
 	)
 
 	// Apply the patch
-	err := r.client.Status().Patch(ctx, targetOrig, patch, &client.SubResourcePatchOptions{
+	err := r.client.Status().Patch(ctx, targetPatch, client.MergeFrom(targetCurrent), &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
