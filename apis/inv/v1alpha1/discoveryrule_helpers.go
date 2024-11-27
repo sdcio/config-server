@@ -25,6 +25,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,6 +76,10 @@ func (r *DiscoveryRule) GetCondition(t condv1alpha1.ConditionType) condv1alpha1.
 // to be set at once
 func (r *DiscoveryRule) SetConditions(c ...condv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *DiscoveryRule) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
 func (r *DiscoveryRule) Discovery() bool {

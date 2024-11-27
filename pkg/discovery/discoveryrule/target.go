@@ -18,19 +18,22 @@ package discoveryrule
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	reconcilerName = "DiscoveryController"
 )
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
@@ -113,10 +116,9 @@ func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *in
 
 func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) error {
 	di := newTargetCR.Status.DiscoveryInfo.DeepCopy()
-	//urefs := newTargetCR.Status.UsedReferences.DeepCopy()
-
 	log := log.FromContext(ctx).With("targetName", newTargetCR.Name, "address", newTargetCR.Spec.Address, "discovery info", di)
 
+	targetCROrig := newTargetCR.DeepCopy()
 	// check if the target already exists
 	curTargetCR := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
@@ -131,47 +133,24 @@ func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) e
 		if err := r.client.Create(ctx, newTargetCR); err != nil {
 			return err
 		}
-
-		newTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
-		newTargetCR.Status.DiscoveryInfo = di
-		if err := r.client.Status().Update(ctx, newTargetCR); err != nil {
-			return err
-		}
-		return nil
 	}
 
-	// we only need to acquire a lease if the target exists
-	l := lease.New(r.client, curTargetCR)
-	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
-		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
-		return err
-	}
+	patch := client.MergeFrom(targetCROrig.DeepCopy())
+	targetCROrig.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	targetCROrig.Status.DiscoveryInfo = di
 
-	curTargetCR = curTargetCR.DeepCopy()
-	newTargetCR = newTargetCR.DeepCopy()
-	// target already exists -> validate changes to avoid triggering a reconcile loop
-	if hasChanged(ctx, curTargetCR, newTargetCR) {
-		log.Info("discovery target apply, target exists -> changed")
-		curTargetCR.Spec = newTargetCR.Spec
-		if err := r.client.Update(ctx, curTargetCR); err != nil {
-			return err
-		}
-	} else {
-		log.Info("discovery target apply, target exists -> no change")
-	}
-	curTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	curTargetCR.SetOverallStatus()
-	curTargetCR.Status.DiscoveryInfo = di
 	log.Info("discovery target apply",
 		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
 		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
 		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
-	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
-		return err
-	}
-	return nil
+	return r.client.Status().Patch(ctx, targetCROrig, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
 }
 
+/*
 func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Target) bool {
 	log := log.FromContext(ctx).With("target", newTargetCR.GetName(), "address", newTargetCR.Spec.Address)
 
@@ -250,6 +229,7 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 
 	return false
 }
+*/
 
 func getTargetName(s string) string {
 	targetName := strings.ReplaceAll(s, ":", "-")

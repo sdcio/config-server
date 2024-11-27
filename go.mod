@@ -1,8 +1,6 @@
 module github.com/sdcio/config-server
 
-go 1.23.0
-
-toolchain go1.23.2
+go 1.23.3
 
 replace k8s.io/gengo/v2 => k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70
 
@@ -13,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.4-0.20241023220418-f1bacfdbb4da
-	github.com/henderiw/apiserver-store v0.0.3-0.20241106073231-cbded10a8cee
+	github.com/henderiw/apiserver-store v0.0.3-0.20241125153507-9408ac40ee00
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/openconfig/gnmi v0.11.0
@@ -21,24 +19,24 @@ require (
 	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
-	github.com/sdcio/data-server v0.0.44
-	github.com/sdcio/sdc-protos v0.0.33
+	github.com/sdcio/data-server v0.0.49
+	github.com/sdcio/sdc-protos v0.0.35
 	github.com/spf13/cobra v1.8.1
 	go.opentelemetry.io/otel v1.32.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.22.0
 	golang.org/x/sync v0.8.0
 	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.35.1
-	k8s.io/api v0.31.1
-	k8s.io/apimachinery v0.31.1
+	google.golang.org/protobuf v1.35.2
+	k8s.io/api v0.31.3
+	k8s.io/apimachinery v0.31.3
 	k8s.io/apiserver v0.31.1
-	k8s.io/client-go v0.31.1
-	k8s.io/code-generator v0.31.0
+	k8s.io/client-go v0.31.3
+	k8s.io/code-generator v0.31.3
 	k8s.io/component-base v0.31.1
 	k8s.io/kube-openapi v0.0.0-20240903163716-9e1beecbcb38
 	k8s.io/utils v0.0.0-20240902221715-702e33fdd3c3
-	sigs.k8s.io/controller-runtime v0.19.0
+	sigs.k8s.io/controller-runtime v0.19.1
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -103,7 +101,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
-	github.com/prometheus/client_golang v1.20.4 // indirect
+	github.com/prometheus/client_golang v1.20.5 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.59.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect

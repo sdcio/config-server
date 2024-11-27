@@ -28,7 +28,6 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -49,7 +48,7 @@ func init() {
 
 const (
 	crName         = "targetconfigserver"
-	controllerName = "TargetConfigServerController"
+	reconcilerName = "TargetConfigServerController"
 	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
@@ -67,10 +66,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
 	r.targetStore = cfg.TargetStore
-	r.recorder = mgr.GetEventRecorderFor(controllerName)
+	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(reconcilerName).
 		For(&invv1alpha1.Target{}).
 		Complete(r)
 }
@@ -83,7 +82,7 @@ type reconciler struct {
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
+	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
@@ -99,28 +98,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	target = target.DeepCopy()
-
-	l := lease.New(r.Client, target)
-	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
-		log.Debug("cannot acquire lease", "error", err.Error())
-		r.recorder.Eventf(target, corev1.EventTypeWarning,
-			"lease", "error %s", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.GetRandaomRequeueTimout()}, nil
-	}
-	r.recorder.Eventf(target, corev1.EventTypeWarning,
-		"lease", "acquired")
-
+	targetOrig := target.DeepCopy()
 	if !target.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
 	}
 
 	// handle transition
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
-	//log.Info("readiness", "ready", ready)
 	if !ready {
 		r.handleError(ctx, target, string(configv1alpha1.ConditionReasonTargetNotReady), nil)
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
 	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
@@ -131,8 +118,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// we split the config in config that were successfully applied and config that was not yet
 		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
 		if err != nil {
-			r.handleError(ctx, target, "reapply config failed", err)
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 		}
 
 		// We need to restore the config on the target
@@ -141,32 +127,53 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				// This is bad since this means we cannot recover the applied config
 				// on a target. We set the target config status to Failed.
 				// Most likely a human intervention is needed
-				r.handleError(ctx, target, "setIntent failed", err)
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 			}
 		}
-		r.recorder.Eventf(target, corev1.EventTypeWarning,
-			"Config", "ready")
-		target.SetConditions(invv1alpha1.ConfigReady())
-		target.SetOverallStatus()
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
 	log := log.FromContext(ctx)
-	if err == nil {
-		target.SetConditions(invv1alpha1.ConfigFailed(msg))
-		log.Error(msg)
-		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, msg)
-	} else {
-		target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-		log.Error(msg, "error", err)
-		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
-	}
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+	// update status
+	target.SetConditions(invv1alpha1.ConfigReady())
 	target.SetOverallStatus()
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+
+	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
+}
+
+func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
+	log := log.FromContext(ctx)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+
+	if err != nil {
+		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+	}
+	target.SetConditions(invv1alpha1.ConfigFailed(msg))
+	target.SetOverallStatus()
+	log.Error(msg, "error", err)
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, msg)
+
+	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
 }
 
 func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {

@@ -19,9 +19,10 @@ package v1alpha1
 import (
 	"fmt"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -33,6 +34,10 @@ func (r *Target) GetCondition(t condv1alpha1.ConditionType) condv1alpha1.Conditi
 // to be set at once
 func (r *Target) SetConditions(c ...condv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *Target) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
 func (r *Target) SetOverallStatus() {

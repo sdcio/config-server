@@ -23,6 +23,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -34,6 +35,10 @@ func (r *ConfigSet) GetCondition(t condv1alpha1.ConditionType) condv1alpha1.Cond
 // to be set at once
 func (r *ConfigSet) SetConditions(c ...condv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *ConfigSet) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
 func (r *ConfigSet) GetTarget() string {
