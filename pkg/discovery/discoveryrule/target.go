@@ -114,36 +114,36 @@ func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *in
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) error {
-	di := newTargetCR.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", newTargetCR.Name, "address", newTargetCR.Spec.Address, "discovery info", di)
+func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
+	di := newTarget.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address, "discovery info", di)
 
-	targetCROrig := newTargetCR.DeepCopy()
+	targetOrig := newTarget.DeepCopy()
 	// check if the target already exists
 	curTargetCR := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: newTargetCR.Namespace,
-		Name:      newTargetCR.Name,
+		Namespace: newTarget.Namespace,
+		Name:      newTarget.Name,
 	}, curTargetCR); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		log.Info("discovery target apply, target does not exist -> create")
 
-		if err := r.client.Create(ctx, newTargetCR); err != nil {
+		if err := r.client.Create(ctx, newTarget, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
 	}
 
-	patch := client.MergeFrom(targetCROrig.DeepCopy())
-	targetCROrig.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	targetCROrig.Status.DiscoveryInfo = di
+	patch := client.MergeFrom(targetOrig.DeepCopy())
+	targetOrig.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	targetOrig.Status.DiscoveryInfo = di
 
 	log.Info("discovery target apply",
 		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
 		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
 		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
-	return r.client.Status().Patch(ctx, targetCROrig, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, targetOrig, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

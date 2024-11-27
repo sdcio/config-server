@@ -106,7 +106,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// handle transition
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	if !ready {
-		r.handleError(ctx, target, string(configv1alpha1.ConditionReasonTargetNotReady), nil)
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 

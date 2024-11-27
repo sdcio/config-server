@@ -243,7 +243,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.DatastoreReady())
-	target.SetOverallStatus()
+	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
@@ -264,7 +264,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 	target.SetConditions(invv1alpha1.DatastoreFailed(msg))
-	target.SetOverallStatus()
+	//target.SetOverallStatus()
 	if resetUsedRefs {
 		target.Status.UsedReferences = nil
 	}
@@ -532,6 +532,9 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *invv1alpha1.Targ
 	}
 
 	for _, schema := range schemaList.Items {
+		if target.Status.DiscoveryInfo == nil {
+			return false, "target has no discovery info", nil
+		} 
 		if schema.Spec.Provider == target.Status.DiscoveryInfo.Provider &&
 			schema.Spec.Version == target.Status.DiscoveryInfo.Version {
 			schemaCondition := schema.GetCondition(condv1alpha1.ConditionTypeReady)
