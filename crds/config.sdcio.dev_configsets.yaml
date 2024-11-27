@@ -433,6 +433,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               targets:
                 description: Targets defines the status of the configSet resource
                   on the respective target

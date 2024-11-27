@@ -70,6 +70,8 @@ func (c Condition) IsTrue() bool {
 type ConditionedStatus struct {
 	// Conditions of the resource.
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []Condition `json:"conditions,omitempty" protobuf:"bytes,1,rep,name=conditions"`
 }
 

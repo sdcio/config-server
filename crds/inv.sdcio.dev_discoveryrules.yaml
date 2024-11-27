@@ -335,6 +335,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               startTime:
                 description: StartTime identifies when the dr got started
                 format: date-time
