@@ -114,23 +114,24 @@ func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *in
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
-	di := newTarget.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address, "discovery info", di)
+func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) error {
+	di := targetNew.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
 
-	targetOrig := newTarget.DeepCopy()
-	// check if the target already exists
-	curTargetCR := &invv1alpha1.Target{}
+	targetOrig := targetNew.DeepCopy()
+
+	// Check if the target already exists
+	targetCurrent := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: newTarget.Namespace,
-		Name:      newTarget.Name,
-	}, curTargetCR); err != nil {
+		Namespace: targetNew.Namespace,
+		Name:      targetNew.Name,
+	}, targetCurrent); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		log.Info("discovery target apply, target does not exist -> create")
 
-		if err := r.client.Create(ctx, newTarget, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
+		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
 	}
@@ -145,16 +146,24 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 	}
 
 	log.Info("discovery target apply",
-		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
-		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
+		"Ready", targetCurrent.GetCondition(condv1alpha1.ConditionTypeReady).Status,
+		"DSReady", targetCurrent.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
+		"ConfigReady", targetCurrent.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
 		"DiscoveryInfo", di,
 	)
-	return r.client.Status().Patch(ctx, targetOrig, patch, &client.SubResourcePatchOptions{
+
+	// Apply the patch
+	err := r.client.Status().Patch(ctx, targetOrig, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	})
+	if err != nil {
+		log.Error("failed to patch target status", "err", err)
+		return err
+	}
+
+	return nil
 }
 
 /*
