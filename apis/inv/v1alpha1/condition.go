@@ -28,6 +28,8 @@ const (
 	ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
 	// ConditionTypeCfgReady represents the resource config ready condition
 	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
+	// ConditionTypeTargetConnectionReady represents the resource target ready condition
+	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -163,6 +165,29 @@ func DiscoveryReady() condv1alpha1.Condition {
 func DiscoveryFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeDiscoveryReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+// TargetConnectionReady return a condition that indicates the target connection
+// is ready
+func TargetConnectionReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeTargetConnectionReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+	}}
+}
+
+// TargetConnectionFailed returns a condition that indicates the target connection
+// is in failed condition
+func TargetConnectionFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeTargetConnectionReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonFailed),

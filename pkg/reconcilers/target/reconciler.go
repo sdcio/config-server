@@ -14,28 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package targetconfigserver
+package target
 
 import (
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
-	"github.com/sdcio/config-server/apis/config"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/target"
+	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
+	sdctarget "github.com/sdcio/config-server/pkg/target"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,9 +44,9 @@ func init() {
 }
 
 const (
-	crName         = "targetconfigserver"
-	reconcilerName = "TargetConfigServerController"
-	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
+	crName         = "target"
+	reconcilerName = "TargetController"
+	finalizer      = "target.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -76,9 +73,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client.Client
-	finalizer   *resource.APIFinalizer
-	targetStore storebackend.Storer[*target.Context]
-	recorder    record.EventRecorder
+	finalizer       *resource.APIFinalizer
+	targetStore     storebackend.Storer[*sdctarget.Context]
+	dataServerStore storebackend.Storer[sdcctx.DSContext]
+	recorder        record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -99,41 +97,35 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	targetOrig := target.DeepCopy()
+
 	if !target.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
 	}
 
-	// handle transition
-	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
-	if !ready {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
+	tctx, err := r.targetStore.Get(ctx, targetKey)
+	if err != nil {
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "k8s target does not have a corresponding k8s ctx", nil), errUpdateStatus)
+	}
+	if !tctx.IsReady() {
+		tctx.SetReady(ctx, false)
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "target ctx not ready", nil), errUpdateStatus)
 	}
 
-	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-	if cfgCondition.Status == metav1.ConditionFalse &&
-		cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
-
-		//log.Info("target reapply config")
-		// we split the config in config that were successfully applied and config that was not yet
-		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
-		}
-
-		// We need to restore the config on the target
-		for _, config := range reApplyConfigs {
-			if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
-				// This is bad since this means we cannot recover the applied config
-				// on a target. We set the target config status to Failed.
-				// Most likely a human intervention is needed
-				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
-			}
-		}
-
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	if err != nil {
+		tctx.SetReady(ctx, false)
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore rsp error", err), errUpdateStatus)
+	}
+	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
+		tctx.SetReady(ctx, false)
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected", err), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
@@ -142,9 +134,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.ConfigReady())
-	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+	target.SetConditions(invv1alpha1.TargetConnectionReady())
+	target.SetOverallStatus()
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
@@ -163,8 +155,8 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetConditions(invv1alpha1.ConfigFailed(msg))
-	//target.SetOverallStatus()
+	target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+	target.SetOverallStatus()
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
@@ -173,55 +165,4 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 			FieldManager: reconcilerName,
 		},
 	})
-}
-
-func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
-	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
-
-	opts := []client.ListOption{
-		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
-			config.TargetNameKey:      target.GetName(),
-		},
-	}
-
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.List(ctx, v1alpha1configList, opts...); err != nil {
-		return nil, err
-	}
-	configList := &config.ConfigList{}
-	configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil)
-
-	return configList, nil
-}
-
-func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
-	// we do not find the target Context -> target is not ready
-	tctx, err := r.targetStore.Get(ctx, key)
-	if err != nil {
-		return false, nil
-	}
-	if target.IsDatastoreReady() && tctx.IsReady() {
-		return true, tctx
-	}
-	return false, tctx
-}
-
-func (r *reconciler) getReApplyConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
-	configs := []*config.Config{}
-	configList, err := r.listTargetConfigs(ctx, target)
-	if err != nil {
-		return nil, err
-	}
-	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil {
-			configs = append(configs, &config)
-		}
-	}
-
-	sort.Slice(configs, func(i, j int) bool {
-		return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
-	})
-
-	return configs, err
 }

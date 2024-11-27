@@ -269,7 +269,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		target.Status.UsedReferences = nil
 	}
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
 	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{

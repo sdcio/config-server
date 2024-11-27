@@ -55,6 +55,10 @@ func (r *Target) SetOverallStatus() {
 		ready = false
 		msg = "config not ready"
 	}
+	if ready && !r.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
+		ready = false
+		msg = "target connection not ready"
+	}
 	if ready {
 		r.Status.SetConditions(condv1alpha1.Ready())
 	} else {
