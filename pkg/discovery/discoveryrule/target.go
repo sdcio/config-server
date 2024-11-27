@@ -137,12 +137,19 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 
 	patch := client.MergeFrom(targetOrig.DeepCopy())
 	targetOrig.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	targetOrig.Status.DiscoveryInfo = di
+	if di != nil {
+		if targetOrig.Status.DiscoveryInfo == nil {
+			targetOrig.Status.DiscoveryInfo = new(invv1alpha1.DiscoveryInfo)
+		}
+		*targetOrig.Status.DiscoveryInfo = *di
+	}
 
 	log.Info("discovery target apply",
 		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
 		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
+		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
+		"DiscoveryInfo", di,
+	)
 	return r.client.Status().Patch(ctx, targetOrig, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
