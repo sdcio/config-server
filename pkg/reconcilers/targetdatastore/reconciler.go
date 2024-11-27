@@ -76,8 +76,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.dataServerStore = cfg.DataServerStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
-	targetDSWatcher := newTargetDataStoreWatcher(mgr.GetClient(), cfg.TargetStore)
-	go targetDSWatcher.Start(ctx)
+	//targetDSWatcher := newTargetDataStoreWatcher(mgr.GetClient(), cfg.TargetStore)
+	//go targetDSWatcher.Start(ctx)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
