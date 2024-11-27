@@ -21,6 +21,7 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/configset"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/discoveryrule"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/schema"
+	_ "github.com/sdcio/config-server/pkg/reconcilers/target"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigserver"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
 )

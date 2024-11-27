@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -125,7 +126,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not connected", err), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{RequeueAfter: 5 * time.Minute}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
