@@ -36,8 +36,10 @@ type Loader struct {
 	credentialResolver auth.CredentialResolver
 
 	//schemas contains the Schema Reference indexed by Provider.Version key
-	m       sync.RWMutex
+	sm      sync.RWMutex
 	schemas map[string]*invv1alpha1.Schema
+	// repo manager allocates sempahores to ensure no concurrent downloads from the same schema
+	repoMgr *RepoMgr
 }
 
 type downloadable interface {
@@ -47,8 +49,8 @@ type downloadable interface {
 
 type providerDownloader struct {
 	destDir            string
-	namespace string
-	schemaRepo             *invv1alpha1.SchemaSpecRepository
+	namespace          string
+	schemaRepo         *invv1alpha1.SchemaSpecRepository
 	credentialResolver auth.CredentialResolver
 }
 
@@ -74,14 +76,15 @@ func NewLoader(tmpDir string, schemaDir string, credentialResolver auth.Credenti
 		schemaDir:          schemaDir,
 		schemas:            map[string]*invv1alpha1.Schema{},
 		credentialResolver: credentialResolver,
+		repoMgr:            NewRepoMgr(),
 	}, nil
 }
 
 // AddRef overwrites the provider schema version
 // The schemaRef is immutable
 func (r *Loader) AddRef(ctx context.Context, schema *invv1alpha1.Schema) {
-	r.m.Lock()
-	defer r.m.Unlock()
+	r.sm.Lock()
+	defer r.sm.Unlock()
 	r.schemas[schema.Spec.GetKey()] = schema
 }
 
@@ -102,8 +105,8 @@ func (r *Loader) DelRef(ctx context.Context, key string) error {
 }
 
 func (r *Loader) del(key string) {
-	r.m.Lock()
-	defer r.m.Unlock()
+	r.sm.Lock()
+	defer r.sm.Unlock()
 	delete(r.schemas, key)
 }
 
@@ -120,75 +123,89 @@ func (r *Loader) GetRef(ctx context.Context, key string) (*invv1alpha1.Schema, b
 }
 
 func (r *Loader) get(key string) (*invv1alpha1.Schema, bool) {
-	r.m.RLock()
-	defer r.m.RUnlock()
+	r.sm.RLock()
+	defer r.sm.RUnlock()
 	schema, exists := r.schemas[key]
 	return schema, exists
 }
 
 func (r *Loader) Load(ctx context.Context, key string) error {
-	log := log.FromContext(ctx)
-
 	schema, _, err := r.GetRef(ctx, key)
 	if err != nil {
 		return err
 	}
 
 	for _, schemaRepo := range schema.Spec.Repositories {
-		// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
-		var downloader downloadable
-		switch {
-		default:
-			downloader = newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
-		}
-
-		if downloader == nil {
-			return &sdcerrors.UnrecoverableError{
-				Message:      "could not detect repository type",
-				WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
-			}
-		}
-		err = downloader.Download(ctx)
-		if err != nil {
-			return err
-		}
-
-		localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
-		if err != nil {
-			return err
-		}
-		providerVersionBasePath := schema.Spec.GetBasePath(r.schemaDir)
-
-		// copy data to correct destination
-		if len(schemaRepo.Dirs) == 0 {
-			schemaRepo.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
-		}
-		for i, dir := range schemaRepo.Dirs {
-			// build the source path
-			src := path.Join(localPath, dir.Src)
-			// check path is still within the base schema folder
-			// -> prevent escaping the folder
-			err := utils.ErrNotIsSubfolder(localPath, src)
-			if err != nil {
-				return err
-			}
-			// build dst path
-			dst := path.Join(providerVersionBasePath, dir.Dst)
-			// check path is still within the base schema folder
-			// -> prevent escaping the folder
-			err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
-			if err != nil {
-				return err
-			}
-
-			log.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaRepo.Dirs)), "from", src, "to", dst)
-			err = copy.Copy(src, dst)
-			if err != nil {
-				return err
-			}
-		}
+		r.download(ctx, schema, schemaRepo)
 	}
 
 	return nil
 
+}
+
+func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) error {
+	log := log.FromContext(ctx)
+
+	
+	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
+	var downloader downloadable
+	switch {
+	default:
+		downloader = newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
+	}
+
+	if downloader == nil {
+		return &sdcerrors.UnrecoverableError{
+			Message:      "could not detect repository type",
+			WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
+		}
+	}
+
+	sem := r.repoMgr.GetOrAdd(schemaRepo.RepositoryURL)
+	// Attempt to acquire the semaphore
+	if err := sem.Acquire(ctx, 1); err != nil {
+		return fmt.Errorf("failed to acquire semaphore for %s: %w", schemaRepo.RepositoryURL, err)
+	}
+	defer sem.Release(1)
+
+	err := downloader.Download(ctx)
+	if err != nil {
+		return err
+	}
+
+	localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
+	if err != nil {
+		return err
+	}
+	providerVersionBasePath := schema.Spec.GetBasePath(r.schemaDir)
+
+	// copy data to correct destination
+	if len(schemaRepo.Dirs) == 0 {
+		schemaRepo.Dirs = []invv1alpha1.SrcDstPath{{Src: ".", Dst: "."}}
+	}
+	for i, dir := range schemaRepo.Dirs {
+		// build the source path
+		src := path.Join(localPath, dir.Src)
+		// check path is still within the base schema folder
+		// -> prevent escaping the folder
+		err := utils.ErrNotIsSubfolder(localPath, src)
+		if err != nil {
+			return err
+		}
+		// build dst path
+		dst := path.Join(providerVersionBasePath, dir.Dst)
+		// check path is still within the base schema folder
+		// -> prevent escaping the folder
+		err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
+		if err != nil {
+			return err
+		}
+
+		log.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaRepo.Dirs)), "from", src, "to", dst)
+		err = copy.Copy(src, dst)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

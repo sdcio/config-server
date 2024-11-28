@@ -17,7 +17,23 @@ spec:
     singular: targetsyncprofile
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sync[0].protocol
+      name: PROTOCOL
+      type: string
+    - jsonPath: .spec.sync[0].port
+      name: PORT
+      type: string
+    - jsonPath: .spec.sync[0].encoding
+      name: ENCODING
+      type: string
+    - jsonPath: .spec.sync[0].mode
+      name: MODE
+      type: string
+    - jsonPath: .spec.sync[0].interval
+      name: INTERVAL
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: TargetSyncProfile is the Schema for the TargetSyncProfile API
@@ -50,7 +66,6 @@ spec:
                     TargetSyncProfileSync
                   properties:
                     encoding:
-                      default: JSON_IETF
                       enum:
                       - UNKNOWN
                       - JSON
@@ -122,3 +137,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}

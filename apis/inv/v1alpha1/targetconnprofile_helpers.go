@@ -21,7 +21,42 @@ import (
 
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
+
+func (r *TargetConnectionProfile) IsInsecure() bool {
+	return r.Spec.Insecure != nil && *r.Spec.Insecure
+}
+
+func (r *TargetConnectionProfile) SkipVerify() bool {
+	return r.Spec.SkipVerify != nil && *r.Spec.SkipVerify
+}
+
+func (r *TargetConnectionProfile) Encoding() Encoding {
+	if r.Spec.Encoding == nil {
+		return Encoding_JSON_IETF
+	}
+	return *r.Spec.Encoding
+}
+
+func (r *TargetConnectionProfile) IncludeNS() bool {
+	return r.Spec.IncludeNS != nil && *r.Spec.IncludeNS
+}
+
+func (r *TargetConnectionProfile) OperationWithNS() bool {
+	return r.Spec.OperationWithNS != nil && *r.Spec.OperationWithNS
+}
+
+func (r *TargetConnectionProfile) UseOperationRemove() bool {
+	return r.Spec.UseOperationRemove != nil && *r.Spec.UseOperationRemove
+}
+
+func (r *TargetConnectionProfile) CommitCandidate() CommitCandidate {
+	if r.Spec.CommitCandidate == nil {
+		return CommitCandidate_Candidate
+	}
+	return *r.Spec.CommitCandidate
+}
 
 // DefaultTargetConnectionProfile returns a default TargetConnectionProfile
 func DefaultTargetConnectionProfile() *TargetConnectionProfile {
@@ -32,9 +67,9 @@ func DefaultTargetConnectionProfile() *TargetConnectionProfile {
 		},
 		TargetConnectionProfileSpec{
 			Protocol:   Protocol_GNMI,
-			Encoding:   Encoding_ASCII,
-			Insecure:   false,
-			SkipVerify: true,
+			Encoding:   ptr.To(Encoding_JSON_IETF),
+			Insecure:   ptr.To(false),
+			SkipVerify: ptr.To(true),
 		},
 	)
 }

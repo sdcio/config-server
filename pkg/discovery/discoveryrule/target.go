@@ -18,26 +18,30 @@ package discoveryrule
 
 import (
 	"context"
-	"fmt"
 	"strings"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	reconcilerName = "DiscoveryController"
 )
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
 	log := log.FromContext(ctx)
 	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
 
-	newTargetCR, err := r.newTargetCR(
+	newTarget, err := r.newTarget(
 		ctx,
 		provider,
 		address,
@@ -47,24 +51,17 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 		return err
 	}
 
-	if err := r.applyTarget(ctx, newTargetCR); err != nil {
-		// TODO reapply if update failed
-		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-			// we will rety once, sometimes we get an error
-			if err := r.applyTarget(ctx, newTargetCR); err != nil {
-				log.Info("dynamic target creation retry failed", "error", err)
-			}
-		} else {
-			log.Info("dynamic target creation failed", "error", err)
-		}
+	if err := r.applyTarget(ctx, newTarget); err != nil {
+		log.Info("dynamic target creation failed", "error", err)
+		return err
 	}
-	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
+	if err := r.applyUnManagedConfigCR(ctx, newTarget.Name); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
+func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
@@ -111,67 +108,64 @@ func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *in
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, newTargetCR *invv1alpha1.Target) error {
-	di := newTargetCR.Status.DiscoveryInfo.DeepCopy()
-	//urefs := newTargetCR.Status.UsedReferences.DeepCopy()
+func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) error {
+	di := targetNew.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
 
-	log := log.FromContext(ctx).With("targetName", newTargetCR.Name, "address", newTargetCR.Spec.Address, "discovery info", di)
-
-	// check if the target already exists
-	curTargetCR := &invv1alpha1.Target{}
+	// Check if the target already exists
+	targetCurrent := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: newTargetCR.Namespace,
-		Name:      newTargetCR.Name,
-	}, curTargetCR); err != nil {
+		Namespace: targetNew.Namespace,
+		Name:      targetNew.Name,
+	}, targetCurrent); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		log.Info("discovery target apply, target does not exist -> create")
 
-		if err := r.client.Create(ctx, newTargetCR); err != nil {
+		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
+		time.Sleep(500 * time.Millisecond)
 
-		newTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
-		newTargetCR.Status.DiscoveryInfo = di
-		if err := r.client.Status().Update(ctx, newTargetCR); err != nil {
+		// we get the target again to get the latest update
+		targetCurrent = &invv1alpha1.Target{}
+		if err := r.client.Get(ctx, types.NamespacedName{
+			Namespace: targetNew.Namespace,
+			Name:      targetNew.Name,
+		}, targetCurrent); err != nil {
+			// the resource should always exist
 			return err
 		}
-		return nil
 	}
 
-	// we only need to acquire a lease if the target exists
-	l := lease.New(r.client, curTargetCR)
-	if err := l.AcquireLease(ctx, "DiscoveryController"); err != nil {
-		log.Debug("cannot acquire lease", "target", getTargetName(di.HostName), "error", err.Error())
-		return err
-	}
+	targetPatch := targetCurrent.DeepCopy()
 
-	curTargetCR = curTargetCR.DeepCopy()
-	newTargetCR = newTargetCR.DeepCopy()
-	// target already exists -> validate changes to avoid triggering a reconcile loop
-	if hasChanged(ctx, curTargetCR, newTargetCR) {
-		log.Info("discovery target apply, target exists -> changed")
-		curTargetCR.Spec = newTargetCR.Spec
-		if err := r.client.Update(ctx, curTargetCR); err != nil {
-			return err
-		}
-	} else {
-		log.Info("discovery target apply, target exists -> no change")
-	}
-	curTargetCR.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	curTargetCR.SetOverallStatus()
-	curTargetCR.Status.DiscoveryInfo = di
+	targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	targetPatch.Status.DiscoveryInfo = di
+
 	log.Info("discovery target apply",
-		"Ready", curTargetCR.GetCondition(condv1alpha1.ConditionTypeReady).Status,
-		"DSReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-		"ConfigReady", curTargetCR.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status)
-	if err := r.client.Status().Update(ctx, curTargetCR); err != nil {
+		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
+		"DSReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
+		"ConfigReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
+		"DiscoveryInfo", targetPatch.Status.DiscoveryInfo,
+	)
+
+	// Apply the patch
+	err := r.client.Status().Patch(ctx, targetPatch, client.MergeFrom(targetCurrent), &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
+	if err != nil {
+		log.Error("failed to patch target status", "err", err)
 		return err
 	}
+
 	return nil
 }
 
+/*
 func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Target) bool {
 	log := log.FromContext(ctx).With("target", newTargetCR.GetName(), "address", newTargetCR.Spec.Address)
 
@@ -250,6 +244,7 @@ func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Targe
 
 	return false
 }
+*/
 
 func getTargetName(s string) string {
 	targetName := strings.ReplaceAll(s, ":", "-")

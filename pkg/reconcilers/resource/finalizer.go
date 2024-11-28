@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,36 +27,66 @@ import (
 
 // Finalizer manages the lifecycle of the finalizer on a k8s object
 type Finalizer interface {
-	AddFinalizer(ctx context.Context, obj Object) error
-	RemoveFinalizer(ctx context.Context, obj Object) error
+	AddFinalizer(ctx context.Context, obj client.Object) error
+	RemoveFinalizer(ctx context.Context, obj client.Object) error
 }
 
 // An APIFinalizer manages the lifecycle of a finalizer on a k8s object.
 type APIFinalizer struct {
-	client    client.Client
-	finalizer string
+	client         client.Client
+	reconcilerName string
+	finalizer      string
 }
 
 // NewAPIFinalizer returns a new APIFinalizer.
-func NewAPIFinalizer(c client.Client, finalizer string) *APIFinalizer {
-	return &APIFinalizer{client: c, finalizer: finalizer}
+func NewAPIFinalizer(c client.Client, finalizer, reconcilerName string) *APIFinalizer {
+	return &APIFinalizer{client: c, finalizer: finalizer, reconcilerName: reconcilerName}
 }
 
 // AddFinalizer to the supplied Managed resource.
-func (a *APIFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
-	if FinalizerExists(obj, a.finalizer) {
+func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) error {
+	// take a snapshot of the current object
+	origObj := obj.DeepCopyObject()
+
+	// Again assert to client.Object to manipulate metadata and finalizers
+	copiedObj, ok := origObj.(client.Object)
+	if !ok {
+		return fmt.Errorf("deep copied object does not implement client.Object")
+	}
+
+	patch := client.MergeFrom(copiedObj)
+
+	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	AddFinalizer(obj, a.finalizer)
-	return errors.Wrap(a.client.Update(ctx, obj), errUpdateObject)
+	AddFinalizer(obj, r.finalizer)
+	return errors.Wrap(r.Update(ctx, obj, patch), errUpdateObject)
 }
 
-func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
-	if !FinalizerExists(obj, a.finalizer) {
+func (r *APIFinalizer) Update(ctx context.Context, obj client.Object, patch client.Patch) error {
+	return r.client.Patch(ctx, obj, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: r.reconcilerName,
+		},
+	})
+}
+
+func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) error {
+	// take a snapshot of the current object
+	origObj := obj.DeepCopyObject()
+
+	// Again assert to client.Object to manipulate metadata and finalizers
+	copiedObj, ok := origObj.(client.Object)
+	if !ok {
+		return fmt.Errorf("deep copied object does not implement client.Object")
+	}
+	patch := client.MergeFrom(copiedObj)
+
+	if !FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	RemoveFinalizer(obj, a.finalizer)
-	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, obj)), errUpdateObject)
+	RemoveFinalizer(obj, r.finalizer)
+	return errors.Wrap(r.Update(ctx, obj, patch), errUpdateObject)
 }
 
 // AddFinalizer to the supplied k8s object's metadata.

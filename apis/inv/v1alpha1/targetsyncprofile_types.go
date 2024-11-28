@@ -66,8 +66,7 @@ type TargetSyncProfileSync struct {
 	// +kubebuilder:default:="get"
 	Mode SyncMode `json:"mode" yaml:"mode"`
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;CONFIG;
-	// +kubebuilder:default:="JSON_IETF"
-	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=duration
     // +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
@@ -79,6 +78,11 @@ type TargetSyncProfileSync struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.sync[0].protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.sync[0].port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.sync[0].encoding"
+// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.sync[0].mode"
+// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.sync[0].interval"
 // +kubebuilder:resource:categories={sdc,inv}
 // TargetSyncProfile is the Schema for the TargetSyncProfile API
 // +k8s:openapi-gen=true

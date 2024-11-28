@@ -62,7 +62,7 @@ type DiscoveryInfo struct {
 	// Supported Encodings of the target
 	SupportedEncodings []string `json:"supportedEncodings,omitempty"`
 	// Last discovery time
-	LastSeen metav1.Time `json:"lastSeen,omitempty"`
+	//LastSeen metav1.Time `json:"lastSeen,omitempty"`
 }
 
 type TargetStatusUsedReferences struct {

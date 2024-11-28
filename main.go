@@ -31,7 +31,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/apis/config"
+	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -54,6 +54,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -125,12 +126,15 @@ func main() {
 		// If CertDir, CertName, and KeyName are not specified, controller-runtime will automatically
 		// generate self-signed certificates for the metrics server. While convenient for development and testing,
 		// this setup is not recommended for production.
-		TLSOpts:        tlsOpts,
+		TLSOpts: tlsOpts,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:  runScheme,
-		Metrics: metricsServerOptions,
+		Scheme:     runScheme,
+		Metrics:    metricsServerOptions,
+		Controller: config.Controller{
+			MaxConcurrentReconciles: 16,
+		},
 	})
 	if err != nil {
 		log.Error("cannot start manager", "err", err)
@@ -186,11 +190,11 @@ func main() {
 	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
-	configStorageProvider := genericregistry.NewStorageProvider(ctx, &config.Config{}, &configregistryOptions)
-	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &config.ConfigSet{}, registryOptions)
-	unmanagedConfigStorageProvider := genericregistry.NewStorageProvider(ctx, &config.UnManagedConfig{}, registryOptions)
+	configStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Config{}, &configregistryOptions)
+	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.ConfigSet{}, registryOptions)
+	unmanagedConfigStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.UnManagedConfig{}, registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &config.RunningConfig{}, &options.Options{
+	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &sdcconfig.RunningConfig{}, &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
@@ -199,13 +203,13 @@ func main() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(&config.Config{}, configStorageProvider).
+			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
-			WithResourceAndHandler(&config.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
-			WithResourceAndHandler(&config.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.UnManagedConfig{}, unmanagedConfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.UnManagedConfig{}, unmanagedConfigStorageProvider).
-			WithResourceAndHandler(&config.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {

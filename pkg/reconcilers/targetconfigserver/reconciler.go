@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -28,7 +29,6 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/lease"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,7 +50,7 @@ func init() {
 
 const (
 	crName         = "targetconfigserver"
-	controllerName = "TargetConfigServerController"
+	reconcilerName = "TargetConfigServerController"
 	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
@@ -63,29 +64,40 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
+	var err error
+	r.discoveryClient, err = ctrlconfig.GetDiscoveryClient(mgr)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get discoveryClient from manager")
+	}
 
 	r.Client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
-	r.recorder = mgr.GetEventRecorderFor(controllerName)
+	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
-		Named(controllerName).
+		Named(reconcilerName).
 		For(&invv1alpha1.Target{}).
 		Complete(r)
 }
 
 type reconciler struct {
 	client.Client
-	finalizer   *resource.APIFinalizer
-	targetStore storebackend.Storer[*target.Context]
-	recorder    record.EventRecorder
+	discoveryClient *discovery.DiscoveryClient
+	finalizer       *resource.APIFinalizer
+	targetStore     storebackend.Storer[*target.Context]
+	recorder        record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = ctrlconfig.InitContext(ctx, controllerName, req.NamespacedName)
+	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
+
+	if _, err := r.discoveryClient.ServerResourcesForGroupVersion(configv1alpha1.SchemeGroupVersion.String()); err != nil {
+		log.Info("API group not available, retrying...", "groupversion", configv1alpha1.SchemeGroupVersion.String())
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
@@ -99,74 +111,77 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	target = target.DeepCopy()
-
-	l := lease.New(r.Client, target)
-	if err := l.AcquireLease(ctx, "TargetConfigServerController"); err != nil {
-		log.Debug("cannot acquire lease", "error", err.Error())
-		r.recorder.Eventf(target, corev1.EventTypeWarning,
-			"lease", "error %s", err.Error())
-		return ctrl.Result{Requeue: true, RequeueAfter: lease.GetRandaomRequeueTimout()}, nil
-	}
-	r.recorder.Eventf(target, corev1.EventTypeWarning,
-		"lease", "acquired")
-
+	targetOrig := target.DeepCopy()
 	if !target.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
 	}
 
-	// handle transition
+	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
+		// datastore not ready so we can wait till the target goes to ready state
+		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not ready", nil), errUpdateStatus)
+	}
+
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
-	//log.Info("readiness", "ready", ready)
 	if !ready {
-		r.handleError(ctx, target, string(configv1alpha1.ConditionReasonTargetNotReady), nil)
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
-	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-	if cfgCondition.Status == metav1.ConditionFalse &&
-		cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
-
-		//log.Info("target reapply config")
-		// we split the config in config that were successfully applied and config that was not yet
-		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
-		if err != nil {
-			r.handleError(ctx, target, "reapply config failed", err)
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
-		}
-
-		// We need to restore the config on the target
-		for _, config := range reApplyConfigs {
-			if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
-				// This is bad since this means we cannot recover the applied config
-				// on a target. We set the target config status to Failed.
-				// Most likely a human intervention is needed
-				r.handleError(ctx, target, "setIntent failed", err)
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
-			}
-		}
-		r.recorder.Eventf(target, corev1.EventTypeWarning,
-			"Config", "ready")
-		target.SetConditions(invv1alpha1.ConfigReady())
-		target.SetOverallStatus()
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, target), errUpdateStatus)
+	// we split the config in config that were successfully applied and config that was not yet
+	configsToReApply, err := r.getConfigsToReApply(ctx, target)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, nil
+	// We need to restore the config on the target
+	for _, config := range configsToReApply {
+		if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
+			// This is bad since this means we cannot recover the applied config
+			// on a target. We set the target config status to Failed.
+			// Most likely a human intervention is needed
+			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		}
+	}
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
 	log := log.FromContext(ctx)
-	if err == nil {
-		target.SetConditions(invv1alpha1.ConfigFailed(msg))
-		log.Error(msg)
-		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, msg)
-	} else {
-		target.SetConditions(invv1alpha1.ConfigFailed(err.Error()))
-		log.Error(msg, "error", err)
-		r.recorder.Eventf(target, corev1.EventTypeWarning, crName, fmt.Sprintf("%s, err: %s", msg, err.Error()))
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+	// update status
+	target.SetConditions(invv1alpha1.ConfigReady())
+	//target.SetOverallStatus()
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+
+	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
+}
+
+func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
+	log := log.FromContext(ctx)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+
+	if err != nil {
+		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetOverallStatus()
+	target.SetConditions(invv1alpha1.ConfigFailed(msg))
+	//target.SetOverallStatus()
+	log.Error(msg, "error", err)
+	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+
+	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
 }
 
 func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
@@ -190,18 +205,20 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 }
 
 func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
+	log := log.FromContext(ctx)
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
 		return false, nil
 	}
+	log.Info("getTargetReadiness", "datastoreReady", target.IsDatastoreReady(), "tctx ready", tctx.IsReady())
 	if target.IsDatastoreReady() && tctx.IsReady() {
 		return true, tctx
 	}
 	return false, tctx
 }
 
-func (r *reconciler) getReApplyConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
+func (r *reconciler) getConfigsToReApply(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
 	configs := []*config.Config{}
 	configList, err := r.listTargetConfigs(ctx, target)
 	if err != nil {
