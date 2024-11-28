@@ -175,6 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	isSchemaReady, _, err := r.isSchemaReady(ctx, target)
 	if err != nil {
+		// this means the apiserver had issues retrieving the schema
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot get schema ready state", err, true), errUpdateStatus)
 	}
@@ -301,13 +302,15 @@ func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey s
 
 func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebackend.Key, targetKey storebackend.Key) {
 	log := log.FromContext(ctx)
-	dsctx, err := r.dataServerStore.Get(ctx, dsKey)
-	if err != nil {
+	if _, err := r.dataServerStore.Get(ctx, dsKey); err != nil {
 		log.Debug("AddTarget2DataServer dataserver key not found", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 		return
 	}
-	dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
-	if err := r.dataServerStore.Update(ctx, dsKey, dsctx); err != nil {
+
+	if err := r.dataServerStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, dsctx sdcctx.DSContext) sdcctx.DSContext {
+		dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
+		return dsctx
+	}); err != nil {
 		log.Debug("AddTarget2DataServer dataserver update failed", "dsKey", dsKey, "targetKey", targetKey, "error", err.Error())
 	}
 }
