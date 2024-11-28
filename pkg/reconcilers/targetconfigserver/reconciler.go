@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -122,6 +124,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// we split the config in config that were successfully applied and config that was not yet
 		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
 		if err != nil {
+			if strings.Contains(err.Error(), "unableto retrieve the complete list of server APIs") {
+				return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
+			}
 			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 		}
 
