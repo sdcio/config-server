@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -38,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,6 +64,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
+	var err error
+	r.discoveryClient, err = ctrlconfig.GetDiscoveryClient(mgr)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get discoveryClient from manager")
+	}
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
@@ -78,15 +83,21 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client.Client
-	finalizer   *resource.APIFinalizer
-	targetStore storebackend.Storer[*target.Context]
-	recorder    record.EventRecorder
+	discoveryClient *discovery.DiscoveryClient
+	finalizer       *resource.APIFinalizer
+	targetStore     storebackend.Storer[*target.Context]
+	recorder        record.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
+
+	if _, err := r.discoveryClient.ServerResourcesForGroupVersion(configv1alpha1.SchemeGroupVersion.String()); err != nil {
+		log.Info("API group not available, retrying...", "groupversion", configv1alpha1.SchemeGroupVersion.String())
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
@@ -122,16 +133,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		//log.Info("target reapply config")
 		// we split the config in config that were successfully applied and config that was not yet
-		reApplyConfigs, err := r.getReApplyConfigs(ctx, target)
+		configsToReApply, err := r.getConfigsToReApply(ctx, target)
 		if err != nil {
-			if strings.Contains(err.Error(), "unableto retrieve the complete list of server APIs") {
-				return ctrl.Result{RequeueAfter: 5 * time.Second}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
-			}
 			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 		}
 
 		// We need to restore the config on the target
-		for _, config := range reApplyConfigs {
+		for _, config := range configsToReApply {
 			if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
 				// This is bad since this means we cannot recover the applied config
 				// on a target. We set the target config status to Failed.
@@ -219,7 +227,7 @@ func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Ke
 	return false, tctx
 }
 
-func (r *reconciler) getReApplyConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
+func (r *reconciler) getConfigsToReApply(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
 	configs := []*config.Config{}
 	configList, err := r.listTargetConfigs(ctx, target)
 	if err != nil {
