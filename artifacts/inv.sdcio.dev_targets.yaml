@@ -39,6 +39,9 @@ spec:
     - jsonPath: .status.discoveryInfo.macAddress
       name: MACADDRESS
       type: string
+    - jsonPath: .status.discoveryInfo.lastSeen
+      name: LASTSEEN
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

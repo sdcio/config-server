@@ -363,7 +363,20 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
+		if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+			tctx.SetReady(ctx, false)
+			return tctx
+		}); err != nil {
+			return true, err
+		}
 		return false, nil
+	}
+
+	if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+		tctx.SetReady(ctx, true)
+		return tctx
+	}); err != nil {
+		return true, err
 	}
 	return true, nil
 }
@@ -534,7 +547,7 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *invv1alpha1.Targ
 	for _, schema := range schemaList.Items {
 		if target.Status.DiscoveryInfo == nil {
 			return false, "target has no discovery info", nil
-		} 
+		}
 		if schema.Spec.Provider == target.Status.DiscoveryInfo.Provider &&
 			schema.Spec.Version == target.Status.DiscoveryInfo.Version {
 			schemaCondition := schema.GetCondition(condv1alpha1.ConditionTypeReady)
