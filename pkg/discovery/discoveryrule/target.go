@@ -19,6 +19,7 @@ package discoveryrule
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -125,10 +126,9 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
-		targetCurrent = targetNew
-	}
-	/*
-		// we get the target again
+		time.Sleep(500 * time.Millisecond)
+
+		// we get the target again to get the latest update
 		targetCurrent = &invv1alpha1.Target{}
 		if err := r.client.Get(ctx, types.NamespacedName{
 			Namespace: targetNew.Namespace,
@@ -137,7 +137,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 			// the resource should always exist
 			return err
 		}
-	*/
+	}
 
 	targetPatch := targetCurrent.DeepCopy()
 
