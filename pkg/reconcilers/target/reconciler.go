@@ -156,7 +156,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// update status
 	target.SetConditions(invv1alpha1.TargetConnectionReady())
 	target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 

@@ -127,30 +127,23 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
-	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-	if cfgCondition.Status == metav1.ConditionFalse &&
-		cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
-
-		// we split the config in config that were successfully applied and config that was not yet
-		configsToReApply, err := r.getConfigsToReApply(ctx, target)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
-		}
-
-		// We need to restore the config on the target
-		for _, config := range configsToReApply {
-			if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
-				// This is bad since this means we cannot recover the applied config
-				// on a target. We set the target config status to Failed.
-				// Most likely a human intervention is needed
-				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
-			}
-		}
-
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	// we split the config in config that were successfully applied and config that was not yet
+	configsToReApply, err := r.getConfigsToReApply(ctx, target)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, nil
+	// We need to restore the config on the target
+	for _, config := range configsToReApply {
+		if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
+			// This is bad since this means we cannot recover the applied config
+			// on a target. We set the target config status to Failed.
+			// Most likely a human intervention is needed
+			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		}
+	}
+
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
