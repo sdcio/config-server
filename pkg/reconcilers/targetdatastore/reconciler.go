@@ -70,7 +70,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.dataServerStore = cfg.DataServerStore
@@ -89,7 +89,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client          client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
 	dataServerStore storebackend.Storer[sdcctx.DSContext]
@@ -104,7 +104,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	target := &invv1alpha1.Target{}
-	if err := r.Get(ctx, req.NamespacedName, target); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -197,7 +197,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
-		tctx := sdctarget.New(targetKey, r.Client, selectedDSctx.DSClient)
+		tctx := sdctarget.New(targetKey, r.client, selectedDSctx.DSClient)
 		// either update or create based on the previous error
 		if err != nil {
 			if err := r.targetStore.Create(ctx, targetKey, tctx); err != nil {
@@ -249,7 +249,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -272,7 +272,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -508,7 +508,7 @@ func (r *reconciler) hasDataStoreChanged(
 
 func (r *reconciler) getConnProfile(ctx context.Context, key types.NamespacedName) (*invv1alpha1.TargetConnectionProfile, error) {
 	profile := &invv1alpha1.TargetConnectionProfile{}
-	if err := r.Get(ctx, key, profile); err != nil {
+	if err := r.client.Get(ctx, key, profile); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
@@ -519,7 +519,7 @@ func (r *reconciler) getConnProfile(ctx context.Context, key types.NamespacedNam
 
 func (r *reconciler) getSyncProfile(ctx context.Context, key types.NamespacedName) (*invv1alpha1.TargetSyncProfile, error) {
 	profile := &invv1alpha1.TargetSyncProfile{}
-	if err := r.Get(ctx, key, profile); err != nil {
+	if err := r.client.Get(ctx, key, profile); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
@@ -530,7 +530,7 @@ func (r *reconciler) getSyncProfile(ctx context.Context, key types.NamespacedNam
 
 func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
-	if err := r.Get(ctx, key, secret); err != nil {
+	if err := r.client.Get(ctx, key, secret); err != nil {
 		return nil, err
 	}
 	return secret, nil
@@ -543,7 +543,7 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *invv1alpha1.Targ
 		client.InNamespace(target.Namespace),
 	}
 
-	if err := r.List(ctx, schemaList, opts...); err != nil {
+	if err := r.client.List(ctx, schemaList, opts...); err != nil {
 		return false, "", err
 	}
 
@@ -585,7 +585,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	// and we need to provide the tls conext with the relevant info
 	// skipVery bool and secret information if the TLS secret is set.
 	var tls *sdcpb.TLS
-	if connProfile.IsInsecure() {
+	if !connProfile.IsInsecure() {
 		tls = &sdcpb.TLS{
 			SkipVerify: connProfile.SkipVerify(),
 		}
