@@ -19,14 +19,12 @@ package nokia_srl
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/path"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -75,9 +73,9 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	di := &invv1alpha1.DiscoveryInfo{
 		Protocol: string(invv1alpha1.Protocol_GNMI),
 		Provider: Provider,
-		LastSeen: metav1.Time{
-			Time: time.Now(),
-		},
+		//LastSeen: metav1.Time{
+		//	Time: time.Now(),
+		//},
 		SupportedEncodings: make([]string, 0, len(capRsp.GetSupportedEncodings())),
 	}
 	for _, enc := range capRsp.GetSupportedEncodings() {

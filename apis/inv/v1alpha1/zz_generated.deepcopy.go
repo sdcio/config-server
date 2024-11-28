@@ -33,7 +33,6 @@ func (in *DiscoveryInfo) DeepCopyInto(out *DiscoveryInfo) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	in.LastSeen.DeepCopyInto(&out.LastSeen)
 	return
 }
 

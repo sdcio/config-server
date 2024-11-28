@@ -62,7 +62,7 @@ type DiscoveryInfo struct {
 	// Supported Encodings of the target
 	SupportedEncodings []string `json:"supportedEncodings,omitempty"`
 	// Last discovery time
-	LastSeen metav1.Time `json:"lastSeen,omitempty"`
+	//LastSeen metav1.Time `json:"lastSeen,omitempty"`
 }
 
 type TargetStatusUsedReferences struct {
@@ -84,7 +84,6 @@ type TargetStatusUsedReferences struct {
 // +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"
 // +kubebuilder:printcolumn:name="SERIALNUMBER",type="string",JSONPath=".status.discoveryInfo.serialNumber"
 // +kubebuilder:printcolumn:name="MACADDRESS",type="string",JSONPath=".status.discoveryInfo.macAddress"
-// +kubebuilder:printcolumn:name="LASTSEEN",type="string",JSONPath=".status.discoveryInfo.lastSeen"
 // +kubebuilder:resource:categories={sdc,inv}
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true

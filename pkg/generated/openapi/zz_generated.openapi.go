@@ -1181,17 +1181,9 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCa
 							},
 						},
 					},
-					"lastSeen": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Last discovery time",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

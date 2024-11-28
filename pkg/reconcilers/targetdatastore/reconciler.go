@@ -364,7 +364,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
-			tctx.SetReady(ctx, false)
+			tctx.SetNotReady(ctx)
 			return tctx
 		}); err != nil {
 			return true, err
@@ -373,7 +373,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 
 	if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
-		tctx.SetReady(ctx, true)
+		tctx.SetReady(ctx)
 		return tctx
 	}); err != nil {
 		return true, err
@@ -405,7 +405,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, target *inv
 	if err != nil {
 		// datastore does not exist or dataserver is unhealthy
 		if !strings.Contains(err.Error(), "unknown datastore") {
-			tctx.SetReady(ctx, false)
+			tctx.SetNotReady(ctx)
 			log.Error("cannot get datastore from dataserver", "error", err)
 			return changed, nil, err
 		}

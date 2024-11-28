@@ -39,9 +39,6 @@ spec:
     - jsonPath: .status.discoveryInfo.macAddress
       name: MACADDRESS
       type: string
-    - jsonPath: .status.discoveryInfo.lastSeen
-      name: LASTSEEN
-      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -162,10 +159,6 @@ spec:
                 properties:
                   hostname:
                     description: HostName associated with the target
-                    type: string
-                  lastSeen:
-                    description: Last discovery time
-                    format: date-time
                     type: string
                   macAddress:
                     description: MacAddress associated with the target

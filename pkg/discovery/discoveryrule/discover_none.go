@@ -21,7 +21,6 @@ import (
 
 	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
@@ -38,7 +37,7 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 		Provider: provider,
 		Version:  version,
 		HostName: h.hostName,
-		LastSeen: metav1.Now(),
+		//LastSeen: metav1.Now(),
 	}
 	return r.createTarget(ctx, provider, h.Address, di)
 }
