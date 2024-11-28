@@ -124,14 +124,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	if !ready {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
 	cfgCondition := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
 	if cfgCondition.Status == metav1.ConditionFalse &&
 		cfgCondition.Reason != string(invv1alpha1.ConditionReasonReApplyFailed) {
 
-		//log.Info("target reapply config")
 		// we split the config in config that were successfully applied and config that was not yet
 		configsToReApply, err := r.getConfigsToReApply(ctx, target)
 		if err != nil {
