@@ -94,7 +94,7 @@ func (r *dr) run(ctx context.Context) error {
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
 	}
-	
+
 	var wg sync.WaitGroup
 	// clear the children list
 	r.children = memory.NewStore[string]()
@@ -103,8 +103,7 @@ func (r *dr) run(ctx context.Context) error {
 	sem := semaphore.NewWeighted(r.cfg.CR.GetDiscoveryParameters().GetConcurrentScans())
 	for {
 		// Blocks until a next resource comes available
-		err = sem.Acquire(ctx, 1)
-		if err != nil {
+		if err := sem.Acquire(ctx, 1); err != nil {
 			return err
 		}
 		h, ok := iter.Next()
