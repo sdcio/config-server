@@ -17,7 +17,23 @@ spec:
     singular: targetconnectionprofile
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.protocol
+      name: PROTOCOL
+      type: string
+    - jsonPath: .spec.port
+      name: PORT
+      type: string
+    - jsonPath: .spec.encoding
+      name: ENCODING
+      type: string
+    - jsonPath: .spec.insecure
+      name: INSECURE
+      type: string
+    - jsonPath: .spec.skipVerify
+      name: SKIPVERIFY
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: TargetConnectionProfile is the Schema for the TargetConnectionProfile
@@ -55,7 +71,6 @@ spec:
                 - message: connectRetry is immutable
                   rule: self == oldSelf
               encoding:
-                default: JSON_IETF
                 enum:
                 - UNKNOWN
                 - JSON
@@ -135,3 +150,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}

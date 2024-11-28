@@ -24,6 +24,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func (r *TargetSyncProfileSync) GetEncoding() Encoding {
+	if r.Encoding == nil {
+		return Encoding_JSON_IETF
+	}
+	return *r.Encoding
+}
+
 func GetSyncProfile(syncProfile *TargetSyncProfile, target *sdcpb.Target) *sdcpb.Sync {
 	sync := &sdcpb.Sync{
 		Validate:     false,
@@ -49,7 +56,7 @@ func GetSyncProfile(syncProfile *TargetSyncProfile, target *sdcpb.Target) *sdcpb
 		if syncConfig.Protocol == Protocol_GNMI {
 			synccfg.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
 				GnmiOpts: &sdcpb.GnmiOptions{
-					Encoding: getEncoding(syncConfig.Encoding),
+					Encoding: getEncoding(syncConfig.GetEncoding()),
 				},
 			}
 		}
@@ -98,7 +105,7 @@ func DefaultTargetSyncProfile() *TargetSyncProfile {
 					Name:     "config",
 					Protocol: Protocol_GNMI,
 					Paths:    []string{"/"},
-					Mode:     SyncMode_OnChange,
+					Mode:     SyncMode_Get,
 				},
 			},
 		},

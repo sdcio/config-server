@@ -70,37 +70,41 @@ type TargetConnectionProfileSpec struct {
 	Port uint `json:"port" yaml:"port"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
-	// +kubebuilder:default:="JSON_IETF"
-	Encoding Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
 	// +kubebuilder:validation:Enum="1.0";"1.1";
 	// +kubebuilder:default:="1.0"
-	PreferredNetconfVersion string `json:"preferredNetconfVersion,omitempty" yaml:"preferredNetconfVersion,omitempty"`
+	PreferredNetconfVersion *string `json:"preferredNetconfVersion,omitempty" yaml:"preferredNetconfVersion,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="insecure is immutable"
 	// +kubebuilder:default:=false
-	Insecure bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`
+	Insecure *bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="skipVerify is immutable"
 	// +kubebuilder:default:=true
-	SkipVerify bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
+	SkipVerify *bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
 	// +kubebuilder:default:=false
-	IncludeNS bool `json:"includeNS,omitempty" yaml:"includeNS,omitempty"`
+	IncludeNS *bool `json:"includeNS,omitempty" yaml:"includeNS,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
 	// +kubebuilder:default:=false
-	OperationWithNS bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty"`
+	OperationWithNS *bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
 	// +kubebuilder:default:=false
-	UseOperationRemove bool `json:"useOperationRemove,omitempty" yaml:"useOperationRemove,omitempty"`
+	UseOperationRemove *bool `json:"useOperationRemove,omitempty" yaml:"useOperationRemove,omitempty"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
 	// +kubebuilder:validation:Enum=candidate;running;
 	// +kubebuilder:default:="candidate"
-	CommitCandidate CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty"`
+	CommitCandidate *CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.encoding"
+// +kubebuilder:printcolumn:name="INSECURE",type="string",JSONPath=".spec.insecure"
+// +kubebuilder:printcolumn:name="SKIPVERIFY",type="string",JSONPath=".spec.skipVerify"
 // +kubebuilder:resource:categories={sdc,inv}
 // TargetConnectionProfile is the Schema for the TargetConnectionProfile API
 // +k8s:openapi-gen=true

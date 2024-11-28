@@ -582,9 +582,9 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	// and we need to provide the tls conext with the relevant info
 	// skipVery bool and secret information if the TLS secret is set.
 	var tls *sdcpb.TLS
-	if !connProfile.Spec.Insecure {
+	if connProfile.IsInsecure() {
 		tls = &sdcpb.TLS{
-			SkipVerify: connProfile.Spec.SkipVerify,
+			SkipVerify: connProfile.SkipVerify(),
 		}
 		if target.Spec.TLSSecret != nil {
 			tlsSecret, err := r.getSecret(ctx, types.NamespacedName{Namespace: target.GetNamespace(), Name: *target.Spec.TLSSecret})
@@ -627,20 +627,20 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_GNMI {
 		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
 			GnmiOpts: &sdcpb.GnmiOptions{
-				Encoding: string(connProfile.Spec.Encoding),
+				Encoding: string(connProfile.Encoding()),
 			},
 		}
 	}
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_NETCONF {
 		commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
-		if connProfile.Spec.CommitCandidate == invv1alpha1.CommitCandidate_Running {
+		if connProfile.CommitCandidate() == invv1alpha1.CommitCandidate_Running {
 			commitCandidate = sdcpb.CommitCandidate_COMMIT_RUNNING
 		}
 		req.Target.ProtocolOptions = &sdcpb.Target_NetconfOpts{
 			NetconfOpts: &sdcpb.NetconfOptions{
-				IncludeNs:          connProfile.Spec.IncludeNS,
-				OperationWithNs:    connProfile.Spec.OperationWithNS,
-				UseOperationRemove: connProfile.Spec.UseOperationRemove,
+				IncludeNs:          connProfile.IncludeNS(),
+				OperationWithNs:    connProfile.OperationWithNS(),
+				UseOperationRemove: connProfile.UseOperationRemove(),
 				CommitCandidate:    commitCandidate,
 			},
 		}

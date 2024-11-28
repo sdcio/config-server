@@ -84,7 +84,7 @@ func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, 
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
-	if connProfile.Spec.Insecure {
+	if connProfile.Spec.Insecure != nil && *connProfile.Spec.Insecure {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
 		tOpts = append(tOpts, api.SkipVerify(true))
