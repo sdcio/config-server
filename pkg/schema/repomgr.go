@@ -49,25 +49,3 @@ func (r *RepoMgr) GetOrAdd(url string) *semaphore.Weighted {
 	r.repos[url] = sem
 	return sem
 }
-
-// exists checks if a repository exists
-func (r *RepoMgr) exists(url string) bool {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	_, exists := r.repos[url]
-	return exists
-}
-
-// add adds a new repository
-func (r *RepoMgr) add(url string) {
-	r.m.Lock()
-	defer r.m.Unlock()
-	r.repos[url] = semaphore.NewWeighted(1)
-}
-
-// get retrieves the semaphore for a repository
-func (r *RepoMgr) get(url string) *semaphore.Weighted {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	return r.repos[url]
-}
