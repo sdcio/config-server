@@ -49,3 +49,10 @@ func (r *RepoMgr) GetOrAdd(url string) *semaphore.Weighted {
 	r.repos[url] = sem
 	return sem
 }
+
+// get retrieves the semaphore for a repository
+func (r *RepoMgr) get(url string) *semaphore.Weighted {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.repos[url]
+}
