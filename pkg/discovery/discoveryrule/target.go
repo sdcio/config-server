@@ -40,7 +40,7 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	log := log.FromContext(ctx)
 	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
 
-	newTargetCR, err := r.newTargetCR(
+	newTarget, err := r.newTarget(
 		ctx,
 		provider,
 		address,
@@ -50,24 +50,17 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 		return err
 	}
 
-	if err := r.applyTarget(ctx, newTargetCR); err != nil {
-		// TODO reapply if update failed
-		if strings.Contains(err.Error(), "the object has been modified; please apply your changes to the latest version") {
-			// we will rety once, sometimes we get an error
-			if err := r.applyTarget(ctx, newTargetCR); err != nil {
-				log.Info("dynamic target creation retry failed", "error", err)
-			}
-		} else {
-			log.Info("dynamic target creation failed", "error", err)
-		}
+	if err := r.applyTarget(ctx, newTarget); err != nil {
+		log.Info("dynamic target creation failed", "error", err)
+		return err
 	}
-	if err := r.applyUnManagedConfigCR(ctx, newTargetCR.Name); err != nil {
+	if err := r.applyUnManagedConfigCR(ctx, newTarget.Name); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *dr) newTargetCR(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
+func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
 	targetSpec := invv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
@@ -132,22 +125,24 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
+		targetCurrent = targetNew
 	}
-	// we get the target again
-	targetCurrent = &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: targetNew.Namespace,
-		Name:      targetNew.Name,
-	}, targetCurrent); err != nil {
-		// the resource should always exist
-		return err
-	}
+	/*
+		// we get the target again
+		targetCurrent = &invv1alpha1.Target{}
+		if err := r.client.Get(ctx, types.NamespacedName{
+			Namespace: targetNew.Namespace,
+			Name:      targetNew.Name,
+		}, targetCurrent); err != nil {
+			// the resource should always exist
+			return err
+		}
+	*/
 
 	targetPatch := targetCurrent.DeepCopy()
 
 	targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
 	targetPatch.Status.DiscoveryInfo = di
-	
 
 	log.Info("discovery target apply",
 		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
