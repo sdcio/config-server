@@ -105,7 +105,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	}
 	r.target = target.NewTarget(targetConfig)
 	if err := r.target.CreateGNMIClient(ctx); err != nil {
-		log.Error("canot create gnmi collector target", "err", err)
+		log.Error("cannot create gnmi collector target", "err", err)
 		return err
 	}
 	go r.start(ctx)

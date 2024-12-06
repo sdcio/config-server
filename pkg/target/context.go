@@ -120,6 +120,9 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 }
 
 func (r *Context) IsReady() bool {
+	if r == nil {
+		return false
+	}
 	if r.client != nil && r.datastoreReq != nil && r.ready {
 		return true
 	}
