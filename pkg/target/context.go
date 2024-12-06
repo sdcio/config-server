@@ -150,6 +150,9 @@ func (r *Context) SetReady(ctx context.Context) {
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
@@ -157,6 +160,9 @@ func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStore
 }
 
 func (r *Context) createDataStore(ctx context.Context, in *sdcpb.CreateDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.CreateDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
@@ -164,6 +170,9 @@ func (r *Context) createDataStore(ctx context.Context, in *sdcpb.CreateDataStore
 }
 
 func (r *Context) GetDataStore(ctx context.Context, in *sdcpb.GetDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.GetDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
