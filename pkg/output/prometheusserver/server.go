@@ -18,6 +18,8 @@ package prometheusserver
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sdcio/config-server/pkg/target"
+	certutil "k8s.io/client-go/util/cert"
 )
 
 type Config struct {
@@ -78,6 +81,7 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 		log.Error("prometheusserver cannot listen on address", "error", err)
 		return err
 	}
+	defer listener.Close()
 
 	go func() {
 		if err := r.server.Serve(listener); err != nil {
@@ -91,4 +95,29 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 		r.cancel()
 	}
 	return nil
+}
+
+func (r *PrometheusServer) createListener(secureServing bool) (net.Listener, error) {
+	if !secureServing {
+		return net.Listen("tcp", r.address)
+	}
+
+	// Note: Using self-signed certificates here should be good enough. It's just important that we
+	// encrypt the communication.
+	cert, key, err := certutil.GenerateSelfSignedCertKeyWithFixtures("localhost", []net.IP{{127, 0, 0, 1}}, nil, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate self-signed certificate for prometheusServer: %w", err)
+	}
+
+	keyPair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create self-signed key pair for prometheusServer: %w", err)
+	}
+
+	// Configure the TLS settings
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{keyPair},
+	}
+
+	return tls.Listen("tcp", r.address, tlsConfig)
 }
