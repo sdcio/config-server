@@ -70,17 +70,17 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 
 					val, err := getValue(update.GetVal())
 					if err != nil {
-						log.Error("cannot get typed value", "err", err)
+						log.Error("prometheus collect cannot get typed value", "err", err)
 						continue
 					}
 
 					floatVal, err := toFloat(val)
 					if err != nil {
-						log.Error("cannot translate to float", "err", err)
+						log.Error("prometheus collect cannot translate to float", "err", err)
 						continue
 					}
 
-					fmt.Println("prom metric", targetName, subName, update.GetPath(), update.GetVal(), floatVal)
+					fmt.Println("prometheus collect", targetName, subName, update.GetPath(), update.GetVal(), floatVal)
 				}
 			}
 		}
