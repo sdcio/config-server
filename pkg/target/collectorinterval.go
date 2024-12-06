@@ -18,16 +18,23 @@ package target
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/openconfig/gnmi/proto/gnmi"
+	gapi "github.com/openconfig/gnmic/pkg/api"
+	"github.com/openconfig/gnmic/pkg/api/target"
 )
 
 type IntervalCollector struct {
 	targetKey storebackend.Key
 	interval  int
+	target    *target.Target
+	encoding  string
 
 	m            sync.RWMutex
 	cancel       context.CancelFunc
@@ -35,11 +42,12 @@ type IntervalCollector struct {
 	pathsChanged bool
 }
 
-func NewIntervalCollector(targetKey storebackend.Key, interval int, paths []string) *IntervalCollector {
+func NewIntervalCollector(targetKey storebackend.Key, interval int, paths []string, target *target.Target) *IntervalCollector {
 	return &IntervalCollector{
 		targetKey: targetKey,
 		interval:  interval,
 		paths:     paths,
+		target:    target,
 	}
 }
 
@@ -89,15 +97,48 @@ func (r *IntervalCollector) startOnChangeCollector(ctx context.Context) {
 	log := log.FromContext(ctx).With("target", r.targetKey.String())
 	log.Info("starting onChange collector", "paths", r.paths)
 
+START:
+	// subscribe
+	opts := make([]gapi.GNMIOption, 0)
+	subscriptionOpts := make([]gapi.GNMIOption, 0)
+	for _, path := range r.paths {
+		subscriptionOpts = append(subscriptionOpts, gapi.Path(path))
+	}
+	subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeON_CHANGE())
+	opts = append(opts,
+		gapi.EncodingCustom(encoding(r.encoding)),
+		gapi.SubscriptionListModeSTREAM(),
+		gapi.Subscription(subscriptionOpts...),
+	)
+	subReq, err := gapi.NewSubscribeRequest(opts...)
+
+	if err != nil {
+		log.Error("subscription failed", "err", err)
+		time.Sleep(5 * time.Second)
+		goto START
+	}
+	go r.target.Subscribe(ctx, subReq, "configServer onChnage")
+
+	defer r.target.StopSubscriptions()
+	rspch, errCh := r.target.ReadSubscriptions()
+
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info("onChange collector stopped")
 			return
-		default:
-			// TODO subscribe
-			log.Info("on change collection", "paths", r.paths)
-			time.Sleep(5 * time.Second)
+		case rsp := <-rspch:
+			switch r := rsp.Response.Response.(type) {
+			case *gnmi.SubscribeResponse_Update:
+				log.Info("onchange subscription update", "update", r.Update)
+			}
+		case err := <-errCh:
+			if err.Err != nil {
+				r.target.StopSubscriptions()
+				log.Error("subscription failed", "err", err)
+				time.Sleep(time.Second)
+				goto START
+			}
 		}
 	}
 }
@@ -145,4 +186,16 @@ func (r *IntervalCollector) hasPathsChanged(a []string) bool {
 		}
 	}
 	return true
+}
+
+func encoding(e string) int {
+	enc, ok := gnmi.Encoding_value[strings.ToUpper(e)]
+	if ok {
+		return int(enc)
+	}
+	en, err := strconv.Atoi(e)
+	if err != nil {
+		return 0
+	}
+	return en
 }

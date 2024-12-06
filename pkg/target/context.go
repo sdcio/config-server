@@ -111,7 +111,9 @@ func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreReques
 		r.deviationWatcher.Start(ctx)
 	}
 	if r.collector != nil {
-		r.collector.Start(ctx)
+		if err := r.collector.Start(ctx); err != nil {
+			return err
+		}
 	}
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil

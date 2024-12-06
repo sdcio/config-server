@@ -25,10 +25,14 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/henderiw/store"
 	"github.com/henderiw/store/memory"
+	"github.com/openconfig/gnmic/pkg/api/target"
+	"github.com/openconfig/gnmic/pkg/api/types"
 )
 
 type Collector struct {
 	targetKey          storebackend.Key
+	targetConfig       *types.TargetConfig
+	target             *target.Target
 	subChan            chan struct{}
 	subscriptions      *Subscriptions
 	intervalCollectors store.Storer[*IntervalCollector]
@@ -74,20 +78,26 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 }
 
-func (r *Collector) Start(ctx context.Context) {
+func (r *Collector) Start(ctx context.Context) error {
 	r.Stop(ctx)
 	// don't lock before since stop also locks
 	r.m.Lock()
 	defer r.m.Unlock()
 	ctx, r.cancel = context.WithCancel(ctx)
+
+	// create gnmiClient
+	r.target = target.NewTarget(r.targetConfig)
+	if err := r.target.CreateGNMIClient(ctx); err != nil {
+		return err
+	}
 	go r.start(ctx)
+	return nil
 }
 
 func (r *Collector) start(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("start")
 
-	// create gnmiClient
 	// kick the collectors
 	r.updateIntervalCollectors(ctx)
 
@@ -130,7 +140,7 @@ func (r *Collector) updateIntervalCollectors(ctx context.Context) {
 		// Start interval-specific goroutine if not already running
 		if len(paths) != 0 {
 			log.Info("starting interval collector")
-			intervalCollector := NewIntervalCollector(r.targetKey, interval, paths)
+			intervalCollector := NewIntervalCollector(r.targetKey, interval, paths, r.target)
 			intervalCollector.Start(ctx)
 			r.intervalCollectors.Apply(key, intervalCollector) // ignoring error
 		}
