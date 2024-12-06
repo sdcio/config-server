@@ -23,6 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/openconfig/gnmic/pkg/cache"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
@@ -332,4 +333,8 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	subCh := r.collector.GetUpdateChan()
 	subCh <- struct{}{}
 	return nil
+}
+
+func (r *Context) GetCache() cache.Cache {
+	return r.collector.cache
 }
