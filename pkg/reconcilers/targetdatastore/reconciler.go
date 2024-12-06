@@ -308,7 +308,7 @@ func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebacke
 		return
 	}
 
-	if err := r.dataServerStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, dsctx sdcctx.DSContext) sdcctx.DSContext {
+	if err := r.dataServerStore.UpdateWithKeyFn(ctx, dsKey, func(ctx context.Context, dsctx sdcctx.DSContext) sdcctx.DSContext {
 		dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
 		return dsctx
 	}); err != nil {
