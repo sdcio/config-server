@@ -38,7 +38,7 @@ type Subscriptions struct {
 	Paths store.Storer[*AggregatedSubscription] // Path -> AggregatedSubscription
 }
 
-func NewTargetSubscriptions() *Subscriptions {
+func NewSubscriptions() *Subscriptions {
 	return &Subscriptions{
 		Paths: memory.NewStore[*AggregatedSubscription](nil),
 	}
@@ -93,7 +93,6 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 			}
 			aggregatedSubscription.Sources.Delete(subscriptionNSN)
 			if aggregatedSubscription.Sources.Len() == 0 {
-				// ignore error for now
 				if err := r.Paths.Delete(key); err != nil {
 					errs = errors.Join(errs, err)
 				}

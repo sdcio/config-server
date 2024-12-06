@@ -49,7 +49,7 @@ type Context struct {
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
-	subscriptions := NewTargetSubscriptions()
+	subscriptions := NewSubscriptions()
 	return &Context{
 		targetKey:        targetKey,
 		client:           client,
@@ -303,7 +303,7 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 }
 
 func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	if err := r.subscriptions.AddSubscription(sub); err != nil {
+	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
 	subCh := r.collector.GetUpdateChan()
@@ -312,7 +312,7 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 }
 
 func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	if err := r.subscriptions.DelSubscription(sub); err != nil {
+	if err := r.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}
 	subCh := r.collector.GetUpdateChan()
