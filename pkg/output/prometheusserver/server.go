@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -40,12 +41,14 @@ func NewServer(c *Config) *PrometheusServer {
 	return &PrometheusServer{
 		address:     c.Address,
 		targetStore: c.TargetStore,
+		regex:       regexp.MustCompile(metricNameRegex),
 	}
 }
 
 type PrometheusServer struct {
 	address     string
 	targetStore storebackend.Storer[*target.Context]
+	regex       *regexp.Regexp
 	// dynamic
 	cancel func()
 	server *http.Server

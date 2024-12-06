@@ -22,13 +22,20 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmic/pkg/path"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sdcio/config-server/pkg/target"
+)
+
+const (
+	metricNameRegex = "[^a-zA-Z0-9_]+"
 )
 
 // Describe implements prometheus.Collector
@@ -69,6 +76,8 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 					log.Info("prometheus collect", "update", update)
 					targetName := key.String()
 
+					name, vname, labels, labelValues := r.getLabels("prefi", targetName, update.GetPath())
+
 					val, err := getValue(update.GetVal())
 					if err != nil {
 						log.Error("prometheus collect cannot get typed value", "err", err)
@@ -81,11 +90,58 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 						continue
 					}
 
-					fmt.Println("prometheus collect", targetName, subName, update.GetPath(), update.GetVal(), floatVal)
+					fmt.Println("prometheus collect", r.metricName(name, vname), labels, labelValues, floatVal)
+
+					ch <- prometheus.MustNewConstMetric(
+						prometheus.NewDesc(r.metricName(name, vname), "", labels, nil),
+						prometheus.UntypedValue,
+						floatVal,
+						labelValues...)
 				}
 			}
 		}
 	}
+}
+
+func (r *PrometheusServer) metricName(name, valueName string) string {
+	valueName = fmt.Sprintf("%s_%s", name, filepath.Base(valueName))
+	return strings.TrimLeft(r.regex.ReplaceAllString(valueName, "_"), "_")
+}
+
+func (s *PrometheusServer) getLabels(prefix string, targetName string, p *gnmi.Path) (string, string, []string, []string) {
+	// name of the last element of the path
+	vname := s.regex.ReplaceAllString(filepath.Base(path.GnmiPathToXPath(p, false)), "_")
+	name := ""
+
+	// all the keys of the path
+	labels := []string{"target_name"}
+	// all the values of the keys in the path
+	labelValues := []string{targetName}
+	for i, pathElem := range p.GetElem() {
+		// prometheus names should all be _ based
+		//promName := strings.ReplaceAll(pathElem.GetName(), "-", "_")
+		pathElemPromName := s.regex.ReplaceAllString(pathElem.GetName(), "_")
+		if i == 0 {
+			if prefix != "" {
+				name = strings.Join([]string{prefix, pathElemPromName}, "_")
+			} else {
+				name = pathElemPromName
+			}
+
+		} else if i < len(p.GetElem())-1 {
+			name = strings.Join([]string{name, pathElemPromName}, "_")
+		}
+		if len(pathElem.GetKey()) != 0 {
+			for k, v := range pathElem.GetKey() {
+				// append the keyName of the path
+				labels = append(labels, strings.Join([]string{pathElemPromName, s.regex.ReplaceAllString(k, "_")}, "_"))
+				// append the values of the keys
+				labelValues = append(labelValues, v)
+			}
+		}
+	}
+	return name, vname, labels, labelValues
+
 }
 
 // getValue return the data of the gnmi typed value
