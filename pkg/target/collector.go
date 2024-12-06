@@ -21,15 +21,15 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/henderiw/store"
 	"github.com/henderiw/store/memory"
+	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
-	"github.com/openconfig/gnmic/pkg/api/types"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"k8s.io/utils/ptr"
 )
 
 type Collector struct {
@@ -89,23 +89,30 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	ctx, r.cancel = context.WithCancel(ctx)
 
 	// create gnmiClient
-	targetConfig := &types.TargetConfig{
-		Name:     r.targetKey.String(),
-		Address:  fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port),
-		Username: &req.Target.Credentials.Username,
-		Password: &req.Target.Credentials.Password,
-		Insecure: ptr.To(true),
-	}
-	if req.Target.Tls != nil {
-		targetConfig.Insecure = ptr.To(false)
-		targetConfig.TLSCA = ptr.To(req.Target.Tls.Ca)
-		targetConfig.TLSCert = ptr.To(req.Target.Tls.Cert)
-		targetConfig.TLSKey = ptr.To(req.Target.Tls.Key)
 
+	tOpts := []api.TargetOption{
+		api.Name(r.targetKey.String()),
+		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
+		api.Username(string(req.Target.Credentials.Username)),
+		api.Password(string(req.Target.Credentials.Password)),
+		api.Timeout(5 * time.Second),
 	}
-	r.target = target.NewTarget(targetConfig)
+	if req.Target.Tls == nil {
+		tOpts = append(tOpts, api.Insecure(true))
+	} else {
+		tOpts = append(tOpts, api.SkipVerify(req.Target.Tls.SkipVerify))
+		tOpts = append(tOpts, api.TLSCA(req.Target.Tls.Ca))
+		tOpts = append(tOpts, api.TLSCert(req.Target.Tls.Cert))
+		tOpts = append(tOpts, api.TLSKey(req.Target.Tls.Key))
+	}
+	var err error
+	r.target, err = api.NewTarget(tOpts...)
+	if err != nil {
+		log.Error("cannot create gnmi target", "err", err)
+		return err
+	}
 	if err := r.target.CreateGNMIClient(ctx); err != nil {
-		log.Error("cannot create gnmi collector target", "err", err)
+		log.Error("cannot create gnmi client", "err", err)
 		return err
 	}
 	go r.start(ctx)

@@ -99,6 +99,7 @@ func (r *IntervalCollector) startOnChangeCollector(ctx context.Context) {
 
 START:
 	// subscribe
+
 	opts := make([]gapi.GNMIOption, 0)
 	subscriptionOpts := make([]gapi.GNMIOption, 0)
 	for _, path := range r.paths {
