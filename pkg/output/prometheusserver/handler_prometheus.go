@@ -76,7 +76,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 					log.Info("prometheus collect", "update", update)
 					targetName := key.String()
 
-					name, vname, labels, labelValues := r.getLabels("prefi", targetName, update.GetPath())
+					name, vname, labels, labelValues := r.getLabels("", targetName, update.GetPath())
 
 					val, err := getValue(update.GetVal())
 					if err != nil {
