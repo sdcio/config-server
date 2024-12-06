@@ -35,9 +35,9 @@ import (
 func (r *PrometheusServer) Describe(ch chan<- *prometheus.Desc) {}
 
 func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
-	keys := []storebackend.Key{}
 	ctx := context.Background()
 
+	keys := []storebackend.Key{}
 	r.targetStore.List(ctx, func(ctx1 context.Context, k storebackend.Key, tctx *target.Context) {
 		keys = append(keys, k)
 	})

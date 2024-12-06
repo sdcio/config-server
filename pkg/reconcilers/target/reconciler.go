@@ -106,8 +106,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
-		return ctrl.Result{}, // requeue will happen automatically when target gets updated
-			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "k8s target does not have a corresponding k8s ctx", nil), errUpdateStatus)
+		return ctrl.Result{Requeue: true}, // requeue will happen automatically when target gets updated
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "tcxt does not exist", err), errUpdateStatus)
 	}
 
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
