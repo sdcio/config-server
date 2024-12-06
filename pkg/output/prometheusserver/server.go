@@ -72,11 +72,11 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 	promHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{ErrorHandling: promhttp.ContinueOnError})
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promHandler)
-	mux.Handle("/", new(healthHandler))
+	//mux.Handle("/", new(healthHandler))
 
 	r.server = &http.Server{Addr: r.address, Handler: mux}
 
-	listener, err := net.Listen("tcp", r.address)
+	listener, err := r.createListener(true)
 	if err != nil {
 		log.Error("prometheusserver cannot listen on address", "error", err)
 		return err
