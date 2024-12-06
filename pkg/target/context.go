@@ -38,7 +38,7 @@ import (
 type Context struct {
 	targetKey        storebackend.Key
 	ready            bool
-	dataStore        *sdcpb.CreateDataStoreRequest
+	datastoreReq     *sdcpb.CreateDataStoreRequest
 	client           client.Client
 	dsclient         dsclient.Client
 	deviationWatcher *DeviationWatcher
@@ -69,13 +69,13 @@ func (r *Context) GetAddress() string {
 }
 
 func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
-	if r.dataStore == nil {
+	if r.datastoreReq == nil {
 		return &config.ConfigStatusLastKnownGoodSchema{}
 	}
 	return &config.ConfigStatusLastKnownGoodSchema{
-		Type:    r.dataStore.Schema.Name,
-		Vendor:  r.dataStore.Schema.Vendor,
-		Version: r.dataStore.Schema.Version,
+		Type:    r.datastoreReq.Schema.Name,
+		Vendor:  r.datastoreReq.Schema.Vendor,
+		Version: r.datastoreReq.Schema.Version,
 	}
 }
 
@@ -88,7 +88,7 @@ func (r *Context) DeleteDS(ctx context.Context) error {
 	if r.collector != nil {
 		r.collector.Stop(ctx)
 	}
-	r.dataStore = nil
+	r.datastoreReq = nil
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
 	if err != nil {
 		log.Error("cannot delete datstore in dataserver", "error", err)
@@ -98,20 +98,20 @@ func (r *Context) DeleteDS(ctx context.Context) error {
 	return nil
 }
 
-func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataStoreRequest) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	rsp, err := r.createDataStore(ctx, req)
+	rsp, err := r.createDataStore(ctx, datastoreReq)
 	if err != nil {
 		log.Error("cannot create datastore in dataserver", "error", err)
 		return err
 	}
-	r.dataStore = req
+	r.datastoreReq = datastoreReq
 	r.ready = true
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
 	if r.collector != nil {
-		if err := r.collector.Start(ctx); err != nil {
+		if err := r.collector.Start(ctx, datastoreReq); err != nil {
 			return err
 		}
 	}
@@ -120,7 +120,7 @@ func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreReques
 }
 
 func (r *Context) IsReady() bool {
-	if r.client != nil && r.dataStore != nil && r.ready {
+	if r.client != nil && r.datastoreReq != nil && r.ready {
 		return true
 	}
 	return false
@@ -142,7 +142,7 @@ func (r *Context) SetReady(ctx context.Context) {
 		r.deviationWatcher.Start(ctx)
 	}
 	if r.collector != nil {
-		r.collector.Start(ctx)
+		r.collector.Start(ctx, r.datastoreReq)
 	}
 }
 

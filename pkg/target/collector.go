@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -27,11 +28,12 @@ import (
 	"github.com/henderiw/store/memory"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/api/types"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"k8s.io/utils/ptr"
 )
 
 type Collector struct {
 	targetKey          storebackend.Key
-	targetConfig       *types.TargetConfig
 	target             *target.Target
 	subChan            chan struct{}
 	subscriptions      *Subscriptions
@@ -78,7 +80,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 }
 
-func (r *Collector) Start(ctx context.Context) error {
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
 	r.Stop(ctx)
 	// don't lock before since stop also locks
 	r.m.Lock()
@@ -86,7 +88,21 @@ func (r *Collector) Start(ctx context.Context) error {
 	ctx, r.cancel = context.WithCancel(ctx)
 
 	// create gnmiClient
-	r.target = target.NewTarget(r.targetConfig)
+	targetConfig := &types.TargetConfig{
+		Name:     r.targetKey.String(),
+		Address:  fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port),
+		Username: &req.Target.Credentials.Username,
+		Password: &req.Target.Credentials.Password,
+		Insecure: ptr.To(true),
+	}
+	if req.Target.Tls != nil {
+		targetConfig.Insecure = ptr.To(false)
+		targetConfig.TLSCA = ptr.To(req.Target.Tls.Ca)
+		targetConfig.TLSCert = ptr.To(req.Target.Tls.Cert)
+		targetConfig.TLSKey = ptr.To(req.Target.Tls.Key)
+
+	}
+	r.target = target.NewTarget(targetConfig)
 	if err := r.target.CreateGNMIClient(ctx); err != nil {
 		return err
 	}
