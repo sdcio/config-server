@@ -29,7 +29,7 @@ import (
 
 type Collector struct {
 	targetKey          storebackend.Key
-	subChan            chan bool
+	subChan            chan struct{}
 	subscriptions      *Subscriptions
 	intervalCollectors store.Storer[*IntervalCollector]
 
@@ -41,9 +41,13 @@ func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Col
 	return &Collector{
 		targetKey:          targetKey,
 		subscriptions:      subscriptions,
-		subChan:            make(chan bool),
+		subChan:            make(chan struct{}),
 		intervalCollectors: memory.NewStore[*IntervalCollector](nil),
 	}
+}
+
+func (r *Collector) GetUpdateChan() chan struct{} {
+	return r.subChan
 }
 
 func (r *Collector) Stop(ctx context.Context) {

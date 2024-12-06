@@ -303,24 +303,19 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 }
 
 func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	changeSet, err := r.subscriptions.AddSubscription(sub)
-	if err != nil {
+	if err := r.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}
-	if changeSet.Len() != 0 {
-		// trigger the collector
-	}
+	subCh := r.collector.GetUpdateChan()
+	subCh <- struct{}{}
 	return nil
-
 }
 
 func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	changeSet, err := r.subscriptions.AddSubscription(sub)
-	if err != nil {
+	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-	if changeSet.Len() != 0 {
-		// trigger the collector
-	}
+	subCh := r.collector.GetUpdateChan()
+	subCh <- struct{}{}
 	return nil
 }

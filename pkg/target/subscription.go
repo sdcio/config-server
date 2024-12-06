@@ -45,9 +45,7 @@ func NewTargetSubscriptions() *Subscriptions {
 }
 
 // Add or update a subscription
-func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) (sets.Set[int], error) {
-	changedIntervals := sets.New[int]()
-
+func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
 	for _, sub := range subscription.Spec.Subscription {
@@ -57,7 +55,6 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 			aggregatedSubscription, err := r.Paths.Get(key)
 			if err != nil {
 				// does not exist
-				changedIntervals.Insert(interval)
 				sources := sets.New[string]()
 				sources.Insert(subscriptionNSN)
 				// ignoring error for now
@@ -74,7 +71,6 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 			if interval < aggregatedSubscription.Interval {
 				aggregatedSubscription.Interval = interval
 				aggregatedSubscription.Mode = sub.Mode
-				changedIntervals.Insert(interval)
 			}
 			// ignoring error for now
 			if err := r.Paths.Apply(key, aggregatedSubscription); err != nil {
@@ -82,11 +78,10 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 			}
 		}
 	}
-	return changedIntervals, errs
+	return errs
 }
 
-func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) (sets.Set[int], error) {
-	changedIntervals := sets.New[int]()
+func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
 	for _, sub := range subscription.Spec.Subscription {
@@ -98,7 +93,6 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 			}
 			aggregatedSubscription.Sources.Delete(subscriptionNSN)
 			if aggregatedSubscription.Sources.Len() == 0 {
-				changedIntervals.Insert(aggregatedSubscription.Interval)
 				// ignore error for now
 				if err := r.Paths.Delete(key); err != nil {
 					errs = errors.Join(errs, err)
@@ -106,7 +100,7 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 			}
 		}
 	}
-	return changedIntervals, errs
+	return errs
 }
 
 func (r *Subscriptions) GetPaths(interval int) []string {
