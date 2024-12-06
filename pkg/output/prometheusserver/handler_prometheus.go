@@ -42,8 +42,11 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 		keys = append(keys, k)
 	})
 
+	fmt.Println("prometheus collect")
+
 	for _, key := range keys {
 		log := log.FromContext(ctx).With("target", key.String())
+		log.Info("prometheus collect")
 		tctx, err := r.targetStore.Get(ctx, key)
 		if err != nil || tctx == nil {
 			continue
@@ -58,8 +61,11 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		for subName, notifs := range notifications {
+			log.Info("prometheus collect", "subscription", subName)
 			for _, notif := range notifs {
+				log.Info("prometheus collect", "notif", notif)
 				for _, update := range notif.GetUpdate() {
+					log.Info("prometheus collect", "update", update)
 					targetName := key.String()
 
 					val, err := getValue(update.GetVal())
