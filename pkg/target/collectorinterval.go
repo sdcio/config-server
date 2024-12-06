@@ -134,6 +134,19 @@ START:
 			return
 		case rsp := <-rspch:
 			log.Info("onchange subscription update", "update", rsp.Response)
+			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
+			case *gnmi.SubscribeResponse:
+				switch rsp := rsp.GetResponse().(type) {
+				case *gnmi.SubscribeResponse_Update:
+					if rsp.Update.GetPrefix() == nil {
+						rsp.Update.Prefix = new(gnmi.Path)
+					}
+					if rsp.Update.GetPrefix().GetTarget() == "" {
+						rsp.Update.Prefix.Target = r.targetKey.String()
+					}
+				}
+			}
+
 			r.cache.Write(ctx, "onchange", rsp.Response)
 		case err := <-errCh:
 			if err.Err != nil {
