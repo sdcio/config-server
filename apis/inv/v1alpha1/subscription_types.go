@@ -69,8 +69,7 @@ type SubscriptionSync struct {
 	// +kubebuilder:validation:Format=duration
 	// +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
 	// +kubebuilder:validation:Enum="1s";"15s";"30s";"60s";
-	// +kubebuilder:default:="15s"
-	Interval metav1.Duration `json:"interval,omitempty"`
+	Interval *metav1.Duration `json:"interval,omitempty"`
 	// +kubebuilder:validation:MaxItems=128
 	Paths []string `json:"paths"`
 }

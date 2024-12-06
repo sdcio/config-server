@@ -46,6 +46,10 @@ func (r *SubscriptionSync) GetIntervalSeconds() int {
 	if r.Mode == SyncMode_OnChange {
 		return 0
 	}
+	if r.Interval == nil {
+		// default os 15 sec
+		return 15
+	}
 	return int(r.Interval.Duration.Seconds())
 }
 

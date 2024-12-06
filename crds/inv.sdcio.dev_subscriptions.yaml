@@ -92,7 +92,6 @@ spec:
                         is about
                       type: string
                     interval:
-                      default: 15s
                       enum:
                       - 1s
                       - 15s

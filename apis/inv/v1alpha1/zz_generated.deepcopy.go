@@ -577,7 +577,11 @@ func (in *SubscriptionSync) DeepCopyInto(out *SubscriptionSync) {
 		*out = new(AdminState)
 		**out = **in
 	}
-	out.Interval = in.Interval
+	if in.Interval != nil {
+		in, out := &in.Interval, &out.Interval
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.Paths != nil {
 		in, out := &in.Paths, &out.Paths
 		*out = make([]string, len(*in))
