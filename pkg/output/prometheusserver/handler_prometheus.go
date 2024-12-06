@@ -55,6 +55,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 		if cache == nil {
 			continue
 		}
+		log.Info("prometheus collect read all")
 		notifications, err := cache.ReadAll()
 		if err != nil {
 			log.Error("cannot read from cache", "err", err)
