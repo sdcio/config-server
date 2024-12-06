@@ -83,6 +83,7 @@ func (r *Collector) Stop(ctx context.Context) {
 func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
 	r.Stop(ctx)
 	// don't lock before since stop also locks
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	r.m.Lock()
 	defer r.m.Unlock()
 	ctx, r.cancel = context.WithCancel(ctx)
@@ -104,6 +105,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	}
 	r.target = target.NewTarget(targetConfig)
 	if err := r.target.CreateGNMIClient(ctx); err != nil {
+		log.Error("canot create gnmi collector target", "err", err)
 		return err
 	}
 	go r.start(ctx)
