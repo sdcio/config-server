@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -46,4 +47,12 @@ func (r *SubscriptionSync) GetIntervalSeconds() int {
 		return 0
 	}
 	return int(r.Interval.Duration.Seconds())
+}
+
+func (r *Subscription) GetExistingTargets() sets.String {
+	existingTargetSet := sets.NewString()
+	for _, targetname := range r.Status.Targets {
+		existingTargetSet.Insert(targetname)
+	}
+	return existingTargetSet
 }

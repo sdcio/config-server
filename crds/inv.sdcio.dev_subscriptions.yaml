@@ -18,19 +18,22 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.sync[0].protocol
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .spec.protocol
       name: PROTOCOL
       type: string
-    - jsonPath: .spec.sync[0].port
+    - jsonPath: .spec.port
       name: PORT
       type: string
-    - jsonPath: .spec.sync[0].encoding
+    - jsonPath: .spec.encoding
       name: ENCODING
       type: string
-    - jsonPath: .spec.sync[0].mode
+    - jsonPath: .spec.subscription[0].mode
       name: MODE
       type: string
-    - jsonPath: .spec.sync[0].interval
+    - jsonPath: .spec.subscription[0].interval
       name: INTERVAL
       type: string
     name: v1alpha1
@@ -253,4 +256,5 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

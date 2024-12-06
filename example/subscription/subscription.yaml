@@ -14,13 +14,13 @@ spec:
       matchLabels:
         sdcio.dev/region: us-east
   protocol: gnmi
+  encoding: JSON_IETF
   port: 57400
   subscription:
   - name: interface
     description: collect interface statistics
     adminState: enabled
     mode: onChange
-    encoding: JSON_IETF
     paths:
     - /interface[name=*]/statistics
     - /system/lldp/interface[name=*]/statistics

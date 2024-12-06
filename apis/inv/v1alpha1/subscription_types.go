@@ -86,11 +86,13 @@ type SubscriptionStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
-// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.sync[0].protocol"
-// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.sync[0].port"
-// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.sync[0].encoding"
-// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.sync[0].mode"
-// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.sync[0].interval"
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.encoding"
+// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.subscription[0].mode"
+// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.subscription[0].interval"
 // +kubebuilder:resource:categories={sdc,inv}
 // Subscription is the Schema for the Subscription API
 // +k8s:openapi-gen=true

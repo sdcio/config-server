@@ -38,7 +38,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -137,12 +136,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, subscription, "cannot remove finalizer", err)
 	}
 
-	existingTargetSet := sets.NewString()
-	for _, targetname := range subscription.Status.Targets {
-		existingTargetSet.Insert(targetname)
-	}
-
 	// get existing targets in a set on which the target state was applied
+	existingTargetSet := subscription.GetExistingTargets()
+	// get the new targets based on the current state
 	targets, err := r.getDownstreamTargets(ctx, subscription)
 	if err != nil {
 		return r.handleError(ctx, subscriptionOrig, "cannot get downstream targets", err)

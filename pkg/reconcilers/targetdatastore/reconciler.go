@@ -308,7 +308,7 @@ func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebacke
 		return
 	}
 
-	if err := r.dataServerStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, dsctx sdcctx.DSContext) sdcctx.DSContext {
+	if err := r.dataServerStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, dsctx sdcctx.DSContext) sdcctx.DSContext {
 		dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
 		return dsctx
 	}); err != nil {
@@ -367,7 +367,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
-		if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+		if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 			tctx.SetNotReady(ctx)
 			return tctx
 		}); err != nil {
@@ -376,7 +376,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		return false, nil
 	}
 
-	if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
+	if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 		tctx.SetReady(ctx)
 		return tctx
 	}); err != nil {
