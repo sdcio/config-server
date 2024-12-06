@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -41,14 +42,22 @@ type Context struct {
 	client           client.Client
 	dsclient         dsclient.Client
 	deviationWatcher *DeviationWatcher
+	// Subscription parameters
+	collector     *Collector
+	subscriptions *Subscriptions
+	//cache         *cache.Cache
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
+	subscriptions := NewTargetSubscriptions()
 	return &Context{
 		targetKey:        targetKey,
 		client:           client,
 		dsclient:         dsclient,
 		deviationWatcher: NewDeviationWatcher(targetKey, client, dsclient),
+		collector:        NewCollector(targetKey, subscriptions),
+		subscriptions:    subscriptions,
+		//cache:            cache.New([]string{}, cache.WithLogging(logging.NewLogrLogger())),
 	}
 }
 
@@ -76,6 +85,9 @@ func (r *Context) DeleteDS(ctx context.Context) error {
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
 	}
+	if r.collector != nil {
+		r.collector.Stop(ctx)
+	}
 	r.dataStore = nil
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
 	if err != nil {
@@ -98,6 +110,9 @@ func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreReques
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
+	if r.collector != nil {
+		r.collector.Start(ctx)
+	}
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
 }
@@ -114,12 +129,18 @@ func (r *Context) SetNotReady(ctx context.Context) {
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
 	}
+	if r.collector != nil {
+		r.collector.Stop(ctx)
+	}
 }
 
 func (r *Context) SetReady(ctx context.Context) {
 	r.ready = true
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
+	}
+	if r.collector != nil {
+		r.collector.Start(ctx)
 	}
 }
 
@@ -279,4 +300,27 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 			},
 		},
 	), nil
+}
+
+func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	changeSet, err := r.subscriptions.AddSubscription(sub)
+	if err != nil {
+		return err
+	}
+	if changeSet.Len() != 0 {
+		// trigger the collector
+	}
+	return nil
+
+}
+
+func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	changeSet, err := r.subscriptions.AddSubscription(sub)
+	if err != nil {
+		return err
+	}
+	if changeSet.Len() != 0 {
+		// trigger the collector
+	}
+	return nil
 }

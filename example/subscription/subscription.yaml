@@ -1,0 +1,28 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+####### HEADER END #######
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Subscription
+metadata:
+  name: subscription-1
+  namespace: default
+spec:
+  target:
+    targetSelector:
+      matchLabels:
+        sdcio.dev/region: us-east
+  protocol: gnmi
+  port: 57400
+  subscription:
+  - name: interface
+    description: collect interface statistics
+    adminState: enabled
+    mode: onChange
+    encoding: JSON_IETF
+    paths:
+    - /interface[name=*]/statistics
+    - /system/lldp/interface[name=*]/statistics
+    
+ 

@@ -24,4 +24,5 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/target"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigserver"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
+	_ "github.com/sdcio/config-server/pkg/reconcilers/subscription"
 )
