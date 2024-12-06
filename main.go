@@ -176,10 +176,13 @@ func main() {
 		Address: ":9443",
 		TargetStore: targetStore,
 	})
-	if err := promserver.Start(ctx); err != nil {
-		log.Error("cannot start promerver", "err", err.Error())
-		os.Exit(1)
-	}
+	go func() {
+		if err := promserver.Start(ctx); err != nil {
+			log.Error("cannot start promerver", "err", err.Error())
+			os.Exit(1)
+		}
+	}()
+	
 
 	db, err := badgerdb.OpenDB(ctx, configDir)
 	if err != nil {
