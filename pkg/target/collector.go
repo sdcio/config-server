@@ -169,7 +169,7 @@ func (r *Collector) updateIntervalCollectors(ctx context.Context) {
 		// Start interval-specific goroutine if not already running
 		if len(paths) != 0 {
 			log.Info("starting interval collector")
-			intervalCollector := NewIntervalCollector(r.targetKey, interval, paths, r.target)
+			intervalCollector := NewIntervalCollector(r.targetKey, interval, paths, r.target, r.cache)
 			intervalCollector.Start(ctx)
 			r.intervalCollectors.Apply(key, intervalCollector) // ignoring error
 		}

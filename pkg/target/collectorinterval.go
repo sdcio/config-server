@@ -44,12 +44,13 @@ type IntervalCollector struct {
 	pathsChanged bool
 }
 
-func NewIntervalCollector(targetKey storebackend.Key, interval int, paths []string, target *target.Target) *IntervalCollector {
+func NewIntervalCollector(targetKey storebackend.Key, interval int, paths []string, target *target.Target, cache cache.Cache) *IntervalCollector {
 	return &IntervalCollector{
 		targetKey: targetKey,
 		interval:  interval,
 		paths:     paths,
 		target:    target,
+		cache:     cache,
 	}
 }
 
@@ -134,7 +135,6 @@ START:
 		case rsp := <-rspch:
 			log.Info("onchange subscription update", "update", rsp.Response)
 			r.cache.Write(ctx, "onchange", rsp.Response)
-
 		case err := <-errCh:
 			if err.Err != nil {
 				r.target.StopSubscriptions()
