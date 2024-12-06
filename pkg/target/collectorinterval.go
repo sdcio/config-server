@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/gnmi/proto/gnmi"
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
+	"github.com/openconfig/gnmic/pkg/cache"
 )
 
 type IntervalCollector struct {
@@ -35,6 +36,7 @@ type IntervalCollector struct {
 	interval  int
 	target    *target.Target
 	encoding  string
+	cache     cache.Cache
 
 	m            sync.RWMutex
 	cancel       context.CancelFunc
@@ -112,6 +114,7 @@ START:
 		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
+	log.Info("subscription", "req", subReq)
 
 	if err != nil {
 		log.Error("subscription failed", "err", err)
@@ -129,10 +132,9 @@ START:
 			log.Info("onChange collector stopped")
 			return
 		case rsp := <-rspch:
-			switch r := rsp.Response.Response.(type) {
-			case *gnmi.SubscribeResponse_Update:
-				log.Info("onchange subscription update", "update", r.Update)
-			}
+			log.Info("onchange subscription update", "update", rsp.Response)
+			r.cache.Write(ctx, "onchange", rsp.Response)
+
 		case err := <-errCh:
 			if err.Err != nil {
 				r.target.StopSubscriptions()

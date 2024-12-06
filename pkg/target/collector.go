@@ -29,6 +29,7 @@ import (
 	"github.com/henderiw/store/memory"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
+	"github.com/openconfig/gnmic/pkg/cache"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
@@ -38,17 +39,20 @@ type Collector struct {
 	subChan            chan struct{}
 	subscriptions      *Subscriptions
 	intervalCollectors store.Storer[*IntervalCollector]
+	cache              cache.Cache
 
 	m      sync.RWMutex
 	cancel context.CancelFunc
 }
 
 func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Collector {
+	cache, _ := cache.New(&cache.Config{Type: cache.CacheType("oc")})
 	return &Collector{
 		targetKey:          targetKey,
 		subscriptions:      subscriptions,
 		subChan:            make(chan struct{}),
 		intervalCollectors: memory.NewStore[*IntervalCollector](nil),
+		cache:              cache,
 	}
 }
 
