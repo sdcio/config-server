@@ -29,6 +29,7 @@ import (
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 type IntervalCollector struct {
@@ -184,7 +185,7 @@ START:
 		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
-	log.Info("subscription sample request", "req", subReq.ProtoReflect(), "subscription", subReq.GetSubscribe().Subscription, "duration", time.Duration(r.interval)*time.Second, "other", 15*time.Second)
+	log.Info("subscription sample request", "req", prototext.Format(subReq))
 
 	if err != nil {
 		log.Error("subscription failed", "err", err)
