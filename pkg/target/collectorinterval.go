@@ -180,11 +180,11 @@ START:
 	opts = append(opts,
 		gapi.EncodingCustom(encoding(r.encoding)),
 		gapi.SubscriptionListModeSTREAM(),
-		gapi.SampleInterval(time.Duration(r.interval) * time.Second),
+		gapi.SampleInterval(time.Duration(r.interval)*time.Second),
 		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
-	log.Info("subscription sample request", "req", subReq)
+	log.Info("subscription sample request", "req", subReq, "duration", time.Duration(r.interval)*time.Second)
 
 	if err != nil {
 		log.Error("subscription failed", "err", err)
