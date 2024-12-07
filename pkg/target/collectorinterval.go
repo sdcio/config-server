@@ -122,6 +122,7 @@ START:
 	}
 	go r.target.Subscribe(ctx, subReq, "configServer onChange")
 
+	// stop the subscriptions once stopped
 	defer r.target.StopSubscriptions()
 	rspch, errCh := r.target.ReadSubscriptions()
 
@@ -202,11 +203,13 @@ START:
 			return
 		case <-ticker.C:
 			if r.getPathsChanged() {
+				// we stop the subscription at the time interval and restart
 				log.Info("subscribe again to sampled data since paths changed", "paths", r.paths)
 				r.target.StopSubscriptions()
 				r.setPathsChanged(false)
 				goto START
 			}
+			// dont do anything since the paths have not changed and subscription is enabled
 		case rsp := <-rspch:
 			log.Info("sample subscription update", "update", rsp.Response)
 			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
@@ -222,7 +225,7 @@ START:
 				}
 			}
 
-			r.cache.Write(ctx, "onchange", rsp.Response)
+			r.cache.Write(ctx, "sampled", rsp.Response)
 		case err := <-errCh:
 			if err.Err != nil {
 				r.target.StopSubscriptions()
