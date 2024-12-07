@@ -18,9 +18,11 @@ package prometheusserver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sdcio/config-server/pkg/target"
 )
@@ -59,7 +61,11 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 					// TODO user input
 					promMetric, err := NewPromMetric(subName, tctx, update)
 					if err != nil {
-						log.Error("cannot create prom metric", "err", err)
+						fmt.Println("error getting prom metric",
+							path.GnmiPathToXPath(update.GetPath(), false),
+							update.GetVal(),
+							err.Error(),
+						)
 						continue
 					}
 					log.Info("prometheus collect", "name", promMetric.Name, "data", promMetric.String())

@@ -48,7 +48,7 @@ func NewSubscriptions() *Subscriptions {
 func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
-	for _, sub := range subscription.Spec.Subscription {
+	for _, sub := range subscription.Spec.Subscriptions {
 		for _, path := range sub.Paths {
 			interval := sub.GetIntervalSeconds()
 			key := store.ToKey(path)
@@ -84,7 +84,7 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
-	for _, sub := range subscription.Spec.Subscription {
+	for _, sub := range subscription.Spec.Subscriptions {
 		for _, path := range sub.Paths {
 			key := store.ToKey(path)
 			aggregatedSubscription, err := r.Paths.Get(key)

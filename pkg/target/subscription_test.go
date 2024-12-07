@@ -34,7 +34,7 @@ func TestAddSubscription(t *testing.T) {
 	// Define the first subscription
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscription: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionSync{
 				{
 					Mode:  "onChange",
 					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
@@ -48,7 +48,7 @@ func TestAddSubscription(t *testing.T) {
 	// Define the second subscription
 	sub2 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscription: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionSync{
 				{
 					Mode:     "sample",
 					Interval: ptr.To(metav1.Duration{Duration: 30 * time.Second}),
@@ -92,7 +92,7 @@ func TestDelSubscription(t *testing.T) {
 	// Define a subscription
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscription: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionSync{
 				{
 					Mode:  "onChange",
 					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
@@ -130,7 +130,7 @@ func TestMultipleIntervals(t *testing.T) {
 	// Define multiple subscriptions with different intervals
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscription: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionSync{
 				{
 					Mode:  "onChange",
 					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
@@ -143,7 +143,7 @@ func TestMultipleIntervals(t *testing.T) {
 
 	sub2 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscription: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionSync{
 				{
 					Mode:     "sample",
 					Interval: ptr.To(metav1.Duration{Duration: 30 * time.Second}),

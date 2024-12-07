@@ -18,11 +18,11 @@ package prometheusserver
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -70,9 +70,9 @@ func NewPromMetric(subName string, tctx *target.Context, update *gnmi.Update) (*
 	metricName := getPromPathData("", update.GetPath(), labels)
 
 	return &PromMetric{
-		Name: metricName,
-		labels: labels,
-		value: floatVal,
+		Name:    metricName,
+		labels:  labels,
+		value:   floatVal,
 		AddedAt: time.Now(),
 	}, nil
 
@@ -162,7 +162,7 @@ func (r *PrometheusServer) metricName(name, valueName string) string {
 	return strings.TrimLeft(r.regex.ReplaceAllString(valueName, "_"), "_")
 }
 
-// getPromPathData creates a metric name and augments the labels with the name of the 
+// getPromPathData creates a metric name and augments the labels with the name of the
 // keys and values
 func getPromPathData(prefix string, p *gnmi.Path, labels []prompb.Label) string {
 	sb := &strings.Builder{}
@@ -276,6 +276,6 @@ func toFloat(v interface{}) (float64, error) {
 		return f, err
 		//lint:ignore SA1019 still need DecimalVal for backward compatibility
 	default:
-		return math.NaN(), errors.New("toFloat: unknown value is of incompatible type")
+		return math.NaN(), fmt.Errorf("toFloat: unknown value is of incompatible type %s", reflect.TypeOf(i).Name())
 	}
 }

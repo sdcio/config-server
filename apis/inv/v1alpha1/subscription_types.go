@@ -40,11 +40,11 @@ type SubscriptionSpec struct {
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
 	Port uint `json:"port"`
-	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
 	Encoding *Encoding `json:"encoding,omitempty"`
 	// +kubebuilder:validation:MaxItems=128
 	// +kubebuilder:validation:Optional
-	Subscription []SubscriptionSync `json:"subscription"`
+	Subscriptions []SubscriptionSync `json:"subscriptions"`
 }
 
 type SubscriptionTarget struct {

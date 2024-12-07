@@ -524,8 +524,8 @@ func (in *SubscriptionSpec) DeepCopyInto(out *SubscriptionSpec) {
 		*out = new(Encoding)
 		**out = **in
 	}
-	if in.Subscription != nil {
-		in, out := &in.Subscription, &out.Subscription
+	if in.Subscriptions != nil {
+		in, out := &in.Subscriptions, &out.Subscriptions
 		*out = make([]SubscriptionSync, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])

@@ -62,6 +62,7 @@ spec:
                 - JSON
                 - JSON_IETF
                 - PROTO
+                - ASCII
                 type: string
               port:
                 default: 57400
@@ -75,7 +76,7 @@ spec:
                 - netconf
                 - noop
                 type: string
-              subscription:
+              subscriptions:
                 items:
                   description: SubscriptionSync defines the desired Subscription of
                     SubscriptionSync
