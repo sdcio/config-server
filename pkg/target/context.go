@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmic/pkg/cache"
+	"github.com/prometheus/prometheus/prompb"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
@@ -337,4 +338,15 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 
 func (r *Context) GetCache() cache.Cache {
 	return r.collector.cache
+}
+
+func (r *Context) GetPrombLabels() []prompb.Label {
+	labels := make([]prompb.Label, 0)
+	labels = append(labels, prompb.Label{Name: "target_name", Value: r.targetKey.String()})
+	if r.datastoreReq != nil {
+		labels = append(labels, prompb.Label{Name: "vendor", Value: r.datastoreReq.Schema.Vendor})
+		labels = append(labels, prompb.Label{Name: "version", Value: r.datastoreReq.Schema.Version})
+		labels = append(labels, prompb.Label{Name: "address", Value: r.datastoreReq.Target.Address})
+	}
+	return labels
 }
