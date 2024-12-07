@@ -60,6 +60,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 					promMetric, err := NewPromMetric(subName, tctx, update)
 					if err != nil {
 						log.Error("cannot create prom metric", "err", err)
+						continue
 					}
 					log.Info("prometheus collect", "name", promMetric.Name, "data", promMetric.String())
 					ch <- promMetric
