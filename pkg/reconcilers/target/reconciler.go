@@ -34,6 +34,7 @@ import (
 	sdctarget "github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -104,9 +105,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
+		// target not ready so we can wait till the target goes to ready state
+		return ctrl.Result{RequeueAfter: 1 * time.Second},
+			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "discovery not ready", nil), errUpdateStatus)
+	}
+
 	tctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil {
-		return ctrl.Result{Requeue: true}, // requeue will happen automatically when target gets updated
+		return ctrl.Result{RequeueAfter: 1 * time.Second},
 			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "tcxt does not exist", err), errUpdateStatus)
 	}
 
