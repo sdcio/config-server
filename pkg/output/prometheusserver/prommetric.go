@@ -66,8 +66,7 @@ func NewPromMetric(subName string, tctx *target.Context, update *gnmi.Update) (*
 	if err != nil {
 		return nil, fmt.Errorf("prometheus metric cannot get float value, err: %s", err)
 	}
-	labels := tctx.GetPrombLabels()
-	metricName := getPromPathData("", update.GetPath(), labels)
+	metricName, labels := getPromPathData("", update.GetPath(), tctx.GetPrombLabels())
 
 	return &PromMetric{
 		Name:    metricName,
@@ -75,7 +74,6 @@ func NewPromMetric(subName string, tctx *target.Context, update *gnmi.Update) (*
 		value:   floatVal,
 		AddedAt: time.Now(),
 	}, nil
-
 }
 
 // Metric
@@ -164,7 +162,7 @@ func (r *PrometheusServer) metricName(name, valueName string) string {
 
 // getPromPathData creates a metric name and augments the labels with the name of the
 // keys and values
-func getPromPathData(prefix string, p *gnmi.Path, labels []prompb.Label) string {
+func getPromPathData(prefix string, p *gnmi.Path, labels []prompb.Label) (string, []prompb.Label) {
 	sb := &strings.Builder{}
 	elems := p.GetElem()
 	numElems := len(elems)
@@ -190,7 +188,7 @@ func getPromPathData(prefix string, p *gnmi.Path, labels []prompb.Label) string 
 			}
 		}
 	}
-	return sb.String()
+	return sb.String(), labels
 }
 
 // getValue return the data of the gnmi typed value
