@@ -184,7 +184,7 @@ START:
 		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
-	log.Info("subscription sample request", "req", subReq, "duration", time.Duration(r.interval)*time.Second)
+	log.Info("subscription sample request", "req", subReq.ProtoReflect(), "duration", time.Duration(r.interval)*time.Second)
 
 	if err != nil {
 		log.Error("subscription failed", "err", err)
