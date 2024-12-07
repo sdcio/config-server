@@ -18,7 +18,6 @@ package prometheusserver
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -37,11 +36,8 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 		keys = append(keys, k)
 	})
 
-	fmt.Println("prometheus collect")
-
 	for _, key := range keys {
 		log := log.FromContext(ctx).With("target", key.String())
-		log.Info("prometheus collect")
 		tctx, err := r.targetStore.Get(ctx, key)
 		if err != nil || tctx == nil {
 			continue
@@ -50,25 +46,22 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 		if cache == nil {
 			continue
 		}
-		log.Info("prometheus collect read all")
 		notifications, err := cache.ReadAll()
 		if err != nil {
 			log.Error("cannot read from cache", "err", err)
 			continue
 		}
 		for subName, notifs := range notifications {
-			log.Info("prometheus collect", "subscription", subName)
 			for _, notif := range notifs {
-				log.Info("prometheus collect", "notif", notif)
 				for _, update := range notif.GetUpdate() {
 					log.Info("prometheus collect", "update", update)
 
+					// TODO user input
 					promMetric, err := NewPromMetric(subName, tctx, update)
 					if err != nil {
 						log.Error("cannot create prom metric", "err", err)
 					}
-					fmt.Println("prometheus collect", promMetric.Name, promMetric.String())
-
+					log.Info("prometheus collect", "name", promMetric.Name, "data", promMetric.String())
 					ch <- promMetric
 				}
 			}
