@@ -181,7 +181,7 @@ START:
 		opts = append(opts, gapi.Subscription(subscriptionOpts...))
 	}
 	opts = append(opts,
-		gapi.EncodingCustom(encoding("JSON_IETF")),
+		gapi.EncodingCustom(encoding(r.encoding)),
 		gapi.SubscriptionListModeSTREAM(),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
