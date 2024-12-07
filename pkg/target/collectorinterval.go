@@ -101,27 +101,26 @@ func (r *IntervalCollector) startOnChangeCollector(ctx context.Context) {
 
 START:
 	// subscribe
-
 	opts := make([]gapi.GNMIOption, 0)
-	subscriptionOpts := make([]gapi.GNMIOption, 0)
 	for _, path := range r.paths {
-		subscriptionOpts = append(subscriptionOpts, gapi.Path(path))
+		subscriptionOpts := []gapi.GNMIOption{
+			gapi.Path(path),
+			gapi.SubscriptionModeON_CHANGE(),
+		}
+		opts = append(opts, gapi.Subscription(subscriptionOpts...))
 	}
-	subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeON_CHANGE())
 	opts = append(opts,
 		gapi.EncodingCustom(encoding(r.encoding)),
 		gapi.SubscriptionListModeSTREAM(),
-		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
-	log.Info("subscription onchange request", "req", subReq)
-
 	if err != nil {
 		log.Error("subscription onchange failed", "err", err)
 		time.Sleep(5 * time.Second)
 		goto START
 	}
-	go r.target.Subscribe(ctx, subReq, "configServer onChange")
+	log.Info("subscription sample request", "req", prototext.Format(subReq))
+	go r.target.Subscribe(ctx, subReq, "configServer sample")
 
 	// stop the subscriptions once stopped
 	defer r.target.StopSubscriptions()
@@ -173,25 +172,25 @@ func (r *IntervalCollector) startSampledCollector(ctx context.Context) {
 START:
 	// subscribe
 	opts := make([]gapi.GNMIOption, 0)
-	subscriptionOpts := make([]gapi.GNMIOption, 0)
 	for _, path := range r.paths {
-		subscriptionOpts = append(subscriptionOpts, gapi.Path(path))
+		subscriptionOpts := []gapi.GNMIOption{
+			gapi.Path(path),
+			gapi.SubscriptionModeSAMPLE(),
+			gapi.SampleInterval(time.Duration(r.interval) * time.Second),
+		}
+		opts = append(opts, gapi.Subscription(subscriptionOpts...))
 	}
-	subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeSAMPLE())
 	opts = append(opts,
-		gapi.EncodingCustom(encoding(r.encoding)),
+		gapi.EncodingCustom(encoding("JSON_IETF")),
 		gapi.SubscriptionListModeSTREAM(),
-		gapi.SampleInterval(15*time.Second),
-		gapi.Subscription(subscriptionOpts...),
 	)
 	subReq, err := gapi.NewSubscribeRequest(opts...)
-	log.Info("subscription sample request", "req", prototext.Format(subReq))
-
 	if err != nil {
-		log.Error("subscription failed", "err", err)
+		log.Error("subscription sample failed", "err", err)
 		time.Sleep(5 * time.Second)
 		goto START
 	}
+	log.Info("subscription sample request", "req", prototext.Format(subReq))
 	go r.target.Subscribe(ctx, subReq, "configServer sample")
 
 	defer r.target.StopSubscriptions()
