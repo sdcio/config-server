@@ -14,9 +14,9 @@ spec:
       matchLabels:
         sdcio.dev/region: us-east
   protocol: gnmi
-  encoding: JSON_IETF
+  encoding: PROTO
   port: 57400
-  subscription:
+  subscriptions:
   - name: interface
     description: collect interface statistics
     adminState: enabled

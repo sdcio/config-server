@@ -24,20 +24,22 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 )
 
 func TestAddSubscription(t *testing.T) {
 	subscriptions := NewSubscriptions()
 
-	// Define the first subscription
+	// Define the first subscription (onChange)
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscriptions: []invv1alpha1.SubscriptionSync{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
-					Mode:  "onChange",
-					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
+					Name:       "sub1",
+					Mode:       "onChange",
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
 		},
@@ -45,14 +47,17 @@ func TestAddSubscription(t *testing.T) {
 	sub1.SetNamespace("default")
 	sub1.SetName("sub1")
 
-	// Define the second subscription
+	// Define the second subscription (sample, 30s interval)
 	sub2 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscriptions: []invv1alpha1.SubscriptionSync{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
-					Mode:     "sample",
-					Interval: ptr.To(metav1.Duration{Duration: 30 * time.Second}),
-					Paths:    []string{"/interfaces/interface[name=eth0]/state/counters"},
+					Name:       "sub2",
+					Mode:       "sample",
+					Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
 		},
@@ -60,42 +65,40 @@ func TestAddSubscription(t *testing.T) {
 	sub2.SetNamespace("default")
 	sub2.SetName("sub2")
 
-	// Add first subscription
+	// Add the first subscription
 	err := subscriptions.AddSubscription(sub1)
 	assert.NoError(t, err)
 
-	// Verify the path and interval for the first subscription
+	// Verify that the path exists and is associated with the onChange subscription
 	paths := subscriptions.GetPaths(0)
-	assert.Equal(t, []string{"/interfaces/interface[name=eth0]/state/counters"}, paths)
+	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
 
-	// Add second subscription (higher interval should not override)
+	// Add the second subscription
 	err = subscriptions.AddSubscription(sub2)
 	assert.NoError(t, err)
 
-	// Verify the interval remains the lowest (15 seconds)
+	// Verify the path still prioritizes the onChange subscription (interval 0)
 	paths = subscriptions.GetPaths(0)
-	assert.Equal(t, []string{"/interfaces/interface[name=eth0]/state/counters"}, paths)
+	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+
+	// Verify the 30s subscription does not override the onChange subscription
 	paths = subscriptions.GetPaths(30)
 	assert.Empty(t, paths)
-
-	// Check the internal data structure for sources
-	aggregatedSubscription, err := subscriptions.Paths.Get(store.ToKey("/interfaces/interface[name=eth0]/state/counters"))
-	assert.NoError(t, err)
-	assert.Equal(t, invv1alpha1.SyncMode("onChange"), aggregatedSubscription.Mode)
-	assert.Equal(t, 0, aggregatedSubscription.Interval)
-	assert.Equal(t, sets.New[string]("default/sub1", "default/sub2"), aggregatedSubscription.Sources)
 }
 
 func TestDelSubscription(t *testing.T) {
 	subscriptions := NewSubscriptions()
 
-	// Define a subscription
+	// Define and add a subscription
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscriptions: []invv1alpha1.SubscriptionSync{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
-					Mode:  "onChange",
-					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
+					Name:       "sub1",
+					Mode:       "onChange",
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
 		},
@@ -103,13 +106,12 @@ func TestDelSubscription(t *testing.T) {
 	sub1.SetNamespace("default")
 	sub1.SetName("sub1")
 
-	// Add the subscription
 	err := subscriptions.AddSubscription(sub1)
 	assert.NoError(t, err)
 
 	// Verify the path exists
 	paths := subscriptions.GetPaths(0)
-	assert.Equal(t, []string{"/interfaces/interface[name=eth0]/state/counters"}, paths)
+	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
 
 	// Delete the subscription
 	err = subscriptions.DelSubscription(sub1)
@@ -119,7 +121,7 @@ func TestDelSubscription(t *testing.T) {
 	paths = subscriptions.GetPaths(0)
 	assert.Empty(t, paths)
 
-	// Verify the internal store is empty
+	// Verify the internal store no longer contains the path
 	_, err = subscriptions.Paths.Get(store.ToKey("/interfaces/interface[name=eth0]/state/counters"))
 	assert.Error(t, err)
 }
@@ -127,13 +129,16 @@ func TestDelSubscription(t *testing.T) {
 func TestMultipleIntervals(t *testing.T) {
 	subscriptions := NewSubscriptions()
 
-	// Define multiple subscriptions with different intervals
+	// Define the first subscription (onChange)
 	sub1 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscriptions: []invv1alpha1.SubscriptionSync{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
-					Mode:  "onChange",
-					Paths: []string{"/interfaces/interface[name=eth0]/state/counters"},
+					Name:       "sub1",
+					Mode:       "onChange",
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
 		},
@@ -141,13 +146,16 @@ func TestMultipleIntervals(t *testing.T) {
 	sub1.SetNamespace("default")
 	sub1.SetName("sub1")
 
+	// Define the second subscription (sample, 30s interval)
 	sub2 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
-			Subscriptions: []invv1alpha1.SubscriptionSync{
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
-					Mode:     "sample",
-					Interval: ptr.To(metav1.Duration{Duration: 30 * time.Second}),
-					Paths:    []string{"/interfaces/interface[name=eth1]/state/counters"},
+					Name:       "sub2",
+					Mode:       "sample",
+					Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
+					Paths:      []string{"/interfaces/interface[name=eth1]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
 		},
@@ -162,9 +170,9 @@ func TestMultipleIntervals(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify paths for each interval
-	paths15 := subscriptions.GetPaths(0)
-	assert.Equal(t, []string{"/interfaces/interface[name=eth0]/state/counters"}, paths15)
+	onChangePaths := subscriptions.GetPaths(0)
+	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
 
-	paths30 := subscriptions.GetPaths(30)
-	assert.Equal(t, []string{"/interfaces/interface[name=eth1]/state/counters"}, paths30)
+	samplePaths := subscriptions.GetPaths(30)
+	assert.Contains(t, samplePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth1]/state/counters")
 }

@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ import (
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -36,16 +38,15 @@ type IntervalCollector struct {
 	targetKey storebackend.Key
 	interval  int
 	target    *target.Target
-	encoding  string
 	cache     cache.Cache
 
 	m            sync.RWMutex
 	cancel       context.CancelFunc
-	paths        []string
+	paths        map[invv1alpha1.Encoding][]string
 	pathsChanged bool
 }
 
-func NewIntervalCollector(targetKey storebackend.Key, interval int, paths []string, target *target.Target, cache cache.Cache) *IntervalCollector {
+func NewIntervalCollector(targetKey storebackend.Key, interval int, paths map[invv1alpha1.Encoding][]string, target *target.Target, cache cache.Cache) *IntervalCollector {
 	return &IntervalCollector{
 		targetKey: targetKey,
 		interval:  interval,
@@ -76,7 +77,7 @@ func (r *IntervalCollector) Start(ctx context.Context) {
 	}
 }
 
-func (r *IntervalCollector) Update(ctx context.Context, paths []string) {
+func (r *IntervalCollector) Update(ctx context.Context, paths map[invv1alpha1.Encoding][]string) {
 	if !r.hasPathsChanged(paths) {
 		return
 	}
@@ -101,26 +102,28 @@ func (r *IntervalCollector) startOnChangeCollector(ctx context.Context) {
 
 START:
 	// subscribe
-	opts := make([]gapi.GNMIOption, 0)
-	for _, path := range r.paths {
-		subscriptionOpts := []gapi.GNMIOption{
-			gapi.Path(path),
-			gapi.SubscriptionModeON_CHANGE(),
+	for subEncoding, paths := range r.paths {
+		opts := make([]gapi.GNMIOption, 0)
+		for _, path := range paths {
+			subscriptionOpts := []gapi.GNMIOption{
+				gapi.Path(path),
+				gapi.SubscriptionModeON_CHANGE(),
+			}
+			opts = append(opts, gapi.Subscription(subscriptionOpts...))
 		}
-		opts = append(opts, gapi.Subscription(subscriptionOpts...))
+		opts = append(opts,
+			gapi.EncodingCustom(encoding(subEncoding.String())),
+			gapi.SubscriptionListModeSTREAM(),
+		)
+		subReq, err := gapi.NewSubscribeRequest(opts...)
+		if err != nil {
+			log.Error("subscription onchange failed", "err", err)
+			time.Sleep(5 * time.Second)
+			goto START
+		}
+		log.Info("subscription onchange request", "req", prototext.Format(subReq))
+		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver onchange %d %s", r.interval, subEncoding.String()))
 	}
-	opts = append(opts,
-		gapi.EncodingCustom(encoding(r.encoding)),
-		gapi.SubscriptionListModeSTREAM(),
-	)
-	subReq, err := gapi.NewSubscribeRequest(opts...)
-	if err != nil {
-		log.Error("subscription onchange failed", "err", err)
-		time.Sleep(5 * time.Second)
-		goto START
-	}
-	log.Info("subscription sample request", "req", prototext.Format(subReq))
-	go r.target.Subscribe(ctx, subReq, "configServer sample")
 
 	// stop the subscriptions once stopped
 	defer r.target.StopSubscriptions()
@@ -171,27 +174,29 @@ func (r *IntervalCollector) startSampledCollector(ctx context.Context) {
 
 START:
 	// subscribe
-	opts := make([]gapi.GNMIOption, 0)
-	for _, path := range r.paths {
-		subscriptionOpts := []gapi.GNMIOption{
-			gapi.Path(path),
-			gapi.SubscriptionModeSAMPLE(),
-			gapi.SampleInterval(time.Duration(r.interval) * time.Second),
+	for subEncoding, paths := range r.paths {
+		opts := make([]gapi.GNMIOption, 0)
+		for _, path := range paths {
+			subscriptionOpts := []gapi.GNMIOption{
+				gapi.Path(path),
+				gapi.SubscriptionModeSAMPLE(),
+				gapi.SampleInterval(time.Duration(r.interval) * time.Second),
+			}
+			opts = append(opts, gapi.Subscription(subscriptionOpts...))
 		}
-		opts = append(opts, gapi.Subscription(subscriptionOpts...))
+		opts = append(opts,
+			gapi.EncodingCustom(encoding(subEncoding.String())),
+			gapi.SubscriptionListModeSTREAM(),
+		)
+		subReq, err := gapi.NewSubscribeRequest(opts...)
+		if err != nil {
+			log.Error("subscription sample failed", "err", err)
+			time.Sleep(5 * time.Second)
+			goto START
+		}
+		log.Info("subscription sample request", "req", prototext.Format(subReq))
+		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver sample %d %s", r.interval, subEncoding.String()))
 	}
-	opts = append(opts,
-		gapi.EncodingCustom(encoding(r.encoding)),
-		gapi.SubscriptionListModeSTREAM(),
-	)
-	subReq, err := gapi.NewSubscribeRequest(opts...)
-	if err != nil {
-		log.Error("subscription sample failed", "err", err)
-		time.Sleep(5 * time.Second)
-		goto START
-	}
-	log.Info("subscription sample request", "req", prototext.Format(subReq))
-	go r.target.Subscribe(ctx, subReq, "configServer sample")
 
 	defer r.target.StopSubscriptions()
 	rspch, errCh := r.target.ReadSubscriptions()
@@ -237,7 +242,7 @@ START:
 	}
 }
 
-func (r *IntervalCollector) setNewPaths(paths []string) {
+func (r *IntervalCollector) setNewPaths(paths map[invv1alpha1.Encoding][]string) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.pathsChanged = true
@@ -256,18 +261,25 @@ func (r *IntervalCollector) getPathsChanged() bool {
 	return r.pathsChanged
 }
 
-func (r *IntervalCollector) hasPathsChanged(a []string) bool {
+func (r *IntervalCollector) hasPathsChanged(newEncodedPaths map[invv1alpha1.Encoding][]string) bool {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	b := r.paths
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
+	existingEncodedPaths := r.paths
+	for encoding, newpaths := range newEncodedPaths {
+		existingPaths, ok := existingEncodedPaths[encoding]
+		if !ok {
 			return false
 		}
+		if len(newpaths) != len(existingPaths) {
+			return false
+		}
+		for i := range existingPaths {
+			if existingPaths[i] != newpaths[i] {
+				return false
+			}
+		}
 	}
+
 	return true
 }
 

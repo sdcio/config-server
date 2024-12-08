@@ -18,6 +18,7 @@ package target
 
 import (
 	errors "errors"
+	"fmt"
 	"sort"
 
 	"github.com/henderiw/store"
@@ -26,21 +27,34 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
+const maxInterval = 1000
+
 var supportIntervals []int = []int{0, 1, 15, 30, 60}
 
-type AggregatedSubscription struct {
-	Mode     invv1alpha1.SyncMode // Final mode: onChange or sample
-	Interval int                  // Final interval (only for sample) -> in seconds // 1, 15, 30, 60
-	Sources  sets.Set[string]     // Track contributing CRs by their name
+type Subscriptions struct {
+	Paths store.Storer[*PathSubscriptions]
 }
 
-type Subscriptions struct {
-	Paths store.Storer[*AggregatedSubscription] // Path -> AggregatedSubscription
+type PathSubscriptions struct {
+	Current *Subscription
+	// AllSubscriptions list all the subscriptions that are in the system, the key is name of the subscription CR
+	AllSubscriptions map[string]*Subscription
+}
+
+type Subscription struct {
+	NSN         string // namespacedname of the CR that originated this subscription
+	Name        string // name of the subscription
+	Description *string
+	Labels      map[string]string
+	Enabled     bool
+	Interval    int // 0 = onChange
+	Encoding    invv1alpha1.Encoding
+	//Outputs []output -> this should be an interface
 }
 
 func NewSubscriptions() *Subscriptions {
 	return &Subscriptions{
-		Paths: memory.NewStore[*AggregatedSubscription](nil),
+		Paths: memory.NewStore[*PathSubscriptions](nil),
 	}
 }
 
@@ -48,33 +62,91 @@ func NewSubscriptions() *Subscriptions {
 func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
-	for _, sub := range subscription.Spec.Subscriptions {
-		for _, path := range sub.Paths {
-			interval := sub.GetIntervalSeconds()
+
+	// check update of the subscription by validating the existing subscriptions against the cache
+	existingCRSubscriptions := r.getExistingCRSubscription(subscriptionNSN)
+	for _, subParam := range subscription.Spec.Subscriptions {
+		for _, path := range subParam.Paths {
 			key := store.ToKey(path)
-			aggregatedSubscription, err := r.Paths.Get(key)
+			// we could have the same path defined in the subscription accross multiple subscriptions
+			subscriptionNSNName := getSubscriptionNSNName(subscriptionNSN, subParam.Name)
+			// remove the item from the exesting list otherwise it will be deleted
+			existingCRPathSubscriptionSet, ok := existingCRSubscriptions[path]
+			if ok {
+				existingCRPathSubscriptionSet.Delete(subscriptionNSNName)
+				existingCRSubscriptions[path] = existingCRPathSubscriptionSet
+				if len(existingCRPathSubscriptionSet) == 0 {
+					delete(existingCRPathSubscriptionSet, path)
+				}
+			}
+
+			// convert the subscriptions parameters to a subscription we manage in this cache
+			subscription := getSubscription(subscriptionNSN, subParam, subscription.GetEncoding())
+			// check if the path exists in the path subscriptions
+			pathSubscriptions, err := r.Paths.Get(key)
 			if err != nil {
 				// does not exist
-				sources := sets.New[string]()
-				sources.Insert(subscriptionNSN)
-				// ignoring error for now
-				if err := r.Paths.Apply(key, &AggregatedSubscription{
-					Mode:     sub.Mode,
-					Interval: sub.GetIntervalSeconds(),
-					Sources:  sources,
-				}); err != nil {
+				pathSubscriptions = &PathSubscriptions{
+					AllSubscriptions: map[string]*Subscription{
+						subscriptionNSN: subscription,
+					},
+				}
+				if subscription.Enabled {
+					pathSubscriptions.Current = subscription
+				}
+				if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
 					errs = errors.Join(errs, err)
 				}
 				continue
 			}
-			aggregatedSubscription.Sources.Insert(subscriptionNSN)
-			if interval < aggregatedSubscription.Interval {
-				aggregatedSubscription.Interval = interval
-				aggregatedSubscription.Mode = sub.Mode
+			pathSubscriptions.AllSubscriptions[subscriptionNSNName] = subscription
+			// check if we need to update current
+			if subscription.Enabled {
+				if pathSubscriptions.Current == nil {
+					// if no current subscription exists and we get an enabled subsription this subscription becomes current
+					pathSubscriptions.Current = subscription
+				} else {
+					// current exists
+					if subscription.Interval < pathSubscriptions.Current.Interval {
+						pathSubscriptions.Current = subscription
+					}
+				}
 			}
+
 			// ignoring error for now
-			if err := r.Paths.Apply(key, aggregatedSubscription); err != nil {
+			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
 				errs = errors.Join(errs, err)
+			}
+		}
+	}
+
+	for path, existingCRPathSubscriptionSet := range existingCRSubscriptions {
+		// TODO delete these
+		for _, subscriptionNSNName := range existingCRPathSubscriptionSet.UnsortedList() {
+			key := store.ToKey(path)
+			pathSubscriptions, err := r.Paths.Get(key)
+			if err != nil {
+				// strange since we just listed them
+				continue
+			}
+			delete(pathSubscriptions.AllSubscriptions, subscriptionNSN)
+			if len(pathSubscriptions.AllSubscriptions) == 0 {
+				// if no subscriptions exist we can delete the path from the cache
+				if err := r.Paths.Delete(key); err != nil {
+					errs = errors.Join(errs, err)
+				}
+				continue
+			}
+			// pick a new current subscription since this was the current one
+			if pathSubscriptions.Current != nil && subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
+				interval := 1000
+				pathSubscriptions.Current = nil
+				for _, subscription := range pathSubscriptions.AllSubscriptions {
+					if subscription.Interval < interval && subscription.Enabled {
+						interval = subscription.Interval
+						pathSubscriptions.Current = subscription
+					}
+				}
 			}
 		}
 	}
@@ -84,17 +156,32 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
 	var errs error
-	for _, sub := range subscription.Spec.Subscriptions {
-		for _, path := range sub.Paths {
+	for _, subParam := range subscription.Spec.Subscriptions {
+		for _, path := range subParam.Paths {
 			key := store.ToKey(path)
-			aggregatedSubscription, err := r.Paths.Get(key)
+			// we could have the same path defined in the subscription accross multiple subscriptions
+			subscriptionNSNName := getSubscriptionNSNName(subscriptionNSN, subParam.Name)
+			pathSubscriptions, err := r.Paths.Get(key)
 			if err != nil {
 				continue
 			}
-			aggregatedSubscription.Sources.Delete(subscriptionNSN)
-			if aggregatedSubscription.Sources.Len() == 0 {
+			delete(pathSubscriptions.AllSubscriptions, subscriptionNSN)
+			if len(pathSubscriptions.AllSubscriptions) == 0 {
+				// if no subscriptions exist we can delete the path from the cache
 				if err := r.Paths.Delete(key); err != nil {
 					errs = errors.Join(errs, err)
+				}
+				continue
+			}
+			// pick a new current subscription since this was the current one
+			if pathSubscriptions.Current != nil && subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
+				interval := maxInterval
+				pathSubscriptions.Current = nil
+				for _, subscription := range pathSubscriptions.AllSubscriptions {
+					if subscription.Interval < interval && subscription.Enabled {
+						interval = subscription.Interval
+						pathSubscriptions.Current = subscription
+					}
 				}
 			}
 		}
@@ -102,13 +189,53 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 	return errs
 }
 
-func (r *Subscriptions) GetPaths(interval int) []string {
-	paths := []string{}
-	r.Paths.List(func(k store.Key, as *AggregatedSubscription) {
-		if as.Interval == interval {
+func (r *Subscriptions) GetPaths(interval int) map[invv1alpha1.Encoding][]string {
+	encodingPaths := map[invv1alpha1.Encoding][]string{}
+	r.Paths.List(func(k store.Key, subscriptions *PathSubscriptions) {
+		if subscriptions.Current != nil && subscriptions.Current.Interval == interval {
+			paths, ok := encodingPaths[subscriptions.Current.Encoding]
+			if !ok {
+				paths = make([]string, 0)
+			}
 			paths = append(paths, k.Name)
+			encodingPaths[subscriptions.Current.Encoding] = paths
 		}
 	})
-	sort.Strings(paths)
-	return paths
+	for encoding, paths := range encodingPaths {
+		sort.Strings(paths)
+		encodingPaths[encoding] = paths
+	}
+
+	return encodingPaths
+}
+
+func getSubscription(nsn string, param invv1alpha1.SubscriptionParameters, encoding invv1alpha1.Encoding) *Subscription {
+	return &Subscription{
+		NSN:         nsn,
+		Name:        param.Name,
+		Description: param.Description,
+		Labels:      param.Labels,
+		Enabled:     param.IsEnabled(),
+		Interval:    param.GetIntervalSeconds(),
+		Encoding:    encoding,
+	}
+}
+
+func (r *Subscriptions) getExistingCRSubscription(nsn string) map[string]sets.Set[string] {
+	existingCRSubscriptions := map[string]sets.Set[string]{}
+	r.Paths.List(func(k store.Key, ps *PathSubscriptions) {
+		for subscriptionNSNName, subscription := range ps.AllSubscriptions {
+			if subscription.NSN == nsn {
+				if _, ok := existingCRSubscriptions[k.Name]; !ok {
+					existingCRSubscriptions[k.Name] = sets.New[string]()
+				}
+				existingCRSubscriptions[k.Name].Insert(subscriptionNSNName)
+			}
+		}
+	})
+	return existingCRSubscriptions
+}
+
+func getSubscriptionNSNName(nsn, name string) string {
+	return fmt.Sprintf("%s.%s", nsn, name)
 }

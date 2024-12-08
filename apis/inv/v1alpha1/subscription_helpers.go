@@ -42,7 +42,7 @@ func (r *Subscription) SetTargets(targets []string) {
 	r.Status.Targets = targets
 }
 
-func (r *SubscriptionSync) GetIntervalSeconds() int {
+func (r *SubscriptionParameters) GetIntervalSeconds() int {
 	if r.Mode == SyncMode_OnChange {
 		return 0
 	}
@@ -59,4 +59,18 @@ func (r *Subscription) GetExistingTargets() sets.String {
 		existingTargetSet.Insert(targetname)
 	}
 	return existingTargetSet
+}
+
+func (r *SubscriptionParameters) IsEnabled() bool {
+	if r.AdminState == nil {
+		return false
+	}
+	return *r.AdminState == AdminState_ENABLED
+}
+
+func (r *Subscription) GetEncoding() Encoding {
+	if r.Spec.Encoding == nil {
+		return Encoding_ASCII
+	}
+	return *r.Spec.Encoding
 }

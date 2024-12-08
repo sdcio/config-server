@@ -40,11 +40,11 @@ type SubscriptionSpec struct {
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
 	Port uint `json:"port"`
-	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
+	// +kubebuilder:validation:Enum=PROTO;ASCII;
 	Encoding *Encoding `json:"encoding,omitempty"`
 	// +kubebuilder:validation:MaxItems=128
 	// +kubebuilder:validation:Optional
-	Subscriptions []SubscriptionSync `json:"subscriptions"`
+	Subscriptions []SubscriptionParameters `json:"subscriptions"`
 }
 
 type SubscriptionTarget struct {
@@ -53,11 +53,14 @@ type SubscriptionTarget struct {
 }
 
 // SubscriptionSync defines the desired Subscription of SubscriptionSync
-type SubscriptionSync struct {
+type SubscriptionParameters struct {
 	// Name defines the name of the group of the Subscription to be collected
 	Name string `json:"name"`
 	// Description details what the Subscription collection is about
 	Description *string `json:"description,omitempty"`
+	// Labels can be defined as user defined data to provide extra context
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 	// AdminState allows to disable the subscription
 	// +kubebuilder:validation:Enum=enabled;disabled;
 	// +kubebuilder:default:="enabled"
@@ -72,6 +75,9 @@ type SubscriptionSync struct {
 	Interval *metav1.Duration `json:"interval,omitempty"`
 	// +kubebuilder:validation:MaxItems=128
 	Paths []string `json:"paths"`
+	// TODO Outputs define the outputs to which this information should go -> reight now we only support prometheus locally
+	// this looks up another CR where they are defined with their respective secrets, etc
+	//Outputs []string
 }
 
 type SubscriptionStatus struct {
