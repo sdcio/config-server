@@ -176,3 +176,56 @@ func TestMultipleIntervals(t *testing.T) {
 	samplePaths := subscriptions.GetPaths(30)
 	assert.Contains(t, samplePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth1]/state/counters")
 }
+
+
+func TestModifyEncoding(t *testing.T) {
+	subscriptions := NewSubscriptions()
+
+	// Define the first subscription (onChange)
+	sub1 := &invv1alpha1.Subscription{
+		Spec: invv1alpha1.SubscriptionSpec{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
+				{
+					Name:       "sub1",
+					Mode:       "onChange",
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
+				},
+			},
+		},
+	}
+	sub1.SetNamespace("default")
+	sub1.SetName("sub1")
+
+	// Define the second subscription (sample, 30s interval)
+	sub2 := &invv1alpha1.Subscription{
+		Spec: invv1alpha1.SubscriptionSpec{
+			Encoding: ptr.To(invv1alpha1.Encoding_PROTO),
+			Subscriptions: []invv1alpha1.SubscriptionParameters{
+				{
+					Name:       "sub1",
+					Mode:       "onChange",
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
+					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
+				},
+			},
+		},
+	}
+	sub2.SetNamespace("default")
+	sub2.SetName("sub1")
+
+	// Add both subscriptions
+	err := subscriptions.AddSubscription(sub1)
+	assert.NoError(t, err)
+
+	onChangePaths := subscriptions.GetPaths(0)
+	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+
+	err = subscriptions.AddSubscription(sub2)
+	assert.NoError(t, err)
+
+	// Verify paths for each interval
+	onChangePaths = subscriptions.GetPaths(0)
+	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_PROTO], "/interfaces/interface[name=eth0]/state/counters")
+}
