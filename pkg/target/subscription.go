@@ -106,6 +106,10 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 					// if no current subscription exists and we get an enabled subsription this subscription becomes current
 					pathSubscriptions.Current = subscription
 				} else {
+					// it can be that the parameters changed
+					if subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
+						pathSubscriptions.Current = subscription
+					}
 					// current exists
 					if subscription.Interval < pathSubscriptions.Current.Interval {
 						pathSubscriptions.Current = subscription
