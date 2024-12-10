@@ -176,6 +176,10 @@ func (r *Context) SetReady(ctx context.Context) {
 		r.deviationWatcher.Start(ctx)
 	}
 	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil && req.Target != nil {
+			return
+		}
 		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
 			log.Error("setready starting collector failed", "err", err)
 		}

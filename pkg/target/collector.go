@@ -161,8 +161,9 @@ func (r *Collector) start(ctx context.Context) {
 func (r *Collector) update(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	newPaths := r.subscriptions.GetPaths()
-	log.Info("subscription update received", "paths", newPaths)
+	log.Info("subscription update received", "newPaths", newPaths)
 	if !r.hasPathsChanged(newPaths) {
+		log.Info("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
 		return
 	}
 	r.StopSubscription(ctx)
