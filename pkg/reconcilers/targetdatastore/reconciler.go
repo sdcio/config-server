@@ -189,6 +189,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// update the target store with the updated information
 	curtctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil || !curtctx.IsReady() {
+		if err := r.updateStatusReinitializing(ctx, targetOrig); err != nil {
+			return ctrl.Result{},
+				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", err, true), errUpdateStatus)
+		}
 		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
 		if serr != nil {
@@ -235,6 +239,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig, "target not ready", err, false), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
+}
+
+func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *invv1alpha1.Target) error {
+	log := log.FromContext(ctx)
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+	// update status
+	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
+	target.Status.UsedReferences = nil
+	//target.SetOverallStatus()
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
+
+	log.Debug("reinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+
+	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
