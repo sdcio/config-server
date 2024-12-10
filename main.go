@@ -37,6 +37,7 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
+	"github.com/sdcio/config-server/pkg/output/prometheusserver"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -130,8 +131,8 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:     runScheme,
-		Metrics:    metricsServerOptions,
+		Scheme:  runScheme,
+		Metrics: metricsServerOptions,
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
@@ -170,6 +171,18 @@ func main() {
 			}
 		}
 	}
+
+	promserver := prometheusserver.NewServer(&prometheusserver.Config{
+		Address: ":9443",
+		TargetStore: targetStore,
+	})
+	go func() {
+		if err := promserver.Start(ctx); err != nil {
+			log.Error("cannot start promerver", "err", err.Error())
+			os.Exit(1)
+		}
+	}()
+	
 
 	db, err := badgerdb.OpenDB(ctx, configDir)
 	if err != nil {

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server-target-metrics
+  namespace: network-system
+  labels:
+    app.kubernetes.io/name: config-server
+spec:
+  ports:
+  - name: targetmetrics
+    port: 9443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    app.kubernetes.io/name: config-server
