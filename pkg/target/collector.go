@@ -187,19 +187,19 @@ func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bo
 	for encoding, newpaths := range newPaths {
 		existingPaths, ok := existingPaths[encoding]
 		if !ok {
-			return false
+			return true
 		}
 		if len(newpaths) != len(existingPaths) {
-			return false
+			return true
 		}
 		for i := range existingPaths {
 			if existingPaths[i].Path != newpaths[i].Path ||
 				existingPaths[i].Interval != newpaths[i].Interval {
-				return false
+				return true
 			}
 		}
 	}
-	return true
+	return false
 }
 
 func (r *Collector) StopSubscription(ctx context.Context) {
