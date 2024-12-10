@@ -113,7 +113,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 				if tctx != nil {
-					tctx.DeleteSubscription(ctx, subscription)
+					if err := tctx.DeleteSubscription(ctx, subscription); err != nil {
+						log.Error("cannot delete subscription", "err", err)
+					}
 				}
 				return tctx
 			}); err != nil {
@@ -150,7 +152,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		targetKey := storebackend.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: subscription.Namespace})
 		if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 			if tctx != nil {
-				tctx.UpsertSubscription(ctx, subscription)
+				if err := tctx.UpsertSubscription(ctx, subscription); err != nil {
+					log.Error("cannot upsert subscription", "err", err)
+				}
 			}
 			return tctx
 		}); err != nil {
@@ -160,7 +164,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if !existingTargetSet.Has(targetName) {
 			if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 				if tctx != nil {
-					tctx.DeleteSubscription(ctx, subscription)
+					if err := tctx.DeleteSubscription(ctx, subscription); err != nil {
+						log.Error("cannot delete subscription", "err", err)
+					}
 				}
 				return tctx
 			}); err != nil {
