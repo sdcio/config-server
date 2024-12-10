@@ -162,12 +162,12 @@ func (r *Collector) start(ctx context.Context) {
 func (r *Collector) update(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	newPaths := r.subscriptions.GetPaths()
-	log.Info("subscription update received", "newPaths", newPaths)
+	log.Debug("subscription update received", "newPaths", newPaths)
 	if !r.hasPathsChanged(newPaths) {
-		log.Info("subscription did not change")
+		log.Debug("subscription did not change")
 		return
 	}
-	log.Info("subscription did not change", "newPaths", newPaths, "existingPaths", r.paths)
+	log.Debug("subscription did not change", "newPaths", newPaths, "existingPaths", r.paths)
 	r.StopSubscription(ctx)
 
 	r.setNewPaths(newPaths)
@@ -230,7 +230,7 @@ func (r *Collector) StartSubscription(ctx context.Context) {
 
 func (r *Collector) startSubscription(ctx context.Context) {
 	log := log.FromContext(ctx).With("target", r.targetKey.String())
-	log.Info("starting collector", "paths", r.paths)
+	log.Info("starting subscription collector", "paths", r.paths)
 
 START:
 	// subscribe
@@ -269,7 +269,7 @@ START:
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("collector stopped")
+			log.Info("subscription collector stopped")
 			return
 		case rsp := <-rspch:
 			log.Debug("subscription update", "update", rsp.Response)
