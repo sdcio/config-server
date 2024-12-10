@@ -326,6 +326,10 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 }
 
 func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	if err := r.subscriptions.AddSubscription(sub); err != nil {
+		return err
+	}
+	
 	if r.collector != nil && !r.collector.IsRunning() {
 		if r.datastoreReq == nil {
 			return fmt.Errorf("cannot start subscription an target %s without a datastore", r.targetKey.String())
@@ -334,10 +338,7 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 			return err
 		}
 	}
-
-	if err := r.subscriptions.AddSubscription(sub); err != nil {
-		return err
-	}
+	
 	subCh := r.collector.GetUpdateChan()
 	subCh <- struct{}{}
 	return nil
