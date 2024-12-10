@@ -367,7 +367,7 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions())
+	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
 	// if we have no longer subscriptions we stop the collector
 	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
 		r.collector.Stop(ctx)
