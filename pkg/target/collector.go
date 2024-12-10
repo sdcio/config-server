@@ -173,8 +173,6 @@ func (r *Collector) updateIntervalCollectors(ctx context.Context) {
 		paths := r.subscriptions.GetPaths(interval)
 		key := store.ToKey(strconv.Itoa(interval))
 
-		log.Info("updateIntervalCollectors", "paths", paths)
-
 		if intervalCollector, err := r.intervalCollectors.Get(key); err == nil {
 			// interval exists/is running
 			if len(paths) == 0 {

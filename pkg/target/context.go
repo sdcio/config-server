@@ -142,7 +142,7 @@ func (r *Context) SetReady(ctx context.Context) {
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
-	if r.subscriptions.HasSubscriptions() && r.collector != nil {
+	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
 		r.collector.Start(ctx, r.datastoreReq)
 	}
 }
