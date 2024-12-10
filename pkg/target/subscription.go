@@ -197,20 +197,27 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 	return errs
 }
 
-func (r *Subscriptions) GetPaths(interval int) map[invv1alpha1.Encoding][]string {
-	encodingPaths := map[invv1alpha1.Encoding][]string{}
+type Path struct {
+	Path     string
+	Interval int
+}
+
+func (r *Subscriptions) GetPaths() map[invv1alpha1.Encoding][]Path {
+	encodingPaths := map[invv1alpha1.Encoding][]Path{}
 	r.Paths.List(func(k store.Key, subscriptions *PathSubscriptions) {
-		if subscriptions.Current != nil && subscriptions.Current.Interval == interval {
+		if subscriptions.Current != nil {
 			paths, ok := encodingPaths[subscriptions.Current.Encoding]
 			if !ok {
-				paths = make([]string, 0)
+				paths = make([]Path, 0)
 			}
-			paths = append(paths, k.Name)
+			paths = append(paths, Path{Path: k.Name, Interval: subscriptions.Current.Interval})
 			encodingPaths[subscriptions.Current.Encoding] = paths
 		}
 	})
 	for encoding, paths := range encodingPaths {
-		sort.Strings(paths)
+		sort.Slice(paths, func(i, j int) bool {
+			return paths[i].Path < paths[j].Path
+		})
 		encodingPaths[encoding] = paths
 	}
 

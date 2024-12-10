@@ -20,40 +20,46 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	"github.com/henderiw/store"
-	"github.com/henderiw/store/memory"
+	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
+	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/protobuf/encoding/prototext"
 )
 
 type Collector struct {
-	targetKey          storebackend.Key
-	target             *target.Target
-	subChan            chan struct{}
-	subscriptions      *Subscriptions
-	intervalCollectors store.Storer[*IntervalCollector]
-	cache              cache.Cache
+	targetKey     storebackend.Key
+	subChan       chan struct{}
+	subscriptions *Subscriptions
+	//intervalCollectors store.Storer[*IntervalCollector]
+	cache cache.Cache
 
 	m      sync.RWMutex
+	target *target.Target
 	port   uint
+	paths  map[invv1alpha1.Encoding][]Path
 	cancel context.CancelFunc
+
+	subscriptionCancel context.CancelFunc
 }
 
 func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Collector {
 	cache, _ := cache.New(&cache.Config{Type: cache.CacheType("oc")})
 	return &Collector{
-		targetKey:          targetKey,
-		subscriptions:      subscriptions,
-		subChan:            make(chan struct{}),
-		intervalCollectors: memory.NewStore[*IntervalCollector](nil),
-		cache:              cache,
+		targetKey:     targetKey,
+		subscriptions: subscriptions,
+		subChan:       make(chan struct{}),
+		//intervalCollectors: memory.NewStore[*IntervalCollector](nil),
+		cache: cache,
 	}
 }
 
@@ -83,18 +89,6 @@ func (r *Collector) Stop(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	r.intervalCollectors.List(func(k store.Key, intervalCollector *IntervalCollector) {
-		log := log.FromContext(ctx).With("interval", k.Name, "target", r.targetKey.String())
-		log.Info("stopping interval collector")
-		if intervalCollector.cancel != nil {
-			intervalCollector.cancel()
-		}
-	})
-
-	for _, key := range r.intervalCollectors.ListKeys() {
-		r.intervalCollectors.Delete(store.ToKey(key))
-	}
-
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stopping target collector")
 	if r.cancel != nil {
@@ -103,6 +97,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 
 	if r.target != nil {
+		r.target.StopSubscriptions()
 		r.target.Close() // ignore error
 		r.target = nil
 	}
@@ -152,48 +147,160 @@ func (r *Collector) start(ctx context.Context) {
 	log.Info("start")
 
 	// kick the collectors
-	r.updateIntervalCollectors(ctx)
+	r.update(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
 		case <-r.subChan:
 			log.Info("subscription update received")
-			r.updateIntervalCollectors(ctx)
+			r.update(ctx)
 		}
 	}
 }
 
-func (r *Collector) updateIntervalCollectors(ctx context.Context) {
+func (r *Collector) update(ctx context.Context) {
+	newPaths := r.subscriptions.GetPaths()
+	if !r.hasPathsChanged(newPaths) {
+		return
+	}
+	r.StopSubscription(ctx)
+
+	r.setNewPaths(newPaths)
+	// don't lock before since stop also locks
 	r.m.Lock()
 	defer r.m.Unlock()
+	ctx, r.cancel = context.WithCancel(ctx)
+	go r.StartSubscription(ctx)
+}
 
-	for _, interval := range supportIntervals {
-		log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String(), "interval", interval)
-		paths := r.subscriptions.GetPaths(interval)
-		key := store.ToKey(strconv.Itoa(interval))
+func (r *Collector) setNewPaths(paths map[invv1alpha1.Encoding][]Path) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.paths = paths
+}
 
-		if intervalCollector, err := r.intervalCollectors.Get(key); err == nil {
-			// interval exists/is running
-			if len(paths) == 0 {
-				//interval exists/is running; without paths we need to stop and delete the interval
-				log.Info("stopping interval collector given no paths exists any longer")
-				intervalCollector.StopCollector()
-				r.intervalCollectors.Delete(key)
-				continue
-			}
-			//interval exists/is running; if the paths are different we need to stop/start the collector with new paths
-			intervalCollector.Update(ctx, paths)
-			r.intervalCollectors.Apply(key, intervalCollector) // ignoring error
-			continue
+func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bool {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	existingPaths := r.paths
+	for encoding, newpaths := range newPaths {
+		existingPaths, ok := existingPaths[encoding]
+		if !ok {
+			return false
 		}
-
-		// Start interval-specific goroutine if not already running
-		if len(paths) != 0 {
-			log.Info("starting interval collector")
-			intervalCollector := NewIntervalCollector(r.targetKey, interval, paths, r.target, r.cache)
-			intervalCollector.Start(ctx)
-			r.intervalCollectors.Apply(key, intervalCollector) // ignoring error
+		if len(newpaths) != len(existingPaths) {
+			return false
+		}
+		for i := range existingPaths {
+			if existingPaths[i].Path != newpaths[i].Path ||
+				existingPaths[i].Interval != newpaths[i].Interval {
+				return false
+			}
 		}
 	}
+	return true
+}
+
+func (r *Collector) StopSubscription(ctx context.Context) {
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log.Info("stop subscription")
+	r.m.Lock()
+	defer r.m.Unlock()
+	if r.subscriptionCancel != nil {
+		r.subscriptionCancel()
+		r.subscriptionCancel = nil
+	}
+}
+
+func (r *Collector) StartSubscription(ctx context.Context) {
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log.Info("start subscription")
+
+	r.m.Lock()
+	defer r.m.Unlock()
+	ctx, r.cancel = context.WithCancel(ctx)
+	go r.startSubscription(ctx)
+}
+
+func (r *Collector) startSubscription(ctx context.Context) {
+	log := log.FromContext(ctx).With("target", r.targetKey.String())
+	log.Info("starting collector", "paths", r.paths)
+
+START:
+	// subscribe
+	for subEncoding, paths := range r.paths {
+		opts := make([]gapi.GNMIOption, 0)
+		for _, path := range paths {
+			subscriptionOpts := []gapi.GNMIOption{
+				gapi.Path(path.Path),
+			}
+			if path.Interval == 0 {
+				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeON_CHANGE())
+			} else {
+				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeSAMPLE())
+				subscriptionOpts = append(subscriptionOpts, gapi.SampleInterval(time.Duration(path.Interval)*time.Second))
+			}
+			opts = append(opts, gapi.Subscription(subscriptionOpts...))
+		}
+		opts = append(opts,
+			gapi.EncodingCustom(encoding(subEncoding.String())),
+			gapi.SubscriptionListModeSTREAM(),
+		)
+		subReq, err := gapi.NewSubscribeRequest(opts...)
+		if err != nil {
+			log.Error("subscription failed", "err", err)
+			time.Sleep(5 * time.Second)
+			goto START
+		}
+		log.Info("subscription request", "req", prototext.Format(subReq))
+		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver %s", subEncoding.String()))
+	}
+
+	// stop the subscriptions once stopped
+	defer r.target.StopSubscriptions()
+	rspch, errCh := r.target.ReadSubscriptions()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("collector stopped")
+			return
+		case rsp := <-rspch:
+			log.Debug("subscription update", "update", rsp.Response)
+			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
+			case *gnmi.SubscribeResponse:
+				switch rsp := rsp.GetResponse().(type) {
+				case *gnmi.SubscribeResponse_Update:
+					if rsp.Update.GetPrefix() == nil {
+						rsp.Update.Prefix = new(gnmi.Path)
+					}
+					if rsp.Update.GetPrefix().GetTarget() == "" {
+						rsp.Update.Prefix.Target = r.targetKey.String()
+					}
+				}
+			}
+
+			r.cache.Write(ctx, "", rsp.Response)
+		case err := <-errCh:
+			if err.Err != nil {
+				r.target.StopSubscriptions()
+				log.Error("subscription failed", "err", err)
+				time.Sleep(time.Second)
+				goto START
+			}
+		}
+	}
+}
+
+func encoding(e string) int {
+	enc, ok := gnmi.Encoding_value[strings.ToUpper(e)]
+	if ok {
+		return int(enc)
+	}
+	en, err := strconv.Atoi(e)
+	if err != nil {
+		return 0
+	}
+	return en
 }

@@ -353,14 +353,19 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-	// if we have no longer subscriptions we stop the
+	// if we have no longer subscriptions we stop the collector
 	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
 		r.collector.Stop(ctx)
 		return nil
 	}
+	r.updateSubscription()
+	return nil
+}
+
+func (r *Context) updateSubscription() {
+	// other subscriptions exist, update the subscription
 	subCh := r.collector.GetUpdateChan()
 	subCh <- struct{}{}
-	return nil
 }
 
 func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
@@ -372,18 +377,21 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}
+	// above should be changed to subscription profile in the target
 
 	if r.collector != nil && !r.collector.IsRunning() {
 		if r.IsReady() && r.getDatastoreReq() != nil {
-			return fmt.Errorf("cannot start subscription an target %s that is not ready", r.targetKey.String())
+			return nil
+			//return fmt.Errorf("cannot start subscription on target %s that is not ready", r.targetKey.String())
 		}
 		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
 			return err
 		}
+		// starting a collector also updates the subscriptions
+		return nil
 	}
 
-	subCh := r.collector.GetUpdateChan()
-	subCh <- struct{}{}
+	r.updateSubscription()
 	return nil
 }
 

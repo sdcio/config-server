@@ -70,20 +70,17 @@ func TestAddSubscription(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify that the path exists and is associated with the onChange subscription
-	paths := subscriptions.GetPaths(0)
-	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+	paths := subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
 
 	// Add the second subscription
 	err = subscriptions.AddSubscription(sub2)
 	assert.NoError(t, err)
 
 	// Verify the path still prioritizes the onChange subscription (interval 0)
-	paths = subscriptions.GetPaths(0)
-	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+	paths = subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
 
-	// Verify the 30s subscription does not override the onChange subscription
-	paths = subscriptions.GetPaths(30)
-	assert.Empty(t, paths)
 }
 
 func TestDelSubscription(t *testing.T) {
@@ -110,15 +107,15 @@ func TestDelSubscription(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the path exists
-	paths := subscriptions.GetPaths(0)
-	assert.Contains(t, paths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+	paths := subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
 
 	// Delete the subscription
 	err = subscriptions.DelSubscription(sub1)
 	assert.NoError(t, err)
 
 	// Verify the path is removed
-	paths = subscriptions.GetPaths(0)
+	paths = subscriptions.GetPaths()
 	assert.Empty(t, paths)
 
 	// Verify the internal store no longer contains the path
@@ -126,7 +123,7 @@ func TestDelSubscription(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestMultipleIntervals(t *testing.T) {
+func TestPromotionAfterRemoval(t *testing.T) {
 	subscriptions := NewSubscriptions()
 
 	// Define the first subscription (onChange)
@@ -149,12 +146,13 @@ func TestMultipleIntervals(t *testing.T) {
 	// Define the second subscription (sample, 30s interval)
 	sub2 := &invv1alpha1.Subscription{
 		Spec: invv1alpha1.SubscriptionSpec{
+			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
 			Subscriptions: []invv1alpha1.SubscriptionParameters{
 				{
 					Name:       "sub2",
 					Mode:       "sample",
 					Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
-					Paths:      []string{"/interfaces/interface[name=eth1]/state/counters"},
+					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
 					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
 				},
 			},
@@ -169,14 +167,18 @@ func TestMultipleIntervals(t *testing.T) {
 	err = subscriptions.AddSubscription(sub2)
 	assert.NoError(t, err)
 
-	// Verify paths for each interval
-	onChangePaths := subscriptions.GetPaths(0)
-	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+	// Verify that the onChange subscription is prioritized
+	paths := subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
 
-	samplePaths := subscriptions.GetPaths(30)
-	assert.Contains(t, samplePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth1]/state/counters")
+	// Delete the onChange subscription
+	err = subscriptions.DelSubscription(sub1)
+	assert.NoError(t, err)
+
+	// Verify that the 30s subscription is now Current
+	paths = subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 30}}, paths[invv1alpha1.Encoding_ASCII])
 }
-
 
 func TestModifyEncoding(t *testing.T) {
 	subscriptions := NewSubscriptions()
@@ -219,13 +221,14 @@ func TestModifyEncoding(t *testing.T) {
 	err := subscriptions.AddSubscription(sub1)
 	assert.NoError(t, err)
 
-	onChangePaths := subscriptions.GetPaths(0)
-	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_ASCII], "/interfaces/interface[name=eth0]/state/counters")
+	paths := subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
+
 
 	err = subscriptions.AddSubscription(sub2)
 	assert.NoError(t, err)
 
 	// Verify paths for each interval
-	onChangePaths = subscriptions.GetPaths(0)
-	assert.Contains(t, onChangePaths[invv1alpha1.Encoding_PROTO], "/interfaces/interface[name=eth0]/state/counters")
+	paths = subscriptions.GetPaths()
+	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_PROTO])
 }

@@ -16,6 +16,8 @@ limitations under the License.
 
 package target
 
+/*
+
 import (
 	"context"
 	"fmt"
@@ -144,7 +146,7 @@ START:
 	defer r.target.StopSubscriptions()
 	rspch, errCh := r.target.ReadSubscriptions()
 
-	// set path changed to false since 
+	// set path changed to false since
 	r.setPathsChanged(false)
 
 	for {
@@ -233,15 +235,4 @@ func (r *IntervalCollector) hasPathsChanged(newEncodedPaths map[invv1alpha1.Enco
 	}
 	return true
 }
-
-func encoding(e string) int {
-	enc, ok := gnmi.Encoding_value[strings.ToUpper(e)]
-	if ok {
-		return int(enc)
-	}
-	en, err := strconv.Atoi(e)
-	if err != nil {
-		return 0
-	}
-	return en
-}
+*/
