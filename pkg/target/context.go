@@ -333,10 +333,9 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 		if r.datastoreReq == nil {
 			return fmt.Errorf("cannot start subscription an target %s without a datastore", r.targetKey.String())
 		}
-		if err := r.collector.CreateGNMIClient(ctx, r.datastoreReq); err != nil {
+		if err := r.collector.Start(ctx, r.datastoreReq); err != nil {
 			return err
 		}
-		r.collector.Start(ctx, r.datastoreReq)
 	}
 
 	if err := r.subscriptions.AddSubscription(sub); err != nil {

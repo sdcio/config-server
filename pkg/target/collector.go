@@ -95,7 +95,13 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 }
 
-func (r *Collector) CreateGNMIClient(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+	r.Stop(ctx)
+	// don't lock before since stop also locks
+	r.m.Lock()
+	defer r.m.Unlock()
+	ctx, r.cancel = context.WithCancel(ctx)
+
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	tOpts := []api.TargetOption{
 		api.Name(r.targetKey.String()),
@@ -122,17 +128,10 @@ func (r *Collector) CreateGNMIClient(ctx context.Context, req *sdcpb.CreateDataS
 		log.Error("cannot create gnmi client", "err", err)
 		return err
 	}
-	return nil
-}
-
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) {
-	r.Stop(ctx)
-	// don't lock before since stop also locks
-	r.m.Lock()
-	defer r.m.Unlock()
-	ctx, r.cancel = context.WithCancel(ctx)
 
 	go r.start(ctx)
+
+	return nil
 }
 
 func (r *Collector) start(ctx context.Context) {
