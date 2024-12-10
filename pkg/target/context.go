@@ -177,7 +177,7 @@ func (r *Context) SetReady(ctx context.Context) {
 	}
 	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
 		req := r.getDatastoreReq()
-		if r.IsReady() && req != nil && req.Target != nil {
+		if !r.IsReady() || req == nil || req.Target == nil {
 			return
 		}
 		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
@@ -385,7 +385,7 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 
 	if r.collector != nil && !r.collector.IsRunning() {
 		req := r.getDatastoreReq()
-		if r.IsReady() && req != nil && req.Target != nil {
+		if !r.IsReady() || req == nil || req.Target == nil {
 			return nil
 			//return fmt.Errorf("cannot start subscription on target %s that is not ready", r.targetKey.String())
 		}
