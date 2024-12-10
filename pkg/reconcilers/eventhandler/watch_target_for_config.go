@@ -59,21 +59,21 @@ func (r *TargetForConfigEventHandler) Generic(ctx context.Context, evt event.Gen
 }
 
 func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cr, ok := obj.(*invv1alpha1.Target)
+	target, ok := obj.(*invv1alpha1.Target)
 	if !ok {
 		return
 	}
-	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: cr.GetName()})
+	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", cr.GetName())
+	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list all the configs of the particular target that got changed
 	opts := []client.ListOption{
-		client.InNamespace(cr.Namespace),
+		client.InNamespace(target.Namespace),
 		client.MatchingLabels{
-			config.TargetNameKey:      cr.GetName(),
-			config.TargetNamespaceKey: cr.GetNamespace(),
+			config.TargetNameKey:      target.GetName(),
+			config.TargetNamespaceKey: target.GetNamespace(),
 		},
 	}
 	configs := &configv1alpha1.ConfigList{}
