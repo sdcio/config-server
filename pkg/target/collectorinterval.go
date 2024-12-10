@@ -121,7 +121,7 @@ START:
 			time.Sleep(5 * time.Second)
 			goto START
 		}
-		log.Info("subscription onchange request", "req", prototext.Format(subReq))
+		log.Debug("subscription onchange request", "req", prototext.Format(subReq))
 		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver onchange %d %s", r.interval, subEncoding.String()))
 	}
 
@@ -135,7 +135,7 @@ START:
 			log.Info("onChange collector stopped")
 			return
 		case rsp := <-rspch:
-			log.Info("onchange subscription update", "update", rsp.Response)
+			log.Debug("onchange subscription update", "update", rsp.Response)
 			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
 			case *gnmi.SubscribeResponse:
 				switch rsp := rsp.GetResponse().(type) {
@@ -194,7 +194,7 @@ START:
 			time.Sleep(5 * time.Second)
 			goto START
 		}
-		log.Info("subscription sample request", "req", prototext.Format(subReq))
+		log.Debug("subscription sample request", "req", prototext.Format(subReq))
 		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver sample %d %s", r.interval, subEncoding.String()))
 	}
 
@@ -216,7 +216,7 @@ START:
 			}
 			// dont do anything since the paths have not changed and subscription is enabled
 		case rsp := <-rspch:
-			log.Info("sample subscription update", "update", rsp.Response)
+			log.Debug("sample subscription update", "update", rsp.Response)
 			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
 			case *gnmi.SubscribeResponse:
 				switch rsp := rsp.GetResponse().(type) {
