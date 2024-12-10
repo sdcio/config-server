@@ -138,12 +138,15 @@ func (r *Context) SetNotReady(ctx context.Context) {
 }
 
 func (r *Context) SetReady(ctx context.Context) {
+	log := log.FromContext(ctx)
 	r.ready = true
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
 	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
-		r.collector.Start(ctx, r.datastoreReq)
+		if err := r.collector.Start(ctx, r.datastoreReq); err != nil {
+			log.Error("setready starting collector failed", "err", err)
+		}
 	}
 }
 
