@@ -407,7 +407,9 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-			tctx.SetNotReady(ctx)
+			if tctx != nil {
+				tctx.SetNotReady(ctx)
+			}
 			return tctx
 		}); err != nil {
 			log.Error("getTargetStatus SetNotReady update datastore failed", "err", err)
@@ -417,7 +419,9 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 
 	if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-		tctx.SetReady(ctx)
+		if tctx != nil {
+			tctx.SetReady(ctx)
+		}
 		return tctx
 	}); err != nil {
 		log.Error("getTargetStatus SetReady update datastore failed", "err", err)

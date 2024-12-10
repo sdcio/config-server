@@ -120,7 +120,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
 	if err != nil {
 		if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-			tctx.SetNotReady(ctx)
+			if tctx != nil {
+				tctx.SetNotReady(ctx)
+			}
 			return tctx
 		}); errs != nil {
 			errs = errors.Join(errs, err)
@@ -132,7 +134,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
 		if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-			tctx.SetNotReady(ctx)
+			if tctx != nil {
+				tctx.SetNotReady(ctx)
+			}
 			return tctx
 		}); errs != nil {
 			errs = errors.Join(errs, err)
@@ -144,7 +148,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-		tctx.SetReady(ctx)
+		if tctx != nil {
+			tctx.SetReady(ctx)
+		}
 		return tctx
 	}); errs != nil {
 		errs = errors.Join(errs, err)
