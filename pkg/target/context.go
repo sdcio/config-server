@@ -380,11 +380,12 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	// above should be changed to subscription profile in the target
 
 	if r.collector != nil && !r.collector.IsRunning() {
-		if r.IsReady() && r.getDatastoreReq() != nil {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil {
 			return nil
 			//return fmt.Errorf("cannot start subscription on target %s that is not ready", r.targetKey.String())
 		}
-		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+		if err := r.collector.Start(ctx, req); err != nil {
 			return err
 		}
 		// starting a collector also updates the subscriptions
