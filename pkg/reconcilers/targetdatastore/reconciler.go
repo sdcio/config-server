@@ -247,7 +247,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *invv1alpha1.Target) (*invv1alpha1.Target, error) {
 	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
@@ -256,7 +256,7 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
 
-	log.Debug("reinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
 
 	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
@@ -287,7 +287,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
-	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
 	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
