@@ -70,11 +70,7 @@ func (r *IntervalCollector) Start(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	ctx, r.cancel = context.WithCancel(ctx)
-	if r.interval == 0 {
-		go r.startOnChangeCollector(ctx)
-	} else {
-		go r.startSampledCollector(ctx)
-	}
+	go r.startCollector(ctx)
 }
 
 func (r *IntervalCollector) Update(ctx context.Context, paths map[invv1alpha1.Encoding][]string) {
@@ -89,16 +85,30 @@ func (r *IntervalCollector) Update(ctx context.Context, paths map[invv1alpha1.En
 		r.m.Lock()
 		defer r.m.Unlock()
 		ctx, r.cancel = context.WithCancel(ctx)
-		go r.startOnChangeCollector(ctx)
+		go r.startCollector(ctx)
 		return
 	}
 	// update paths -> the ticker will pick them up
 	r.setNewPaths(paths)
 }
 
-func (r *IntervalCollector) startOnChangeCollector(ctx context.Context) {
+func (r *IntervalCollector) startCollector(ctx context.Context) {
 	log := log.FromContext(ctx).With("target", r.targetKey.String())
-	log.Info("starting onChange collector", "paths", r.paths)
+	collectorType := "onChange"
+	if r.interval != 0 {
+		collectorType = fmt.Sprintf("interval=%d", r.interval)
+	}
+	log.Info("starting collector", "type", collectorType, "paths", r.paths)
+
+	var ticker *time.Ticker
+	if r.interval != 0 {
+		// Create and align the ticker if interval-based sampling is enabled
+		now := time.Now()
+		nextTick := now.Truncate(time.Duration(r.interval) * time.Second).Add(time.Duration(r.interval) * time.Second)
+		time.Sleep(time.Until(nextTick))
+		ticker = time.NewTicker(time.Duration(r.interval) * time.Second)
+		defer ticker.Stop()
+	}
 
 START:
 	// subscribe
@@ -107,7 +117,12 @@ START:
 		for _, path := range paths {
 			subscriptionOpts := []gapi.GNMIOption{
 				gapi.Path(path),
-				gapi.SubscriptionModeON_CHANGE(),
+			}
+			if r.interval == 0 {
+				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeON_CHANGE())
+			} else {
+				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeSAMPLE())
+				subscriptionOpts = append(subscriptionOpts, gapi.SampleInterval(time.Duration(r.interval)*time.Second))
 			}
 			opts = append(opts, gapi.Subscription(subscriptionOpts...))
 		}
@@ -117,11 +132,11 @@ START:
 		)
 		subReq, err := gapi.NewSubscribeRequest(opts...)
 		if err != nil {
-			log.Error("subscription onchange failed", "err", err)
+			log.Error("subscription failed", "err", err)
 			time.Sleep(5 * time.Second)
 			goto START
 		}
-		log.Debug("subscription onchange request", "req", prototext.Format(subReq))
+		log.Info("subscription request", "req", prototext.Format(subReq))
 		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver onchange %d %s", r.interval, subEncoding.String()))
 	}
 
@@ -149,7 +164,7 @@ START:
 				}
 			}
 
-			r.cache.Write(ctx, "onchange", rsp.Response)
+			r.cache.Write(ctx, collectorType, rsp.Response)
 		case err := <-errCh:
 			if err.Err != nil {
 				r.target.StopSubscriptions()
@@ -157,86 +172,20 @@ START:
 				time.Sleep(time.Second)
 				goto START
 			}
-		}
-	}
-}
-
-func (r *IntervalCollector) startSampledCollector(ctx context.Context) {
-	log := log.FromContext(ctx).With("interval", r.interval, "target", r.targetKey.String())
-
-	// Align to clock
-	now := time.Now()
-	nextTick := now.Truncate(time.Duration(r.interval) * time.Second).Add(time.Duration(r.interval) * time.Second)
-	time.Sleep(time.Until(nextTick))
-
-	ticker := time.NewTicker(time.Duration(r.interval) * time.Second)
-	defer ticker.Stop()
-
-START:
-	// subscribe
-	for subEncoding, paths := range r.paths {
-		opts := make([]gapi.GNMIOption, 0)
-		for _, path := range paths {
-			subscriptionOpts := []gapi.GNMIOption{
-				gapi.Path(path),
-				gapi.SubscriptionModeSAMPLE(),
-				gapi.SampleInterval(time.Duration(r.interval) * time.Second),
-			}
-			opts = append(opts, gapi.Subscription(subscriptionOpts...))
-		}
-		opts = append(opts,
-			gapi.EncodingCustom(encoding(subEncoding.String())),
-			gapi.SubscriptionListModeSTREAM(),
-		)
-		subReq, err := gapi.NewSubscribeRequest(opts...)
-		if err != nil {
-			log.Error("subscription sample failed", "err", err)
-			time.Sleep(5 * time.Second)
-			goto START
-		}
-		log.Debug("subscription sample request", "req", prototext.Format(subReq))
-		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver sample %d %s", r.interval, subEncoding.String()))
-	}
-
-	defer r.target.StopSubscriptions()
-	rspch, errCh := r.target.ReadSubscriptions()
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("sampled collector stopped")
-			return
-		case <-ticker.C:
-			if r.getPathsChanged() {
-				// we stop the subscription at the time interval and restart
-				log.Info("subscribe again to sampled data since paths changed", "paths", r.paths)
-				r.target.StopSubscriptions()
-				r.setPathsChanged(false)
-				goto START
-			}
-			// dont do anything since the paths have not changed and subscription is enabled
-		case rsp := <-rspch:
-			log.Debug("sample subscription update", "update", rsp.Response)
-			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
-			case *gnmi.SubscribeResponse:
-				switch rsp := rsp.GetResponse().(type) {
-				case *gnmi.SubscribeResponse_Update:
-					if rsp.Update.GetPrefix() == nil {
-						rsp.Update.Prefix = new(gnmi.Path)
+		default:
+			// Ticker logic is only included if interval != 0
+			if ticker != nil {
+				select {
+				case <-ticker.C:
+					if r.getPathsChanged() {
+						log.Info("subscribe again to sampled data since paths changed", "paths", r.paths)
+						r.target.StopSubscriptions()
+						r.setPathsChanged(false)
+						goto START
 					}
-					if rsp.Update.GetPrefix().GetTarget() == "" {
-						rsp.Update.Prefix.Target = r.targetKey.String()
-					}
+				default:
+					// No operation for the ticker's default
 				}
-			}
-
-			r.cache.Write(ctx, "sampled", rsp.Response)
-		case err := <-errCh:
-			if err.Err != nil {
-				r.target.StopSubscriptions()
-				log.Error("subscription failed", "err", err)
-				time.Sleep(time.Second)
-				goto START
 			}
 		}
 	}

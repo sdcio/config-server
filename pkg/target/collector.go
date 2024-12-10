@@ -91,6 +91,7 @@ func (r *Collector) Stop(ctx context.Context) {
 
 	if r.target != nil {
 		r.target.Close() // ignore error
+		r.target = nil
 	}
 }
 
