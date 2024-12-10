@@ -142,9 +142,6 @@ func (r *Context) SetReady(ctx context.Context) {
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
-	if r.collector != nil {
-		r.collector.Start(ctx, r.datastoreReq)
-	}
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
@@ -333,7 +330,7 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 		if r.datastoreReq == nil {
 			return fmt.Errorf("cannot start subscription an target %s without a datastore", r.targetKey.String())
 		}
-		if err := r.collector.Start(ctx, r.datastoreReq); err != nil {
+		if err := r.collector.Start(ctx, r.datastoreReq, sub); err != nil {
 			return err
 		}
 	}

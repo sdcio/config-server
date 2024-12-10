@@ -147,10 +147,10 @@ START:
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("onChange collector stopped")
+			log.Info("collector stopped")
 			return
 		case rsp := <-rspch:
-			log.Debug("onchange subscription update", "update", rsp.Response)
+			log.Debug("subscription update", "update", rsp.Response)
 			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
 			case *gnmi.SubscribeResponse:
 				switch rsp := rsp.GetResponse().(type) {

@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
@@ -95,7 +96,10 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 }
 
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest, sub *invv1alpha1.Subscription) error {
+	if sub.Spec.Protocol != invv1alpha1.Protocol_GNMI {
+		return fmt.Errorf("subscriptions only supported using gnmi")
+	}
 	r.Stop(ctx)
 	// don't lock before since stop also locks
 	r.m.Lock()
@@ -105,7 +109,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	tOpts := []api.TargetOption{
 		api.Name(r.targetKey.String()),
-		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
+		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, sub.Spec.Port)),
 		api.Username(string(req.Target.Credentials.Username)),
 		api.Password(string(req.Target.Credentials.Password)),
 		api.Timeout(5 * time.Second),
