@@ -56,7 +56,7 @@ func NewIntervalCollector(targetKey storebackend.Key, interval int, paths map[in
 	}
 }
 
-func (r *IntervalCollector) Stop() {
+func (r *IntervalCollector) StopCollector() {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if r.cancel != nil {
@@ -65,7 +65,7 @@ func (r *IntervalCollector) Stop() {
 }
 
 func (r *IntervalCollector) Start(ctx context.Context) {
-	r.Stop()
+	r.StopCollector()
 	// don't lock before since stop also locks
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -78,7 +78,7 @@ func (r *IntervalCollector) Update(ctx context.Context, paths map[invv1alpha1.En
 		return
 	}
 	if r.interval == 0 {
-		r.Stop()
+		r.StopCollector()
 		// don't lock before since stop also locks
 		r.setNewPaths(paths)
 		// update cancel
@@ -143,6 +143,9 @@ START:
 	// stop the subscriptions once stopped
 	defer r.target.StopSubscriptions()
 	rspch, errCh := r.target.ReadSubscriptions()
+
+	// set path changed to false since 
+	r.setPathsChanged(false)
 
 	for {
 		select {
@@ -228,7 +231,6 @@ func (r *IntervalCollector) hasPathsChanged(newEncodedPaths map[invv1alpha1.Enco
 			}
 		}
 	}
-
 	return true
 }
 

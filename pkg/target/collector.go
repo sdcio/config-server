@@ -178,7 +178,7 @@ func (r *Collector) updateIntervalCollectors(ctx context.Context) {
 			if len(paths) == 0 {
 				//interval exists/is running; without paths we need to stop and delete the interval
 				log.Info("stopping interval collector given no paths exists any longer")
-				intervalCollector.Stop()
+				intervalCollector.StopCollector()
 				r.intervalCollectors.Delete(key)
 				continue
 			}
