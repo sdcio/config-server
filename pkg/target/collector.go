@@ -60,6 +60,12 @@ func (r *Collector) GetUpdateChan() chan struct{} {
 	return r.subChan
 }
 
+func (r *Collector) IsRunning() bool {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.cancel != nil
+}
+
 func (r *Collector) Stop(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -82,18 +88,14 @@ func (r *Collector) Stop(ctx context.Context) {
 		r.cancel()
 		r.cancel = nil
 	}
+
+	if r.target != nil {
+		r.target.Close() // ignore error
+	}
 }
 
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
-	r.Stop(ctx)
-	// don't lock before since stop also locks
+func (r *Collector) CreateGNMIClient(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	r.m.Lock()
-	defer r.m.Unlock()
-	ctx, r.cancel = context.WithCancel(ctx)
-
-	// create gnmiClient
-
 	tOpts := []api.TargetOption{
 		api.Name(r.targetKey.String()),
 		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
@@ -119,8 +121,17 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 		log.Error("cannot create gnmi client", "err", err)
 		return err
 	}
-	go r.start(ctx)
 	return nil
+}
+
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) {
+	r.Stop(ctx)
+	// don't lock before since stop also locks
+	r.m.Lock()
+	defer r.m.Unlock()
+	ctx, r.cancel = context.WithCancel(ctx)
+
+	go r.start(ctx)
 }
 
 func (r *Collector) start(ctx context.Context) {

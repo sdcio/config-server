@@ -112,11 +112,7 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
-	if r.collector != nil {
-		if err := r.collector.Start(ctx, datastoreReq); err != nil {
-			return err
-		}
-	}
+	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
 }
@@ -322,12 +318,27 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
+	// if we have no longer subscriptions we stop the
+	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
+		r.collector.Stop(ctx)
+		return nil
+	}
 	subCh := r.collector.GetUpdateChan()
 	subCh <- struct{}{}
 	return nil
 }
 
 func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	if r.collector != nil && !r.collector.IsRunning() {
+		if r.datastoreReq == nil {
+			return fmt.Errorf("cannot start subscription an target %s without a datastore", r.targetKey.String())
+		}
+		if err := r.collector.CreateGNMIClient(ctx, r.datastoreReq); err != nil {
+			return err
+		}
+		r.collector.Start(ctx, r.datastoreReq)
+	}
+
 	if err := r.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}

@@ -58,6 +58,10 @@ func NewSubscriptions() *Subscriptions {
 	}
 }
 
+func (r *Subscriptions) HasSubscriptions() bool {
+	return r.Paths.Len() != 0
+}
+
 // Add or update a subscription
 func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) error {
 	subscriptionNSN := subscription.GetNamespacedName().String()
