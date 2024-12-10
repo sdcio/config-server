@@ -363,15 +363,19 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 }
 
 func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
+	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions())
 	// if we have no longer subscriptions we stop the collector
 	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
 		r.collector.Stop(ctx)
 		return nil
 	}
-	r.updateSubscription()
+	if r.collector != nil && r.collector.IsRunning() {
+		r.updateSubscription()
+	}
 	return nil
 }
 

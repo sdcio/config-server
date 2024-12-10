@@ -91,15 +91,14 @@ func (r *Collector) Stop(ctx context.Context) {
 
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop collector")
-	if r.cancel != nil {
-		r.cancel()
-		r.cancel = nil
-	}
-
 	if r.target != nil {
 		r.target.StopSubscriptions()
 		r.target.Close() // ignore error
 		r.target = nil
+	}
+	if r.cancel != nil {
+		r.cancel()
+		r.cancel = nil
 	}
 }
 
