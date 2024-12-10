@@ -170,7 +170,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second}, // requeue will happen automatically when discovery is done
 			errors.Wrap(r.handleError(ctx, targetOrig, "discovery not ready", nil, true), errUpdateStatus)
 	}
 
