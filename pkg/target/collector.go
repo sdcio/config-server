@@ -147,6 +147,7 @@ func (r *Collector) start(ctx context.Context) {
 	log.Info("start collector")
 
 	// kick the collectors
+	r.setNewPaths(map[invv1alpha1.Encoding][]Path{}) // set the paths to empty since we are just starting the collector
 	r.update(ctx)
 
 	for {
