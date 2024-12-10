@@ -167,7 +167,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Debug("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
+	log.Info("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
 		return ctrl.Result{}, // requeue will happen automatically when discovery is done
@@ -194,7 +194,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if serr != nil {
 			log.Debug("cannot select a dataserver", "error", err)
 			return ctrl.Result{},
-				errors.Wrap(r.handleError(ctx, targetOrig, "schema not ready", err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, targetOrig, "no available dataserver", err, true), errUpdateStatus)
 		}
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
