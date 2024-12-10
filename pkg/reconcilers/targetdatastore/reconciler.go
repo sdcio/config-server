@@ -278,7 +278,7 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
@@ -410,6 +410,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 			tctx.SetNotReady(ctx)
 			return tctx
 		}); err != nil {
+			log.Error("getTargetStatus SetNotReady update datastore failed", "err", err)
 			return true, err
 		}
 		return false, nil
@@ -419,6 +420,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 		tctx.SetReady(ctx)
 		return tctx
 	}); err != nil {
+		log.Error("getTargetStatus SetReady update datastore failed", "err", err)
 		return true, err
 	}
 	return true, nil
