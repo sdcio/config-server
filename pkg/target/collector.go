@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
@@ -43,6 +42,7 @@ type Collector struct {
 	cache              cache.Cache
 
 	m      sync.RWMutex
+	port   uint
 	cancel context.CancelFunc
 }
 
@@ -59,6 +59,18 @@ func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Col
 
 func (r *Collector) GetUpdateChan() chan struct{} {
 	return r.subChan
+}
+
+func (r *Collector) SetPort(port uint) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.port = port
+}
+
+func (r *Collector) getPort() uint {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.port
 }
 
 func (r *Collector) IsRunning() bool {
@@ -96,10 +108,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 }
 
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest, sub *invv1alpha1.Subscription) error {
-	if sub.Spec.Protocol != invv1alpha1.Protocol_GNMI {
-		return fmt.Errorf("subscriptions only supported using gnmi")
-	}
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
 	r.Stop(ctx)
 	// don't lock before since stop also locks
 	r.m.Lock()
@@ -109,7 +118,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	tOpts := []api.TargetOption{
 		api.Name(r.targetKey.String()),
-		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, sub.Spec.Port)),
+		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, r.port)),
 		api.Username(string(req.Target.Credentials.Username)),
 		api.Password(string(req.Target.Credentials.Password)),
 		api.Timeout(5 * time.Second),
