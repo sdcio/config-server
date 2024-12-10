@@ -195,6 +195,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", rerr, true), errUpdateStatus)
 		}
 		targetOrig = target
+		log.Info("")
 
 		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
@@ -262,12 +263,14 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 			FieldManager: reconcilerName,
 		},
 	}); err != nil {
+		log.Error("update status failed", "error", err)
 		return nil, err
 	}
 
 	nsn := target.GetNamespacedName()
 	target = &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, nsn, target); err != nil {
+		log.Error("get target failed", "nsn", nsn, "error", err)
 		return nil, err
 	}
 	return target.DeepCopy(), nil
@@ -284,7 +287,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
 	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
