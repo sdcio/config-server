@@ -394,7 +394,7 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 
 	if r.collector != nil && !r.collector.IsRunning() {
 		req := r.getDatastoreReq()
-		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+		if r.IsReady() && req != nil && req.Target != nil {
 			// starting a collector also updates the subscriptions
 			if err := r.collector.Start(ctx, req); err != nil {
 				return err
