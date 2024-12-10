@@ -144,6 +144,15 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
+	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil && req.Target != nil {
+			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+				log.Error("setready starting collector failed", "err", err)
+			}
+		}
+
+	}
 	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
@@ -177,12 +186,12 @@ func (r *Context) SetReady(ctx context.Context) {
 	}
 	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
 		req := r.getDatastoreReq()
-		if !r.IsReady() || req == nil || req.Target == nil {
-			return
+		if r.IsReady() && req != nil && req.Target != nil {
+			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+				log.Error("setready starting collector failed", "err", err)
+			}
 		}
-		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
-			log.Error("setready starting collector failed", "err", err)
-		}
+
 	}
 }
 
@@ -385,14 +394,12 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 
 	if r.collector != nil && !r.collector.IsRunning() {
 		req := r.getDatastoreReq()
-		if !r.IsReady() || req == nil || req.Target == nil {
-			return nil
-			//return fmt.Errorf("cannot start subscription on target %s that is not ready", r.targetKey.String())
+		if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+			// starting a collector also updates the subscriptions
+			if err := r.collector.Start(ctx, req); err != nil {
+				return err
+			}
 		}
-		if err := r.collector.Start(ctx, req); err != nil {
-			return err
-		}
-		// starting a collector also updates the subscriptions
 		return nil
 	}
 

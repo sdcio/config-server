@@ -163,9 +163,10 @@ func (r *Collector) update(ctx context.Context) {
 	newPaths := r.subscriptions.GetPaths()
 	log.Info("subscription update received", "newPaths", newPaths)
 	if !r.hasPathsChanged(newPaths) {
-		log.Info("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
+		log.Info("subscription did not change")
 		return
 	}
+	log.Info("subscription did not change", "newPaths", newPaths, "existingPaths", r.paths)
 	r.StopSubscription(ctx)
 
 	r.setNewPaths(newPaths)
