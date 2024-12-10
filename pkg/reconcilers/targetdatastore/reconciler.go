@@ -189,10 +189,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// update the target store with the updated information
 	curtctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil || !curtctx.IsReady() {
-		if err := r.updateStatusReinitializing(ctx, targetOrig); err != nil {
+		target, rerr := r.updateStatusReinitializing(ctx, targetOrig)
+		if rerr != nil {
 			return ctrl.Result{},
-				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", rerr, true), errUpdateStatus)
 		}
+		targetOrig = target
+
 		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
 		if serr != nil {
@@ -241,7 +244,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
 }
 
-func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *invv1alpha1.Target) (*invv1alpha1.Target, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
@@ -254,11 +257,20 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 	log.Debug("reinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
-	})
+	}); err != nil {
+		return nil, err
+	}
+
+	nsn := target.GetNamespacedName()
+	target = &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, nsn, target); err != nil {
+		return nil, err
+	}
+	return target.DeepCopy(), nil
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
