@@ -90,7 +90,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	defer r.m.Unlock()
 
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	log.Info("stopping target collector")
+	log.Info("stop collector")
 	if r.cancel != nil {
 		r.cancel()
 		r.cancel = nil
@@ -144,7 +144,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 
 func (r *Collector) start(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	log.Info("start")
+	log.Info("start collector")
 
 	// kick the collectors
 	r.update(ctx)
@@ -153,14 +153,15 @@ func (r *Collector) start(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 		case <-r.subChan:
-			log.Info("subscription update received")
 			r.update(ctx)
 		}
 	}
 }
 
 func (r *Collector) update(ctx context.Context) {
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	newPaths := r.subscriptions.GetPaths()
+	log.Info("subscription update received", "paths", newPaths)
 	if !r.hasPathsChanged(newPaths) {
 		return
 	}
@@ -205,6 +206,7 @@ func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bo
 func (r *Collector) StopSubscription(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop subscription")
+	r.setNewPaths(nil)
 	r.m.Lock()
 	defer r.m.Unlock()
 	if r.subscriptionCancel != nil {
