@@ -30,10 +30,10 @@ spec:
     - jsonPath: .spec.encoding
       name: ENCODING
       type: string
-    - jsonPath: .spec.subscription[0].mode
+    - jsonPath: .spec.subscriptions[0].mode
       name: MODE
       type: string
-    - jsonPath: .spec.subscription[0].interval
+    - jsonPath: .spec.subscriptions[0].interval
       name: INTERVAL
       type: string
     name: v1alpha1
@@ -58,9 +58,6 @@ spec:
             properties:
               encoding:
                 enum:
-                - UNKNOWN
-                - JSON
-                - JSON_IETF
                 - PROTO
                 - ASCII
                 type: string

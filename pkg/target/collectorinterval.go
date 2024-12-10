@@ -137,7 +137,7 @@ START:
 			goto START
 		}
 		log.Info("subscription request", "req", prototext.Format(subReq))
-		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver onchange %d %s", r.interval, subEncoding.String()))
+		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver %s %d %s", collectorType, r.interval, subEncoding.String()))
 	}
 
 	// stop the subscriptions once stopped

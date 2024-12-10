@@ -96,8 +96,8 @@ type SubscriptionStatus struct {
 // +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.protocol"
 // +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.port"
 // +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.encoding"
-// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.subscription[0].mode"
-// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.subscription[0].interval"
+// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.subscriptions[0].mode"
+// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.subscriptions[0].interval"
 // +kubebuilder:resource:categories={sdc,inv}
 // Subscription is the Schema for the Subscription API
 // +k8s:openapi-gen=true
