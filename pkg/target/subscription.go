@@ -77,7 +77,7 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 			// remove the item from the exesting list otherwise it will be deleted
 			existingCRPathSubscriptionSet, ok := existingCRSubscriptions[path]
 			if ok {
-				existingCRPathSubscriptionSet.Delete(subscriptionNSNName)
+				existingCRPathSubscriptionSet.Delete(path)
 				existingCRSubscriptions[path] = existingCRPathSubscriptionSet
 				if len(existingCRPathSubscriptionSet) == 0 {
 					delete(existingCRPathSubscriptionSet, path)
@@ -85,38 +85,30 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 			}
 
 			// convert the subscriptions parameters to a subscription we manage in this cache
-			subscription := getSubscription(subscriptionNSN, subParam, subscription.GetEncoding())
-			// check if the path exists in the path subscriptions
+			newSubscription := getSubscription(subscriptionNSN, subParam, subscription.GetEncoding())
+			// check if the path exists in the existing path subscriptions
 			pathSubscriptions, err := r.Paths.Get(key)
 			if err != nil {
-				// does not exist
 				pathSubscriptions = &PathSubscriptions{
-					AllSubscriptions: map[string]*Subscription{
-						subscriptionNSN: subscription,
-					},
+					AllSubscriptions: make(map[string]*Subscription),
 				}
-				if subscription.Enabled {
-					pathSubscriptions.Current = subscription
-				}
-				if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
-					errs = errors.Join(errs, err)
-				}
-				continue
 			}
-			pathSubscriptions.AllSubscriptions[subscriptionNSNName] = subscription
+
+			pathSubscriptions.AllSubscriptions[subscriptionNSNName] = newSubscription
+
 			// check if we need to update current
-			if subscription.Enabled {
+			if newSubscription.Enabled {
 				if pathSubscriptions.Current == nil {
 					// if no current subscription exists and we get an enabled subsription this subscription becomes current
-					pathSubscriptions.Current = subscription
+					pathSubscriptions.Current = newSubscription
 				} else {
 					// it can be that the parameters changed
 					if subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
-						pathSubscriptions.Current = subscription
+						pathSubscriptions.Current = newSubscription
 					}
 					// current exists
-					if subscription.Interval < pathSubscriptions.Current.Interval {
-						pathSubscriptions.Current = subscription
+					if newSubscription.Interval < pathSubscriptions.Current.Interval {
+						pathSubscriptions.Current = newSubscription
 					}
 				}
 			}
@@ -156,6 +148,10 @@ func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) 
 					}
 				}
 			}
+			// ignoring error for now
+			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
+				errs = errors.Join(errs, err)
+			}
 		}
 	}
 	return errs
@@ -173,7 +169,7 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 			if err != nil {
 				continue
 			}
-			delete(pathSubscriptions.AllSubscriptions, subscriptionNSN)
+			delete(pathSubscriptions.AllSubscriptions, subscriptionNSNName)
 			if len(pathSubscriptions.AllSubscriptions) == 0 {
 				// if no subscriptions exist we can delete the path from the cache
 				if err := r.Paths.Delete(key); err != nil {
@@ -192,6 +188,11 @@ func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) 
 					}
 				}
 			}
+			// ignoring error for now
+			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
+				errs = errors.Join(errs, err)
+			}
+
 		}
 	}
 	return errs

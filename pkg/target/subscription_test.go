@@ -106,6 +106,12 @@ func TestDelSubscription(t *testing.T) {
 	err := subscriptions.AddSubscription(sub1)
 	assert.NoError(t, err)
 
+	err = subscriptions.AddSubscription(sub1)
+	assert.NoError(t, err)
+
+	err = subscriptions.AddSubscription(sub1)
+	assert.NoError(t, err)
+
 	// Verify the path exists
 	paths := subscriptions.GetPaths()
 	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
@@ -223,7 +229,6 @@ func TestModifyEncoding(t *testing.T) {
 
 	paths := subscriptions.GetPaths()
 	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
-
 
 	err = subscriptions.AddSubscription(sub2)
 	assert.NoError(t, err)
