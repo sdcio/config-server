@@ -167,10 +167,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not ready (rady state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Debug("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
+	log.Info("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
+		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "discovery not ready", nil, true), errUpdateStatus)
 	}
 
@@ -189,12 +189,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// update the target store with the updated information
 	curtctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil || !curtctx.IsReady() {
+		target, rerr := r.updateStatusReinitializing(ctx, targetOrig)
+		if rerr != nil {
+			return ctrl.Result{},
+				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", rerr, true), errUpdateStatus)
+		}
+		targetOrig = target
+
 		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
 		if serr != nil {
 			log.Debug("cannot select a dataserver", "error", err)
 			return ctrl.Result{},
-				errors.Wrap(r.handleError(ctx, targetOrig, "schema not ready", err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, targetOrig, "no available dataserver", err, true), errUpdateStatus)
 		}
 		// add the target to the DS
 		r.addTargetToDataServer(ctx, storebackend.ToKey(selectedDSctx.DSClient.GetAddress()), targetKey)
@@ -237,9 +244,40 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
 }
 
+func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *invv1alpha1.Target) (*invv1alpha1.Target, error) {
+	log := log.FromContext(ctx)
+	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(target.DeepCopy())
+	// update status
+	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
+	target.Status.UsedReferences = nil
+	//target.SetOverallStatus()
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
+
+	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+
+	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}); err != nil {
+		log.Error("update status failed", "error", err)
+		return nil, err
+	}
+
+	nsn := target.GetNamespacedName()
+	target = &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, nsn, target); err != nil {
+		log.Error("get target failed", "nsn", nsn, "error", err)
+		return nil, err
+	}
+	return target.DeepCopy(), nil
+}
+
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
@@ -308,7 +346,7 @@ func (r *reconciler) addTargetToDataServer(ctx context.Context, dsKey storebacke
 		return
 	}
 
-	if err := r.dataServerStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, dsctx sdcctx.DSContext) sdcctx.DSContext {
+	if err := r.dataServerStore.UpdateWithKeyFn(ctx, dsKey, func(ctx context.Context, dsctx sdcctx.DSContext) sdcctx.DSContext {
 		dsctx.Targets = dsctx.Targets.Insert(targetKey.String())
 		return dsctx
 	}); err != nil {
@@ -367,19 +405,25 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 	log.Info("getTargetStatus", "status", resp.Target.Status.String(), "details", resp.Target.StatusDetails)
 	if resp.Target.Status != sdcpb.TargetStatus_CONNECTED {
-		if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
-			tctx.SetNotReady(ctx)
+		if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
+			if tctx != nil {
+				tctx.SetNotReady(ctx)
+			}
 			return tctx
 		}); err != nil {
+			log.Error("getTargetStatus SetNotReady update datastore failed", "err", err)
 			return true, err
 		}
 		return false, nil
 	}
 
-	if err := r.targetStore.UpdateWithFn(ctx, func(ctx context.Context, key storebackend.Key, tctx *sdctarget.Context) *sdctarget.Context {
-		tctx.SetReady(ctx)
+	if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
+		if tctx != nil {
+			tctx.SetReady(ctx)
+		}
 		return tctx
 	}); err != nil {
+		log.Error("getTargetStatus SetReady update datastore failed", "err", err)
 		return true, err
 	}
 	return true, nil

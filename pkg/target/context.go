@@ -20,15 +20,20 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	"github.com/openconfig/gnmic/pkg/cache"
+	"github.com/prometheus/prometheus/prompb"
 	"github.com/sdcio/config-server/apis/config"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,20 +41,57 @@ import (
 
 type Context struct {
 	targetKey        storebackend.Key
-	ready            bool
-	dataStore        *sdcpb.CreateDataStoreRequest
 	client           client.Client
 	dsclient         dsclient.Client
 	deviationWatcher *DeviationWatcher
+	// Subscription parameters
+	collector     *Collector
+	subscriptions *Subscriptions
+
+	m            sync.RWMutex
+	ready        bool
+	datastoreReq *sdcpb.CreateDataStoreRequest
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
+	subscriptions := NewSubscriptions()
 	return &Context{
 		targetKey:        targetKey,
 		client:           client,
 		dsclient:         dsclient,
 		deviationWatcher: NewDeviationWatcher(targetKey, client, dsclient),
+		collector:        NewCollector(targetKey, subscriptions),
+		subscriptions:    subscriptions,
+		//cache:            cache.New([]string{}, cache.WithLogging(logging.NewLogrLogger())),
 	}
+}
+
+func (r *Context) getDatastoreReq() *sdcpb.CreateDataStoreRequest {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	if r.datastoreReq == nil {
+		return nil
+	}
+	clone := proto.Clone(r.datastoreReq)
+	return clone.(*sdcpb.CreateDataStoreRequest)
+}
+
+func (r *Context) setDatastoreReq(req *sdcpb.CreateDataStoreRequest) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.datastoreReq = req
+}
+
+func (r *Context) getReady() bool {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.ready
+}
+
+func (r *Context) setReady(b bool) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.ready = b
 }
 
 func (r *Context) GetAddress() string {
@@ -60,23 +102,27 @@ func (r *Context) GetAddress() string {
 }
 
 func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
-	if r.dataStore == nil {
+	req := r.getDatastoreReq()
+	if req == nil {
 		return &config.ConfigStatusLastKnownGoodSchema{}
 	}
 	return &config.ConfigStatusLastKnownGoodSchema{
-		Type:    r.dataStore.Schema.Name,
-		Vendor:  r.dataStore.Schema.Vendor,
-		Version: r.dataStore.Schema.Version,
+		Type:    req.Schema.Name,
+		Vendor:  req.Schema.Vendor,
+		Version: req.Schema.Version,
 	}
 }
 
 func (r *Context) DeleteDS(ctx context.Context) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	r.ready = false
+	r.setReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
 	}
-	r.dataStore = nil
+	if r.collector != nil {
+		r.collector.Stop(ctx)
+	}
+	r.setDatastoreReq(nil)
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
 	if err != nil {
 		log.Error("cannot delete datstore in dataserver", "error", err)
@@ -86,44 +132,73 @@ func (r *Context) DeleteDS(ctx context.Context) error {
 	return nil
 }
 
-func (r *Context) CreateDS(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataStoreRequest) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	rsp, err := r.createDataStore(ctx, req)
+	rsp, err := r.createDataStore(ctx, datastoreReq)
 	if err != nil {
 		log.Error("cannot create datastore in dataserver", "error", err)
 		return err
 	}
-	r.dataStore = req
-	r.ready = true
+	r.setDatastoreReq(datastoreReq)
+	r.setReady(true)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
+	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil && req.Target != nil {
+			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+				log.Error("setready starting collector failed", "err", err)
+			}
+		}
+
+	}
+	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
 }
 
 func (r *Context) IsReady() bool {
-	if r.client != nil && r.dataStore != nil && r.ready {
+	if r == nil {
+		return false
+	}
+	if r.client != nil && r.getDatastoreReq() != nil && r.getReady() {
 		return true
 	}
 	return false
 }
 
 func (r *Context) SetNotReady(ctx context.Context) {
-	r.ready = false
+	r.setReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
+	}
+	if r.collector != nil {
+		r.collector.Stop(ctx)
 	}
 }
 
 func (r *Context) SetReady(ctx context.Context) {
-	r.ready = true
+	log := log.FromContext(ctx)
+	r.setReady(true)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
+	}
+	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil && req.Target != nil {
+			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
+				log.Error("setready starting collector failed", "err", err)
+			}
+		}
+
 	}
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
@@ -131,6 +206,9 @@ func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStore
 }
 
 func (r *Context) createDataStore(ctx context.Context, in *sdcpb.CreateDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.CreateDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
@@ -138,6 +216,9 @@ func (r *Context) createDataStore(ctx context.Context, in *sdcpb.CreateDataStore
 }
 
 func (r *Context) GetDataStore(ctx context.Context, in *sdcpb.GetDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.GetDataStoreResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("datastore client not initialized")
+	}
 	if r.dsclient == nil {
 		return nil, fmt.Errorf("datastore client not initialized")
 	}
@@ -279,4 +360,70 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 			},
 		},
 	), nil
+}
+
+func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
+	if err := r.subscriptions.DelSubscription(sub); err != nil {
+		return err
+	}
+	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
+	// if we have no longer subscriptions we stop the collector
+	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
+		r.collector.Stop(ctx)
+		return nil
+	}
+	if r.collector != nil && r.collector.IsRunning() {
+		r.updateSubscription()
+	}
+	return nil
+}
+
+func (r *Context) updateSubscription() {
+	// other subscriptions exist, update the subscription
+	subCh := r.collector.GetUpdateChan()
+	subCh <- struct{}{}
+}
+
+func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
+	// This should change to the target context and discovery
+	if sub.Spec.Protocol != invv1alpha1.Protocol_GNMI {
+		return fmt.Errorf("subscriptions only supported using gnmi, got %s", string(sub.Spec.Protocol))
+	}
+	r.collector.SetPort(sub.Spec.Port)
+	if err := r.subscriptions.AddSubscription(sub); err != nil {
+		return err
+	}
+	// above should be changed to subscription profile in the target
+
+	if r.collector != nil && !r.collector.IsRunning() {
+		req := r.getDatastoreReq()
+		if r.IsReady() && req != nil && req.Target != nil {
+			// starting a collector also updates the subscriptions
+			if err := r.collector.Start(ctx, req); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	r.updateSubscription()
+	return nil
+}
+
+func (r *Context) GetCache() cache.Cache {
+	return r.collector.cache
+}
+
+func (r *Context) GetPrombLabels() []prompb.Label {
+	labels := make([]prompb.Label, 0)
+	labels = append(labels, prompb.Label{Name: "target_name", Value: r.targetKey.String()})
+
+	req := r.getDatastoreReq()
+	if req != nil {
+		labels = append(labels, prompb.Label{Name: "vendor", Value: req.Schema.Vendor})
+		labels = append(labels, prompb.Label{Name: "version", Value: req.Schema.Version})
+		labels = append(labels, prompb.Label{Name: "address", Value: req.Target.Address})
+	}
+	return labels
 }

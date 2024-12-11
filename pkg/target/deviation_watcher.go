@@ -63,7 +63,7 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 		return
 	}
 	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.targetKey.String())
-	log.Info("stop")
+	log.Info("stop deviationWatcher")
 	r.cancel()
 	r.cancel = nil
 }
@@ -79,7 +79,7 @@ func (r *DeviationWatcher) Start(ctx context.Context) {
 
 func (r *DeviationWatcher) start(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.targetKey.String())
-	log.Info("start")
+	log.Info("start deviationWatcher")
 	var err error
 	var stream sdcpb.DataServer_WatchDeviationsClient
 	started := false

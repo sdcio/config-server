@@ -35,6 +35,27 @@ const (
 	Encoding_CONFIG    Encoding = "CONFIG"
 )
 
+func (r Encoding) String() string {
+	switch r {
+	case Encoding_UNKNOWN:
+		return "UNKNOWN"
+	case Encoding_JSON:
+		return "JSON"
+	case Encoding_JSON_IETF:
+		return "JSON_IETF"
+	case Encoding_BYTES:
+		return "BYTES"
+	case Encoding_PROTO:
+		return "PROTO"
+	case Encoding_ASCII:
+		return "ASCII"
+	case Encoding_CONFIG:
+		return "CONFIG"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 type Protocol string
 
 const (
