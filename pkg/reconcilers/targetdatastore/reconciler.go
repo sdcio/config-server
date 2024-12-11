@@ -195,7 +195,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				errors.Wrap(r.handleError(ctx, targetOrig, "reinitialzing failed", rerr, true), errUpdateStatus)
 		}
 		targetOrig = target
-		log.Info("")
 
 		// select a dataserver
 		selectedDSctx, serr := r.selectDataServerContext(ctx)
