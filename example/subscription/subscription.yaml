@@ -14,22 +14,14 @@ spec:
       matchLabels:
         sdcio.dev/region: us-east
   protocol: gnmi
-  encoding: PROTO
   port: 57400
+  encoding: PROTO
   subscriptions:
   - name: interface
     description: collect interface statistics
     adminState: enabled
-    mode: onChange
+    mode: sample
+    interval: 15s
     paths:
     - /interface[name=*]/statistics
     - /system/lldp/interface[name=*]/statistics
-    
- 
- ##
- /interface/statistics
- - srl:  
-    - /interface/statistics 
-    - transformer: 
- - arista: /interface/statistics
- /system/lldp/interface/statistics
