@@ -16,10 +16,7 @@ dockers:
     ids:
       - config-server
     image_templates:
-      - "registry.k8s.sdcio.dev/sdcio/config-server:v0.0.0-{{ .ShortCommit }}"
-      - "registry.k8s.sdcio.dev/sdcio/config-server:v0.0.0-dev-latest"
-      #- "registry.kmrd.dev/sdcio/config-server:v0.0.0-{{ .ShortCommit }}"
-      #- "registry.kmrd.dev/sdcio/config-server:v0.0.0-dev-latest"
+      - "registry.k8s.sdcio.dev/sdcio/config-server:v0.0.0-{{ if index .Env \"PR\"  }}PR{{ .Env.PR }}-{{ .ShortCommit }}{{ else }}{{ .ShortCommit }}{{ end }}"
     dockerfile: goreleaser.dockerfile
     skip_push: false
     build_flag_templates:
