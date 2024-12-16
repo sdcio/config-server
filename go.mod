@@ -33,12 +33,12 @@ require (
 	golang.org/x/sync v0.10.0
 	google.golang.org/grpc v1.68.1
 	google.golang.org/protobuf v1.35.2
-	k8s.io/api v0.31.4
-	k8s.io/apimachinery v0.31.4
+	k8s.io/api v0.32.0
+	k8s.io/apimachinery v0.32.0
 	k8s.io/apiserver v0.31.4
-	k8s.io/client-go v0.31.4
+	k8s.io/client-go v0.32.0
 	k8s.io/code-generator v0.31.3
-	k8s.io/component-base v0.31.4
+	k8s.io/component-base v0.32.0
 	k8s.io/kube-openapi v0.0.0-20241127205056-99599406b04f
 	k8s.io/utils v0.0.0-20241104163129-6fe5fd82f078
 	sigs.k8s.io/controller-runtime v0.19.3
@@ -97,7 +97,6 @@ require (
 	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jhump/protoreflect v1.17.0 // indirect
