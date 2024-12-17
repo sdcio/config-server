@@ -69,7 +69,7 @@ jobs:
       - name: Extract docker image build version from GoReleaser
         id: image
         run: |
-          echo "version=$( echo ${{ steps.goreleaser.outputs.artifacts }} | jq '.[] | select(.type == \"Published Docker Image\" and (.name | contains(\"registry.k8s.sdcio.dev\")) and (.name | contains(\"latest\") | not)) | .name | split(\":\") | .[1]' )" >> $GITHUB_OUTPUT
+          echo "version=$( echo ${{ steps.goreleaser.outputs.artifacts }} | jq '.[] | select(.type == "Published Docker Image" and (.name | contains("registry.k8s.sdcio.dev")) and (.name | contains("latest") | not)) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
 
   latest-versions:
     name: Fetch latest versions from GH API
@@ -97,6 +97,6 @@ jobs:
       configserver_version: ${{ needs.pr-release.outputs.configversion }}
       dataserver_version: ${{ needs.latest-versions.outputs.dataversion }}
       schemaserver_version: ${{ needs.latest-versions.outputs.schemaversion }}
-      cache_version: ${{ needs.latest-version
+      cache_version: ${{ needs.latest-versions.outputs.cacheversion }}
       certmanager_version: ${{ needs.latest-versions.outputs.certmanagerversion }}
     secrets: inherit
