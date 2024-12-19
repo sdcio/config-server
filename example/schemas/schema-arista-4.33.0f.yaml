@@ -1,0 +1,66 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+####### HEADER END #######
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Schema
+metadata:
+  name: eos.arista.4.33.0f
+  namespace: default
+spec:
+  provider: eos.arista.sdcio.dev
+  version: 4.33.0F
+  repositories:
+  - repoURL: https://github.com/aristanetworks/yang
+    kind: branch
+    ref: master
+    dirs:
+    - src: EOS-4.33.0F
+      dst: .
+    schema:
+      models:
+        - release/openconfig/models
+        - experimental/eos/models
+        - openconfig/public
+      includes:
+        - ietf
+      excludes:
+        - arista-ale-counters-.*
+        - arista-open-config-open-config-system-session-config.yang
+        - arista-acl-notsupported-deviations.yang
+        - arista-bfd-notsupported-deviations.yang
+        - arista-defined-sets-notsupported-deviations.yang
+        - arista-interfaces-notsupported-deviations.yang
+        - arista-keychain-notsupported-deviations.yang
+        - arista-lacp-notsupported-deviations.yang
+        - arista-lldp-notsupported-deviations.yang
+        - arista-macsec-notsupported-deviations.yang
+        - arista-network-instance-notsupported-deviations.yang
+        - arista-platform-notsupported-deviations.yang
+        - arista-qos-notsupported-deviations.yang
+        - arista-sampling-notsupported-deviations.yang
+        - arista-spanning-tree-notsupported-deviations.yang
+        - arista-system-notsupported-deviations.yang
+        - arista-telemetry-notsupported-deviations.yang
+        - arista-terminal-device-notsupported-deviations.yang
+  - repoURL: https://github.com/YangModels/yang
+    kind: branch
+    ref: main
+    dirs:
+      - src: standard/ietf/RFC
+        dst: ietf
+    schema:
+      models:
+        - ietf/ietf-inet-types.yang
+        - ietf/ietf-yang-types.yang
+  # Arista has broken yang models, we're applying deviations here to fix the YANG model, until Arista has fixed it upstream.
+  - repoURL: https://github.com/sdcio/arista-yang-patch
+    kind: branch
+    ref: main
+    dirs:
+      - src: .
+        dst: sdcio-deviations
+    schema:
+      models:
+        - sdcio-deviations/EOS-4.33.0F/release/openconfig/models
