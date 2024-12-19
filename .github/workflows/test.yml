@@ -11,10 +11,10 @@ on:
       - "main"
       - "!releases/**"
 env:
-  GOVER: 1.21.4
+  GOVER: 1.23.3
 
 jobs:
-  test:
+  unittest:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -35,3 +35,68 @@ jobs:
       #     filter_mode: nofilter
       #     # Exit with 1 when it find at least one finding.
       #     fail_on_error: true
+  pr-release:
+    runs-on: sdcio-action-runners
+    needs: unittest
+    outputs:
+      configversion: ${{ steps.image.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Login to private k8s Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.k8s.sdcio.dev
+          username: iptecharch-builder
+          password: ${{ secrets.K8S_REGISTRY_HANS }}
+
+      - name: Run GoReleaser
+        id: goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro'
+          distribution: goreleaser
+          version: latest
+          args: release --clean -f .goreleaser.nightlies.yml --skip=validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
+          PR: ${{ github.event.pull_request.number }}
+
+      - name: Extract docker image build version from GoReleaser
+        id: image
+        run: |
+          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq '.[] | select(.type == "Published Docker Image" and (.name | contains("registry.k8s.sdcio.dev")) and (.name | contains("latest") | not)) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
+
+  latest-versions:
+    name: Fetch latest versions from GH API
+    runs-on: sdcio-action-runners
+    outputs:
+      schemaversion: ${{ steps.latest-versions.outputs.schemaversion }}
+      dataversion: ${{ steps.latest-versions.outputs.dataversion }}
+      cacheversion: ${{ steps.latest-versions.outputs.cacheversion }}
+      configversion: ${{ steps.latest-versions.outputs.configversion }}
+      certmanagerversion: ${{ steps.latest-versions.outputs.certmanagerversion }}
+    steps:
+      - name: Set env vars
+        id: latest-versions
+        run: |
+          echo "schemaversion=$( curl -sL https://api.github.com/repos/sdcio/schema-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
+          echo "dataversion=$( curl -sL https://api.github.com/repos/sdcio/data-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
+          echo "cacheversion=$( curl -sL https://api.github.com/repos/sdcio/cache/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
+          echo "configversion=$( curl -sL https://api.github.com/repos/sdcio/config-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
+          echo "certmanagerversion=$( curl -sL https://api.github.com/repos/cert-manager/cert-manager/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
+
+  integration-tests:
+    needs: [latest-versions, pr-release]
+    uses: sdcio/integration-tests/.github/workflows/single.yml@main
+    with:
+      configserver_version: ${{ needs.pr-release.outputs.configversion }}
+      dataserver_version: ${{ needs.latest-versions.outputs.dataversion }}
+      schemaserver_version: ${{ needs.latest-versions.outputs.schemaversion }}
+      cache_version: ${{ needs.latest-versions.outputs.cacheversion }}
+      certmanager_version: ${{ needs.latest-versions.outputs.certmanagerversion }}
+    secrets: inherit
