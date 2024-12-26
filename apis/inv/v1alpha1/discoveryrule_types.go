@@ -37,90 +37,90 @@ const (
 // DiscoveryRuleSpec defines the desired state of DiscoveryRule
 type DiscoveryRuleSpec struct {
 	// IP Prefixes for which this discovery rule applies
-	Prefixes []DiscoveryRulePrefix `json:"prefixes,omitempty" yaml:"prefixes,omitempty"`
+	Prefixes []DiscoveryRulePrefix `json:"prefixes,omitempty" yaml:"prefixes,omitempty" protobuf:"bytes,1,rep,name=prefixes"`
 	// IP Prefixes for which this discovery rule applies
-	Addresses []DiscoveryRuleAddress `json:"addresses,omitempty" yaml:"addresses,omitempty"`
+	Addresses []DiscoveryRuleAddress `json:"addresses,omitempty" yaml:"addresses,omitempty" protobuf:"bytes,2,rep,name=addresses"`
 	// PodSelector defines the pod selector for which this discovery rule applies
-	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty" yaml:"podSelector,omitempty"`
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty" yaml:"podSelector,omitempty" protobuf:"bytes,3,opt,name=podSelector"`
 	// ServiceSelector defines the service selector for which this discovery rule applies
-	ServiceSelector *metav1.LabelSelector `json:"serviceSelector,omitempty" yaml:"serviceSelector,omitempty"`
+	ServiceSelector *metav1.LabelSelector `json:"serviceSelector,omitempty" yaml:"serviceSelector,omitempty" protobuf:"bytes,4,opt,name=serviceSelector"`
 	// ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the
 	// domain name in the k8s cluster where the service reside.
-	ServiceDomain string `json:"serviceDomain,omitempty" yaml:"serviceDomain,omitempty"`
+	ServiceDomain string `json:"serviceDomain,omitempty" yaml:"serviceDomain,omitempty" protobuf:"bytes,5,opt,name=serviceDomain"`
 	// Discovery defines the generic parameters of the discovery rule
-	DiscoveryParameters `json:",inline" yaml:",inline"`
+	DiscoveryParameters `json:",inline" yaml:",inline" protobuf:"bytes,6,opt,name=discoveryParameters"`
 }
 
 type DiscoveryParameters struct {
 	// DefaultSchema define the default schema used to connect to a target
 	// Indicates that discovery is disable; cannot be used for prefix based discovery rules
-	DefaultSchema *SchemaKey `json:"defaultSchema,omitempty" yaml:"defaultSchema,omitempty"`
+	DefaultSchema *SchemaKey `json:"defaultSchema,omitempty" yaml:"defaultSchema,omitempty" protobuf:"bytes,1,opt,name=defaultSchema"`
 	// DiscoveryProfile define the profiles the discovery controller uses to discover targets
-	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty"`
+	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty" protobuf:"bytes,2,opt,name=discoveryProfile"`
 	// TargetConnectionProfiles define the profile the discovery controller uses to create targets
 	// once discovered
-	TargetConnectionProfiles []TargetProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles"`
+	TargetConnectionProfiles []TargetProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles" protobuf:"bytes,3,rep,name=targetConnectionProfiles"`
 	// TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
-	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty"`
+	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty" protobuf:"bytes,4,opt,name=targetTemplate"`
 	// Period defines the wait period between discovery rule runs
-	Period metav1.Duration `json:"period,omitempty" yaml:"period,omitempty"`
+	Period metav1.Duration `json:"period,omitempty" yaml:"period,omitempty" protobuf:"bytes,5,opt,name=period"`
 	// number of concurrent IP scan
-	ConcurrentScans int64 `json:"concurrentScans,omitempty" yaml:"concurrentScans,omitempty"`
+	ConcurrentScans int64 `json:"concurrentScans,omitempty" yaml:"concurrentScans,omitempty" protobuf:"varint,6,opt,name=concurrentScans"`
 }
 
 type DiscoveryRulePrefix struct {
 	// Prefix of the target/target(s)
-	Prefix string `json:"prefix" yaml:"prefix"`
+	Prefix string `json:"prefix" yaml:"prefix" protobuf:"bytes,1,opt,name=prefix"`
 	// IP Prefixes to be excluded
-	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty"`
+	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty" protobuf:"bytes,2,rep,name=excludes"`
 }
 
 type DiscoveryRuleAddress struct {
 	// Address (specified as IP or DNS name) of the target/target(s)
-	Address string `json:"address" yaml:"address"`
+	Address string `json:"address" yaml:"address" protobuf:"bytes,1,opt,name=address"`
 	// HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled
-	HostName string `json:"hostName,omitempty" yaml:"hostName,omitempty"`
+	HostName string `json:"hostName,omitempty" yaml:"hostName,omitempty" protobuf:"bytes,2,opt,name=hostName"`
 }
 
 type DiscoveryProfile struct {
 	// Credentials defines the name of the secret that holds the credentials to connect to the target
-	Credentials string `json:"credentials" yaml:"credentials"`
+	Credentials string `json:"credentials" yaml:"credentials" protobuf:"bytes,1,opt,name=credentials"`
 	// TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
-	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty"`
+	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty" protobuf:"bytes,2,opt,name=tlsSecret"`
 	// ConnectionProfiles define the list of profiles the discovery controller uses to discover the target.
 	// The order in which they are specified is the order in which discovery is executed.
-	ConnectionProfiles []string `json:"connectionProfiles" yaml:"connectionProfiles"`
+	ConnectionProfiles []string `json:"connectionProfiles" yaml:"connectionProfiles" protobuf:"bytes,3,rep,name=connectionProfiles"`
 }
 
 type TargetProfile struct {
 	// Credentials defines the name of the secret that holds the credentials to connect to the target
-	Credentials string `json:"credentials" yaml:"credentials"`
+	Credentials string `json:"credentials" yaml:"credentials" protobuf:"bytes,1,opt,name=credentials"`
 	// TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
-	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty"`
+	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty" protobuf:"bytes,2,opt,name=tlsSecret"`
 	// ConnectionProfile define the profile used to connect to the target once discovered
-	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile"`
+	ConnectionProfile string `json:"connectionProfile" yaml:"connectionProfile" protobuf:"bytes,3,opt,name=connectionProfile"`
 	// SyncProfile define the profile used to sync to the target config once discovered
-	SyncProfile *string `json:"syncProfile,omitempty" yaml:"syncProfile,omitempty"`
+	SyncProfile *string `json:"syncProfile,omitempty" yaml:"syncProfile,omitempty" protobuf:"bytes,4,opt,name=syncProfile"`
 }
 
 // TargetTemplate defines the template of the target
 type TargetTemplate struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="nameTemplate is immutable"
 	// target name template
-	NameTemplate string `json:"nameTemplate,omitempty" yaml:"nameTemplate,omitempty"`
+	NameTemplate string `json:"nameTemplate,omitempty" yaml:"nameTemplate,omitempty" protobuf:"bytes,1,opt,name=nameTemplate"`
 	// Annotations is a key value map to be copied to the target CR.
 	// +optional
-	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
 	// Labels is a key value map to be copied to the target CR.
 	// +optional
-	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty" protobuf:"bytes,3,rep,name=labels"`
 }
 
 type SchemaKey struct {
 	// Provider specifies the provider of the schema.
-	Provider string `json:"provider" yaml:"provider"`
+	Provider string `json:"provider" yaml:"provider" protobuf:"bytes,1,opt,name=provider"`
 	// Version defines the version of the schema
-	Version string `json:"version" yaml:"version"`
+	Version string `json:"version" yaml:"version" protobuf:"bytes,2,opt,name=version"`
 }
 
 // DiscoveryRuleStatus defines the observed state of DiscoveryRule
@@ -130,9 +130,9 @@ type DiscoveryRuleStatus struct {
 	// - a condition for the reconcilation status
 	// - a condition for the ready status
 	// if both are true the other attributes in the status are meaningful
-	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// StartTime identifies when the dr got started
-	StartTime metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty"`
+	StartTime metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty" protobuf:"bytes,2,opt,name=startTime"`
 }
 
 // +kubebuilder:object:root=true
@@ -146,10 +146,10 @@ type DiscoveryRuleStatus struct {
 // +k8s:openapi-gen=true
 type DiscoveryRule struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   DiscoveryRuleSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Status DiscoveryRuleStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Spec   DiscoveryRuleSpec   `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status DiscoveryRuleStatus `json:"status,omitempty" yaml:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // +kubebuilder:object:root=true
@@ -157,8 +157,8 @@ type DiscoveryRule struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type DiscoveryRuleList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []DiscoveryRule `json:"items" yaml:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []DiscoveryRule `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 func init() {

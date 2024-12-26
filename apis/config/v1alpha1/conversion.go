@@ -54,7 +54,6 @@ func autoConvert_condition_Condition_To_v1alpha1_Condition(in *condition.Conditi
 	return nil
 }
 
-
 // Convert_TargetStatus_To_config_TargetStatus is hand made conversion function.
 func Convert_v1alpha1_Condition_To_condition_Condition(in *v1alpha1.Condition, out *condition.Condition, s conversion.Scope) error {
 	return autoConvert_v1alpha1_Condition_To_condition_Condition(in, out, s)

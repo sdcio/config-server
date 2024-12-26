@@ -36,15 +36,15 @@ type SubscriptionSpec struct {
 	Target SubscriptionTarget `json:"target" protobuf:"bytes,1,opt,name=target"`
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
-	Protocol Protocol `json:"protocol"`
+	Protocol Protocol `json:"protocol" protobuf:"bytes,2,opt,name=protocol,casttype=Protocol"`
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
-	Port uint `json:"port"`
+	Port uint32 `json:"port" protobuf:"varint,3,opt,name=port"`
 	// +kubebuilder:validation:Enum=PROTO;ASCII;
-	Encoding *Encoding `json:"encoding,omitempty"`
+	Encoding *Encoding `json:"encoding,omitempty" protobuf:"bytes,4,opt,name=encoding,casttype=Encoding"`
 	// +kubebuilder:validation:MaxItems=128
 	// +kubebuilder:validation:Optional
-	Subscriptions []SubscriptionParameters `json:"subscriptions"`
+	Subscriptions []SubscriptionParameters `json:"subscriptions" protobuf:"bytes,5,rep,name=subscriptions"`
 }
 
 type SubscriptionTarget struct {
@@ -55,26 +55,26 @@ type SubscriptionTarget struct {
 // SubscriptionSync defines the desired Subscription of SubscriptionSync
 type SubscriptionParameters struct {
 	// Name defines the name of the group of the Subscription to be collected
-	Name string `json:"name"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Description details what the Subscription collection is about
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
 	// Labels can be defined as user defined data to provide extra context
 	// +optional
-	Labels map[string]string `json:"labels,omitempty"`
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,3,rep,name=labels"`
 	// AdminState allows to disable the subscription
 	// +kubebuilder:validation:Enum=enabled;disabled;
 	// +kubebuilder:default:="enabled"
-	AdminState *AdminState `json:"adminState,omitempty"`
+	AdminState *AdminState `json:"adminState,omitempty" protobuf:"bytes,4,opt,name=adminState,casttype=AdminState"`
 	// +kubebuilder:validation:Enum=unknown;onChange;sample;
 	// +kubebuilder:default:="sample"
-	Mode SyncMode `json:"mode"`
+	Mode SyncMode `json:"mode" protobuf:"bytes,5,opt,name=mode,casttype=SyncMode"`
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=duration
 	// +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
 	// +kubebuilder:validation:Enum="1s";"15s";"30s";"60s";
-	Interval *metav1.Duration `json:"interval,omitempty"`
+	Interval *metav1.Duration `json:"interval,omitempty" protobuf:"bytes,6,opt,name=interval"`
 	// +kubebuilder:validation:MaxItems=128
-	Paths []string `json:"paths"`
+	Paths []string `json:"paths" protobuf:"bytes,7,rep,name=paths"`
 	// TODO Outputs define the outputs to which this information should go -> reight now we only support prometheus locally
 	// this looks up another CR where they are defined with their respective secrets, etc
 	//Outputs []string
@@ -82,9 +82,9 @@ type SubscriptionParameters struct {
 
 type SubscriptionStatus struct {
 	// ConditionedStatus provides the status of the Schema using conditions
-	condv1alpha1.ConditionedStatus `json:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the list of targets this resource applies to
-	Targets []string `json:"targets,omitempty"`
+	Targets []string `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 
 // +kubebuilder:object:root=true
@@ -103,10 +103,10 @@ type SubscriptionStatus struct {
 // +k8s:openapi-gen=true
 type Subscription struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   SubscriptionSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Status SubscriptionStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Spec   SubscriptionSpec   `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status SubscriptionStatus `json:"status,omitempty" yaml:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // +kubebuilder:object:root=true
@@ -114,8 +114,8 @@ type Subscription struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type SubscriptionList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []Subscription `json:"items" yaml:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []Subscription `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 func init() {

@@ -38,40 +38,40 @@ const (
 type TargetSyncProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="validate is immutable"
 	// +kubebuilder:default:=true
-	Validate bool `json:"validate,omitempty" yaml:"validate,omitempty"`
+	Validate bool `json:"validate,omitempty" yaml:"validate,omitempty" protobuf:"varint,1,opt,name=validate"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="buffer is immutable"
 	// +kubebuilder:default:=0
-	Buffer int64 `json:"buffer,omitempty" yaml:"buffer,omitempty"`
+	Buffer int64 `json:"buffer,omitempty" yaml:"buffer,omitempty" protobuf:"varint,2,opt,name=buffer"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="workers is immutable"
 	// +kubebuilder:default:=10
-	Workers int64 `json:"workers,omitempty" yaml:"workers,omitempty"`
+	Workers int64 `json:"workers,omitempty" yaml:"workers,omitempty" protobuf:"varint,3,opt,name=workers"`
 	// +kubebuilder:validation:MaxItems=10
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync may only be added"
-	Sync []TargetSyncProfileSync `json:"sync" yaml:"sync"`
+	Sync []TargetSyncProfileSync `json:"sync" yaml:"sync" protobuf:"bytes,4,rep,name=sync"`
 }
 
 // TargetSyncProfileSync defines the desired state of TargetSyncProfileSync
 type TargetSyncProfileSync struct {
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" protobuf:"bytes,1,opt,name=name"`
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
-	Protocol Protocol `json:"protocol" yaml:"protocol"`
+	Protocol Protocol `json:"protocol" yaml:"protocol" protobuf:"bytes,2,opt,name=protocol,casttype=Protocol"`
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
-	Port uint `json:"port" yaml:"port"`
+	Port uint32 `json:"port" yaml:"port" protobuf:"varint,3,opt,name=port"`
 	// +kubebuilder:validation:MaxItems=10
-	Paths []string `json:"paths" yaml:"paths"`
+	Paths []string `json:"paths" yaml:"paths" protobuf:"bytes,4,rep,name=paths"`
 	// +kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
 	// +kubebuilder:default:="get"
-	Mode SyncMode `json:"mode" yaml:"mode"`
+	Mode SyncMode `json:"mode" yaml:"mode" protobuf:"bytes,5,opt,name=mode,casttype=SyncMode"`
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;CONFIG;
-	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,6,opt,name=encoding,casttype=Encoding"`
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=duration
-    // +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
+	// +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
 	// +kubebuilder:default:="60s"
-	Interval metav1.Duration `json:"interval,omitempty" yaml:"interval,omitempty"`
+	Interval metav1.Duration `json:"interval,omitempty" yaml:"interval,omitempty" protobuf:"bytes,7,opt,name=interval"`
 }
 
 // +kubebuilder:object:root=true
@@ -88,9 +88,9 @@ type TargetSyncProfileSync struct {
 // +k8s:openapi-gen=true
 type TargetSyncProfile struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec TargetSyncProfileSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Spec TargetSyncProfileSpec `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // +kubebuilder:object:root=true
@@ -98,8 +98,8 @@ type TargetSyncProfile struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TargetSyncProfileList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []TargetSyncProfile `json:"items" yaml:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []TargetSyncProfile `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 func init() {

@@ -96,6 +96,7 @@ spec:
                     port:
                       default: 57400
                       description: Port defines the port on which the scan runs
+                      format: int32
                       type: integer
                     protocol:
                       default: gnmi

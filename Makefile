@@ -58,7 +58,11 @@ genclients:
 		-g openapi-gen \
 		-g defaulter-gen \
 		-g conversion-gen \
-		#-g go-to-protobuf \
+		--module $(REPO) \
+
+genproto:
+	go run ./tools/apiserver-runtime-gen \
+		-g go-to-protobuf \
 		--module $(REPO) \
 
 .PHONY: generate

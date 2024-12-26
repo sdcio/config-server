@@ -19,9 +19,9 @@ package v1alpha1
 import (
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // ConfigSpec defines the desired state of Config
@@ -83,7 +83,7 @@ type ConfigStatusLastKnownGoodSchema struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	Config defines the Schema for the Config API
+// Config defines the Schema for the Config API
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

@@ -390,7 +390,7 @@ func (r *Context) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if sub.Spec.Protocol != invv1alpha1.Protocol_GNMI {
 		return fmt.Errorf("subscriptions only supported using gnmi, got %s", string(sub.Spec.Protocol))
 	}
-	r.collector.SetPort(sub.Spec.Port)
+	r.collector.SetPort(uint(sub.Spec.Port))
 	if err := r.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}

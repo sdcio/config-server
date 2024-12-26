@@ -28,7 +28,7 @@ type ConditionType string
 // Condition Types.
 const (
 	// ConditionTypeReady represents the resource ready condition
-	ConditionTypeReady             ConditionType = "Ready"
+	ConditionTypeReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -36,13 +36,13 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady      ConditionReason = "Ready"
-	ConditionReasonFailed     ConditionReason = "Failed"
-	ConditionReasonUnknown    ConditionReason = "Unknown"
+	ConditionReasonReady   ConditionReason = "Ready"
+	ConditionReasonFailed  ConditionReason = "Failed"
+	ConditionReasonUnknown ConditionReason = "Unknown"
 )
 
 type Condition struct {
-	metav1.Condition `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=condition"`
+	metav1.Condition `json:",inline" protobuf:"bytes,1,opt,name=condition"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
