@@ -7,8 +7,9 @@ metadata:
     app.kubernetes.io/name: config-server
 spec:
   ports:
-  - port: 56000
+  - name: data-service
+    port: 56000
     protocol: TCP
-    targetPort: 56000
+    targetPort: data-service
   selector:
     sdcio.dev/data-server: "true"

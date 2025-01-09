@@ -91,6 +91,9 @@ spec:
         - /app/data-server
         args:
         - "--config=/config/data-server.yaml"
+        ports:
+        - name: data-service
+          containerPort: 56000
         volumeMounts:
         - name: data-server-config
           mountPath: /config
