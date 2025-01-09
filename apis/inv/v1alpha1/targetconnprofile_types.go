@@ -77,44 +77,44 @@ const (
 type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectRetry is immutable"
 	// +kubebuilder:default:="10s"
-	ConnectRetry metav1.Duration `json:"connectRetry,omitempty" yaml:"connectRetry,omitempty"`
+	ConnectRetry metav1.Duration `json:"connectRetry,omitempty" yaml:"connectRetry,omitempty" protobuf:"bytes,1,opt,name=connectRetry"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="timeout is immutable"
 	// +kubebuilder:default:="10s"
-	Timeout metav1.Duration `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+	Timeout metav1.Duration `json:"timeout,omitempty" yaml:"timeout,omitempty" protobuf:"bytes,2,opt,name=timeout"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
 	// +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
 	// +kubebuilder:default:="gnmi"
-	Protocol Protocol `json:"protocol" yaml:"protocol"`
+	Protocol Protocol `json:"protocol" yaml:"protocol" protobuf:"bytes,3,opt,name=protocol,casttype=Protocol"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="port is immutable"
 	// +kubebuilder:default:=57400
 	// Port defines the port on which the scan runs
-	Port uint `json:"port" yaml:"port"`
+	Port uint32 `json:"port" yaml:"port" protobuf:"varint,4,opt,name=port"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
-	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,5,opt,name=encoding,casttype=Encoding"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
 	// +kubebuilder:validation:Enum="1.0";"1.1";
 	// +kubebuilder:default:="1.0"
-	PreferredNetconfVersion *string `json:"preferredNetconfVersion,omitempty" yaml:"preferredNetconfVersion,omitempty"`
+	PreferredNetconfVersion *string `json:"preferredNetconfVersion,omitempty" yaml:"preferredNetconfVersion,omitempty" protobuf:"bytes,6,opt,name=preferredNetconfVersion"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="insecure is immutable"
 	// +kubebuilder:default:=false
-	Insecure *bool `json:"insecure,omitempty" yaml:"insecure,omitempty"`
+	Insecure *bool `json:"insecure,omitempty" yaml:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="skipVerify is immutable"
 	// +kubebuilder:default:=true
-	SkipVerify *bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty"`
+	SkipVerify *bool `json:"skipVerify,omitempty" yaml:"skipVerify,omitempty" protobuf:"varint,8,opt,name=skipVerify"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
 	// +kubebuilder:default:=false
-	IncludeNS *bool `json:"includeNS,omitempty" yaml:"includeNS,omitempty"`
+	IncludeNS *bool `json:"includeNS,omitempty" yaml:"includeNS,omitempty" protobuf:"varint,9,opt,name=includeNS"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
 	// +kubebuilder:default:=false
-	OperationWithNS *bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty"`
+	OperationWithNS *bool `json:"operationWithNS,omitempty" yaml:"operationWithNS,omitempty" protobuf:"varint,10,opt,name=operationWithNS"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
 	// +kubebuilder:default:=false
-	UseOperationRemove *bool `json:"useOperationRemove,omitempty" yaml:"useOperationRemove,omitempty"`
+	UseOperationRemove *bool `json:"useOperationRemove,omitempty" yaml:"useOperationRemove,omitempty" protobuf:"varint,11,opt,name=useOperationRemove"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
 	// +kubebuilder:validation:Enum=candidate;running;
 	// +kubebuilder:default:="candidate"
-	CommitCandidate *CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty"`
+	CommitCandidate *CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty" protobuf:"bytes,12,opt,name=commitCandidate,casttype=CommitCandidate"`
 }
 
 // +kubebuilder:object:root=true
@@ -131,9 +131,9 @@ type TargetConnectionProfileSpec struct {
 // +k8s:openapi-gen=true
 type TargetConnectionProfile struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec TargetConnectionProfileSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Spec TargetConnectionProfileSpec `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // +kubebuilder:object:root=true
@@ -141,8 +141,8 @@ type TargetConnectionProfile struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TargetConnectionProfileList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []TargetConnectionProfile `json:"items" yaml:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []TargetConnectionProfile `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 func init() {

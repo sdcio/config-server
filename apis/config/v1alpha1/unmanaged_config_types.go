@@ -38,7 +38,7 @@ type UnManagedConfigStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	UnManagedConfig is the Schema for the UnManagedConfig API
+// UnManagedConfig is the Schema for the UnManagedConfig API
 type UnManagedConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -46,7 +46,6 @@ type UnManagedConfig struct {
 	Spec   UnManagedConfigSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status UnManagedConfigStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
-
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

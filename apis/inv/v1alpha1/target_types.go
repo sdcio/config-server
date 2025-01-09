@@ -19,57 +19,57 @@ package v1alpha1
 import (
 	"reflect"
 
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 // TargetSpec defines the desired state of Target
 type TargetSpec struct {
 	// Provider specifies the provider using this target.
-	Provider string `json:"provider" yaml:"provider"`
+	Provider string `json:"provider" yaml:"provider" protobuf:"bytes,1,opt,name=provider"`
 	// Address defines the address to connect to the target
-	Address string `json:"address" yaml:"address"`
+	Address string `json:"address" yaml:"address" protobuf:"bytes,2,opt,name=address"`
 	// TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
-	TargetProfile `json:",inline" yaml:",inline"`
+	TargetProfile `json:",inline" yaml:",inline" protobuf:"bytes,3,opt,name=targetProfile"`
 }
 
 // TargetStatus defines the observed state of Target
 type TargetStatus struct {
 	// ConditionedStatus provides the status of the Target using conditions
-	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline"`
+	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Discovery info defines the information retrieved during discovery
-	DiscoveryInfo *DiscoveryInfo `json:"discoveryInfo,omitempty" yaml:"discoveryInfo,omitempty"`
+	DiscoveryInfo *DiscoveryInfo `json:"discoveryInfo,omitempty" yaml:"discoveryInfo,omitempty" protobuf:"bytes,2,opt,name=discoveryInfo"`
 	// UsedReferences track the resource used to reconcile the cr
-	UsedReferences *TargetStatusUsedReferences `json:"usedReferences,omitempty" yaml:"usedReferences,omitempty"`
+	UsedReferences *TargetStatusUsedReferences `json:"usedReferences,omitempty" yaml:"usedReferences,omitempty" protobuf:"bytes,3,opt,name=usedReferences"`
 }
 
 type DiscoveryInfo struct {
 	// Protocol used for discovery
-	Protocol string `json:"protocol,omitempty"`
+	Protocol string `json:"protocol,omitempty" protobuf:"bytes,1,opt,name=protocol"`
 	// Type associated with the target
-	Provider string `json:"provider,omitempty"`
+	Provider string `json:"provider,omitempty" protobuf:"bytes,2,opt,name=provider"`
 	// Version associated with the target
-	Version string `json:"version,omitempty"`
+	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
 	// HostName associated with the target
-	HostName string `json:"hostname,omitempty"`
+	HostName string `json:"hostname,omitempty" protobuf:"bytes,4,opt,name=hostname"`
 	// Platform associated with the target
-	Platform string `json:"platform,omitempty"`
+	Platform string `json:"platform,omitempty" protobuf:"bytes,5,opt,name=platform"`
 	// MacAddress associated with the target
-	MacAddress string `json:"macAddress,omitempty"`
+	MacAddress string `json:"macAddress,omitempty" protobuf:"bytes,6,opt,name=macAddress"`
 	// SerialNumber associated with the target
-	SerialNumber string `json:"serialNumber,omitempty"`
+	SerialNumber string `json:"serialNumber,omitempty" protobuf:"bytes,7,opt,name=serialNumber"`
 	// Supported Encodings of the target
-	SupportedEncodings []string `json:"supportedEncodings,omitempty"`
+	SupportedEncodings []string `json:"supportedEncodings,omitempty" protobuf:"bytes,8,rep,name=supportedEncodings"`
 	// Last discovery time
 	//LastSeen metav1.Time `json:"lastSeen,omitempty"`
 }
 
 type TargetStatusUsedReferences struct {
-	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty"`
-	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty"`
-	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion"`
-	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion"`
+	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
+	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
+	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion" protobuf:"bytes,3,opt,name=connectionProfileResourceVersion"`
+	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
 }
 
 // +kubebuilder:object:root=true
@@ -89,10 +89,10 @@ type TargetStatusUsedReferences struct {
 // +k8s:openapi-gen=true
 type Target struct {
 	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   TargetSpec   `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Status TargetStatus `json:"status,omitempty" yaml:"status,omitempty"`
+	Spec   TargetSpec   `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status TargetStatus `json:"status,omitempty" yaml:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // +kubebuilder:object:root=true
@@ -100,8 +100,8 @@ type Target struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type TargetList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Items           []Target `json:"items" yaml:"items"`
+	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []Target `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
 func init() {

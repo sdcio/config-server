@@ -33,6 +33,9 @@ import (
 
 var bin string
 
+// only needed still for protobuf
+var output string
+
 var cmd = cobra.Command{
 	Use:     "apiserver-runtime-gen",
 	Short:   "run code generators",
@@ -72,20 +75,42 @@ func runE(cmd *cobra.Command, args []string) error {
 					return err
 				}
 			}
-			/*
-				if gen == "go-to-protobuf" {
-
-					err := run(exec.Command("go", "mod", "vendor"))
-					if err != nil {
-						return err
-					}
-					err = run(exec.Command("go", "mod", "tidy"))
-					if err != nil {
-						return err
-					}
-
+			if gen == "go-to-protobuf" {
+				err := run(exec.Command("go", "mod", "vendor"))
+				if err != nil {
+					return err
 				}
-			*/
+				err = run(exec.Command("go", "mod", "tidy"))
+				if err != nil {
+					return err
+				}
+				// setup the directory to generate the code to.
+				// code generators don't work with go modules, and try the full path of the module
+				output, err = os.MkdirTemp("", "gen")
+				if err != nil {
+					return err
+				}
+				if clean {
+					// nolint:errcheck
+					defer os.RemoveAll(output)
+				}
+				d, l := path.Split(module)                   // split the directory from the link we will create
+				p := filepath.Join(strings.Split(d, "/")...) // convert module path to os filepath
+				p = filepath.Join(output, p)                 // create the directory which will contain the link
+				err = os.MkdirAll(p, 0700)
+				if err != nil {
+					return err
+				}
+				// link the tmp location to this one so the code generator writes to the correct path
+				wd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				err = os.Symlink(wd, filepath.Join(p, l))
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -106,7 +131,7 @@ func doGen() error {
 			// dont expand the versions with modules
 			informerListergenVersions = append(informerListergenVersions, fmt.Sprintf("./%s", path.Join(version, "...")))
 		}
-		protobufVersions = append(protobufVersions, version)
+		protobufVersions = append(protobufVersions, path.Join(module, version))
 		typeVersions = append(typeVersions, path.Join(module, version))
 	}
 
@@ -206,11 +231,12 @@ func doGen() error {
 	}
 
 	if gen["go-to-protobuf"] {
-		err := run(getCmd(
+
+		err := run(getProtoCmd(
 			"go-to-protobuf",
 			"--packages", strings.Join(protobufVersions, ","),
 			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
-			//"--proto-import", "./vendor",
+			"--proto-import", "./vendor",
 		))
 		if err != nil {
 			return err
@@ -291,6 +317,14 @@ func run(cmd *exec.Cmd) error {
 func getCmd(cmd string, args ...string) *exec.Cmd {
 	// nolint:gosec
 	e := exec.Command(filepath.Join(bin, cmd), "--go-header-file", header)
+
+	e.Args = append(e.Args, args...)
+	return e
+}
+
+func getProtoCmd(cmd string, args ...string) *exec.Cmd {
+	// nolint:gosec
+	e := exec.Command(filepath.Join(bin, cmd), "--output-dir", output, "--go-header-file", header)
 
 	e.Args = append(e.Args, args...)
 	return e

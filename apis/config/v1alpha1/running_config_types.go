@@ -39,7 +39,7 @@ type RunningConfigStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	RunningConfig is the Schema for the RunningConfig API
+// RunningConfig is the Schema for the RunningConfig API
 type RunningConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

@@ -19,94 +19,71 @@ syntax = "proto2";
 
 package github.com.sdcio.config_server.apis.inv.v1alpha1;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "github.com/sdcio/config-server/apis/config/v1alpha1/generated.proto";
+import "github.com/sdcio/config-server/apis/condition/v1alpha1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.stable_marshaler_all) = true;
-option (gogoproto.sizer_all) = true;
-option (gogoproto.goproto_stringer_all) = false;
-option (gogoproto.stringer_all) = true;
-option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.goproto_unrecognized_all) = false;
-option (gogoproto.goproto_enum_prefix_all) = false;
-option (gogoproto.goproto_getters_all) = false;
 option go_package = "github.com/sdcio/config-server/apis/inv/v1alpha1";
-
-message Condition {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Condition condition = 1 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
-}
-
-message ConditionedStatus {
-  // Conditions of the resource.
-  // +optional
-  repeated github.com.sdcio.config_server.apis.config.v1alpha1.Condition conditions = 1 [(gogoproto.customname) = "Conditions", (gogoproto.nullable) = false];
-}
 
 message DiscoveryInfo {
   // Protocol used for discovery
-  optional string protocol = 1 [(gogoproto.customname) = "Protocol", (gogoproto.nullable) = false];
+  optional string protocol = 1;
 
   // Type associated with the target
-  optional string provider = 2 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 2;
 
   // Version associated with the target
-  optional string version = 3 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
+  optional string version = 3;
 
   // HostName associated with the target
-  optional string hostname = 4 [(gogoproto.customname) = "HostName", (gogoproto.nullable) = false];
+  optional string hostname = 4;
 
   // Platform associated with the target
-  optional string platform = 5 [(gogoproto.customname) = "Platform", (gogoproto.nullable) = false];
+  optional string platform = 5;
 
   // MacAddress associated with the target
-  optional string macAddress = 6 [(gogoproto.customname) = "MacAddress", (gogoproto.nullable) = false];
+  optional string macAddress = 6;
 
   // SerialNumber associated with the target
-  optional string serialNumber = 7 [(gogoproto.customname) = "SerialNumber", (gogoproto.nullable) = false];
+  optional string serialNumber = 7;
 
   // Supported Encodings of the target
-  repeated string supportedEncodings = 8 [(gogoproto.customname) = "SupportedEncodings"];
-
-  // Last discovery time
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 9 [(gogoproto.customname) = "LastSeen", (gogoproto.nullable) = false];
+  repeated string supportedEncodings = 8;
 }
 
 message DiscoveryParameters {
   // DefaultSchema define the default schema used to connect to a target
   // Indicates that discovery is disable; cannot be used for prefix based discovery rules
-  optional SchemaKey defaultSchema = 1 [(gogoproto.customname) = "DefaultSchema"];
+  optional SchemaKey defaultSchema = 1;
 
   // DiscoveryProfile define the profiles the discovery controller uses to discover targets
-  optional DiscoveryProfile discoveryProfile = 2 [(gogoproto.customname) = "DiscoveryProfile"];
+  optional DiscoveryProfile discoveryProfile = 2;
 
   // TargetConnectionProfiles define the profile the discovery controller uses to create targets
   // once discovered
-  repeated TargetProfile targetConnectionProfiles = 3 [(gogoproto.customname) = "TargetConnectionProfiles", (gogoproto.nullable) = false];
+  repeated TargetProfile targetConnectionProfiles = 3;
 
   // TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
-  optional TargetTemplate targetTemplate = 4 [(gogoproto.customname) = "TargetTemplate"];
+  optional TargetTemplate targetTemplate = 4;
 
   // Period defines the wait period between discovery rule runs
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration period = 5 [(gogoproto.customname) = "Period", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration period = 5;
 
   // number of concurrent IP scan
-  optional int64 concurrentScans = 6 [(gogoproto.customname) = "ConcurrentScans", (gogoproto.nullable) = false];
+  optional int64 concurrentScans = 6;
 }
 
 message DiscoveryProfile {
   // Credentials defines the name of the secret that holds the credentials to connect to the target
-  optional string credentials = 1 [(gogoproto.customname) = "Credentials", (gogoproto.nullable) = false];
+  optional string credentials = 1;
 
   // TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
-  optional string tlsSecret = 2 [(gogoproto.customname) = "TLSSecret"];
+  optional string tlsSecret = 2;
 
   // ConnectionProfiles define the list of profiles the discovery controller uses to discover the target.
   // The order in which they are specified is the order in which discovery is executed.
-  repeated string connectionProfiles = 3 [(gogoproto.customname) = "ConnectionProfiles"];
+  repeated string connectionProfiles = 3;
 }
 
 // +kubebuilder:object:root=true
@@ -119,58 +96,58 @@ message DiscoveryProfile {
 // DiscoveryRule is the Schema for the DiscoveryRule API
 // +k8s:openapi-gen=true
 message DiscoveryRule {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional DiscoveryRuleSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional DiscoveryRuleSpec spec = 2;
 
-  optional DiscoveryRuleStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional DiscoveryRuleStatus status = 3;
 }
 
 message DiscoveryRuleAddress {
   // Address (specified as IP or DNS name) of the target/target(s)
-  optional string address = 1 [(gogoproto.customname) = "Address", (gogoproto.nullable) = false];
+  optional string address = 1;
 
   // HostName of the ip prefix; used for /32 or /128 addresses with discovery disabled
-  optional string hostName = 2 [(gogoproto.customname) = "HostName", (gogoproto.nullable) = false];
+  optional string hostName = 2;
 }
 
 // +kubebuilder:object:root=true
 // DiscoveryRuleList contains a list of DiscoveryRules
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message DiscoveryRuleList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated DiscoveryRule items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated DiscoveryRule items = 2;
 }
 
 message DiscoveryRulePrefix {
   // Prefix of the target/target(s)
-  optional string prefix = 1 [(gogoproto.customname) = "Prefix", (gogoproto.nullable) = false];
+  optional string prefix = 1;
 
   // IP Prefixes to be excluded
-  repeated string excludes = 2 [(gogoproto.customname) = "Excludes"];
+  repeated string excludes = 2;
 }
 
 // DiscoveryRuleSpec defines the desired state of DiscoveryRule
 message DiscoveryRuleSpec {
   // IP Prefixes for which this discovery rule applies
-  repeated DiscoveryRulePrefix prefixes = 1 [(gogoproto.customname) = "Prefixes", (gogoproto.nullable) = false];
+  repeated DiscoveryRulePrefix prefixes = 1;
 
   // IP Prefixes for which this discovery rule applies
-  repeated DiscoveryRuleAddress addresses = 2 [(gogoproto.customname) = "Addresses", (gogoproto.nullable) = false];
+  repeated DiscoveryRuleAddress addresses = 2;
 
   // PodSelector defines the pod selector for which this discovery rule applies
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector podSelector = 3 [(gogoproto.customname) = "PodSelector"];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector podSelector = 3;
 
   // ServiceSelector defines the service selector for which this discovery rule applies
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector serviceSelector = 4 [(gogoproto.customname) = "ServiceSelector"];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector serviceSelector = 4;
 
   // ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the
   // domain name in the k8s cluster where the service reside.
-  optional string serviceDomain = 5 [(gogoproto.customname) = "ServiceDomain", (gogoproto.nullable) = false];
+  optional string serviceDomain = 5;
 
   // Discovery defines the generic parameters of the discovery rule
-  optional DiscoveryParameters discoveryParameters = 6 [(gogoproto.customname) = "DiscoveryParameters", (gogoproto.nullable) = false];
+  optional DiscoveryParameters discoveryParameters = 6;
 }
 
 // DiscoveryRuleStatus defines the observed state of DiscoveryRule
@@ -180,10 +157,10 @@ message DiscoveryRuleStatus {
   // - a condition for the reconcilation status
   // - a condition for the ready status
   // if both are true the other attributes in the status are meaningful
-  optional github.com.sdcio.config_server.apis.config.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // StartTime identifies when the dr got started
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2 [(gogoproto.customname) = "StartTime", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
 }
 
 // +kubebuilder:object:root=true
@@ -192,108 +169,215 @@ message DiscoveryRuleStatus {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
-// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
 // +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repositories[0].repoURL"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.repositories[0].ref"
 // +kubebuilder:resource:categories={sdc,inv}
 // Schema is the Schema for the Schema API
 // +k8s:openapi-gen=true
 message Schema {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional SchemaSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional SchemaSpec spec = 2;
 
-  optional SchemaStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional SchemaStatus status = 3;
 }
 
 message SchemaKey {
   // Provider specifies the provider of the schema.
-  optional string provider = 1 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 1;
 
   // Version defines the version of the schema
-  optional string version = 2 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
+  optional string version = 2;
 }
 
 // +kubebuilder:object:root=true
 // SchemaList contains a list of Schemas
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message SchemaList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated Schema items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated Schema items = 2;
 }
 
 // SchemaSpec defines the desired state of Schema
 message SchemaSpec {
-  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="url is immutable"
-  // URL specifies the base URL for a given repository
-  optional string repoURL = 1 [(gogoproto.customname) = "RepositoryURL", (gogoproto.nullable) = false];
-
-  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="credentials is immutable"
-  // Credentials defines the name of the secret that holds the credentials to connect to the repo
-  optional string credentials = 2 [(gogoproto.customname) = "Credentials", (gogoproto.nullable) = false];
-
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
   // Provider specifies the provider of the schema.
-  optional string provider = 3 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 1;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="version is immutable"
   // Version defines the version of the schema
-  optional string version = 4 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
+  optional string version = 2;
+
+  // +kubebuilder:validation:MinItems:=1
+  // +kubebuilder:validation:MaxItems:=10
+  // Repositories define the repositories used for building the provider schema
+  repeated SchemaSpecRepository repositories = 3;
+}
+
+message SchemaSpecProxy {
+  // URL specifies the base URL of the HTTP/HTTPS proxy server.
+  optional string URL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
+  optional string credentials = 2;
+}
+
+message SchemaSpecRepository {
+  // RepositoryURL specifies the base URL for a given repository
+  optional string repoURL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the repo
+  optional string credentials = 2;
+
+  // Proxy defines the HTTP/HTTPS proxy to be used to download the models.
+  optional SchemaSpecProxy proxy = 3;
 
   // +kubebuilder:validation:Enum=branch;tag;
   // +kubebuilder:default:=tag
   // Kind defines the that the BranchOrTag string is a repository branch or a tag
-  optional string kind = 5 [(gogoproto.casttype) = "BranchTagKind", (gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
+  optional string kind = 4;
 
-  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="ref is immutable"
   // Ref defines the branch or tag of the repository corresponding to the
   // provider schema version
-  optional string ref = 6 [(gogoproto.customname) = "Ref", (gogoproto.nullable) = false];
+  optional string ref = 5;
 
   // +kubebuilder:validation:MaxItems=10
-  // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="dirs is immutable"
   // Dirs defines the list of directories that identified the provider schema in src/dst pairs
   // relative within the repository
-  repeated SrcDstPath dirs = 7 [(gogoproto.customname) = "Dirs", (gogoproto.nullable) = false];
+  repeated SrcDstPath dirs = 6;
 
   // Schema provides the details of which files must be used for the models and which files/directories
   // cana be excludes
-  optional SchemaSpecSchema schema = 8 [(gogoproto.customname) = "Schema", (gogoproto.nullable) = false];
+  optional SchemaSpecSchema schema = 7;
 }
 
 message SchemaSpecSchema {
   // +kubebuilder:validation:MaxItems=64
-  // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="models is immutable"
   // Models defines the list of files/directories to be used as a model
-  repeated string models = 1 [(gogoproto.customname) = "Models"];
+  repeated string models = 1;
 
   // +kubebuilder:validation:MaxItems=64
-  // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="includes is immutable"
   // Excludes defines the list of files/directories to be excluded
-  repeated string includes = 2 [(gogoproto.customname) = "Includes"];
+  repeated string includes = 2;
 
   // +kubebuilder:validation:MaxItems=64
-  // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="excludes is immutable"
   // Excludes defines the list of files/directories to be excluded
-  repeated string excludes = 3 [(gogoproto.customname) = "Excludes"];
+  repeated string excludes = 3;
 }
 
 // SchemaStatus defines the observed state of Schema
 message SchemaStatus {
   // ConditionedStatus provides the status of the Schema using conditions
-  optional github.com.sdcio.config_server.apis.config.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src
 // in the repository to a given destination in the schema server
 message SrcDstPath {
   // Src is the relative directory in the repository URL
-  optional string src = 1 [(gogoproto.customname) = "Src", (gogoproto.nullable) = false];
+  optional string src = 1;
 
   // Dst is the relative directory in the schema server
-  optional string dst = 2 [(gogoproto.customname) = "Dst", (gogoproto.nullable) = false];
+  optional string dst = 2;
+}
+
+// +kubebuilder:object:root=true
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.encoding"
+// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.subscriptions[0].mode"
+// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.subscriptions[0].interval"
+// +kubebuilder:resource:categories={sdc,inv}
+// Subscription is the Schema for the Subscription API
+// +k8s:openapi-gen=true
+message Subscription {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional SubscriptionSpec spec = 2;
+
+  optional SubscriptionStatus status = 3;
+}
+
+// +kubebuilder:object:root=true
+// SubscriptionList contains a list of Subscriptions
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message SubscriptionList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated Subscription items = 2;
+}
+
+// SubscriptionSync defines the desired Subscription of SubscriptionSync
+message SubscriptionParameters {
+  // Name defines the name of the group of the Subscription to be collected
+  optional string name = 1;
+
+  // Description details what the Subscription collection is about
+  optional string description = 2;
+
+  // Labels can be defined as user defined data to provide extra context
+  // +optional
+  map<string, string> labels = 3;
+
+  // AdminState allows to disable the subscription
+  // +kubebuilder:validation:Enum=enabled;disabled;
+  // +kubebuilder:default:="enabled"
+  optional string adminState = 4;
+
+  // +kubebuilder:validation:Enum=unknown;onChange;sample;
+  // +kubebuilder:default:="sample"
+  optional string mode = 5;
+
+  // +kubebuilder:validation:Type=string
+  // +kubebuilder:validation:Format=duration
+  // +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
+  // +kubebuilder:validation:Enum="1s";"15s";"30s";"60s";
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration interval = 6;
+
+  // +kubebuilder:validation:MaxItems=128
+  repeated string paths = 7;
+}
+
+// SubscriptionSpec defines the desired Subscription of Subscription
+message SubscriptionSpec {
+  // Targets defines the targets on which this Subscription applies
+  optional SubscriptionTarget target = 1;
+
+  // +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
+  // +kubebuilder:default:="gnmi"
+  optional string protocol = 2;
+
+  // +kubebuilder:default:=57400
+  // Port defines the port on which the scan runs
+  optional uint32 port = 3;
+
+  // +kubebuilder:validation:Enum=PROTO;ASCII;
+  optional string encoding = 4;
+
+  // +kubebuilder:validation:MaxItems=128
+  // +kubebuilder:validation:Optional
+  repeated SubscriptionParameters subscriptions = 5;
+}
+
+message SubscriptionStatus {
+  // ConditionedStatus provides the status of the Schema using conditions
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // Targets defines the list of targets this resource applies to
+  repeated string targets = 2;
+}
+
+message SubscriptionTarget {
+  // TargetSelector defines the selector used to select the targets to which the config applies
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1;
 }
 
 // +kubebuilder:object:root=true
@@ -312,168 +396,177 @@ message SrcDstPath {
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true
 message Target {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional TargetSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional TargetSpec spec = 2;
 
-  optional TargetStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional TargetStatus status = 3;
 }
 
 // +kubebuilder:object:root=true
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.encoding"
+// +kubebuilder:printcolumn:name="INSECURE",type="string",JSONPath=".spec.insecure"
+// +kubebuilder:printcolumn:name="SKIPVERIFY",type="string",JSONPath=".spec.skipVerify"
 // +kubebuilder:resource:categories={sdc,inv}
 // TargetConnectionProfile is the Schema for the TargetConnectionProfile API
 // +k8s:openapi-gen=true
 message TargetConnectionProfile {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional TargetConnectionProfileSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional TargetConnectionProfileSpec spec = 2;
 }
 
 // +kubebuilder:object:root=true
 // TargetConnectionProfileList contains a list of TargetConnectionProfile
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message TargetConnectionProfileList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated TargetConnectionProfile items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated TargetConnectionProfile items = 2;
 }
 
 // TargetConnectionProfileSpec defines the desired state of TargetConnectionProfile
 message TargetConnectionProfileSpec {
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="connectRetry is immutable"
   // +kubebuilder:default:="10s"
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration connectRetry = 1 [(gogoproto.customname) = "ConnectRetry", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration connectRetry = 1;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="timeout is immutable"
   // +kubebuilder:default:="10s"
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 2 [(gogoproto.customname) = "Timeout", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 2;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="protocol is immutable"
   // +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
   // +kubebuilder:default:="gnmi"
-  optional string protocol = 3 [(gogoproto.casttype) = "Protocol", (gogoproto.customname) = "Protocol", (gogoproto.nullable) = false];
+  optional string protocol = 3;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="port is immutable"
   // +kubebuilder:default:=57400
   // Port defines the port on which the scan runs
-  optional uint64 port = 4 [(gogoproto.customname) = "Port", (gogoproto.nullable) = false];
+  optional uint32 port = 4;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
-  // +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
-  // +kubebuilder:default:="ASCII"
-  optional string encoding = 5 [(gogoproto.casttype) = "Encoding", (gogoproto.customname) = "Encoding", (gogoproto.nullable) = false];
+  // +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
+  optional string encoding = 5;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preferredNetconfVersion is immutable"
   // +kubebuilder:validation:Enum="1.0";"1.1";
   // +kubebuilder:default:="1.0"
-  optional string preferredNetconfVersion = 6 [(gogoproto.customname) = "PreferredNetconfVersion", (gogoproto.nullable) = false];
+  optional string preferredNetconfVersion = 6;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="insecure is immutable"
   // +kubebuilder:default:=false
-  optional bool insecure = 7 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
+  optional bool insecure = 7;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="skipVerify is immutable"
   // +kubebuilder:default:=true
-  optional bool skipVerify = 8 [(gogoproto.customname) = "SkipVerify", (gogoproto.nullable) = false];
+  optional bool skipVerify = 8;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="includeNS is immutable"
   // +kubebuilder:default:=false
-  optional bool includeNS = 9 [(gogoproto.customname) = "IncludeNS", (gogoproto.nullable) = false];
+  optional bool includeNS = 9;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operationWithNS is immutable"
   // +kubebuilder:default:=false
-  optional bool operationWithNS = 10 [(gogoproto.customname) = "OperationWithNS", (gogoproto.nullable) = false];
+  optional bool operationWithNS = 10;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
   // +kubebuilder:default:=false
-  optional bool useOperationRemove = 11 [(gogoproto.customname) = "UseOperationRemove", (gogoproto.nullable) = false];
+  optional bool useOperationRemove = 11;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="UseOperationRemove is immutable"
   // +kubebuilder:validation:Enum=candidate;running;
   // +kubebuilder:default:="candidate"
-  optional string commitCandidate = 12 [(gogoproto.casttype) = "CommitCandidate", (gogoproto.customname) = "CommitCandidate", (gogoproto.nullable) = false];
+  optional string commitCandidate = 12;
 }
 
 // +kubebuilder:object:root=true
 // TargetList contains a list of Targets
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message TargetList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated Target items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated Target items = 2;
 }
 
 message TargetProfile {
   // Credentials defines the name of the secret that holds the credentials to connect to the target
-  optional string credentials = 1 [(gogoproto.customname) = "Credentials", (gogoproto.nullable) = false];
+  optional string credentials = 1;
 
   // TLSSecret defines the name of the TLS secret to connect to the target if mtls is used
-  optional string tlsSecret = 2 [(gogoproto.customname) = "TLSSecret"];
+  optional string tlsSecret = 2;
 
   // ConnectionProfile define the profile used to connect to the target once discovered
-  optional string connectionProfile = 3 [(gogoproto.customname) = "ConnectionProfile", (gogoproto.nullable) = false];
+  optional string connectionProfile = 3;
 
   // SyncProfile define the profile used to sync to the target config once discovered
-  optional string syncProfile = 4 [(gogoproto.customname) = "SyncProfile"];
+  optional string syncProfile = 4;
 }
 
 // TargetSpec defines the desired state of Target
 message TargetSpec {
   // Provider specifies the provider using this target.
-  optional string provider = 1 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 1;
 
   // Address defines the address to connect to the target
-  optional string address = 2 [(gogoproto.customname) = "Address", (gogoproto.nullable) = false];
+  optional string address = 2;
 
   // TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
-  optional TargetProfile targetProfile = 3 [(gogoproto.customname) = "TargetProfile", (gogoproto.nullable) = false];
+  optional TargetProfile targetProfile = 3;
 }
 
 // TargetStatus defines the observed state of Target
 message TargetStatus {
   // ConditionedStatus provides the status of the Target using conditions
-  optional github.com.sdcio.config_server.apis.config.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Discovery info defines the information retrieved during discovery
-  optional DiscoveryInfo discoveryInfo = 2 [(gogoproto.customname) = "DiscoveryInfo"];
+  optional DiscoveryInfo discoveryInfo = 2;
 
   // UsedReferences track the resource used to reconcile the cr
-  optional TargetStatusUsedReferences usedReferences = 3 [(gogoproto.customname) = "UsedReferences"];
+  optional TargetStatusUsedReferences usedReferences = 3;
 }
 
 message TargetStatusUsedReferences {
-  optional string secretResourceVersion = 1 [(gogoproto.customname) = "SecretResourceVersion", (gogoproto.nullable) = false];
+  optional string secretResourceVersion = 1;
 
-  optional string tlsSecretResourceVersion = 2 [(gogoproto.customname) = "TLSSecretResourceVersion", (gogoproto.nullable) = false];
+  optional string tlsSecretResourceVersion = 2;
 
-  optional string connectionProfileResourceVersion = 3 [(gogoproto.customname) = "ConnectionProfileResourceVersion", (gogoproto.nullable) = false];
+  optional string connectionProfileResourceVersion = 3;
 
-  optional string syncProfileResourceVersion = 4 [(gogoproto.customname) = "SyncProfileResourceVersion", (gogoproto.nullable) = false];
+  optional string syncProfileResourceVersion = 4;
 }
 
 // +kubebuilder:object:root=true
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="PROTOCOL",type="string",JSONPath=".spec.sync[0].protocol"
+// +kubebuilder:printcolumn:name="PORT",type="string",JSONPath=".spec.sync[0].port"
+// +kubebuilder:printcolumn:name="ENCODING",type="string",JSONPath=".spec.sync[0].encoding"
+// +kubebuilder:printcolumn:name="MODE",type="string",JSONPath=".spec.sync[0].mode"
+// +kubebuilder:printcolumn:name="INTERVAL",type="string",JSONPath=".spec.sync[0].interval"
 // +kubebuilder:resource:categories={sdc,inv}
 // TargetSyncProfile is the Schema for the TargetSyncProfile API
 // +k8s:openapi-gen=true
 message TargetSyncProfile {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional TargetSyncProfileSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional TargetSyncProfileSpec spec = 2;
 }
 
 // +kubebuilder:object:root=true
 // TargetSyncProfileList contains a list of TargetSyncProfiles
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message TargetSyncProfileList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated TargetSyncProfile items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated TargetSyncProfile items = 2;
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(oldSelf.sync) || has(self.sync)", message="sync is required once set"
@@ -481,56 +574,63 @@ message TargetSyncProfileList {
 message TargetSyncProfileSpec {
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="validate is immutable"
   // +kubebuilder:default:=true
-  optional bool validate = 1 [(gogoproto.customname) = "Validate", (gogoproto.nullable) = false];
+  optional bool validate = 1;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="buffer is immutable"
   // +kubebuilder:default:=0
-  optional int64 buffer = 2 [(gogoproto.customname) = "Buffer", (gogoproto.nullable) = false];
+  optional int64 buffer = 2;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="workers is immutable"
   // +kubebuilder:default:=10
-  optional int64 workers = 3 [(gogoproto.customname) = "Workers", (gogoproto.nullable) = false];
+  optional int64 workers = 3;
 
   // +kubebuilder:validation:MaxItems=10
   // +kubebuilder:validation:Optional
   // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync may only be added"
-  repeated TargetSyncProfileSync sync = 4 [(gogoproto.customname) = "Sync", (gogoproto.nullable) = false];
+  repeated TargetSyncProfileSync sync = 4;
 }
 
 // TargetSyncProfileSync defines the desired state of TargetSyncProfileSync
 message TargetSyncProfileSync {
-  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
+  optional string name = 1;
 
   // +kubebuilder:validation:Enum=unknown;gnmi;netconf;noop;
   // +kubebuilder:default:="gnmi"
-  optional string protocol = 2 [(gogoproto.casttype) = "Protocol", (gogoproto.customname) = "Protocol", (gogoproto.nullable) = false];
+  optional string protocol = 2;
+
+  // +kubebuilder:default:=57400
+  // Port defines the port on which the scan runs
+  optional uint32 port = 3;
 
   // +kubebuilder:validation:MaxItems=10
-  repeated string paths = 3 [(gogoproto.customname) = "Paths"];
+  repeated string paths = 4;
 
   // +kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
-  optional string mode = 4 [(gogoproto.casttype) = "SyncMode", (gogoproto.customname) = "Mode", (gogoproto.nullable) = false];
+  // +kubebuilder:default:="get"
+  optional string mode = 5;
 
-  // +kubebuilder:validation:Enum=unknown;JSON;JSON_IETF;bytes;protobuf;ASCII;config;
-  // +kubebuilder:default:="ASCII"
-  optional string encoding = 5 [(gogoproto.casttype) = "Encoding", (gogoproto.customname) = "Encoding", (gogoproto.nullable) = false];
+  // +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;CONFIG;
+  optional string encoding = 6;
 
+  // +kubebuilder:validation:Type=string
+  // +kubebuilder:validation:Format=duration
+  // +kubebuilder:validation:Description="Duration should be a string representing a duration in seconds, minutes, or hours. E.g., '300s', '5m', '1h'."
   // +kubebuilder:default:="60s"
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Duration interval = 6 [(gogoproto.customname) = "Interval", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration interval = 7;
 }
 
 // TargetTemplate defines the template of the target
 message TargetTemplate {
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="nameTemplate is immutable"
   // target name template
-  optional string nameTemplate = 1 [(gogoproto.customname) = "NameTemplate", (gogoproto.nullable) = false];
+  optional string nameTemplate = 1;
 
   // Annotations is a key value map to be copied to the target CR.
   // +optional
-  map<string, string> annotations = 2 [(gogoproto.customname) = "Annotations", (gogoproto.nullable) = false];
+  map<string, string> annotations = 2;
 
   // Labels is a key value map to be copied to the target CR.
   // +optional
-  map<string, string> labels = 3 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
+  map<string, string> labels = 3;
 }
 
