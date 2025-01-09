@@ -145,6 +145,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot add finalizer", err), errUpdateStatus)
 	}
 
+	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
+		cfg.Status.LastKnownGoodSchema = nil
+		cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
+		cfg.Status.AppliedConfig = &cfg.Spec
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target error", err), errUpdateStatus)
+	}
+
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
 	// if the applied Config is not set -> reapply the config
