@@ -103,11 +103,11 @@ func TestExampleSchemas(t *testing.T) {
 			expectedErr: nil,
 		},
 		"NokiaSrl": {
-			path:        "../../../example/schemas/schema-nokia-srl-23.10.1.yaml",
+			path:        "../../../example/schemas/schema-nokia-srl-24.10.1.yaml",
 			expectedErr: nil,
 		},
 		"NokiaSros": {
-			path:        "../../../example/schemas/schema-nokia-sros-23.10.yaml",
+			path:        "../../../example/schemas/schema-nokia-sros-24.10.yaml",
 			expectedErr: nil,
 		},
 		"Arista": {
