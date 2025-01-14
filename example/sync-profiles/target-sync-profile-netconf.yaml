@@ -15,7 +15,8 @@ spec:
   sync:
   - name: config
     protocol: netconf
+    port: 830
     paths:
     - /
-    mode: sample
-    interval: 10s
+    mode: get
+    interval: 30s

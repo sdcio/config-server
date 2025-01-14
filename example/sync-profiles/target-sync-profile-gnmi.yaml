@@ -19,5 +19,4 @@ spec:
     - /
     mode: get
     encoding: JSON_IETF
-    interval: 10s
- 
+    interval: 30s
