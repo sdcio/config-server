@@ -25,4 +25,4 @@ spec:
     - /
     mode: once
     encoding: JSON_IETF
-    interval: 5m
+    interval: 30s

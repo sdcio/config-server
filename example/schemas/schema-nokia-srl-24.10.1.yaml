@@ -25,7 +25,7 @@ spec:
     - dst: deviations
       src: .
     kind: branch
-    ref: v24.10ip
+    ref: v24.10
     repoURL: https://github.com/sdcio/srlinux-yang-patch
     schema:
       models:
