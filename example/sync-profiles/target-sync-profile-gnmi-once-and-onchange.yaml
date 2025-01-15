@@ -18,7 +18,7 @@ spec:
     paths:
     - /
     mode: onChange
-    encoding: CONFIG
+    encoding: PROTO
   - name: all_once
     protocol: gnmi
     paths:
