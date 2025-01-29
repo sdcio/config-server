@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: config-server
+  name: allow-traffic-to-apiserver-extension
+  namespace: network-system
+spec:
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0 # Can be made more restrictive by only allowing from control plane node IPs
+      ports:
+        - port: api-service
+          protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: config-server
+  policyTypes:
+    - Ingress
