@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
@@ -176,7 +177,7 @@ func (r *UnManagedConfig) TableConvertor() func(gr schema.GroupResource) rest.Ta
 					return nil
 				}
 				return []interface{}{
-					UnManagedConfig.Name,
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(UnManagedConfigKind), GroupName, UnManagedConfig.Name),
 					len(UnManagedConfig.Status.Deviations),
 				}
 			},

@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
@@ -128,7 +129,7 @@ func (r *RunningConfig) TableConvertor() func(gr schema.GroupResource) rest.Tabl
 					return nil
 				}
 				return []interface{}{
-					RunningConfig.Name,
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(RunningConfigKind), GroupName, RunningConfig.Name),
 				}
 			},
 			[]metav1.TableColumnDefinition{
