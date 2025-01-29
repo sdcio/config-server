@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
@@ -124,7 +125,7 @@ func (r *ConfigSet) GetStatus() resource.StatusSubResource {
 
 // IsStatusEqual returns a bool indicating if the status of both resources is equal or not
 func (r *ConfigSet) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
-	
+
 	log := log.FromContext(ctx)
 	newobj := obj.(*ConfigSet)
 	oldobj := old.(*ConfigSet)
@@ -180,7 +181,7 @@ func (r *ConfigSet) TableConvertor() func(gr schema.GroupResource) rest.TableCon
 					return nil
 				}
 				return []interface{}{
-					configset.Name,
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(ConfigSetKind), GroupName, configset.Name),
 					configset.GetCondition(condition.ConditionTypeReady).Status,
 					len(configset.Status.Targets),
 				}

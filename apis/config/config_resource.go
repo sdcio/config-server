@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
@@ -117,7 +118,7 @@ func (r *Config) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
 		return false
 	}
 	// if equal we also test the spec
-	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec) 
+	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
 }
 
 // GetStatus return the resource.StatusSubResource interface
@@ -180,9 +181,10 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 					return nil
 				}
 				return []interface{}{
-					config.Name,
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(ConfigKind), GroupName, config.Name),
 					config.GetCondition(condition.ConditionTypeReady).Status,
 					config.GetCondition(condition.ConditionTypeReady).Reason,
+					config.Spec.Priority,
 					config.GetTarget(),
 					config.GetLastKnownGoodSchema().FileString(),
 				}
@@ -191,6 +193,7 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 				{Name: "Name", Type: "string"},
 				{Name: "Ready", Type: "string"},
 				{Name: "Reason", Type: "string"},
+				{Name: "Priority", Type: "integer"},
 				{Name: "Target", Type: "string"},
 				{Name: "Schema", Type: "string"},
 			},
