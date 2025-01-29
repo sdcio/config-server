@@ -5,11 +5,15 @@
 name: Test
 on:
   workflow_dispatch:
-  pull_request:
+    pull_request_target:
+      types: [labeled]
   push:
     branches:
       - "main"
       - "!releases/**"
+
+permissions: read-all
+
 env:
   GOVER: 1.23.3
 
@@ -36,6 +40,7 @@ jobs:
       #     # Exit with 1 when it find at least one finding.
       #     fail_on_error: true
   pr-release:
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
     runs-on: sdcio-action-runners
     needs: unittest
     outputs:
