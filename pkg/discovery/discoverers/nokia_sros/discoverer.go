@@ -30,11 +30,11 @@ import (
 const (
 	Provider = "sros.nokia.sdcio.dev"
 	// TODO: check if we need to differentiate slotA and slotB
-	srosSWVersionPath    = "state/system/version/version-number"
-	srosChassisPath      = "state/system/platform"
-	srosHostnamePath     = "state/system/oper-name"
-	srosHWMacAddressPath = "state/system/base-mac-address"
-	srosSerialNumberPath = "state/chassis/hardware-data/serial-number"
+	swVersionPath    = "state/system/version/version-number"
+	chassisPath      = "state/system/platform"
+	hostnamePath     = "state/system/oper-name"
+	hwMacAddressPath = "state/system/base-mac-address"
+	serialNumberPath = "state/chassis/hardware-data/serial-number"
 )
 
 func init() {
@@ -51,11 +51,11 @@ func (s *discoverer) GetProvider() string {
 
 func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
 	req, err := api.NewGetRequest(
-		api.Path(srosSWVersionPath),
-		api.Path(srosChassisPath),
-		api.Path(srosHWMacAddressPath),
-		api.Path(srosHostnamePath),
-		api.Path(srosSerialNumberPath),
+		api.Path(swVersionPath),
+		api.Path(chassisPath),
+		api.Path(hwMacAddressPath),
+		api.Path(hostnamePath),
+		api.Path(serialNumberPath),
 		api.EncodingJSON(),
 	)
 	if err != nil {
@@ -84,23 +84,23 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 		for _, upd := range notif.GetUpdate() {
 			p := path.GnmiPathToXPath(upd.GetPath(), true)
 			switch p {
-			case srosSWVersionPath:
+			case swVersionPath:
 				val := string(upd.GetVal().GetJsonVal())
 				val = strings.Trim(val, "\"")
 				di.Version = val
-			case srosChassisPath:
+			case chassisPath:
 				val := string(upd.GetVal().GetJsonVal())
 				val = strings.Trim(val, "\"")
 				di.Platform = val
-			case srosSerialNumberPath:
+			case serialNumberPath:
 				val := string(upd.GetVal().GetJsonVal())
 				val = strings.Trim(val, "\"")
 				di.SerialNumber = val
-			case srosHWMacAddressPath:
+			case hwMacAddressPath:
 				val := string(upd.GetVal().GetJsonVal())
 				val = strings.Trim(val, "\"")
 				di.MacAddress = val
-			case srosHostnamePath:
+			case hostnamePath:
 				val := string(upd.GetVal().GetJsonVal())
 				val = strings.Trim(val, "\"")
 				di.HostName = val

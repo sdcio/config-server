@@ -19,5 +19,6 @@ package all
 import (
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
+	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/arista"
 	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/test"
 )

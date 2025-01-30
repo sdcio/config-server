@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nokia_srl
+package arista
 
 import (
 	"context"
-	"strings"
 
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
@@ -28,14 +27,12 @@ import (
 )
 
 const (
-	Provider = "srl.nokia.sdcio.dev"
-	swVersionPath = "platform/control/software-version"
-	chassisPath   = "platform/chassis"
-	hostnamePath  = "system/name/host-name"
-	// paths
-	chassisTypePath  = "platform/chassis/type"
-	serialNumberPath = "platform/chassis/serial-number"
-	hwMacAddrPath    = "platform/chassis/hw-mac-address"
+	Provider = "eos.arista.sdcio.dev"
+	swVersionPath = "components/component[name=EOS]/state/software-version"
+	chassisPath   = "components/component[name=Chassis]/state/part-no"
+	hostnamePath  = "system/state/hostname"
+	serialNumberPath = "components/component[name=Chassis]/state/serial-no"
+	hWMacAddrPath    = "lldp/state/chassis-id"
 )
 
 func init() {
@@ -55,6 +52,8 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 		api.Path(swVersionPath),
 		api.Path(chassisPath),
 		api.Path(hostnamePath),
+		api.Path(serialNumberPath),
+		api.Path(hWMacAddrPath),
 		api.EncodingASCII(),
 		api.DataTypeSTATE(),
 	)
@@ -85,12 +84,12 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 			p := path.GnmiPathToXPath(upd.GetPath(), true)
 			switch p {
 			case swVersionPath:
-				di.Version = getVersion(upd.GetVal().GetStringVal())
-			case chassisTypePath:
+				di.Version = upd.GetVal().GetStringVal()
+			case chassisPath:
 				di.Platform = upd.GetVal().GetStringVal()
 			case serialNumberPath:
 				di.SerialNumber = upd.GetVal().GetStringVal()
-			case hwMacAddrPath:
+			case hWMacAddrPath:
 				di.MacAddress = upd.GetVal().GetStringVal()
 			case hostnamePath:
 				di.HostName = upd.GetVal().GetStringVal()
@@ -98,17 +97,4 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 		}
 	}
 	return di, nil
-}
-
-func getVersion(version string) string {
-	split := strings.Split(version, ".")
-	if len(split) < 3 {
-		return version
-	}
-	version = strings.Join([]string{
-		strings.ReplaceAll(split[0], "v", ""), // remove the v from the first slice
-		split[1],                              // take the 2nd slice as is
-		strings.Split(split[2], "-")[0],       // take the first part of the 3rd slice before -
-	}, ".")
-	return version
 }

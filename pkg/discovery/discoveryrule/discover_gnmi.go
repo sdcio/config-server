@@ -32,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/discovery/discoverers"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
 	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
+	"github.com/sdcio/config-server/pkg/discovery/discoverers/arista"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -109,6 +110,9 @@ OUTER:
 				discoverer = init()
 			}
 			break OUTER
+		case "Arista":
+			init := discoverers.Discoverers[arista.Provider]
+			discoverer = init()
 		}
 	}
 	if discoverer == nil {
