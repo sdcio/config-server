@@ -110,7 +110,7 @@ OUTER:
 				discoverer = init()
 			}
 			break OUTER
-		case "Arista":
+		case "Arista Networks":
 			init := discoverers.Discoverers[arista.Provider]
 			discoverer = init()
 		}
