@@ -24,8 +24,7 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	obj, _, err = r.Handler.SetIntent(ctx, targetKey, cfg, true, dryrun)
-	if err != nil {
+	if _, err = r.Handler.SetIntent(ctx, targetKey, cfg, dryrun); err != nil {
 		return obj, err
 	}
 	return obj, nil
@@ -40,8 +39,7 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	obj, _, err = r.Handler.SetIntent(ctx, targetKey, cfg, true, dryrun)
-	if err != nil {
+	if _, err = r.Handler.SetIntent(ctx, targetKey, cfg, dryrun); err != nil {
 		return obj, err
 	}
 	return obj, nil
@@ -56,5 +54,8 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	return r.Handler.DeleteIntent(ctx, targetKey, cfg, dryrun)
+	if err :=  r.Handler.DeleteIntent(ctx, targetKey, cfg, dryrun); err != nil {
+		return cfg, err
+	}
+	return cfg, nil
 }
