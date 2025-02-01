@@ -91,6 +91,18 @@ func (r *fakeclient) SetIntent(ctx context.Context, in *sdcpb.SetIntentRequest, 
 	return &sdcpb.SetIntentResponse{}, nil
 }
 
+func (r *fakeclient) TransactionSet(ctx context.Context, in *sdcpb.TransactionSetRequest, opts ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+	return &sdcpb.TransactionSetResponse{}, nil
+}
+
+func (r *fakeclient) TransactionConfirm(ctx context.Context, in *sdcpb.TransactionConfirmRequest, opts ...grpc.CallOption) (*sdcpb.TransactionConfirmResponse, error) {
+	return &sdcpb.TransactionConfirmResponse{}, nil
+}
+
+func (r *fakeclient) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCancelRequest, opts ...grpc.CallOption) (*sdcpb.TransactionCancelResponse, error) {
+	return &sdcpb.TransactionCancelResponse{}, nil
+}
+
 func (r *fakeclient) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest, opts ...grpc.CallOption) (*sdcpb.ListIntentResponse, error) {
 	return &sdcpb.ListIntentResponse{}, nil
 }

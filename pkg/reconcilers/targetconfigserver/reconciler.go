@@ -128,20 +128,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// we split the config in config that were successfully applied and config that was not yet
-	configsToReApply, err := r.getConfigsToReApply(ctx, target)
+	recoveryConfigs, err := r.getRecoveryConfigs(ctx, target)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
 
 	// We need to restore the config on the target
-	for _, config := range configsToReApply {
-		if _, err := tctx.SetIntent(ctx, targetKey, config, false, false); err != nil {
-			// This is bad since this means we cannot recover the applied config
-			// on a target. We set the target config status to Failed.
-			// Most likely a human intervention is needed
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
-		}
+	//for _, config := range configsToReApply {
+	if err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs); err != nil {
+		// This is bad since this means we cannot recover the applied config
+		// on a target. We set the target config status to Failed.
+		// Most likely a human intervention is needed
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
+	//}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
@@ -218,7 +218,7 @@ func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Ke
 	return false, tctx
 }
 
-func (r *reconciler) getConfigsToReApply(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
+func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
 	configs := []*config.Config{}
 	configList, err := r.listTargetConfigs(ctx, target)
 	if err != nil {

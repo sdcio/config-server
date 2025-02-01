@@ -112,8 +112,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !cfg.GetDeletionTimestamp().IsZero() {
-		_, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false)
-		if err != nil {
+		if err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
 			if errors.Is(err, target.LookupError) {
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
@@ -164,7 +163,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	_, internalSchema, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, true, false)
+	internalSchema, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
 	if err != nil {
 		// all grpc errors except resource exhausted will not retry
 		// and a human need to intervene
