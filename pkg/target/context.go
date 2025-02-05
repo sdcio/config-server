@@ -391,7 +391,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 		}
 	}
 	if errs != nil {
-		return "",  NewTransactionError(errs.Error(), recoverable)
+		return "",  NewTransactionError(errs, recoverable)
 	}
 	log.Debug("intent recovery succeeded", "rsp", prototext.Format(rsp))
 	if len(collectedWarnings) > 0 {

@@ -165,13 +165,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	internalSchema, msg, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
 	if err != nil {
-		// all grpc errors except resource exhausted will not retry
-		// and a human need to intervene
-		if er, ok := status.FromError(err); ok {
-			if er.Code() == codes.ResourceExhausted {
-				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed", err), errUpdateStatus)
-			}
+		// TODO distinguish between recoeverable and non recoverable
+		var txErr *target.TransactionError
+		if errors.As(err, &txErr) && txErr.Recoverable {
+			// Retry logic for recoverable errors
+			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
+				errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err), errUpdateStatus)
 		}
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed", err), errUpdateStatus)
 	}
