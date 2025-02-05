@@ -18,8 +18,10 @@ package target
 
 import (
 	"context"
+	errors "errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -32,6 +34,8 @@ import (
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -271,15 +275,15 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	return rsp, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) error {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
-		return fmt.Errorf("target context not ready")
+		return "", fmt.Errorf("target context not ready")
 	}
 
 	update, err := r.getIntentUpdate(ctx, key, config, true)
 	if err != nil {
-		return err
+		return "", err
 	}
 	log.Debug("SetIntent", "update", update)
 
@@ -296,24 +300,18 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			},
 		},
 	})
-	// TODO extract warnings and errors for better user experience
-	if err != nil {
-		log.Error("set intent failed", "error", err.Error())
-		return err
-	}
-	log.Debug("set intent succeeded", "rsp", prototext.Format(rsp))
-	return nil
+	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
-func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) error {
+func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
-		return fmt.Errorf("target context not ready")
+		return "", fmt.Errorf("target context not ready")
 	}
 
 	if config.Status.AppliedConfig == nil {
 		log.Info("delete intent was never applied")
-		return nil
+		return "", nil
 	}
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
@@ -329,26 +327,20 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 			},
 		},
 	})
-	// TODO extract warnings and errors for better user experience
-	if err != nil {
-		log.Info("delete intent failed", "error", err.Error())
-		return err
-	}
-	log.Info("delete intent succeeded", "rsp", prototext.Format(rsp))
-	return nil
+	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
-func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) error {
+func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
-		return fmt.Errorf("target context not ready")
+		return "", fmt.Errorf("target context not ready")
 	}
 
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, false)
 		if err != nil {
-			return err
+			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:   getGVKNSN(config),
@@ -360,19 +352,52 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 	log.Debug("device intent receovery")
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-		TransactionId: "dummy",
+		TransactionId: "recovery",
 		DatastoreName: key.String(),
 		DryRun:        false,
 		Timeout:       ptr.To(int32(120)),
 		Intents:       intents,
 	})
-	// TODO extract warnings and errors for better user experience
+	return r.processTransactionResponse(ctx, key, rsp, err)
+}
+
+func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, err error) (string, error) {
+	log := log.FromContext(ctx).With("target", key.String())
+	var errs error
+	var collectedWarnings []string
+	var recoverable bool
 	if err != nil {
-		log.Error("set intent failed", "error", err.Error())
-		return err
+		errs = errors.Join(errs, fmt.Errorf("error: %v", err.Error()))
+		if er, ok := status.FromError(err); ok {
+			switch er.Code() {
+			case codes.ResourceExhausted:
+				recoverable = true
+			default:
+				recoverable = false
+			}
+		}
+	}
+	if rsp != nil {
+		for _, warning := range rsp.Warnings {
+			collectedWarnings = append(collectedWarnings, fmt.Sprintf("global %s watning: %v", warning))
+		}
+		for key, intent := range rsp.Intents {
+			if len(intent.Errors) > 0 {
+				errs = errors.Join(errs, fmt.Errorf("intent %s error: %v", key, intent.Errors))
+			}
+			if len(intent.Warnings) > 0 {
+				collectedWarnings = append(collectedWarnings, fmt.Sprintf("intent %s warning: %v", key, intent.Warnings))
+			}
+		}
+	}
+	if err != nil {
+		return "",  NewTransactionError(err.Error(), recoverable)
 	}
 	log.Debug("intent recovery succeeded", "rsp", prototext.Format(rsp))
-	return nil
+	if len(collectedWarnings) > 0 {
+		return strings.Join(collectedWarnings, "; "), nil
+	}
+	return "", nil
 }
 
 func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.RunningConfig, error) {

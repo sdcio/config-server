@@ -173,6 +173,18 @@ func Ready() Condition {
 	}}
 }
 
+// Ready returns a condition that indicates the resource is
+// ready for use.
+func ReadyWithMsg(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+		Message:            msg,
+	}}
+}
+
 // Unknown returns a condition that indicates the resource is in an
 // unknown status.
 func Unknown() Condition {

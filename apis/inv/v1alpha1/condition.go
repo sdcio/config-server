@@ -117,12 +117,13 @@ func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
 
 // ConfigReady return a condition that indicates the config
 // get re-applied when the target became ready
-func ConfigReady() condv1alpha1.Condition {
+func ConfigReady(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonReady),
+		Message:            msg,
 	}}
 }
 

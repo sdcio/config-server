@@ -68,22 +68,20 @@ func (r *TargetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	return target, tctx, nil
 }
 
-func (r *TargetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, error) {
+func (r *TargetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	if err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun); err != nil {
-		return nil, err
-	}
-	return schema, nil
+	msg, err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun)
+	return schema, msg, err
 }
 
-func (r *TargetHandler) DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) error {
+func (r *TargetHandler) DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 	return tctx.DeleteIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun)
 }
@@ -96,15 +94,12 @@ func (r *TargetHandler) GetData(ctx context.Context, targetKey types.NamespacedN
 	return tctx.GetData(ctx, storebackend.Key{NamespacedName: targetKey})
 }
 
-
-func (r *TargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, error) {
+func (r *TargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	if err := tctx.RecoverIntents(ctx, storebackend.Key{NamespacedName: targetKey}, configs); err != nil {
-		return nil, err
-	}
-	return schema, nil
+	msg, err := tctx.RecoverIntents(ctx, storebackend.Key{NamespacedName: targetKey}, configs)
+	return schema, msg, err
 }

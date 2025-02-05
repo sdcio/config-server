@@ -135,23 +135,24 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We need to restore the config on the target
 	//for _, config := range configsToReApply {
-	if err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs); err != nil {
+	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs)
+	if err != nil {
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
 	//}
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, msg string) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.ConfigReady())
+	target.SetConditions(invv1alpha1.ConfigReady(msg))
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
 

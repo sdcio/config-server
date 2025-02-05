@@ -112,7 +112,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !cfg.GetDeletionTimestamp().IsZero() {
-		if err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
+		if _, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
 			if errors.Is(err, target.LookupError) {
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
@@ -163,7 +163,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	internalSchema, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
+	internalSchema, msg, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
 	if err != nil {
 		// all grpc errors except resource exhausted will not retry
 		// and a human need to intervene
@@ -182,16 +182,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot convert schema", err), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, msg), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema) error {
+func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, msg string) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
-	cfg.SetConditions(condv1alpha1.Ready())
+	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	cfg.Status.LastKnownGoodSchema = schema
 	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	cfg.Status.AppliedConfig = &cfg.Spec
