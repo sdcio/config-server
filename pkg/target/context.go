@@ -367,7 +367,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 	var collectedWarnings []string
 	var recoverable bool
 	if err != nil {
-		errs = errors.Join(errs, fmt.Errorf("error: %v", err.Error()))
+		errs = errors.Join(errs, fmt.Errorf("error: %s", err.Error()))
 		if er, ok := status.FromError(err); ok {
 			switch er.Code() {
 			case codes.ResourceExhausted:
@@ -379,19 +379,19 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 	}
 	if rsp != nil {
 		for _, warning := range rsp.Warnings {
-			collectedWarnings = append(collectedWarnings, fmt.Sprintf("global %s watning: %v", warning))
+			collectedWarnings = append(collectedWarnings, fmt.Sprintf("global warning: %q", warning))
 		}
 		for key, intent := range rsp.Intents {
-			if len(intent.Errors) > 0 {
-				errs = errors.Join(errs, fmt.Errorf("intent %s error: %v", key, intent.Errors))
+			for _, intentError := range intent.Errors {
+				errs = errors.Join(errs, fmt.Errorf("intent %q error: %q", key, intentError))
 			}
-			if len(intent.Warnings) > 0 {
-				collectedWarnings = append(collectedWarnings, fmt.Sprintf("intent %s warning: %v", key, intent.Warnings))
+			for _, intentWarning := range intent.Warnings {
+				collectedWarnings = append(collectedWarnings, fmt.Sprintf("intent %q warning: %q", key, intentWarning))
 			}
 		}
 	}
-	if err != nil {
-		return "",  NewTransactionError(err.Error(), recoverable)
+	if errs != nil {
+		return "",  NewTransactionError(errs.Error(), recoverable)
 	}
 	log.Debug("intent recovery succeeded", "rsp", prototext.Format(rsp))
 	if len(collectedWarnings) > 0 {
