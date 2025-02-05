@@ -19,7 +19,6 @@ package target
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -104,10 +103,6 @@ func TestProcessTransactionResponse(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			warning, err := mockCtx.processTransactionResponse(ctx, key, tc.rsp, tc.err)
-
-			fmt.Printf("test %s warning: %s, err: %v\n", name, warning, err)
-			
-			
 
 			if tc.expectErr {
 				assert.Error(t, err, "expected an error but got none")
