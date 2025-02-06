@@ -14,11 +14,8 @@ spec:
     modelMatch: nokia.com:srlinux
     paths:
     - key: version
-      path: platform/control/software-version
+      path: platform/control[slot=A]/software-version
       regex: ^v?(\d+\.\d+\.\d+)
-      #script: |
-      #  def transform(value):
-      #      return value.upper()  # Convert to uppercase
     - key: platform
       path: platform/chassis/type
     - key: hostname
@@ -27,5 +24,4 @@ spec:
       path: platform/chassis/serial-number
     - key: macAddress
       path: platform/chassis/hw-mac-address
-
       

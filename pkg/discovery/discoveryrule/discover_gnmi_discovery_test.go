@@ -119,11 +119,11 @@ func getSRLResponse() *gnmi.GetResponse {
 					{
 						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
 							{Name: "srl_nokia-platform:platform"},
-							{Name: "srl_nokia-platform-control:control"},
+							{Name: "srl_nokia-platform-control:control", Key: map[string]string{"slot": "A"}},
 							{Name: "software-version"},
 						}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte("v24.3.2-118-g706b4f0d99")},
+							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("v24.3.2-118-g706b4f0d99")},
 						},
 					},
 				},
@@ -137,7 +137,7 @@ func getSRLResponse() *gnmi.GetResponse {
 							{Name: "type"},
 						}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte("7220 IXR-D2")},
+							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("7220 IXR-D2")},
 						},
 					},
 				},
@@ -151,7 +151,7 @@ func getSRLResponse() *gnmi.GetResponse {
 							{Name: "host-name"},
 						}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte("edge02")},
+							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("edge02")},
 						},
 					},
 				},
@@ -165,7 +165,7 @@ func getSRLResponse() *gnmi.GetResponse {
 							{Name: "serial-number"},
 						}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte("Sim Serial No.")},
+							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("Sim Serial No.")},
 						},
 					},
 				},
@@ -179,7 +179,7 @@ func getSRLResponse() *gnmi.GetResponse {
 							{Name: "hw-mac-address"},
 						}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_JsonVal{JsonVal: []byte("1A:05:04:FF:00:00")},
+							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("1A:05:04:FF:00:00")},
 						},
 					},
 				},

@@ -73,7 +73,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 		return err
 	}
 	b, _ := json.Marshal(di)
-	log.Debug("discovery info", "info", string(b))
+	log.Info("discovery info", "info", string(b))
 
 	return r.createTarget(ctx, discoverer.GetProvider(), h.Address, di)
 }
@@ -185,17 +185,11 @@ func (r *Discoverer) parseDiscoveryInformation(
 	// Process gNMI notifications
 	for _, notif := range getRsp.GetNotification() {
 		for _, upd := range notif.GetUpdate() {
-			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
-
-			fmt.Println("path", gnmiPath)
+			gnmiPath := GnmiPathToXPath(upd.GetPath(), false)
 
 			if param, exists := pathMap[gnmiPath]; exists {
-				fmt.Println("exists", exists)
 				if targetField, found := fieldMapping[param.Key]; found {
-					fmt.Println("found", found, string(upd.GetVal().GetJsonVal()))
-					*targetField = string(upd.GetVal().GetJsonVal())
-
-					//fmt.Println("key", param.Key, string(upd.GetVal().GetJsonVal()))
+					*targetField = strings.Trim(string(upd.GetVal().GetJsonIetfVal()), "\"")
 
 					// Apply transformations (Regex + Starlark)
 					transformedValue, err := applyTransformations(param, *targetField)
@@ -279,7 +273,6 @@ func GnmiPathToXPath(p *gnmi.Path, noKeys bool) string {
 	numElems := len(elems)
 
 	for i, pe := range elems {
-		//fmt.Println("path name", pe.GetName())
 		split := strings.Split(pe.GetName(), ":")
 		if len(split) > 1 {
 			sb.WriteString(split[1])

@@ -18,7 +18,6 @@ require (
 	github.com/openconfig/gnmi v0.11.0
 	github.com/openconfig/gnmic/pkg/api v0.1.8
 	github.com/openconfig/gnmic/pkg/cache v0.1.3
-	github.com/openconfig/gnmic/pkg/path v0.34.1
 	github.com/otiai10/copy v1.14.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.5
