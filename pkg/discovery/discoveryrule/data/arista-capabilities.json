@@ -1,0 +1,40 @@
+{
+    "gNMIVersion": "0.7.0",
+    "supportedModels": [
+      {
+        "name": "arista-vlan-augments",
+        "organization": "Arista Networks",
+        "version": "1.1.2"
+      },
+      {
+        "name": "gnsi-authz",
+        "organization": "Google LLC",
+        "version": ""
+      },
+      {
+        "name": "arista-sand-control-plane-traffic-counters",
+        "organization": "Arista Networks",
+        "version": "1.0.0"
+      },
+      {
+        "name": "openconfig-mpls-ldp",
+        "organization": "OpenConfig working group",
+        "version": "3.2.1"
+      },
+      {
+        "name": "arista-relay-agent-deviations",
+        "organization": "Arista Networks",
+        "version": "1.0.1"
+      },
+      {
+        "name": "openconfig-flexalgo",
+        "organization": "OpenConfig working group",
+        "version": "0.1.0"
+      }
+    ],
+    "supportedEncodings": [
+      "JSON",
+      "JSON_IETF",
+      "ASCII"
+    ]
+  }

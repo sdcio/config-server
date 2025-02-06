@@ -16,6 +16,8 @@ limitations under the License.
 
 package nokia_srl
 
+/*
+
 import (
 	"context"
 	"strings"
@@ -112,3 +114,4 @@ func getVersion(version string) string {
 	}, ".")
 	return version
 }
+*/

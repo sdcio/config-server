@@ -16,6 +16,8 @@ limitations under the License.
 
 package test
 
+/*
+
 import (
 	"context"
 
@@ -43,3 +45,4 @@ func (s *discoverer) GetProvider() string {
 func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
 	return &invv1alpha1.DiscoveryInfo{}, nil
 }
+*/

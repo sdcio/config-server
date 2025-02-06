@@ -1,0 +1,25 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+####### HEADER END #######
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: DiscoveryVendorProfile
+metadata:
+  name: eos.arista.sdcio.dev
+  namespace: default
+spec:
+  gnmi:
+    organization: Arista Networks
+    paths:
+    - key: version
+      path: components/component[name=EOS]/state/software-version
+    - key: platform
+      path: components/component[name=Chassis]/state/part-no
+    - key: hostname
+      path: system/state/hostname
+    - key: serialNumber
+      path: components/component[name=Chassis]/state/serial-no
+    - key: macAddress
+      path: lldp/state/chassis-id
+

@@ -16,6 +16,8 @@ limitations under the License.
 
 package arista
 
+/*
+
 import (
 	"context"
 
@@ -98,3 +100,4 @@ func (s *discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	}
 	return di, nil
 }
+*/

@@ -1,0 +1,23 @@
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: DiscoveryVendorProfile
+metadata:
+  name: srl.nokia.sdcio.dev
+  namespace: network-system
+spec:
+  gnmi:
+    organization: Nokia
+    modelMatch: nokia.com:srlinux
+    paths:
+    - key: version
+      path: platform/control/software-version
+      regex: ^v?(\d+\.\d+\.\d+)
+    - key: platform
+      path: platform/chassis/type
+    - key: hostname
+      path: system/name/host-name
+    - key: serialNumber
+      path: platform/chassis/serial-number
+    - key: macAddress
+      path: platform/chassis/hw-mac-address
+
+      

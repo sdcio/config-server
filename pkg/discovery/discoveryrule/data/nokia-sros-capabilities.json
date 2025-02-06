@@ -1,0 +1,26 @@
+{
+  "supportedModels": [
+    {
+      "name": "nokia-conf",
+      "organization": "Nokia",
+      "version": "24.7.R1"
+    },
+    {
+      "name": "nokia-state",
+      "organization": "Nokia",
+      "version": "24.7.R1"
+    },
+    {
+      "name": "nokia-li-state",
+      "organization": "Nokia",
+      "version": "24.7.R1"
+    }
+  ],
+  "supportedEncodings": [
+    "JSON",
+    "BYTES",
+    "PROTO",
+    "JSON_IETF"
+  ],
+  "gNMIVersion": "0.8.0"
+}

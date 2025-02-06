@@ -21,18 +21,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
+	apipath "github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/discovery/discoverers"
-	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
-	"github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
-	"github.com/sdcio/config-server/pkg/discovery/discoverers/arista"
+	"go.starlark.net/starlark"
+	"go.starlark.net/syntax"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -63,7 +64,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	if err != nil {
 		return err
 	}
-	discoverer, err := GetDiscovererGNMI(capRsp)
+	discoverer, err := r.getDiscovererGNMI(capRsp)
 	if err != nil {
 		return err
 	}
@@ -94,29 +95,228 @@ func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, 
 	return api.NewTarget(tOpts...)
 }
 
-func GetDiscovererGNMI(capRsp *gnmi.CapabilityResponse) (discoverers.Discoverer, error) {
-	var discoverer discoverers.Discoverer
-OUTER:
+func (r *dr) getDiscovererGNMI(capRsp *gnmi.CapabilityResponse) (*Discoverer, error) {
 	for _, m := range capRsp.SupportedModels {
-		switch m.Organization {
-		case "Nokia":
-			if strings.Contains(m.Name, "srl_nokia") {
-				// SRL
-				init := discoverers.Discoverers[nokia_srl.Provider]
-				discoverer = init()
-			} else {
-				// SROS
-				init := discoverers.Discoverers[nokia_sros.Provider]
-				discoverer = init()
+		for provider, discoveryParameters := range r.gnmiDiscoveryProfiles {
+			if m.Organization == discoveryParameters.Organization {
+				if discoveryParameters.ModelMatch == nil {
+					return &Discoverer{
+						Provider:            provider,
+						DiscoveryParameters: discoveryParameters,
+					}, nil
+				} else {
+					if strings.Contains(m.Name, *discoveryParameters.ModelMatch) {
+						return &Discoverer{
+							Provider:            provider,
+							DiscoveryParameters: discoveryParameters,
+						}, nil
+					}
+				}
 			}
-			break OUTER
-		case "Arista Networks":
-			init := discoverers.Discoverers[arista.Provider]
-			discoverer = init()
 		}
 	}
-	if discoverer == nil {
-		return nil, errors.New("unknown target vendor")
+	return nil, errors.New("unknown target vendor")
+}
+
+type Discoverer struct {
+	Provider            string
+	DiscoveryParameters invv1alpha1.GnmiDiscoveryVendorProfileParameters
+}
+
+func (r *Discoverer) GetProvider() string {
+	return r.Provider
+}
+
+func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
+	req, err := api.NewGetRequest(
+		api.EncodingJSON_IETF(),
+	)
+	// Ensure req.Path is initialized
+	req.Path = make([]*gnmi.Path, 0, len(r.DiscoveryParameters.Paths))
+
+	// Convert paths into a map for quick lookup
+	pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
+	for _, param := range r.DiscoveryParameters.Paths {
+		parsedPath, err := apipath.ParsePath(param.Path)
+		if err != nil {
+			return nil, fmt.Errorf("invalid GNMI path %q: %w", param.Path, err)
+		}
+		req.Path = append(req.Path, parsedPath)
+		pathMap[param.Path] = param // Store the key for fast lookup
 	}
-	return discoverer, nil
+	if err != nil {
+		return nil, err
+	}
+	capRsp, err := t.Capabilities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	getRsp, err := t.Get(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.parseDiscoveryInformation(pathMap, capRsp, getRsp)
+}
+
+func (r *Discoverer) parseDiscoveryInformation(
+	pathMap map[string]invv1alpha1.DiscoveryPathDefinition,
+	capRsp *gnmi.CapabilityResponse,
+	getRsp *gnmi.GetResponse,
+) (*invv1alpha1.DiscoveryInfo, error) {
+	di := &invv1alpha1.DiscoveryInfo{
+		Protocol:           string(invv1alpha1.Protocol_GNMI),
+		Provider:           r.Provider,
+		SupportedEncodings: make([]string, 0, len(capRsp.GetSupportedEncodings())),
+	}
+	for _, enc := range capRsp.GetSupportedEncodings() {
+		di.SupportedEncodings = append(di.SupportedEncodings, enc.String())
+	}
+
+	// Define field mapping
+	fieldMapping := map[string]*string{
+		"version":      &di.Version,
+		"platform":     &di.Platform,
+		"serialNumber": &di.SerialNumber,
+		"macAddress":   &di.MacAddress,
+		"hostname":     &di.HostName,
+	}
+
+	// Process gNMI notifications
+	for _, notif := range getRsp.GetNotification() {
+		for _, upd := range notif.GetUpdate() {
+			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
+
+			fmt.Println("path", gnmiPath)
+
+			if param, exists := pathMap[gnmiPath]; exists {
+				fmt.Println("exists", exists)
+				if targetField, found := fieldMapping[param.Key]; found {
+					fmt.Println("found", found, string(upd.GetVal().GetJsonVal()))
+					*targetField = string(upd.GetVal().GetJsonVal())
+
+					//fmt.Println("key", param.Key, string(upd.GetVal().GetJsonVal()))
+
+					// Apply transformations (Regex + Starlark)
+					transformedValue, err := applyTransformations(param, *targetField)
+					if err != nil {
+						return nil, fmt.Errorf("failed to process transformation for %q: %w", param.Key, err)
+					}
+					*targetField = transformedValue
+				}
+			}
+		}
+	}
+	return di, nil
+}
+
+func applyTransformations(param invv1alpha1.DiscoveryPathDefinition, value string) (string, error) {
+	var err error
+
+	// Apply regex if provided
+	if param.Regex != nil {
+		value, err = ApplyRegex(*param.Regex, value)
+		if err != nil {
+			return "", fmt.Errorf("regex error: %w", err)
+		}
+	}
+
+	// Apply Starlark script if provided
+	if param.Script != nil {
+		value, err = RunStarlark(param.Key, *param.Script, value)
+		if err != nil {
+			return "", fmt.Errorf("starlark error: %w", err)
+		}
+	}
+
+	return value, nil
+}
+
+// RunStarlark executes a Starlark script with the given value.
+func RunStarlark(key, script, value string) (string, error) {
+	thread := &starlark.Thread{Name: "transformer"}
+
+	starlarkTransformer, err := starlark.ExecFileOptions(&syntax.FileOptions{}, thread, "transformer.star", script, starlark.StringDict{})
+	if err != nil {
+		return "", fmt.Errorf("transformer %s err: %v", key, err)
+	}
+	transformer := starlarkTransformer["transform"]
+	result, err := starlark.Call(thread, transformer, starlark.Tuple{starlark.Value(starlark.String(value))}, nil)
+	if err != nil {
+		// this is a starlark execution runtime failure
+		return "", fmt.Errorf("starlark execution runtime failure: %s", err.Error())
+	}
+
+	// Convert result back to string
+	if str, ok := result.(starlark.String); ok {
+		return string(str), nil
+	}
+	return "", fmt.Errorf("unexpected Starlark return type: %T", result)
+}
+
+func ApplyRegex(pattern string, value string) (string, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", fmt.Errorf("invalid regex pattern: %w", err)
+	}
+	matches := re.FindStringSubmatch(value)
+	if len(matches) > 1 {
+		return matches[1], nil // Extract first capture group
+	}
+	return value, nil // No match, return original
+}
+
+func GnmiPathToXPath(p *gnmi.Path, noKeys bool) string {
+	if p == nil {
+		return ""
+	}
+	sb := &strings.Builder{}
+	if p.Origin != "" {
+		sb.WriteString(p.Origin)
+		sb.WriteString(":")
+	}
+	elems := p.GetElem()
+	numElems := len(elems)
+
+	for i, pe := range elems {
+		//fmt.Println("path name", pe.GetName())
+		split := strings.Split(pe.GetName(), ":")
+		if len(split) > 1 {
+			sb.WriteString(split[1])
+		} else {
+			sb.WriteString(pe.GetName())
+		}
+		
+		if !noKeys {
+			numKeys := len(pe.GetKey())
+			switch numKeys {
+			case 0:
+			case 1:
+				for k := range pe.GetKey() {
+					writeKey(sb, k, pe.GetKey()[k])
+				}
+			default:
+				keys := make([]string, 0, numKeys)
+				for k := range pe.GetKey() {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					writeKey(sb, k, pe.GetKey()[k])
+				}
+			}
+		}
+		if i+1 != numElems {
+			sb.WriteString("/")
+		}
+	}
+	return sb.String()
+}
+
+func writeKey(sb *strings.Builder, k, v string) {
+	sb.WriteString("[")
+	sb.WriteString(k)
+	sb.WriteString("=")
+	sb.WriteString(v)
+	sb.WriteString("]")
 }
