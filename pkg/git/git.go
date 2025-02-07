@@ -380,7 +380,7 @@ func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, er
 	}
 
 	// Find the branch that contains the commit
-	branch, err := g.findCommitBranch(ctx, commitHash)
+	branch, err := g.checkCommitStatus(ctx, commitHash)
 	if err != nil {
 		return "", err
 	}
@@ -416,7 +416,7 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 	return nil
 }
 
-func (g *GoGit) findCommitBranch(ctx context.Context, commitHash string) (string, error) {
+func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (string, error) {
 	log := log.FromContext(ctx)
 
 	log.Info("Searching for commit in branches", "commit", commitHash)
@@ -427,38 +427,63 @@ func (g *GoGit) findCommitBranch(ctx context.Context, commitHash string) (string
 		return "", &sdcerrors.UnrecoverableError{Message: "Commit not found", WrappedError: err}
 	}
 
+	// Step 1: Get the main branch (default is "main")
+	mainBranchName := "main"
+	if detectedBranch, err := g.getDefaultBranch(ctx); err == nil {
+		mainBranchName = detectedBranch
+		log.Info("Detected main branch", "branch", mainBranchName)
+	}
+
+	// Step 2: Check if the commit is an ancestor of main
+	mainRef := plumbing.NewBranchReferenceName(mainBranchName)
+	mainHash, err := g.r.ResolveRevision(plumbing.Revision(mainRef))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve main branch: %w", err)
+	}
+
+	mainCommitObj, err := g.r.CommitObject(*mainHash) // Convert hash to commit
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit object for main branch: %w", err)
+	}
+
+	// Check if the commit is already merged into main
+	if isAncestor(commitObj, mainCommitObj) {
+		log.Info("Commit is already merged into main", "commit", commitHash)
+		return "merged", nil
+	}
+
+	// Step 3: Check if the commit exists in another branch (feature branch)
 	iter, err := g.r.References()
 	if err != nil {
-		return "", &sdcerrors.UnrecoverableError{Message: "Failed to list branches", WrappedError: err}
+		return "", fmt.Errorf("failed to list branches: %w", err)
 	}
 	defer iter.Close()
 
-	var foundBranch string
-
-	// Iterate over all branches
+	var featureBranch string
 	err = iter.ForEach(func(ref *plumbing.Reference) error {
-		if ref.Type() == plumbing.HashReference && ref.Name().IsBranch() { // Ensure it's a branch
+		if ref.Type() == plumbing.HashReference && ref.Name().IsBranch() {
 			branchName := ref.Name().Short()
 			branchCommit, err := g.r.CommitObject(ref.Hash())
 			if err != nil {
-				return nil // Continue iteration
+				return nil // Skip if the branch has issues
 			}
 
-			// Check if the branch contains the commit
 			if isAncestor(commitObj, branchCommit) {
-				foundBranch = branchName
+				featureBranch = branchName
+				log.Info("Commit is in a feature branch", "commit", commitHash, "branch", branchName)
 				return nil // Stop iteration once found
 			}
 		}
 		return nil
 	})
 
-	if foundBranch != "" {
-		log.Info("Commit found in branch", "commit", commitHash, "branch", foundBranch)
-		return foundBranch, nil
+	if featureBranch != "" {
+		return fmt.Sprintf("pending merge in %s", featureBranch), nil
 	}
 
-	return "", fmt.Errorf("commit %s not found in any branch", commitHash)
+	// If commit is not found in any branch
+	log.Warn("Commit is not found in main or any feature branch", "commit", commitHash)
+	return "detached", nil
 }
 
 func isAncestor(commit, branchCommit *object.Commit) bool {
