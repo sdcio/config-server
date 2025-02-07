@@ -84,6 +84,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		For(&invv1alpha1.Workspace{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&invv1alpha1.Rollout{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&corev1.Secret{}, &eventhandler.SecretForWorkspaceEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
