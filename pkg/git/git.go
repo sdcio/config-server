@@ -395,7 +395,7 @@ func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, er
 
 func (g *GoGit) commitExists(_ context.Context, commitHash string) bool {
 	_, err := g.r.CommitObject(plumbing.NewHash(commitHash))
-	return err == nil 
+	return err == nil
 }
 
 func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
@@ -413,6 +413,10 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 	})
 	if err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
 		return &sdcerrors.UnrecoverableError{Message: "Failed to fetch commit", WrappedError: err}
+	}
+
+	if err := resetToRemoteHead(ctx, g.r, MainBranch.BranchInRemote()); err != nil {
+		return fmt.Errorf("failed to reset to remote head: %v", err)
 	}
 	return nil
 }
@@ -484,7 +488,6 @@ func isAncestor(commit, branchCommit *object.Commit) bool {
 	return false
 }
 
-
 func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
 	log := log.FromContext(ctx)
 
@@ -514,5 +517,28 @@ func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
 		return &sdcerrors.UnrecoverableError{Message: "Failed to checkout commit", WrappedError: err}
 	}
 
+	return nil
+}
+
+func resetToRemoteHead(ctx context.Context, repo *gogit.Repository, branch plumbing.ReferenceName) error {
+	log := log.FromContext(ctx)
+	ref, err := repo.Reference(branch, true)
+	if err != nil {
+		log.Error("Failed to get reference", "branch", branch, "error", err)
+		return fmt.Errorf("failed to get reference for branch %s: %v", branch, err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		log.Error("Failed to get worktree", "error", err)
+		return fmt.Errorf("cannot get worktree: %v", err)
+	}
+	err = wt.Reset(&gogit.ResetOptions{
+		Mode:   gogit.HardReset,
+		Commit: ref.Hash(),
+	})
+	if err != nil {
+		log.Error("Failed to reset worktree", "ref", ref.Hash(), "error", err)
+		return fmt.Errorf("cannot reset worktree: %v", err)
+	}
 	return nil
 }
