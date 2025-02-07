@@ -47,6 +47,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM alpine:latest
 #FROM scratch
 ARG USERID=10000
+
+RUN apk add --no-cache git ca-certificates tzdata
 # add-in our timezone data file
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 # add-in our unprivileged user
