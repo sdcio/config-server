@@ -76,6 +76,10 @@ spec:
           value: "true"
         - name: ENABLE_CONFIGSET
           value: "true"
+        - name: ENABLE_WORKSPACE
+          value: "true"
+        - name: ENABLE_ROLLOUT
+          value: "true"
         volumeMounts:
         - name: apiserver-certs
           mountPath: /apiserver.local.config/certificates
@@ -84,6 +88,8 @@ spec:
           mountPath: /config
         - name: schema-store
           mountPath: /schemas
+        - name: workspace-store
+          mountPath: /workspace
       - name: data-server
         image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
@@ -122,3 +128,6 @@ spec:
       - name: schema-db # persistent schema obj from the parsed yang files
         persistentVolumeClaim:
           claimName: pvc-schema-db
+      - name: workspace-store # git workspace
+        persistentVolumeClaim:
+          claimName: pvc-workspace-store

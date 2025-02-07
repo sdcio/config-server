@@ -1,0 +1,15 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+####### HEADER END #######
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Workspace
+metadata:
+  name: workspace-test
+  namespace: default
+spec:
+  repoURL: https://github.com/henderiw/workspace
+  kind: hash
+  ref: ba003b5c12cc824667df9b4cdf0709e8ef77e318
+    

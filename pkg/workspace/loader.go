@@ -62,7 +62,7 @@ func (r *Loader) EnsureCommit(ctx context.Context, workspace *invv1alpha1.Worksp
 			Name:      workspace.Spec.Credentials},
 		r.credentialResolver,
 	)
-	if workspace.Spec.Proxy.URL != "" {
+	if workspace.Spec.Proxy != nil && workspace.Spec.Proxy.URL != "" {
 		err = goGit.SetProxy(workspace.Spec.Proxy.URL)
 		if err != nil {
 			return "", err
