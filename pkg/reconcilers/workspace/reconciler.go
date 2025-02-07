@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
@@ -186,7 +187,7 @@ func (r *reconciler) handleRollout(ctx context.Context, workspace *invv1alpha1.W
 	log.Debug(msg)
 	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, msg)
 
-	result := ctrl.Result{}
+	result := ctrl.Result{RequeueAfter: 10 * time.Second}
 	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
