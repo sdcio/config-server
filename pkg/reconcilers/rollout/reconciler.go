@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 )
 
 func init() {
@@ -124,27 +126,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, rolloutOrig, "cannot add finalizer", err)
 	}
 
-	/*
-		configstore, err := r.workspaceReader.GetConfigs(ctx, rollout)
-		if err != nil {
-			// we always retry when status fails -> optimistic concurrency
-			return r.handleError(ctx, rolloutOrig, "cannot get configs", err)
-		}
+	
+	configstore, err := r.workspaceReader.GetConfigs(ctx, rollout)
+	if err != nil {
+		// we always retry when status fails -> optimistic concurrency
+		return r.handleError(ctx, rolloutOrig, "cannot get configs", err)
+	}
 
-		configstore.List(ctx, func(ctx context.Context, k storebackend.Key, c *v1alpha1.Config) {
-			fmt.Println("config", k.String(), c.Name)
-		})
-	*/
+	configstore.List(ctx, func(ctx context.Context, k storebackend.Key, c *v1alpha1.Config) {
+		fmt.Println("config", k.String(), c.Name)
+	})
 
 	// Read the configs from the apiserver
 	// check if there are deletes -> add them as deletes
 	// Transact per device
 	// TBD: what if a device is offline -> target not available (we continue or not)
-	// On success
-	// write configs to the datastore and delete the once no longer needed
-	// confirm to the targets
+	// On success 
+		// write configs to the datastore and delete the once no longer needed
+		// confirm to the targets
 	// on failure or timeout
-	// cancel all targets
+		// cancel all targets
 
 	// workspace ready -> rollout done and reference match
 	return r.handleSuccess(ctx, rolloutOrig)

@@ -371,11 +371,6 @@ func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, er
 		return "", err
 	}
 
-	// Open the repo
-	//if err := g.openRepo(ctx); err != nil {
-	//	return "", err
-	//}
-
 	// Check if commit exists
 	if !g.commitExists(ctx, commitHash) {
 		log.Info("Commit not found locally, fetching from remote")
