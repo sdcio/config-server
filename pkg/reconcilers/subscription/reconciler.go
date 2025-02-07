@@ -129,7 +129,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		if err := r.finalizer.RemoveFinalizer(ctx, subscription); err != nil {
 			// we always retry when status fails -> optimistic concurrency
-			return r.handleError(ctx, subscription, "cannot remove finalizer", err)
+			return r.handleError(ctx, subscriptionOrig, "cannot remove finalizer", err)
 		}
 
 		return ctrl.Result{}, nil
@@ -137,7 +137,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err := r.finalizer.AddFinalizer(ctx, subscription); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, subscription, "cannot remove finalizer", err)
+		return r.handleError(ctx, subscriptionOrig, "cannot remove finalizer", err)
 	}
 
 	// get existing targets in a set on which the target state was applied

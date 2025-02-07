@@ -33,8 +33,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -123,12 +121,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
-			if er, ok := status.FromError(err); ok {
-				if er.Code() == codes.ResourceExhausted {
-					return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-						errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err), errUpdateStatus)
-				}
+			var txErr *target.TransactionError
+			if errors.As(err, &txErr) && txErr.Recoverable {
+				// Retry logic for recoverable errors
+				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
+					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err), errUpdateStatus)
 			}
+
 			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err), errUpdateStatus)
 
 		}

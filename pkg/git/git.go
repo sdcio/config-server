@@ -28,6 +28,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -360,4 +361,123 @@ func (g *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport
 	}
 
 	return g.credential.ToAuthMethod(), nil
+}
+
+func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, error) {
+	log := log.FromContext(ctx)
+
+	// Clone repo if not present
+	if err := g.Clone(ctx); err != nil {
+		return "", err
+	}
+
+	// Open the repo
+	if err := g.openRepo(ctx); err != nil {
+		return "", err
+	}
+
+	// Check if commit exists
+	if !g.commitExists(ctx, commitHash) {
+		log.Info("Commit not found locally, fetching from remote")
+		if err := g.fetchCommit(ctx, commitHash); err != nil {
+			return "", err
+		}
+	}
+
+	// Find the branch that contains the commit
+	branch, err := g.findCommitBranch(ctx, commitHash)
+	if err != nil {
+		return "", err
+	}
+
+	return branch, nil
+}
+
+func (g *GoGit) commitExists(_ context.Context, commitHash string) bool {
+	_, err := g.r.ResolveRevision(plumbing.Revision(commitHash))
+	return err == nil
+}
+
+func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
+	log := log.FromContext(ctx)
+	log.Info("Fetching commit", "commit", commitHash)
+
+	err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+		return g.r.FetchContext(ctx, &gogit.FetchOptions{
+			RefSpecs: []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/*:refs/*"))}, // Fetch all refs
+			Depth:    1,
+			Auth:     auth,
+			Force:    true,
+			Prune:    true,
+		})
+	})
+	if err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to fetch commit", WrappedError: err}
+	}
+	return nil
+}
+
+func (g *GoGit) findCommitBranch(ctx context.Context, commitHash string) (string, error) {
+	log := log.FromContext(ctx)
+
+	// Convert commit hash to a plumbing.Hash
+	commitObj, err := g.r.CommitObject(plumbing.NewHash(commitHash))
+	if err != nil {
+		return "", &sdcerrors.UnrecoverableError{Message: "Commit not found", WrappedError: err}
+	}
+
+	iter, err := g.r.References()
+	if err != nil {
+		return "", &sdcerrors.UnrecoverableError{Message: "Failed to list branches", WrappedError: err}
+	}
+	defer iter.Close()
+
+	var foundBranch string
+
+	// Iterate over all branches
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Type() == plumbing.HashReference && ref.Name().IsBranch() { // Ensure it's a branch
+			branchName := ref.Name().Short()
+			branchCommit, err := g.r.CommitObject(ref.Hash())
+			if err != nil {
+				return nil // Continue iteration
+			}
+
+			// Check if the branch contains the commit
+			if isAncestor(commitObj, branchCommit) {
+				foundBranch = branchName
+				return nil // Stop iteration once found
+			}
+		}
+		return nil
+	})
+
+	if foundBranch != "" {
+		log.Info("Commit found in branch", "commit", commitHash, "branch", foundBranch)
+		return foundBranch, nil
+	}
+
+	return "", fmt.Errorf("commit %s not found in any branch", commitHash)
+}
+
+func isAncestor(commit, branchCommit *object.Commit) bool {
+	queue := []*object.Commit{branchCommit}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:] // Pop first element
+
+		if current.Hash == commit.Hash {
+			return true // Commit is found in branch history
+		}
+
+		// Add parents (ancestors) to the queue
+		parentIter := current.Parents()
+		_ = parentIter.ForEach(func(parent *object.Commit) error {
+			queue = append(queue, parent)
+			return nil
+		})
+	}
+
+	return false
 }

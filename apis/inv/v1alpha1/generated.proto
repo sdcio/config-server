@@ -163,6 +163,34 @@ message DiscoveryRuleStatus {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startTime = 2;
 }
 
+message Proxy {
+  // URL specifies the base URL of the HTTP/HTTPS proxy server.
+  optional string URL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
+  optional string credentials = 2;
+}
+
+message Repository {
+  // RepositoryURL specifies the base URL for a given repository
+  optional string repoURL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the repo
+  optional string credentials = 2;
+
+  // Proxy defines the HTTP/HTTPS proxy to be used to download the models.
+  optional Proxy proxy = 3;
+
+  // +kubebuilder:validation:Enum=branch;tag;hash;
+  // +kubebuilder:default:=tag
+  // Kind defines the that the BranchOrTag string is a repository branch or a tag
+  optional string kind = 4;
+
+  // Ref defines the branch or tag of the repository corresponding to the
+  // provider schema version
+  optional string ref = 5;
+}
+
 // +kubebuilder:object:root=true
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -217,32 +245,8 @@ message SchemaSpec {
   repeated SchemaSpecRepository repositories = 3;
 }
 
-message SchemaSpecProxy {
-  // URL specifies the base URL of the HTTP/HTTPS proxy server.
-  optional string URL = 1;
-
-  // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
-  optional string credentials = 2;
-}
-
 message SchemaSpecRepository {
-  // RepositoryURL specifies the base URL for a given repository
-  optional string repoURL = 1;
-
-  // Credentials defines the name of the secret that holds the credentials to connect to the repo
-  optional string credentials = 2;
-
-  // Proxy defines the HTTP/HTTPS proxy to be used to download the models.
-  optional SchemaSpecProxy proxy = 3;
-
-  // +kubebuilder:validation:Enum=branch;tag;
-  // +kubebuilder:default:=tag
-  // Kind defines the that the BranchOrTag string is a repository branch or a tag
-  optional string kind = 4;
-
-  // Ref defines the branch or tag of the repository corresponding to the
-  // provider schema version
-  optional string ref = 5;
+  optional Repository repository = 8;
 
   // +kubebuilder:validation:MaxItems=10
   // Dirs defines the list of directories that identified the provider schema in src/dst pairs

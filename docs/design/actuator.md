@@ -54,7 +54,7 @@ Software upgrade/downgrade (handled by other entity -> meaning the pieces that i
 # implementation
 
 - Reference controller
-    - watches ConfigReference CR -> decides rollback or rollforward based on the git reference info (main or branch)
+    - watches Workspace CR -> decides rollback or rollforward based on the git reference info (main or branch)
         - new change:
             - look at all the configs
         - rollback:

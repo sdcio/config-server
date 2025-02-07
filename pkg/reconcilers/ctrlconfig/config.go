@@ -33,6 +33,7 @@ type ControllerConfig struct {
 	DataServerStore   storebackend.Storer[sdcctx.DSContext]
 	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string
+	WorkspaceDir      string
 	TargetHandler     *target.TargetHandler
 }
 
