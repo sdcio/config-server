@@ -481,3 +481,36 @@ func isAncestor(commit, branchCommit *object.Commit) bool {
 
 	return false
 }
+
+
+func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
+	log := log.FromContext(ctx)
+
+	if err := g.openRepo(ctx); err != nil {
+		return err
+	}
+
+	// Ensure the commit exists
+	if !g.commitExists(ctx, commitHash) {
+		log.Info("Commit not found locally, fetching...")
+		if err := g.fetchCommit(ctx, commitHash); err != nil {
+			return err
+		}
+	}
+
+	// Checkout the commit
+	worktree, err := g.r.Worktree()
+	if err != nil {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to get worktree", WrappedError: err}
+	}
+
+	log.Info("Checking out commit", "hash", commitHash)
+	err = worktree.Checkout(&gogit.CheckoutOptions{
+		Hash: plumbing.NewHash(commitHash),
+	})
+	if err != nil {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to checkout commit", WrappedError: err}
+	}
+
+	return nil
+}

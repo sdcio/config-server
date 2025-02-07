@@ -24,12 +24,13 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	workspaceloader "github.com/sdcio/config-server/pkg/workspace"
+	workspacereader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 )
 
 func init() {
@@ -66,7 +68,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	// initializes the directory
-	r.workspaceLoader, err = workspaceloader.NewLoader(
+	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,
 		secret.NewCredentialResolver(mgr.GetClient(), []secret.Resolver{
 			secret.NewBasicAuthResolver(),
@@ -87,7 +89,7 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	workspaceLoader *workspaceloader.Loader
+	workspaceReader *workspacereader.Reader
 	recorder        record.EventRecorder
 }
 
@@ -123,6 +125,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// we always retry when status fails -> optimistic concurrency
 		return r.handleError(ctx, rolloutOrig, "cannot add finalizer", err)
 	}
+
+	configstore, err := r.workspaceReader.GetConfigs(ctx, rollout)
+	if err != nil {
+		// we always retry when status fails -> optimistic concurrency
+		return r.handleError(ctx, rolloutOrig, "cannot get configs", err)
+	}
+
+	configstore.List(ctx, func(ctx context.Context, k storebackend.Key, c *v1alpha1.Config) {
+		fmt.Println("config", k.String(), c.Name)
+	})
+
+	// Read the configs from the apiserver
+	// check if there are deletes -> add them as deletes
+	// Transact per device
+	// TBD: what if a device is offline -> target not available (we continue or not)
+	// On success 
+		// write configs to the datastore and delete the once no longer needed
+		// confirm to the targets
+	// on failure or timeout
+		// cancel all targets
 
 	// workspace ready -> rollout done and reference match
 	return r.handleSuccess(ctx, rolloutOrig)
