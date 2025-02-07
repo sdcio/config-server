@@ -129,7 +129,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, workspaceOrig, "cannot add finalizer", err)
 	}
 
-	status, err := r.getRolloutStatus(ctx, workspace)
+	rollout, status, err := r.getRolloutStatus(ctx, workspace)
 	if err != nil {
 		return r.handleError(ctx, workspaceOrig, "cannot get rollout status", err)
 	}
@@ -148,8 +148,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			log.Info("rollback")
 		}
 		// apply the rollout CR
-		create := status == RolloutStatus_Done_NoMatchRefNew
-		if err := r.applyRollout(ctx, workspace, create); err != nil {
+		if err := r.applyRollout(ctx, workspace, rollout); err != nil {
 			return r.handleError(ctx, workspaceOrig, "cannot apply rollout", err)
 		}
 		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("new rollout triggered, ref %s", workspace.Spec.Ref))
@@ -226,54 +225,58 @@ const (
 	RolloutStatus_Done_NoMatchRefNew RolloutStatus = "done_nomatch_ref_new"
 )
 
-func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha1.Workspace) (RolloutStatus, error) {
+func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha1.Workspace) (*invv1alpha1.Rollout, RolloutStatus, error) {
 	log := log.FromContext(ctx)
 	rollout := &invv1alpha1.Rollout{}
 	if err := r.Client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
-			return RolloutStatus_Ongoing, err
+			return nil, RolloutStatus_Ongoing, err
 		}
-		return RolloutStatus_Done_NoMatchRefNew, nil
+		return nil, RolloutStatus_Done_NoMatchRefNew, nil
 	}
 	if rollout.GetCondition(condv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
-		return RolloutStatus_Ongoing, nil
+		return rollout, RolloutStatus_Ongoing, nil
 	}
 	if workspace.Spec.Ref != rollout.Spec.Ref {
-		return RolloutStatus_Done_NoMatchRef, nil
+		return rollout, RolloutStatus_Done_NoMatchRef, nil
 	}
-	return RolloutStatus_Done_MatchRef, nil
+	return rollout, RolloutStatus_Done_MatchRef, nil
 }
 
-func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Workspace, create bool) error {
+func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Workspace, rollout *invv1alpha1.Rollout) error {
 	//log := log.FromContext(ctx)
 
-	rollout := invv1alpha1.BuildRollout(
-		metav1.ObjectMeta{
-			Name:      workspace.Name,
-			Namespace: workspace.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: workspace.APIVersion,
-					Kind:       workspace.Kind,
-					Name:       workspace.Name,
-					UID:        workspace.UID,
-					Controller: ptr.To(true),
+	if rollout == nil {
+		rollout := invv1alpha1.BuildRollout(
+			metav1.ObjectMeta{
+				Name:      workspace.Name,
+				Namespace: workspace.Namespace,
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: workspace.APIVersion,
+						Kind:       workspace.Kind,
+						Name:       workspace.Name,
+						UID:        workspace.UID,
+						Controller: ptr.To(true),
+					},
 				},
 			},
-		},
-		invv1alpha1.RolloutSpec{
-			Repository: workspace.Spec.Repository,
-			Strategy:   invv1alpha1.RolloutStrategy_NetworkWideTransaction,
-		},
-	)
-
-	if create {
+			invv1alpha1.RolloutSpec{
+				Repository: workspace.Spec.Repository,
+				Strategy:   invv1alpha1.RolloutStrategy_NetworkWideTransaction,
+			},
+		)
 		if err := r.Client.Create(ctx, rollout); err != nil {
 			return err
 		}
 		return nil
+
 	}
+
+	rollout.Spec.Repository = workspace.Spec.Repository
+	rollout.Spec.Strategy = invv1alpha1.RolloutStrategy_NetworkWideTransaction
+
 	if err := r.Client.Update(ctx, rollout); err != nil {
 		return err
 	}
