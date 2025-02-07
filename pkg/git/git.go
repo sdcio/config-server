@@ -372,9 +372,9 @@ func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, er
 	}
 
 	// Open the repo
-	if err := g.openRepo(ctx); err != nil {
-		return "", err
-	}
+	//if err := g.openRepo(ctx); err != nil {
+	//	return "", err
+	//}
 
 	// Check if commit exists
 	if !g.commitExists(ctx, commitHash) {
@@ -394,8 +394,8 @@ func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, er
 }
 
 func (g *GoGit) commitExists(_ context.Context, commitHash string) bool {
-	_, err := g.r.ResolveRevision(plumbing.Revision(commitHash))
-	return err == nil
+	_, err := g.r.CommitObject(plumbing.NewHash(commitHash))
+	return err == nil 
 }
 
 func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
@@ -405,7 +405,7 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 	err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 		return g.r.FetchContext(ctx, &gogit.FetchOptions{
 			RefSpecs: []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/*:refs/*"))}, // Fetch all refs
-			Depth:    1,
+			Depth:    0,
 			Auth:     auth,
 			Force:    true,
 			Prune:    true,
@@ -419,6 +419,8 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 
 func (g *GoGit) findCommitBranch(ctx context.Context, commitHash string) (string, error) {
 	log := log.FromContext(ctx)
+
+	log.Info("Searching for commit in branches", "commit", commitHash)
 
 	// Convert commit hash to a plumbing.Hash
 	commitObj, err := g.r.CommitObject(plumbing.NewHash(commitHash))
