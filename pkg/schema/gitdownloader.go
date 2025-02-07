@@ -73,7 +73,7 @@ func (l *gitDownloader) Download(ctx context.Context) error {
 
 	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
 
-	if l.schemaRepo.Proxy.URL != "" {
+	if l.schemaRepo.Proxy != nil && l.schemaRepo.Proxy.URL != "" {
 		err = goGit.SetProxy(l.schemaRepo.Proxy.URL)
 		if err != nil {
 			return err
