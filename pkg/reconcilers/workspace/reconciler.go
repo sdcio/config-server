@@ -76,7 +76,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		}),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot initialize schemaloader")
+		return nil, errors.Wrap(err, "cannot initialize WorkspaceController")
 	}
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
@@ -134,7 +134,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	switch status {
 	case RolloutStatus_Ongoing:
-		return r.handleError(ctx, workspaceOrig, "rollout is still ongoing", nil)
+		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("rollout is still ongoing, ref %s", workspace.Spec.Ref))
 	case RolloutStatus_Done_NoMatchRef, RolloutStatus_Done_NoMatchRefNew:
 		// download the reference
 		branch, err := r.workspaceLoader.EnsureCommit(ctx, workspace)
@@ -146,16 +146,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		} else {
 			log.Info("rollback")
 		}
-
 		// apply the rollout CR
 		create := status == RolloutStatus_Done_NoMatchRefNew
 		if err := r.applyRollout(ctx, workspace, create); err != nil {
 			return r.handleError(ctx, workspaceOrig, "cannot apply rollout", err)
 		}
-		return r.handleError(ctx, workspaceOrig, "new rollout triggered", nil)
+		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("new rollout triggered, ref %s", workspace.Spec.Ref))
+	default:
+		// workspace ready -> rollout done and reference match
+		return r.handleSuccess(ctx, workspaceOrig)
 	}
-	// workspace ready -> rollout done and reference match
-	return r.handleSuccess(ctx, workspaceOrig)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, workspace *invv1alpha1.Workspace) (ctrl.Result, error) {
@@ -165,11 +165,29 @@ func (r *reconciler) handleSuccess(ctx context.Context, workspace *invv1alpha1.W
 	patch := client.MergeFrom(workspace.DeepCopy())
 	// update status
 	workspace.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(workspace, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
+	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, "ready")
 
 	log.Debug("handleSuccess", "key", workspace.GetNamespacedName(), "status new", workspace.Status)
 
 	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}), errUpdateStatus)
+}
+
+func (r *reconciler) handleRollout(ctx context.Context, workspace *invv1alpha1.Workspace, msg string) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// take a snapshot of the current object
+	patch := client.MergeFrom(workspace.DeepCopy())
+
+	workspace.SetConditions(condv1alpha1.Rollout(msg))
+	log.Debug(msg)
+	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, msg)
+
+	result := ctrl.Result{}
+	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

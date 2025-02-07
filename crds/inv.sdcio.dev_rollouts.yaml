@@ -24,7 +24,7 @@ spec:
     - jsonPath: .spec.repoURL
       name: URL
       type: string
-    - jsonPath: .ref
+    - jsonPath: .spec.ref
       name: REF
       type: string
     name: v1alpha1

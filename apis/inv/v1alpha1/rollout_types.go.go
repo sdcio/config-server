@@ -49,7 +49,7 @@ type RolloutStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
-// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".ref"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
 // +kubebuilder:resource:categories={sdc,inv}
 // Rollout is the Rollout for the Rollout API
 // +k8s:openapi-gen=true

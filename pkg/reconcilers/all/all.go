@@ -26,4 +26,5 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/subscription"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/workspace"
+	_ "github.com/sdcio/config-server/pkg/reconcilers/rollout"
 )
