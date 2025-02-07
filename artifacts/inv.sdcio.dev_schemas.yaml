@@ -97,10 +97,11 @@ spec:
                       enum:
                       - branch
                       - tag
+                      - hash
                       type: string
                     proxy:
                       description: Proxy defines the HTTP/HTTPS proxy to be used to
-                        download the models.
+                        connect to the repo.
                       properties:
                         URL:
                           description: URL specifies the base URL of the HTTP/HTTPS
@@ -110,6 +111,9 @@ spec:
                           description: Credentials defines the name of the secret
                             that holds the credentials to connect to the proxy server
                           type: string
+                      required:
+                      - URL
+                      - credentials
                       type: object
                     ref:
                       description: Ref defines the branch or tag of the repository
