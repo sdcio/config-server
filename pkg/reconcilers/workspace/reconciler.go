@@ -109,14 +109,28 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 	workspaceOrig := workspace.DeepCopy()
-	//spec := &workspace.Spec
 
 	if !workspace.GetDeletionTimestamp().IsZero() {
-		// TODO delete the configs through transactions
+		rollout := &invv1alpha1.Rollout{}
+		if err := r.Client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot get rollout"), true, err)
+			}
+			// remove the finalizer
+			if err := r.finalizer.RemoveFinalizer(ctx, workspace); err != nil {
+				return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot remove finalizer"), true, err)
+			}
+			// done deleting
+			return ctrl.Result{}, nil
+		}
+
+		if err := r.Client.Delete(ctx, rollout); err != nil {
+			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot delete rollout"), true, err)
+		}
 
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, workspace); err != nil {
-			return r.handleError(ctx, workspaceOrig, "cannot remove finalizer", err)
+			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot remove finalizer"), true, err)
 		}
 		// done deleting
 		return ctrl.Result{}, nil
@@ -124,21 +138,22 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err := r.finalizer.AddFinalizer(ctx, workspace); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, workspaceOrig, "cannot add finalizer", err)
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot add finalizer"), true, err)
+
 	}
 
 	rollout, rolloutCondition := r.getRolloutStatus(ctx, workspace)
 	switch rolloutCondition.Type {
 	case string(ConditionType_RolloutGetFailed):
 		// should be handled by the previous status
-		return r.handleError(ctx, workspaceOrig, "cannot get rollout status", fmt.Errorf("%s", rolloutCondition.Message))
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot get rollout status"), true, fmt.Errorf("%s", rolloutCondition.Message))
 	case string(ConditionType_RollingOut):
-		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("rollout is still ongoing, ref %s", workspace.Spec.Ref))
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Rollout(fmt.Sprintf("rollout is still ongoing, ref %s", workspace.Spec.Ref)), false, nil)
 	case string(ConditionType_RolloutDone_NoMatchRef), string(ConditionType_RolloutDone_MatchRefNew):
 		// download the reference
 		branch, err := r.workspaceLoader.EnsureCommit(ctx, workspace)
 		if err != nil {
-			return r.handleError(ctx, workspaceOrig, "cannot get reference commit", err)
+			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot get reference commit"), true, err)
 		}
 		if branch != "main" {
 			log.Info("rollforward")
@@ -147,16 +162,51 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		// apply the rollout CR
 		if err := r.applyRollout(ctx, workspace, rollout); err != nil {
-			return r.handleError(ctx, workspaceOrig, "cannot apply rollout", err)
+			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot apply rollout"), true, err)
 		}
-		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("new rollout triggered, ref %s", workspace.Spec.Ref))
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Rollout(fmt.Sprintf("new rollout triggered, ref %s", workspace.Spec.Ref)), false, nil)
 	case string(ConditionType_RolloutFailed):
-		return r.handleFailed(ctx, workspaceOrig, rolloutCondition.Message)
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed(rolloutCondition.Message), false, nil)
 	default:
 		// workspace ready -> rollout done and reference match
-		return r.handleSuccess(ctx, workspaceOrig)
+		return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Ready(), false, nil)
 	}
 }
+
+func (r *reconciler) handleStatus(
+	ctx context.Context,
+	workspace *invv1alpha1.Workspace,
+	condition condv1alpha1.Condition,
+	requeue bool,
+	err error,
+) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	patch := client.MergeFrom(workspace.DeepCopy())
+
+	if err != nil {
+		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
+	}
+
+	workspace.SetConditions(condition)
+
+	// Determine event type based on condition type
+	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
+		r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref))
+	} else {
+		log.Error(condition.Message)
+		r.recorder.Eventf(workspace, corev1.EventTypeWarning, crName, condition.Message)
+	}
+
+	result := ctrl.Result{Requeue: requeue}
+	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}), errUpdateStatus)
+}
+
+/*
 
 func (r *reconciler) handleSuccess(ctx context.Context, workspace *invv1alpha1.Workspace) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -233,3 +283,4 @@ func (r *reconciler) handleError(ctx context.Context, workspace *invv1alpha1.Wor
 		},
 	}), errUpdateStatus)
 }
+*/

@@ -121,14 +121,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Remove all configs from the system
 		existingConfigList := &configv1alpha1.ConfigList{}
 		if err := r.Client.List(ctx, existingConfigList); err != nil {
-			return r.handleError(ctx, rolloutOrig, nil, "cannot get existing configs from apiserver", err)
+			return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot get existing configs from apiserver"), true, err)
 		}
 
 		// Calculate the deleted configs with an empty newTargetUpdateConfigStore since we are deleting
 		newTargetUpdateConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]() // empty
 		newTargetDeleteConfigStore, err := getToBeDeletedconfigs(ctx, newTargetUpdateConfigStore, existingConfigList)
 		if err != nil {
-			return r.handleError(ctx, rolloutOrig, nil, "cannot get to be deleted configs from apiserver", err)
+			return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot calculate deleted configs"), true, err)
 		}
 
 		tm := NewTransactionManager(
@@ -141,16 +141,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		)
 		targetStatus, err := tm.TransactToAllTargets(ctx, rollout.Spec.Ref)
 		if err != nil {
-			return r.handleFailed(ctx, rolloutOrig, targetStatus, "cannot apply config to target", err)
+			return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Rollout("delete transaction failed"), false, err)
 		}
 
 		if err := r.updateConfigFromAPIServer(ctx, newTargetUpdateConfigStore, newTargetDeleteConfigStore); err != nil {
-			return r.handleError(ctx, rolloutOrig, nil, "cannot remove api resources", err)
+			return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Rollout("cannot remove cr resources from apiserver"), true, err)
 		}
 
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, rollout); err != nil {
-			return r.handleError(ctx, rolloutOrig, nil, "cannot remove finalizer", err)
+			return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Rollout("cannot remove finalizer"), true, err)
 		}
 		// done deleting
 		return ctrl.Result{}, nil
@@ -158,25 +158,25 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err := r.finalizer.AddFinalizer(ctx, rollout); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, nil, "cannot add finalizer", err)
+		return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot add finalizer"), true, err)
 	}
 
 	newTargetUpdateConfigStore, err := r.workspaceReader.GetConfigs(ctx, rollout)
 	if err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, nil, "cannot get configs from git", err)
+		return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot get configs from git"), true, err)
 	}
 
 	configList := &configv1alpha1.ConfigList{}
 	if err := r.Client.List(ctx, configList); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, nil, "cannot get existing configs from apiserver", err)
+		return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot get existing configs from apiserver"), true, err)
 	}
 
 	newTargetDeleteConfigStore, err := getToBeDeletedconfigs(ctx, newTargetUpdateConfigStore, configList)
 	if err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, nil, "cannot get to be deleted configs from apiserver", err)
+		return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot calculate deleted configs"), true, err)
 	}
 
 	tm := NewTransactionManager(
@@ -189,14 +189,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	)
 	targetStatus, err := tm.TransactToAllTargets(ctx, rollout.Spec.Ref)
 	if err != nil {
-		return r.handleFailed(ctx, rolloutOrig, targetStatus, "cannot apply config to target", err)
+		return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Failed("transaction failed"), false, err)
 	}
 
 	if err := r.updateConfigFromAPIServer(ctx, newTargetUpdateConfigStore, newTargetDeleteConfigStore); err != nil {
-		return r.handleError(ctx, rolloutOrig, nil, "cannot remove api resources", err)
+		return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Rollout("cannot update api resources"), true, err)
 	}
 	// workspace ready -> rollout done and reference match
-	return r.handleSuccess(ctx, rolloutOrig, targetStatus)
+	return r.handleStatus(ctx, rolloutOrig, targetStatus, condv1alpha1.Ready(), false, nil)
 }
 
 func getToBeDeletedconfigs(
@@ -308,73 +308,35 @@ func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore,
 	return errs
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", rollout.GetNamespacedName(), "status old", rollout.DeepCopy().Status)
-	// take a snapshot of the current object
+func (r *reconciler) handleStatus(
+	ctx context.Context,
+	rollout *invv1alpha1.Rollout,
+	targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus],
+	condition condv1alpha1.Condition,
+	requeue bool,
+	err error,
+) (ctrl.Result, error) {
+	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
 	patch := client.MergeFrom(rollout.DeepCopy())
-	// update status
-	rollout.SetConditions(condv1alpha1.Ready())
-	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
-	r.recorder.Eventf(rollout, corev1.EventTypeNormal, crName, "ready")
-
-	log.Debug("handleSuccess", "key", rollout.GetNamespacedName(), "status new", rollout.Status)
-
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-
-func (r *reconciler) handleError(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus], msg string, err error) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// take a snapshot of the current object
-	patch := client.MergeFrom(rollout.DeepCopy())
-
 	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
-
-	rollout.SetConditions(condv1alpha1.Failed(msg))
+	rollout.SetConditions(condition)
 	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
 
-	log.Error(msg)
-	r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, msg)
-
-	result := ctrl.Result{Requeue: true}
+	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
+		r.recorder.Eventf(rollout, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref))
+	} else {
+		log.Error(condition.Message)
+		r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, condition.Message)
+	}
+	result := ctrl.Result{Requeue: requeue}
 	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
 }
-
-func (r *reconciler) handleFailed(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus], msg string, err error) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// take a snapshot of the current object
-	patch := client.MergeFrom(rollout.DeepCopy())
-
-	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
-	}
-
-	rollout.SetConditions(condv1alpha1.Failed(msg))
-	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
-
-	log.Error(msg)
-	r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, msg)
-
-	result := ctrl.Result{}
-	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-
 
 // getTargetStatus is a convenience fn to reflect the target status in the Status field of the CR
 func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) []invv1alpha1.RolloutTargetStatus {
