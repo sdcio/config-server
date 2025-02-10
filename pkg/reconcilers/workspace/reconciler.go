@@ -127,11 +127,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.Client.Delete(ctx, rollout); err != nil {
 			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot delete rollout"), true, err)
 		}
-
-		// remove the finalizer
-		if err := r.finalizer.RemoveFinalizer(ctx, workspace); err != nil {
-			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot remove finalizer"), true, err)
-		}
 		// done deleting
 		return ctrl.Result{}, nil
 	}
