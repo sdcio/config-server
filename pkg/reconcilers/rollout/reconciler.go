@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2025 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,29 +18,36 @@ package rollout
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"sort"
+	"time"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
-	"github.com/pkg/errors"
+	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
-	"github.com/sdcio/config-server/apis/config/v1alpha1"
+	configapi "github.com/sdcio/config-server/apis/config"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	"github.com/sdcio/config-server/pkg/target"
 	workspacereader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 )
 
 func init() {
@@ -67,6 +74,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.Client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.targetHandler = cfg.TargetHandler
 	// initializes the directory
 	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,
@@ -75,7 +83,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		}),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot initialize RolloutController")
+		return nil, pkgerrors.Wrap(err, "cannot initialize RolloutController")
 	}
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
@@ -87,8 +95,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client.Client
-	finalizer *resource.APIFinalizer
-
+	finalizer       *resource.APIFinalizer
+	targetHandler   target.TargetHandler
 	workspaceReader *workspacereader.Reader
 	recorder        record.EventRecorder
 }
@@ -103,19 +111,46 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
-			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+			return ctrl.Result{}, pkgerrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
 	}
 	rolloutOrig := rollout.DeepCopy()
-	//spec := &workspace.Spec
 
 	if !rollout.GetDeletionTimestamp().IsZero() {
-		// TODO delete the configs through transactions
+		// Remove all configs from the system
+		existingConfigList := &configv1alpha1.ConfigList{}
+		if err := r.Client.List(ctx, existingConfigList); err != nil {
+			return r.handleError(ctx, rolloutOrig, nil, "cannot get existing configs from apiserver", err)
+		}
+
+		// Calculate the deleted configs with an empty newTargetUpdateConfigStore since we are deleting
+		newTargetUpdateConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]() // empty
+		newTargetDeleteConfigStore, err := getToBeDeletedconfigs(ctx, newTargetUpdateConfigStore, existingConfigList)
+		if err != nil {
+			return r.handleError(ctx, rolloutOrig, nil, "cannot get to be deleted configs from apiserver", err)
+		}
+
+		tm := NewTransactionManager(
+			newTargetUpdateConfigStore,
+			newTargetDeleteConfigStore,
+			r.targetHandler,
+			1*time.Minute,
+			30*time.Second,
+			rollout.GetSkipUnavailableTarget(),
+		)
+		targetStatus, err := tm.TransactToAllTargets(ctx, rollout.Spec.Ref)
+		if err != nil {
+			return r.handleFailed(ctx, rolloutOrig, targetStatus, "cannot apply config to target", err)
+		}
+
+		if err := r.updateConfigFromAPIServer(ctx, newTargetUpdateConfigStore, newTargetDeleteConfigStore); err != nil {
+			return r.handleError(ctx, rolloutOrig, nil, "cannot remove api resources", err)
+		}
 
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, rollout); err != nil {
-			return r.handleError(ctx, rolloutOrig, "cannot remove finalizer", err)
+			return r.handleError(ctx, rolloutOrig, nil, "cannot remove finalizer", err)
 		}
 		// done deleting
 		return ctrl.Result{}, nil
@@ -123,54 +158,176 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if err := r.finalizer.AddFinalizer(ctx, rollout); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, "cannot add finalizer", err)
+		return r.handleError(ctx, rolloutOrig, nil, "cannot add finalizer", err)
 	}
 
-	
-	configstore, err := r.workspaceReader.GetConfigs(ctx, rollout)
+	newTargetUpdateConfigStore, err := r.workspaceReader.GetConfigs(ctx, rollout)
 	if err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, rolloutOrig, "cannot get configs", err)
+		return r.handleError(ctx, rolloutOrig, nil, "cannot get configs from git", err)
 	}
 
-	configstore.List(ctx, func(ctx context.Context, k storebackend.Key, c *v1alpha1.Config) {
-		fmt.Println("config", k.String(), c.Name)
-	})
+	configList := &configv1alpha1.ConfigList{}
+	if err := r.Client.List(ctx, configList); err != nil {
+		// we always retry when status fails -> optimistic concurrency
+		return r.handleError(ctx, rolloutOrig, nil, "cannot get existing configs from apiserver", err)
+	}
 
-	// Read the configs from the apiserver
-	// check if there are deletes -> add them as deletes
-	// Transact per device
-	// TBD: what if a device is offline -> target not available (we continue or not)
-	// On success 
-		// write configs to the datastore and delete the once no longer needed
-		// confirm to the targets
-	// on failure or timeout
-		// cancel all targets
+	newTargetDeleteConfigStore, err := getToBeDeletedconfigs(ctx, newTargetUpdateConfigStore, configList)
+	if err != nil {
+		// we always retry when status fails -> optimistic concurrency
+		return r.handleError(ctx, rolloutOrig, nil, "cannot get to be deleted configs from apiserver", err)
+	}
 
+	tm := NewTransactionManager(
+		newTargetUpdateConfigStore,
+		newTargetDeleteConfigStore,
+		r.targetHandler,
+		1*time.Minute,
+		30*time.Second,
+		rollout.GetSkipUnavailableTarget(),
+	)
+	targetStatus, err := tm.TransactToAllTargets(ctx, rollout.Spec.Ref)
+	if err != nil {
+		return r.handleFailed(ctx, rolloutOrig, targetStatus, "cannot apply config to target", err)
+	}
+
+	if err := r.updateConfigFromAPIServer(ctx, newTargetUpdateConfigStore, newTargetDeleteConfigStore); err != nil {
+		return r.handleError(ctx, rolloutOrig, nil, "cannot remove api resources", err)
+	}
 	// workspace ready -> rollout done and reference match
-	return r.handleSuccess(ctx, rolloutOrig)
-
+	return r.handleSuccess(ctx, rolloutOrig, targetStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, rollout *invv1alpha1.Rollout) (ctrl.Result, error) {
+func getToBeDeletedconfigs(
+	ctx context.Context,
+	newTargetConfigStore storebackend.Storer[storebackend.Storer[*configapi.Config]],
+	existingConfigList *configv1alpha1.ConfigList,
+) (storebackend.Storer[storebackend.Storer[*configapi.Config]], error) {
+
+	log := log.FromContext(ctx)
+	newTargetDeleteConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]()
+	for _, existingConfig := range existingConfigList.Items {
+		targetName, ok := existingConfig.Labels[configapi.TargetNameKey]
+		if !ok {
+			log.Warn("Skipping config missing targetName", "config", existingConfig.Name)
+			continue
+		}
+		targetNamespace, ok := existingConfig.Labels[configapi.TargetNamespaceKey]
+		if !ok {
+			log.Warn("Skipping config missing targetNamespace", "config", existingConfig.Name)
+			continue
+		}
+
+		internalcfg := &configapi.Config{}
+		if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(&existingConfig, internalcfg, nil); err != nil {
+			return newTargetDeleteConfigStore, err
+		}
+
+		targetKey := storebackend.KeyFromNSN(types.NamespacedName{
+			Namespace: targetNamespace,
+			Name:      targetName,
+		})
+		configKey := storebackend.KeyFromNSN(types.NamespacedName{
+			Namespace: existingConfig.Namespace,
+			Name:      existingConfig.Name,
+		})
+
+		// Check if the target still exists in the new config store
+		configStore, err := newTargetConfigStore.Get(ctx, targetKey)
+		if err != nil {
+			// If target is not found, mark all its configs for deletion
+			deleteConfigStore, err := newTargetDeleteConfigStore.Get(ctx, targetKey)
+			if err != nil {
+				deleteConfigStore = memstore.NewStore[*configapi.Config]()
+				if err := newTargetDeleteConfigStore.Create(ctx, targetKey, deleteConfigStore); err != nil {
+					return nil, pkgerrors.Wrap(err, "cannot create target delete configstore")
+				}
+			}
+			if err := deleteConfigStore.Create(ctx, configKey, internalcfg); err != nil {
+				return nil, pkgerrors.Wrap(err, "cannot create config in delete config store")
+			}
+			if err := newTargetDeleteConfigStore.Update(ctx, targetKey, deleteConfigStore); err != nil {
+				return nil, pkgerrors.Wrap(err, "cannot update target delete configstore")
+			}
+			continue
+		}
+
+		// If the config itself is missing from the new config store, mark for deletion
+		if _, err := configStore.Get(ctx, configKey); err != nil {
+			deleteConfigStore, err := newTargetDeleteConfigStore.Get(ctx, targetKey)
+			if err != nil {
+				deleteConfigStore = memstore.NewStore[*configapi.Config]()
+				if err := newTargetDeleteConfigStore.Create(ctx, targetKey, deleteConfigStore); err != nil {
+					return nil, pkgerrors.Wrap(err, "cannot create target delete configstore")
+				}
+			}
+			if err := deleteConfigStore.Create(ctx, configKey, internalcfg); err != nil {
+				return nil, pkgerrors.Wrap(err, "cannot create config in delete config store")
+			}
+			if err := newTargetDeleteConfigStore.Update(ctx, targetKey, deleteConfigStore); err != nil {
+				return nil, pkgerrors.Wrap(err, "cannot update target delete configstore")
+			}
+		}
+	}
+
+	newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, deleteConfigStore storebackend.Storer[*configapi.Config]) {
+		configCount := 0
+		deleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, cfg *configapi.Config) {
+			configCount++
+		})
+		if configCount == 0 {
+			_ = newTargetDeleteConfigStore.Delete(ctx, k)
+		}
+	})
+
+	return newTargetDeleteConfigStore, nil
+}
+
+func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore, deleteStore storebackend.Storer[storebackend.Storer[*configapi.Config]]) error {
+
+	var errs error
+	updateStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
+		s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
+			if err := r.Client.Create(ctx, c, &client.CreateOptions{
+				FieldManager: reconcilerName,
+			}); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		})
+	})
+
+	deleteStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
+		s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
+			if err := r.Client.Delete(ctx, c); err != nil {
+				errs = errors.Join(errs, err)
+			}
+		})
+
+	})
+	return errs
+}
+
+func (r *reconciler) handleSuccess(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", rollout.GetNamespacedName(), "status old", rollout.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(rollout.DeepCopy())
 	// update status
 	rollout.SetConditions(condv1alpha1.Ready())
+	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
 	r.recorder.Eventf(rollout, corev1.EventTypeNormal, crName, "ready")
 
 	log.Debug("handleSuccess", "key", rollout.GetNamespacedName(), "status new", rollout.Status)
 
-	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
 }
 
-func (r *reconciler) handleError(ctx context.Context, rollout *invv1alpha1.Rollout, msg string, err error) (ctrl.Result, error) {
+func (r *reconciler) handleError(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus], msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	// take a snapshot of the current object
@@ -181,13 +338,58 @@ func (r *reconciler) handleError(ctx context.Context, rollout *invv1alpha1.Rollo
 	}
 
 	rollout.SetConditions(condv1alpha1.Failed(msg))
+	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
+
 	log.Error(msg)
 	r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, msg)
 
 	result := ctrl.Result{Requeue: true}
-	return result, errors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
+	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
+}
+
+func (r *reconciler) handleFailed(ctx context.Context, rollout *invv1alpha1.Rollout, targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus], msg string, err error) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// take a snapshot of the current object
+	patch := client.MergeFrom(rollout.DeepCopy())
+
+	if err != nil {
+		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+	}
+
+	rollout.SetConditions(condv1alpha1.Failed(msg))
+	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
+
+	log.Error(msg)
+	r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, msg)
+
+	result := ctrl.Result{}
+	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}), errUpdateStatus)
+}
+
+
+// getTargetStatus is a convenience fn to reflect the target status in the Status field of the CR
+func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) []invv1alpha1.RolloutTargetStatus {
+	targetStatus := []invv1alpha1.RolloutTargetStatus{}
+
+	if storeTargetStatus == nil {
+		return targetStatus
+	}
+
+	storeTargetStatus.List(ctx, func(ctx context.Context, k storebackend.Key, rts invv1alpha1.RolloutTargetStatus) {
+		targetStatus = append(targetStatus, rts)
+	})
+
+	sort.SliceStable(targetStatus, func(i, j int) bool {
+		return targetStatus[i].Name < targetStatus[j].Name
+	})
+	return targetStatus
 }
