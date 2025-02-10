@@ -26,6 +26,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/config"
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -47,7 +48,7 @@ func NewReader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 	}, nil
 }
 
-func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (storebackend.Storer[*configv1alpha1.Config], error) {
+func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (storebackend.Storer[storebackend.Storer[*config.Config]], error) {
 	log := log.FromContext(ctx)
 
 	repo, err := git.NewRepo(rollout.Spec.RepositoryURL)
@@ -78,8 +79,8 @@ func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (
 	return extractConfigsFromRepo(ctx, repoPath)
 }
 
-func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.Storer[*configv1alpha1.Config], error) {
-	configStore := memstore.NewStore[*configv1alpha1.Config]()
+func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.Storer[storebackend.Storer[*config.Config]], error) {
+	newTargetConfigStore := memstore.NewStore[storebackend.Storer[*config.Config]]()
 
 	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -97,27 +98,45 @@ func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.
 			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
-		var config *configv1alpha1.Config
-		if err := yaml.Unmarshal(data, &config); err != nil {
+		var cfg *configv1alpha1.Config
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
 			return fmt.Errorf("failed to parse YAML in file %s: %w", path, err)
 		}
 
 		// Check if it matches expected apiVersion and kind
-		if config.APIVersion == configv1alpha1.SchemeGroupVersion.Identifier() && config.Kind == configv1alpha1.ConfigKind {
-			targetName, ok := config.Labels[configapi.TargetNameKey]
+		if cfg.APIVersion == config.SchemeGroupVersion.Identifier() && cfg.Kind == config.ConfigKind {
+			targetName, ok := cfg.Labels[configapi.TargetNameKey]
 			if !ok {
 				return nil // Ignore files without a targetName
 			}
-			targetNamespace, ok := config.Labels[configapi.TargetNamespaceKey]
+			targetNamespace, ok := cfg.Labels[configapi.TargetNamespaceKey]
 			if !ok {
 				return nil // Ignore files without a targetName
+			}
+			targetKey := types.NamespacedName{Namespace: targetNamespace, Name: targetName}
+
+			configStore, err := newTargetConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
+			if err != nil {
+				// if the target is not found we create a new config store
+				// in which we store all configs for this target
+				configStore = memstore.NewStore[*config.Config]()
+				if err := newTargetConfigStore.Create(ctx, storebackend.KeyFromNSN(targetKey), configStore); err != nil {
+					return err
+				}
+			}
+			internalcfg := &config.Config{}
+			if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(cfg, internalcfg, nil); err != nil {
+				return err
 			}
 			if err := configStore.Create(
 				ctx,
-				storebackend.KeyFromNSN(types.NamespacedName{Namespace: targetNamespace, Name: targetName}),
-				config,
+				storebackend.KeyFromNSN(types.NamespacedName{Namespace: cfg.Namespace, Name: cfg.Name}),
+				internalcfg,
 			); err != nil {
 				return err // this checks duplicates
+			}
+			if err := newTargetConfigStore.Update(ctx, storebackend.KeyFromNSN(targetKey), configStore); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -127,5 +146,5 @@ func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.
 		return nil, err
 	}
 
-	return configStore, nil
+	return newTargetConfigStore, nil
 }

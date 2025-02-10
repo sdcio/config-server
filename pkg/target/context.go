@@ -361,6 +361,70 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
+func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (string, error) {
+	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+	if !r.IsReady() {
+		return "", fmt.Errorf("target context not ready")
+	}
+
+	intents := make([]*sdcpb.TransactionIntent, len(configs)+len(deleteConfigs))
+	for i, config := range configs {
+		update, err := r.getIntentUpdate(ctx, key, config, true)
+		if err != nil {
+			return "", err
+		}
+		intents[i] = &sdcpb.TransactionIntent{
+			Intent:   getGVKNSN(config),
+			Priority: int32(config.Spec.Priority),
+			Update:   update,
+		}
+	}
+	for i, config := range deleteConfigs {
+		intents[len(configs)+i] = &sdcpb.TransactionIntent{
+			Intent:   getGVKNSN(config),
+			Priority: int32(config.Spec.Priority),
+			Delete:   true,
+		}
+	}
+
+	log.Debug("delete intents", "total update", len(configs), "total delete", len(deleteConfigs))
+
+	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+		TransactionId: transactionID,
+		DatastoreName: key.String(),
+		DryRun:        dryRun,
+		Timeout:       ptr.To(int32(60)),
+		Intents:       intents,
+	})
+	return r.processTransactionResponse(ctx, key, rsp, err)
+}
+
+func (r *Context) Confirm(ctx context.Context, key storebackend.Key, transactionID string) error {
+	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+	if !r.IsReady() {
+		return fmt.Errorf("target context not ready")
+	}
+	log.Debug("cancel transaction")
+	_, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		TransactionId: transactionID,
+		DatastoreName: key.String(),
+	})
+	return err
+}
+
+func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionID string) error {
+	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+	if !r.IsReady() {
+		return fmt.Errorf("target context not ready")
+	}
+	log.Debug("cancel transaction")
+	_, err := r.dsclient.TransactionCancel(ctx, &sdcpb.TransactionCancelRequest{
+		TransactionId: transactionID,
+		DatastoreName: key.String(),
+	})
+	return err
+}
+
 func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, err error) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	var errs error
@@ -391,7 +455,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 		}
 	}
 	if errs != nil {
-		return "",  NewTransactionError(errs, recoverable)
+		return "", NewTransactionError(errs, recoverable)
 	}
 	log.Debug("intent recovery succeeded", "rsp", prototext.Format(rsp))
 	if len(collectedWarnings) > 0 {

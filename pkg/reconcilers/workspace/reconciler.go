@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2025 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,10 +33,8 @@ import (
 	workspaceloader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -129,14 +127,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, workspaceOrig, "cannot add finalizer", err)
 	}
 
-	rollout, status, err := r.getRolloutStatus(ctx, workspace)
-	if err != nil {
-		return r.handleError(ctx, workspaceOrig, "cannot get rollout status", err)
-	}
-	switch status {
-	case RolloutStatus_Ongoing:
+	rollout, rolloutCondition := r.getRolloutStatus(ctx, workspace)
+	switch rolloutCondition.Type {
+	case string(ConditionType_RolloutGetFailed):
+		// should be handled by the previous status
+		return r.handleError(ctx, workspaceOrig, "cannot get rollout status", fmt.Errorf("%s", rolloutCondition.Message))
+	case string(ConditionType_RollingOut):
 		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("rollout is still ongoing, ref %s", workspace.Spec.Ref))
-	case RolloutStatus_Done_NoMatchRef, RolloutStatus_Done_NoMatchRefNew:
+	case string(ConditionType_RolloutDone_NoMatchRef), string(ConditionType_RolloutDone_MatchRefNew):
 		// download the reference
 		branch, err := r.workspaceLoader.EnsureCommit(ctx, workspace)
 		if err != nil {
@@ -152,6 +150,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return r.handleError(ctx, workspaceOrig, "cannot apply rollout", err)
 		}
 		return r.handleRollout(ctx, workspaceOrig, fmt.Sprintf("new rollout triggered, ref %s", workspace.Spec.Ref))
+	case string(ConditionType_RolloutFailed):
+		return r.handleFailed(ctx, workspaceOrig, rolloutCondition.Message)
 	default:
 		// workspace ready -> rollout done and reference match
 		return r.handleSuccess(ctx, workspaceOrig)
@@ -168,6 +168,24 @@ func (r *reconciler) handleSuccess(ctx context.Context, workspace *invv1alpha1.W
 	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, "ready")
 
 	log.Debug("handleSuccess", "key", workspace.GetNamespacedName(), "status new", workspace.Status)
+
+	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}), errUpdateStatus)
+}
+
+func (r *reconciler) handleFailed(ctx context.Context, workspace *invv1alpha1.Workspace, msg string) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+	log.Debug("handleFailure", "key", workspace.GetNamespacedName(), "status old", workspace.DeepCopy().Status)
+	// take a snapshot of the current object
+	patch := client.MergeFrom(workspace.DeepCopy())
+	// update status
+	workspace.SetConditions(condv1alpha1.Failed(msg))
+	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, "failed")
+
+	log.Debug("handleFailure", "key", workspace.GetNamespacedName(), "status new", workspace.Status)
 
 	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
@@ -214,71 +232,4 @@ func (r *reconciler) handleError(ctx context.Context, workspace *invv1alpha1.Wor
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
-}
-
-type RolloutStatus string
-
-const (
-	RolloutStatus_Ongoing            RolloutStatus = "ongoing"
-	RolloutStatus_Done_MatchRef      RolloutStatus = "done_match_ref"
-	RolloutStatus_Done_NoMatchRef    RolloutStatus = "done_nomatch_ref"
-	RolloutStatus_Done_NoMatchRefNew RolloutStatus = "done_nomatch_ref_new"
-)
-
-func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha1.Workspace) (*invv1alpha1.Rollout, RolloutStatus, error) {
-	log := log.FromContext(ctx)
-	rollout := &invv1alpha1.Rollout{}
-	if err := r.Client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
-		if !k8serrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
-			return nil, RolloutStatus_Ongoing, err
-		}
-		return nil, RolloutStatus_Done_NoMatchRefNew, nil
-	}
-	if rollout.GetCondition(condv1alpha1.ConditionTypeReady).Status != metav1.ConditionTrue {
-		return rollout, RolloutStatus_Ongoing, nil
-	}
-	if workspace.Spec.Ref != rollout.Spec.Ref {
-		return rollout, RolloutStatus_Done_NoMatchRef, nil
-	}
-	return rollout, RolloutStatus_Done_MatchRef, nil
-}
-
-func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Workspace, rollout *invv1alpha1.Rollout) error {
-	//log := log.FromContext(ctx)
-
-	if rollout == nil {
-		rollout := invv1alpha1.BuildRollout(
-			metav1.ObjectMeta{
-				Name:      workspace.Name,
-				Namespace: workspace.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: workspace.APIVersion,
-						Kind:       workspace.Kind,
-						Name:       workspace.Name,
-						UID:        workspace.UID,
-						Controller: ptr.To(true),
-					},
-				},
-			},
-			invv1alpha1.RolloutSpec{
-				Repository: workspace.Spec.Repository,
-				Strategy:   invv1alpha1.RolloutStrategy_NetworkWideTransaction,
-			},
-		)
-		if err := r.Client.Create(ctx, rollout); err != nil {
-			return err
-		}
-		return nil
-
-	}
-
-	rollout.Spec.Repository = workspace.Spec.Repository
-	rollout.Spec.Strategy = invv1alpha1.RolloutStrategy_NetworkWideTransaction
-
-	if err := r.Client.Update(ctx, rollout); err != nil {
-		return err
-	}
-	return nil
 }

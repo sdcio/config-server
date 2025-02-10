@@ -37,6 +37,13 @@ func (r *Rollout) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
+func (r *Rollout) GetSkipUnavailableTarget() bool {
+	if r.Spec.SkipUnavailableTarget != nil && *r.Spec.SkipUnavailableTarget {
+		return true
+	}
+	return false
+}
+
 // BuildRollout returns a Rollout from a client Object a crName and
 // an ROllout Spec/Status
 func BuildRollout(meta metav1.ObjectMeta, spec RolloutSpec) *Rollout {

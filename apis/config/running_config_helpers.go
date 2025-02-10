@@ -21,6 +21,10 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // BuildRunningConfig returns a reource from a client Object a Spec/Status
 func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status RunningConfigStatus) *RunningConfig {
 	return &RunningConfig{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind: RunningConfigKind,
+		},
 		ObjectMeta: meta,
 		Spec:       spec,
 		Status:     status,

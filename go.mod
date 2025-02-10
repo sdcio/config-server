@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.4-0.20241023220418-f1bacfdbb4da
-	github.com/henderiw/apiserver-store v0.0.3-0.20241125153507-9408ac40ee00
+	github.com/henderiw/apiserver-store v0.0.3-0.20250209075513-bc23380af2d3
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/henderiw/store v0.0.2-0.20241030044529-f6baff74eab3

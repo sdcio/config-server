@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -34,6 +35,10 @@ func (r *Config) GetCondition(t condition.ConditionType) condition.Condition {
 // to be set at once
 func (r *Config) SetConditions(c ...condition.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *Config) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Name: r.Name, Namespace: r.Namespace}
 }
 
 func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
@@ -77,4 +82,16 @@ func GetTargetKey(labels map[string]string) (types.NamespacedName, error) {
 		Namespace: targetNamespace,
 		Name:      targetName,
 	}, nil
+}
+
+// BuildConfig returns a reource from a client Object a Spec/Status
+func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec) *Config {
+	return &Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind: ConfigKind,
+		},
+		ObjectMeta: meta,
+		Spec:       spec,
+	}
 }

@@ -78,7 +78,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer     *resource.APIFinalizer
-	targetHandler *target.TargetHandler
+	targetHandler target.TargetHandler
 	recorder      record.EventRecorder
 }
 

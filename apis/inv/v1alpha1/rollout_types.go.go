@@ -34,10 +34,20 @@ type RolloutSpec struct {
 	Repository `json:",inline" protobuf:"bytes,1,opt,name=repository"`
 
 	Strategy RolloutStrategy `json:"strategy" protobuf:"bytes,2,opt,name=strategy"`
+
+	SkipUnavailableTarget *bool `json:"skipUnavailableTarget,omitempty" protobuf:"bytes,3,opt,name=skipUnavailableTarget"`
 }
 
 // RolloutStatus defines the observed state of Rollout
 type RolloutStatus struct {
+	// ConditionedStatus provides the status of the Rollout using conditions
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	// Targets defines the status of the rollout on the respective target
+	Targets []RolloutTargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
+}
+
+type RolloutTargetStatus struct {
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// ConditionedStatus provides the status of the Rollout using conditions
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 }

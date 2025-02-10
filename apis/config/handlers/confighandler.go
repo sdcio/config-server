@@ -11,7 +11,7 @@ import (
 )
 
 type ConfigStoreHandler struct {
-	Handler *target.TargetHandler
+	Handler target.TargetHandler
 }
 
 func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {

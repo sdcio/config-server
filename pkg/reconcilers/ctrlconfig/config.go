@@ -34,7 +34,7 @@ type ControllerConfig struct {
 	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string
 	WorkspaceDir      string
-	TargetHandler     *target.TargetHandler
+	TargetHandler     target.TargetHandler
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

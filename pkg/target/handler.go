@@ -31,20 +31,31 @@ import (
 
 var LookupError = errors.New("target lookup error")
 
-func NewTargetHandler(client client.Client, targetStore storebackend.Storer[*Context]) *TargetHandler {
-	return &TargetHandler{
+type TargetHandler interface {
+	GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error)
+	SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error)
+	GetData(ctx context.Context, targetKey types.NamespacedName) (*config.RunningConfig, error)
+	RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	Confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
+	Cancel(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
+}
+
+func NewTargetHandler(client client.Client, targetStore storebackend.Storer[*Context]) TargetHandler {
+	return &targetHandler{
 		client:      client,
 		targetStore: targetStore,
 	}
 }
 
-type TargetHandler struct {
+type targetHandler struct {
 	client      client.Client
 	targetStore storebackend.Storer[*Context]
 }
 
 // GetTargetContext returns a invTarget and targetContext when the target is ready and the ctx is found
-func (r *TargetHandler) GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error) {
+func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
@@ -68,7 +79,7 @@ func (r *TargetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	return target, tctx, nil
 }
 
-func (r *TargetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
@@ -78,7 +89,7 @@ func (r *TargetHandler) SetIntent(ctx context.Context, targetKey types.Namespace
 	return schema, msg, err
 }
 
-func (r *TargetHandler) DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error) {
+func (r *targetHandler) DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return "", err
@@ -86,7 +97,7 @@ func (r *TargetHandler) DeleteIntent(ctx context.Context, targetKey types.Namesp
 	return tctx.DeleteIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun)
 }
 
-func (r *TargetHandler) GetData(ctx context.Context, targetKey types.NamespacedName) (*config.RunningConfig, error) {
+func (r *targetHandler) GetData(ctx context.Context, targetKey types.NamespacedName) (*config.RunningConfig, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, err
@@ -94,7 +105,7 @@ func (r *TargetHandler) GetData(ctx context.Context, targetKey types.NamespacedN
 	return tctx.GetData(ctx, storebackend.Key{NamespacedName: targetKey})
 }
 
-func (r *TargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
@@ -102,4 +113,30 @@ func (r *TargetHandler) RecoverIntents(ctx context.Context, targetKey types.Name
 	schema := tctx.GetSchema()
 	msg, err := tctx.RecoverIntents(ctx, storebackend.Key{NamespacedName: targetKey}, configs)
 	return schema, msg, err
+}
+
+func (r *targetHandler) SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+	_, tctx, err := r.GetTargetContext(ctx, targetKey)
+	if err != nil {
+		return nil, "", err
+	}
+	schema := tctx.GetSchema()
+	msg, err := tctx.SetIntents(ctx, storebackend.Key{NamespacedName: targetKey}, transactionID, configs, deleteConfigs, dryRun)
+	return schema, msg, err
+}
+
+func (r *targetHandler) Confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
+	_, tctx, err := r.GetTargetContext(ctx, targetKey)
+	if err != nil {
+		return err
+	}
+	return tctx.Confirm(ctx, storebackend.Key{NamespacedName: targetKey}, transactionID)
+}
+
+func (r *targetHandler) Cancel(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
+	_, tctx, err := r.GetTargetContext(ctx, targetKey)
+	if err != nil {
+		return err
+	}
+	return tctx.Cancel(ctx, storebackend.Key{NamespacedName: targetKey}, transactionID)
 }
