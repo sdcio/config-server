@@ -5,6 +5,7 @@
 name: Test
 on:
   workflow_dispatch:
+  push_request:
   pull_request_target:
     types: [labeled]
   push:
