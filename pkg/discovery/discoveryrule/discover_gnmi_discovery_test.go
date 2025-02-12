@@ -17,6 +17,7 @@ limitations under the License.
 package discoveryrule
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -54,6 +55,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
 			// Load gNMI capability response
 			capRsp, err := getCapbilityResponse(tc.capabilityFile)
 			if err != nil {
@@ -72,7 +74,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 			}
 
 			d := Discoverer{Provider: tc.provider}
-			di, err := d.parseDiscoveryInformation(pathMap, capRsp, getRsp)
+			di, err := d.parseDiscoveryInformation(ctx, pathMap, capRsp, getRsp)
 			// Check error conditions
 			if (err != nil) != tc.expectError {
 				t.Fatalf("Expected error: %v, got: %v", tc.expectError, err)

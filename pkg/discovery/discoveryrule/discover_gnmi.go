@@ -156,14 +156,17 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 		return nil, err
 	}
 
-	return r.parseDiscoveryInformation(pathMap, capRsp, getRsp)
+	return r.parseDiscoveryInformation(ctx, pathMap, capRsp, getRsp)
 }
 
 func (r *Discoverer) parseDiscoveryInformation(
+	ctx context.Context,
 	pathMap map[string]invv1alpha1.DiscoveryPathDefinition,
 	capRsp *gnmi.CapabilityResponse,
 	getRsp *gnmi.GetResponse,
 ) (*invv1alpha1.DiscoveryInfo, error) {
+	log := log.FromContext(ctx).With("provider", r.Provider)
+
 	di := &invv1alpha1.DiscoveryInfo{
 		Protocol:           string(invv1alpha1.Protocol_GNMI),
 		Provider:           r.Provider,
@@ -187,15 +190,21 @@ func (r *Discoverer) parseDiscoveryInformation(
 		for _, upd := range notif.GetUpdate() {
 			gnmiPath := GnmiPathToXPath(upd.GetPath(), false)
 
+			log.Info("discovery", "path", gnmiPath)
+
 			if param, exists := pathMap[gnmiPath]; exists {
 				if targetField, found := fieldMapping[param.Key]; found {
 					*targetField = strings.Trim(string(upd.GetVal().GetJsonIetfVal()), "\"")
 
+					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
+
 					// Apply transformations (Regex + Starlark)
-					transformedValue, err := applyTransformations(param, *targetField)
+					transformedValue, err := applyTransformations(ctx, param, *targetField)
 					if err != nil {
 						return nil, fmt.Errorf("failed to process transformation for %q: %w", param.Key, err)
 					}
+
+					log.Info("discovery after transform", "path", gnmiPath, "key", param.Key, "value", transformedValue)
 					*targetField = transformedValue
 				}
 			}
@@ -204,7 +213,10 @@ func (r *Discoverer) parseDiscoveryInformation(
 	return di, nil
 }
 
-func applyTransformations(param invv1alpha1.DiscoveryPathDefinition, value string) (string, error) {
+func applyTransformations(
+	ctx context.Context,
+	param invv1alpha1.DiscoveryPathDefinition,
+	value string) (string, error) {
 	var err error
 
 	// Apply regex if provided
@@ -279,7 +291,7 @@ func GnmiPathToXPath(p *gnmi.Path, noKeys bool) string {
 		} else {
 			sb.WriteString(pe.GetName())
 		}
-		
+
 		if !noKeys {
 			numKeys := len(pe.GetKey())
 			switch numKeys {
