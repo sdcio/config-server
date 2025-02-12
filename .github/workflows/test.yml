@@ -5,8 +5,8 @@
 name: Test
 on:
   workflow_dispatch:
-    pull_request_target:
-      types: [labeled]
+  pull_request_target:
+    types: [labeled]
   push:
     branches:
       - "main"
