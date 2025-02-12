@@ -14,13 +14,13 @@ spec:
     modelMatch: nokia-conf
     paths:
     - key: version
-      path: platform/control/software-version
+      path: state/system/version/version-number
     - key: platform
-      path: platform/chassis/type
+      path: state/system/platform
     - key: hostname
-      path: system/name/host-name
+      path: state/system/oper-name
     - key: serialNumber
-      path: platform/chassis/serial-number
+      path: state/chassis/hardware-data/serial-number
     - key: macAddress
-      path: platform/chassis/hw-mac-address
+      path: state/system/base-mac-address
 
