@@ -194,6 +194,8 @@ func (r *Discoverer) parseDiscoveryInformation(
 
 			if param, exists := pathMap[gnmiPath]; exists {
 				if targetField, found := fieldMapping[param.Key]; found {
+					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
+
 					*targetField = strings.Trim(string(upd.GetVal().GetJsonIetfVal()), "\"")
 
 					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
