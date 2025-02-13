@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -196,7 +197,12 @@ func (r *Discoverer) parseDiscoveryInformation(
 				if targetField, found := fieldMapping[param.Key]; found {
 					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
 
-					*targetField = strings.Trim(string(upd.GetVal().GetJsonIetfVal()), "\"")
+					string_value, err := getStringValue(upd.GetVal())
+					if err != nil {
+						log.Error("discovery unexpected value", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
+					}
+
+					*targetField = string_value
 
 					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
 
@@ -326,4 +332,43 @@ func writeKey(sb *strings.Builder, k, v string) {
 	sb.WriteString("=")
 	sb.WriteString(v)
 	sb.WriteString("]")
+}
+
+func getStringValue(updValue *gnmi.TypedValue) (string, error) {
+	if updValue == nil {
+		return "", fmt.Errorf("no value returned")
+	}
+	switch updValue.Value.(type) {
+	case *gnmi.TypedValue_AsciiVal:
+		return updValue.GetAsciiVal(), nil
+	case *gnmi.TypedValue_BoolVal:
+		return fmt.Sprintf("%t", updValue.GetBoolVal()), nil
+	case *gnmi.TypedValue_BytesVal:
+		return string(updValue.GetBytesVal()), nil
+	case *gnmi.TypedValue_DecimalVal:
+		return "", fmt.Errorf("decimal is depreciated")
+	case *gnmi.TypedValue_FloatVal:
+		//lint:ignore SA1019 still need GetFloatVal for backward compatibility
+		return "", fmt.Errorf("float is depreciated")
+	case *gnmi.TypedValue_DoubleVal:
+		return fmt.Sprintf("%f", updValue.GetDoubleVal()), nil
+	case *gnmi.TypedValue_IntVal:
+		return fmt.Sprintf("%d", updValue.GetIntVal()), nil
+	case *gnmi.TypedValue_StringVal:
+		return updValue.GetStringVal(), nil
+	case *gnmi.TypedValue_UintVal:
+		return fmt.Sprintf("%d", updValue.GetUintVal()), nil
+	case *gnmi.TypedValue_JsonIetfVal:
+		return strings.Trim(string(updValue.GetJsonIetfVal()), "\""), nil
+	case *gnmi.TypedValue_JsonVal:
+		return strings.Trim(string(updValue.GetJsonVal()), "\""), nil
+	case *gnmi.TypedValue_LeaflistVal:
+		return fmt.Sprintf("%v", updValue.GetLeaflistVal()), nil
+	case *gnmi.TypedValue_ProtoBytes:
+		return string(updValue.GetProtoBytes()), nil
+	case *gnmi.TypedValue_AnyVal:
+		return fmt.Sprintf("%v", updValue.GetAnyVal()), nil
+	default:
+		return "", fmt.Errorf("unexpected type %s", reflect.TypeOf(updValue.Value).Name())
+	}
 }
