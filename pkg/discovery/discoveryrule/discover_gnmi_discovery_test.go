@@ -29,12 +29,14 @@ func TestParseDiscoveryInformation(t *testing.T) {
 	cases := map[string]struct {
 		capabilityFile string
 		provider       string
+		getResponse func() *gnmi.GetResponse
 		expectedResult *invv1alpha1.DiscoveryInfo
 		expectError    bool
 	}{
 		"NokiaSRL": {
 			capabilityFile: "data/nokia-srl-capabilities.json",
 			provider:       "srl.nokia.sdcio.dev",
+			getResponse: getSRLResponse,
 			expectedResult: &invv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "srl.nokia.sdcio.dev",
@@ -44,6 +46,21 @@ func TestParseDiscoveryInformation(t *testing.T) {
 				MacAddress:         "1A:05:04:FF:00:00",
 				SerialNumber:       "Sim Serial No.",
 				SupportedEncodings: []string{"JSON_IETF", "PROTO", "ASCII", "52", "42", "43", "45", "44", "46", "47", "48", "49", "50", "53"},
+			},
+		},
+		"Arista": {
+			capabilityFile: "data/arista-capabilities.json",
+			provider:       "eos.arista.sdcio.dev",
+			getResponse: getAristaResponse,
+			expectedResult: &invv1alpha1.DiscoveryInfo{
+				Protocol:           "gnmi",
+				Provider:           "eos.arista.sdcio.dev",
+				Version:            "4.33.1F",
+				HostName:           "edge02",
+				Platform:           "cEOSLab",
+				MacAddress:         "00:1c:73:6f:e4:7c",
+				SerialNumber:       "864D1228500892CEF934F5C6DF8784B2",
+				SupportedEncodings: []string{"JSON", "JSON_IETF", "ASCII"},
 			},
 		},
 	}
@@ -62,7 +79,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 				t.Fatalf("Failed to load capability response: %v", err)
 			}
 
-			getRsp := getSRLResponse()
+			getRsp := tc.getResponse()
 
 			// Convert paths into a map for quick lookup
 			pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
@@ -182,6 +199,87 @@ func getSRLResponse() *gnmi.GetResponse {
 						}},
 						Val: &gnmi.TypedValue{
 							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("1A:05:04:FF:00:00")},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+
+func getAristaResponse() *gnmi.GetResponse {
+	return &gnmi.GetResponse{
+		Notification: []*gnmi.Notification{
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
+							{Name: "components"},
+							{Name: "component", Key: map[string]string{"name": "EOS"}},
+							{Name: "state"},
+							{Name: "software-version"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "4.33.1F-39879738.4331F (engineering build)"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
+							{Name: "components"},
+							{Name: "component", Key: map[string]string{"name": "Chassis"}},
+							{Name: "state"},
+							{Name: "part-no"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "cEOSLab"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
+							{Name: "system"},
+							{Name: "state"},
+							{Name: "hostname"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "edge02"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
+							{Name: "components"},
+							{Name: "component", Key: map[string]string{"name": "Chassis"}},
+							{Name: "state"},
+							{Name: "serial-no"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "864D1228500892CEF934F5C6DF8784B2"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
+							{Name: "lldp"},
+							{Name: "state"},
+							{Name: "chassis-id"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "00:1c:73:6f:e4:7c"},
 						},
 					},
 				},
