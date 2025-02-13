@@ -189,7 +189,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 	// Process gNMI notifications
 	for _, notif := range getRsp.GetNotification() {
 		for _, upd := range notif.GetUpdate() {
-			gnmiPath := GnmiPathToXPath(upd.GetPath(), false)
+			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
 
 			log.Info("discovery", "path", gnmiPath)
 
