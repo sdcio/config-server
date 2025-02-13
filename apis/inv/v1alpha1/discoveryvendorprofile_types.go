@@ -34,7 +34,7 @@ type GnmiDiscoveryVendorProfileParameters struct {
 	//Paths        DiscoveryPaths `json:"paths" protobuf:"bytes,3,opt,name=paths"`
 	Paths []DiscoveryPathDefinition `json:"paths" protobuf:"bytes,3,rep,name=paths"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
-	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;
+	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
 	// +kubebuilder:default:=JSON_IETF
 	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,5,opt,name=encoding,casttype=Encoding"`
 

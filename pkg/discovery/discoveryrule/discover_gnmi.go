@@ -145,6 +145,10 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 		req, err = api.NewGetRequest(
 			api.EncodingPROTO(),
 		)
+	case "ASCII":
+		req, err = api.NewGetRequest(
+			api.EncodingASCII(),
+		)
 	default:
 		return nil, fmt.Errorf("unsupported encoding, got: %s", string(r.DiscoveryParameters.GetEncoding()))
 	}

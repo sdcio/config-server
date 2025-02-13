@@ -47,6 +47,7 @@ spec:
                     - JSON
                     - JSON_IETF
                     - PROTO
+                    - ASCII
                     type: string
                     x-kubernetes-validations:
                     - message: encoding is immutable
