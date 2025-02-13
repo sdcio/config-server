@@ -30,7 +30,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
-	apipath "github.com/openconfig/gnmic/pkg/api/path"
+	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"go.starlark.net/starlark"
@@ -138,7 +138,7 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	// Convert paths into a map for quick lookup
 	pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
 	for _, param := range r.DiscoveryParameters.Paths {
-		parsedPath, err := apipath.ParsePath(param.Path)
+		parsedPath, err := path.ParsePath(param.Path)
 		if err != nil {
 			return nil, fmt.Errorf("invalid GNMI path %q: %w", param.Path, err)
 		}
@@ -189,7 +189,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 	// Process gNMI notifications
 	for _, notif := range getRsp.GetNotification() {
 		for _, upd := range notif.GetUpdate() {
-			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
+			gnmiPath := path.GnmiPathToXPath(upd.GetPath(), true)
 
 			log.Info("discovery", "path", gnmiPath)
 

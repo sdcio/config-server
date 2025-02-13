@@ -14,7 +14,7 @@ spec:
     modelMatch: nokia.com:srlinux
     paths:
     - key: version
-      path: platform/control[slot=A]/software-version
+      path: platform/control/software-version
       regex: ^v?(\d+\.\d+\.\d+)
     - key: platform
       path: platform/chassis/type

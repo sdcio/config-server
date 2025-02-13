@@ -13,14 +13,14 @@ spec:
     organization: Arista Networks
     paths:
     - key: version
-      path: components/component[name=EOS]/state/software-version
+      path: components/component/state/software-version
       regex: ^v?(\d+\.\d+\.\d+[A-Za-z]?)
     - key: platform
-      path: components/component[name=Chassis]/state/part-no
+      path: components/component/state/part-no
     - key: hostname
       path: system/state/hostname
     - key: serialNumber
-      path: components/component[name=Chassis]/state/serial-no
+      path: components/component/state/serial-no
     - key: macAddress
       path: lldp/state/chassis-id
 
