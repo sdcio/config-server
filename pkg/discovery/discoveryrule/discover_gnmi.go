@@ -242,7 +242,6 @@ func applyTransformations(
 			return "", fmt.Errorf("starlark error: %w", err)
 		}
 	}
-
 	return value, nil
 }
 
@@ -338,6 +337,7 @@ func getStringValue(updValue *gnmi.TypedValue) (string, error) {
 	if updValue == nil {
 		return "", fmt.Errorf("no value returned")
 	}
+	var jsondata []byte
 	switch updValue.Value.(type) {
 	case *gnmi.TypedValue_AsciiVal:
 		return updValue.GetAsciiVal(), nil
@@ -346,10 +346,10 @@ func getStringValue(updValue *gnmi.TypedValue) (string, error) {
 	case *gnmi.TypedValue_BytesVal:
 		return string(updValue.GetBytesVal()), nil
 	case *gnmi.TypedValue_DecimalVal:
-		return "", fmt.Errorf("decimal is depreciated")
+		return "", fmt.Errorf("decimal is deprecated")
 	case *gnmi.TypedValue_FloatVal:
 		//lint:ignore SA1019 still need GetFloatVal for backward compatibility
-		return "", fmt.Errorf("float is depreciated")
+		return "", fmt.Errorf("float is deprecated")
 	case *gnmi.TypedValue_DoubleVal:
 		return fmt.Sprintf("%f", updValue.GetDoubleVal()), nil
 	case *gnmi.TypedValue_IntVal:
@@ -359,16 +359,25 @@ func getStringValue(updValue *gnmi.TypedValue) (string, error) {
 	case *gnmi.TypedValue_UintVal:
 		return fmt.Sprintf("%d", updValue.GetUintVal()), nil
 	case *gnmi.TypedValue_JsonIetfVal:
-		return strings.Trim(string(updValue.GetJsonIetfVal()), "\""), nil
+		jsondata = updValue.GetJsonIetfVal()
 	case *gnmi.TypedValue_JsonVal:
-		return strings.Trim(string(updValue.GetJsonVal()), "\""), nil
+		jsondata = updValue.GetJsonVal()
 	case *gnmi.TypedValue_LeaflistVal:
 		return fmt.Sprintf("%v", updValue.GetLeaflistVal()), nil
 	case *gnmi.TypedValue_ProtoBytes:
 		return string(updValue.GetProtoBytes()), nil
 	case *gnmi.TypedValue_AnyVal:
-		return fmt.Sprintf("%v", updValue.GetAnyVal()), nil
+		return fmt.Sprintf("%v", updValue.GetAnyVal().GetValue()), nil
 	default:
 		return "", fmt.Errorf("unexpected type %s", reflect.TypeOf(updValue.Value).Name())
 	}
+	if len(jsondata) != 0 {
+		var value interface{}
+		err := json.Unmarshal(jsondata, &value)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%v", value), nil
+	}
+	return "", fmt.Errorf("recieved json type with no data")
 }
