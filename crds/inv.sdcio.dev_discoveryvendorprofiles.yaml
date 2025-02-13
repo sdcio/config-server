@@ -40,6 +40,17 @@ spec:
             properties:
               gnmi:
                 properties:
+                  encoding:
+                    default: JSON_IETF
+                    enum:
+                    - UNKNOWN
+                    - JSON
+                    - JSON_IETF
+                    - PROTO
+                    type: string
+                    x-kubernetes-validations:
+                    - message: encoding is immutable
+                      rule: self == oldSelf
                   modelMatch:
                     type: string
                   organization:
