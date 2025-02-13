@@ -87,6 +87,7 @@ func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, 
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
+	
 	if connProfile.Spec.Insecure != nil && *connProfile.Spec.Insecure {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
@@ -129,9 +130,28 @@ func (r *Discoverer) GetProvider() string {
 }
 
 func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
-	req, err := api.NewGetRequest(
-		api.EncodingJSON_IETF(),
-	)
+	var req *gnmi.GetRequest
+	var err error
+	switch r.DiscoveryParameters.GetEncoding() {
+	case "JSON_IETF":
+		req, err = api.NewGetRequest(
+			api.EncodingJSON_IETF(),
+		)
+	case "JSON":
+		req, err = api.NewGetRequest(
+			api.EncodingJSON(),
+		)
+	case "PROTO":
+		req, err = api.NewGetRequest(
+			api.EncodingPROTO(),
+		)
+	default:
+		return nil, fmt.Errorf("unsupported encoding, got: %s", string(r.DiscoveryParameters.GetEncoding()))
+	}
+	if err != nil {
+		return nil, err
+	}
+	
 	// Ensure req.Path is initialized
 	req.Path = make([]*gnmi.Path, 0, len(r.DiscoveryParameters.Paths))
 
