@@ -163,7 +163,9 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 			return nil, fmt.Errorf("invalid GNMI path %q: %w", param.Path, err)
 		}
 		req.Path = append(req.Path, parsedPath)
-		pathMap[param.Path] = param // Store the key for fast lookup
+
+		gnmiPath := GnmiPathToXPath(parsedPath, true)
+		pathMap[gnmiPath] = param // Store the key for fast lookup
 	}
 	if err != nil {
 		return nil, err
@@ -209,7 +211,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 	// Process gNMI notifications
 	for _, notif := range getRsp.GetNotification() {
 		for _, upd := range notif.GetUpdate() {
-			gnmiPath := path.GnmiPathToXPath(upd.GetPath(), true)
+			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
 
 			log.Info("discovery", "path", gnmiPath)
 
@@ -299,6 +301,7 @@ func ApplyRegex(pattern string, value string) (string, error) {
 	return value, nil // No match, return original
 }
 
+// GnmiPathToXPath is absed on gnmic but also strips the json_ietf metadata
 func GnmiPathToXPath(p *gnmi.Path, noKeys bool) string {
 	if p == nil {
 		return ""
@@ -313,11 +316,7 @@ func GnmiPathToXPath(p *gnmi.Path, noKeys bool) string {
 
 	for i, pe := range elems {
 		split := strings.Split(pe.GetName(), ":")
-		if len(split) > 1 {
-			sb.WriteString(split[1])
-		} else {
-			sb.WriteString(pe.GetName())
-		}
+		sb.WriteString(split[len(split)-1])
 
 		if !noKeys {
 			numKeys := len(pe.GetKey())
