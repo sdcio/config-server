@@ -219,6 +219,11 @@ func (r *Discoverer) parseDiscoveryInformation(
 
 			log.Info("discovery", "path", gnmiPath)
 
+			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
+			// for which the first key was found
+			// Right now we dont process this properly.
+			// If you experience such behavior you should use another encoding
+
 			if param, exists := pathMap[gnmiPath]; exists {
 				if targetField, found := fieldMapping[param.Key]; found {
 					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
