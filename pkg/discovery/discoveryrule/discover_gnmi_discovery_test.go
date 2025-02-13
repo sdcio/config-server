@@ -139,6 +139,7 @@ func getSRLResponse() *gnmi.GetResponse {
 						Path: &gnmi.Path{Elem: []*gnmi.PathElem{
 							{Name: "srl_nokia-platform:platform"},
 							{Name: "srl_nokia-platform-control:control", Key: map[string]string{"slot": "A"}},
+							{Name: "software-version"},
 						}},
 						Val: &gnmi.TypedValue{
 							Value: &gnmi.TypedValue_JsonIetfVal{JsonIetfVal: []byte("v24.3.2-118-g706b4f0d99")},
