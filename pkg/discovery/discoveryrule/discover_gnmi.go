@@ -379,5 +379,5 @@ func getStringValue(updValue *gnmi.TypedValue) (string, error) {
 		}
 		return fmt.Sprintf("%v", value), nil
 	}
-	return "", fmt.Errorf("recieved json type with no data")
+	return "", fmt.Errorf("received json type with no data")
 }
