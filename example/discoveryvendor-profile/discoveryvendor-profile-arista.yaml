@@ -14,6 +14,7 @@ spec:
     paths:
     - key: version
       path: components/component[name=EOS]/state/software-version
+      regex: ^v?(\d+\.\d+\.\d+[A-Za-z]?)
     - key: platform
       path: components/component[name=Chassis]/state/part-no
     - key: hostname
