@@ -29,6 +29,7 @@ import (
 	"github.com/sdcio/config-server/pkg/target"
 	"golang.org/x/sync/semaphore"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 type DiscoveryRule interface {
@@ -53,6 +54,8 @@ type dr struct {
 	targetStore storebackend.Storer[*target.Context]
 	children    storebackend.Storer[string]
 
+
+	gnmiDiscoveryProfiles map[string]invv1alpha1.GnmiDiscoveryVendorProfileParameters
 	cancel context.CancelFunc
 }
 
@@ -90,6 +93,12 @@ func (r *dr) Run(ctx context.Context) error {
 
 func (r *dr) run(ctx context.Context) error {
 	log := log.FromContext(ctx)
+
+	// update the discovery profiles, since they might have changed
+	// over time
+	if err := r.getVendorDiscoveryProfiles(ctx); err != nil {
+		return err
+	}
 	iter, err := r.getHosts(ctx)
 	if err != nil {
 		return err // unlikely since the hosts/prefixes were validated before
@@ -133,5 +142,19 @@ func (r *dr) run(ctx context.Context) error {
 		}
 	}
 	wg.Wait() // Wait for all goroutines to finish
+	return nil
+}
+
+
+func (r *dr) getVendorDiscoveryProfiles(ctx context.Context) error {
+	discoveryVendorProfiles := &invv1alpha1.DiscoveryVendorProfileList{}
+	if err := r.client.List(ctx, discoveryVendorProfiles); err != nil {
+		return err
+	}
+	r.gnmiDiscoveryProfiles = map[string]invv1alpha1.GnmiDiscoveryVendorProfileParameters{}
+
+	for _, discoveryProfile := range discoveryVendorProfiles.Items {
+		r.gnmiDiscoveryProfiles[discoveryProfile.Name] = discoveryProfile.Spec.Gnmi
+	}
 	return nil
 }

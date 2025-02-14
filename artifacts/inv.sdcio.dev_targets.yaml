@@ -27,6 +27,9 @@ spec:
     - jsonPath: .spec.provider
       name: PROVIDER
       type: string
+    - jsonPath: .status.discoveryInfo.version
+      name: VERSION
+      type: string
     - jsonPath: .spec.address
       name: ADDRESS
       type: string

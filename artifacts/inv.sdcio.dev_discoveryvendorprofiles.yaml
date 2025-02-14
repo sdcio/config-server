@@ -1,0 +1,90 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.12.1
+  name: discoveryvendorprofiles.inv.sdcio.dev
+spec:
+  group: inv.sdcio.dev
+  names:
+    categories:
+    - sdc
+    - inv
+    kind: DiscoveryVendorProfile
+    listKind: DiscoveryVendorProfileList
+    plural: discoveryvendorprofiles
+    singular: discoveryvendorprofile
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: DiscoveryVendorProfile is the Schema for the DiscoveryVendorProfile
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DiscoveryProfileSpec defines the desired state of DiscoveryProfile
+            properties:
+              gnmi:
+                properties:
+                  encoding:
+                    default: JSON_IETF
+                    enum:
+                    - UNKNOWN
+                    - JSON
+                    - JSON_IETF
+                    - PROTO
+                    - ASCII
+                    type: string
+                    x-kubernetes-validations:
+                    - message: encoding is immutable
+                      rule: self == oldSelf
+                  modelMatch:
+                    type: string
+                  organization:
+                    type: string
+                  paths:
+                    description: Paths        DiscoveryPaths `json:"paths" protobuf:"bytes,3,opt,name=paths"`
+                    items:
+                      properties:
+                        key:
+                          description: Key defines the key of the path for fast lookup
+                          type: string
+                        path:
+                          description: Path associated with the key
+                          type: string
+                        regex:
+                          description: Regex defines the regex to transform the value
+                          type: string
+                        script:
+                          description: Script defines the starlark script to transform
+                            the value
+                          type: string
+                      required:
+                      - key
+                      - path
+                      type: object
+                    type: array
+                required:
+                - organization
+                - paths
+                type: object
+            required:
+            - gnmi
+            type: object
+        type: object
+    served: true
+    storage: true

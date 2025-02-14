@@ -14,10 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package all
+package v1alpha1
 
-import (
-	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_srl"
-	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/nokia_sros"
-	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/test"
-)
+// Returns the generic discovery rule
+func (r *GnmiDiscoveryVendorProfileParameters) GetEncoding() Encoding {
+	if r.Encoding == nil {
+		return Encoding_JSON_IETF
+	}
+	return *r.Encoding
+}

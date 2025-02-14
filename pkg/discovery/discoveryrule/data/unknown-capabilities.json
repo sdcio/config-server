@@ -1,0 +1,20 @@
+{
+    "gNMIVersion": "0.7.0",
+    "supportedModels": [
+      {
+        "name": "arista-vlan-augments",
+        "organization": "Dummy",
+        "version": "1.1.2"
+      },
+      {
+        "name": "gnsi-authz",
+        "organization": "Google LLC",
+        "version": ""
+      }
+    ],
+    "supportedEncodings": [
+      "JSON",
+      "JSON_IETF",
+      "ASCII"
+    ]
+  }
