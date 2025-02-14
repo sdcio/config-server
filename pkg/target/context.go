@@ -336,6 +336,10 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 		return "", fmt.Errorf("target context not ready")
 	}
 
+	if len(configs) == 0 {
+		return "", nil
+	}
+
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, false)
