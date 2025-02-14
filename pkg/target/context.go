@@ -425,14 +425,14 @@ func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionI
 	return err
 }
 
-func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, err error) (string, error) {
+func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	var errs error
 	var collectedWarnings []string
 	var recoverable bool
-	if err != nil {
-		errs = errors.Join(errs, fmt.Errorf("error: %s", err.Error()))
-		if er, ok := status.FromError(err); ok {
+	if rsperr != nil {
+		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
+		if er, ok := status.FromError(rsperr); ok {
 			switch er.Code() {
 			case codes.ResourceExhausted:
 				recoverable = true
@@ -454,14 +454,16 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 			}
 		}
 	}
+	var err error
+	var msg string
 	if errs != nil {
-		return "", NewTransactionError(errs, recoverable)
+		err = NewTransactionError(errs, recoverable)
 	}
-	log.Debug("intent recovery succeeded", "rsp", prototext.Format(rsp))
 	if len(collectedWarnings) > 0 {
-		return strings.Join(collectedWarnings, "; "), nil
+		msg =  strings.Join(collectedWarnings, "; ")
 	}
-	return "", nil
+	log.Debug("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
+	return msg, err
 }
 
 func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.RunningConfig, error) {

@@ -162,25 +162,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	internalSchema, msg, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
+	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
 	if err != nil {
 		// TODO distinguish between recoeverable and non recoverable
 		var txErr *target.TransactionError
 		if errors.As(err, &txErr) && txErr.Recoverable {
 			// Retry logic for recoverable errors
+			
 			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-				errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed (recoverable)", warnings), err), errUpdateStatus)
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed", err), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed", warnings), err), errUpdateStatus)
 	}
-
+	
 	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	if err := configv1alpha1.Convert_config_ConfigStatusLastKnownGoodSchema_To_v1alpha1_ConfigStatusLastKnownGoodSchema(internalSchema, schema, nil); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot convert schema", err), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("cannot convert schema", warnings), err), errUpdateStatus)
 	}
-
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, msg), errUpdateStatus)
+	
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, warnings), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, msg string) error {
@@ -222,4 +223,12 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 			FieldManager: reconcilerName,
 		},
 	})
+}
+
+
+func processMessageWithWarning(msg, warnings string) string {
+	if warnings != "" {
+		return fmt.Sprintf("%s warnings: %s", msg, warnings)
+	}
+	return msg
 }
