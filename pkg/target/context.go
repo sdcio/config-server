@@ -287,7 +287,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	}
 	log.Debug("SetIntent", "update", update)
 
-	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
