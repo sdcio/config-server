@@ -15,6 +15,7 @@ spec:
     paths:
     - key: version
       path: state/system/version/version-number
+      regex: ^\w?-(\d+.\d+\.R\d+)
     - key: platform
       path: state/system/platform
     - key: hostname

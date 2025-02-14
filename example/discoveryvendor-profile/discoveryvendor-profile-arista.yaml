@@ -10,7 +10,7 @@ metadata:
   namespace: default
 spec:
   gnmi:
-    organization: Arista Networks
+    organization: "Arista Networks, Inc."
     paths:
     - key: version
       path: components/component/state/software-version

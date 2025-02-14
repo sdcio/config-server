@@ -12,9 +12,12 @@ spec:
   gnmi:
     organization: Nokia
     modelMatch: nokia.com:srlinux
+    #encoding: PROTO
     paths:
+      # Some vendors return a JSON IETF blob of data with a different gNMI path than the requested one if keys are not specified.
+      # Make sure to include keys in the XPATH when the encoding is JSON_IETF. Alternatively use PROTO or ASCII encoding.
     - key: version
-      path: platform/control/software-version
+      path: platform/control[slot=A]/software-version
       regex: ^v?(\d+\.\d+\.\d+)
     - key: platform
       path: platform/chassis/type

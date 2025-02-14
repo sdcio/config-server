@@ -10,7 +10,7 @@ metadata:
   namespace: default
 spec:
   provider: sros.nokia.sdcio.dev
-  version: B-24.10.R1
+  version: 24.10.R1
   repositories:
   - repoURL: https://github.com/nokia/7x50_YangModels
     kind: tag
