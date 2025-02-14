@@ -1,0 +1,1176 @@
+{
+  "supportedModels": [
+    {
+      "name": "urn:nokia.com:srlinux:aaa:aaa:srl_nokia-aaa",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:aaa:aaa-password:srl_nokia-aaa-password",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:aaa:aaa-types:srl_nokia-aaa-types",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:acl:srl_nokia-acl",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:acl-policers:srl_nokia-acl-policers",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:acl-qos:srl_nokia-acl-qos",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:fib:aft:srl_nokia-aft",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:static-route:aggregate-routes:srl_nokia-aggregate-routes",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:app:app-mgmt:srl_nokia-app-mgmt",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bfd:bfd:srl_nokia-bfd",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bgp:bgp:srl_nokia-bgp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bgp-evpn:srl_nokia-bgp-evpn",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mcid:bgp-evpn-bgp-instance-mpls-bridge-table-multicast-destinations:srl_nokia-bgp-evpn-bgp-instance-mpls-bridge-table-multicast-destinations",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:bgp-evpn-bgp-instance-mpls-bridge-table-statistics:srl_nokia-bgp-evpn-bgp-instance-mpls-bridge-table-statistics",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:bgp-evpn-bgp-instance-mpls-bridge-table-unicast-destinations:srl_nokia-bgp-evpn-bgp-instance-mpls-bridge-table-unicast-destinations",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:evpn:bgp-evpn-bgp-instance-vpws-destinations-remote-ac:srl_nokia-bgp-evpn-bgp-instance-vpws-destinations-remote-ac",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bgp-ipvpn:srl_nokia-bgp-ipvpn",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bgp:bgp-vpn:srl_nokia-bgp-vpn",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:boot:srl_nokia-boot",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bridge-table:srl_nokia-bridge-table",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bridge-table-mac-duplication:srl_nokia-bridge-table-mac-duplication",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:bridge-table-mac-duplication-entries:srl_nokia-bridge-table-mac-duplication-entries",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bridge-table-mac-learning:srl_nokia-bridge-table-mac-learning",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:bridge-table-mac-learning-entries:srl_nokia-bridge-table-mac-learning-entries",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bridge-table-mac-limit:srl_nokia-bridge-table-mac-limit",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:bridge-table-mac-table:srl_nokia-bridge-table-mac-table",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-proxy-arp-nd:bridge-table-proxy-arp-nd:srl_nokia-bridge-table-proxy-arp-nd",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:bridge-table-reserved-macs:srl_nokia-bridge-table-reserved-macs",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:bridge-table-shg:srl_nokia-bridge-table-shg",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-static-mac:bridge-table-static-mac:srl_nokia-bridge-table-static-mac",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:configuration:srl_nokia-configuration",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:configuration-role:srl_nokia-configuration-role",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:connection-point-bridge-table-mac-duplication-entries:srl_nokia-connection-point-bridge-table-mac-duplication-entries",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:connection-point-bridge-table-mac-learning-entries:srl_nokia-connection-point-bridge-table-mac-learning-entries",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:connection-point-bridge-table-mac-table:srl_nokia-connection-point-bridge-table-mac-table",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:connection-point-bridge-table-statistics:srl_nokia-connection-point-bridge-table-statistics",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:connection-point-pseudowires:srl_nokia-connection-point-pseudowires",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp:dhcp-server:srl_nokia-dhcp-server",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:dns:srl_nokia-dns",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ethcfm:ethcfm:srl_nokia-ethcfm",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:event:event-handler:srl_nokia-event-handler",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:ftp:srl_nokia-ftp",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:aaa:gnsi-authz:srl_nokia-gnsi-authz",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:gnsi-certz:srl_nokia-gnsi-certz",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:gnsi-credentialz:srl_nokia-gnsi-credentialz",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:grpc:gribi:srl_nokia-gribi",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:grpc:grpc:srl_nokia-grpc",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:icmp:srl_nokia-icmp",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:if-ip:srl_nokia-if-ip",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:if-mpls:srl_nokia-if-mpls",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces:srl_nokia-interfaces",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-bridge-table:srl_nokia-interfaces-bridge-table",
+      "organization": "Nokia",
+      "version": "2021-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:interfaces-bridge-table-mac-duplication-entries:srl_nokia-interfaces-bridge-table-mac-duplication-entries",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:interfaces-bridge-table-mac-learning-entries:srl_nokia-interfaces-bridge-table-mac-learning-entries",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:interfaces-bridge-table-mac-table:srl_nokia-interfaces-bridge-table-mac-table",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:interfaces-bridge-table-statistics:srl_nokia-interfaces-bridge-table-statistics",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:evpn:interfaces-ethernet-segment-association:srl_nokia-interfaces-ethernet-segment-association",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-ip-dhcp:srl_nokia-interfaces-ip-dhcp",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp-relay:interfaces-ip-dhcp-relay:srl_nokia-interfaces-ip-dhcp-relay",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp:interfaces-ip-dhcp-server:srl_nokia-interfaces-ip-dhcp-server",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vrrp:interfaces-ip-vrrp:srl_nokia-interfaces-ip-vrrp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-l2cp:srl_nokia-interfaces-l2cp",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:lag:interfaces-lag:srl_nokia-interfaces-lag",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mirror:interfaces-local-mirror-destination:srl_nokia-interfaces-local-mirror-destination",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:arp-nd:interfaces-nbr:srl_nokia-interfaces-nbr",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:evpn:interfaces-nbr-evpn:srl_nokia-interfaces-nbr-evpn",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:arp-nd:interfaces-nbr-virtual-ip-discovery:srl_nokia-interfaces-nbr-virtual-ip-discovery",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-p4rt:srl_nokia-interfaces-p4rt",
+      "organization": "Nokia",
+      "version": "2022-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:arp-nd:interfaces-router-adv:srl_nokia-interfaces-router-adv",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-vlans:srl_nokia-interfaces-vlans",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:interfaces-vxdp:srl_nokia-interfaces-vxdp",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:fib:ip-route-tables:srl_nokia-ip-route-tables",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:ippm-source-udp-pool:srl_nokia-ippm-source-udp-pool",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:isis:isis:srl_nokia-isis",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:isis:isis-lsdb:srl_nokia-isis-lsdb",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:isis:isis-lsdb-types:srl_nokia-isis-lsdb-types",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:json-rpc:json-rpc:srl_nokia-json-rpc",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:keychains:srl_nokia-keychains",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:lag:lacp:srl_nokia-lacp",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ldp:ldp:srl_nokia-ldp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:license:license:srl_nokia-license",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:link-measurement:srl_nokia-link-measurement",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:linux:srl_nokia-linux",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:lldp:lldp:srl_nokia-lldp",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:lldp:lldp-types:srl_nokia-lldp-types",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:load-balancing:srl_nokia-load-balancing",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:log:logging:srl_nokia-logging",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mplsoam:lsp-ping-trace:srl_nokia-lsp-ping-trace",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:macsec:macsec:srl_nokia-macsec",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:maintenance-mode:srl_nokia-maintenance-mode",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:tepolicy:maintenance-policies:srl_nokia-maintenance-policies",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bfd:micro-bfd:srl_nokia-micro-bfd",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mirror:mirroring:srl_nokia-mirroring",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mpls:mpls:srl_nokia-mpls",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:label:mpls-label-management:srl_nokia-mpls-label-management",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:fib:mpls-route-tables:srl_nokia-mpls-route-tables",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:evpn:mpls-services-evpn-label-management:srl_nokia-mpls-services-evpn-label-management",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:mpls-services-network-instance-label-management:srl_nokia-mpls-services-network-instance-label-management",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:mtu:srl_nokia-mtu",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:network-instance:srl_nokia-network-instance",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:network-instance-mtu:srl_nokia-network-instance-mtu",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:static-route:next-hop-groups:srl_nokia-next-hop-groups",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:ntp:srl_nokia-ntp",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:oam:oam:srl_nokia-oam",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ethcfm:oam-pm-ethcfm:srl_nokia-oam-pm-ethcfm",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:oam-pm-ip:srl_nokia-oam-pm-ip",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:oc-mgmt:openconfig:srl_nokia-openconfig",
+      "organization": "Nokia",
+      "version": "2022-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ospf:ospf:srl_nokia-ospf",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:packet-link-qual:srl_nokia-packet-link-qual",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:packet-match-types:srl_nokia-packet-match-types",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform:srl_nokia-platform",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-acl:srl_nokia-platform-acl",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:platform-cgroup:srl_nokia-platform-cgroup",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-chassis:srl_nokia-platform-chassis",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-control:srl_nokia-platform-control",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:platform-cpu:srl_nokia-platform-cpu",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-datapath-resources:srl_nokia-platform-datapath-resources",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:platform-disk:srl_nokia-platform-disk",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-fabric:srl_nokia-platform-fabric",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-fan:srl_nokia-platform-fan",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-healthz:srl_nokia-platform-healthz",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-lc:srl_nokia-platform-lc",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-linecard-fib:srl_nokia-platform-linecard-fib",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:platform-memory:srl_nokia-platform-memory",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-mtu:srl_nokia-platform-mtu",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-p4rt:srl_nokia-platform-p4rt",
+      "organization": "Nokia",
+      "version": "2022-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-pipeline-counters:srl_nokia-platform-pipeline-counters",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-psu:srl_nokia-platform-psu",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-qos:srl_nokia-platform-qos",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-redundancy:srl_nokia-platform-redundancy",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-resource-mgmt:srl_nokia-platform-resource-mgmt",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-resource-monitoring:srl_nokia-platform-resource-monitoring",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-secure-boot:srl_nokia-platform-secure-boot",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-tcam:srl_nokia-platform-tcam",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-tpm:srl_nokia-platform-tpm",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:platform-vxdp:srl_nokia-platform-vxdp",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:policy-forwarding:srl_nokia-policy-forwarding",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:pw:pw-tunnel:srl_nokia-pw-tunnel",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:qos:qos:srl_nokia-qos",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:qos:qos-policers:srl_nokia-qos-policers",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:fhs:ra_guard:srl_nokia-ra_guard",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bgp:rib-bgp:srl_nokia-rib-bgp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:plcy:routing-policy:srl_nokia-routing-policy",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bfd:seamless-bfd:srl_nokia-seamless-bfd",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:segrt:segment-routing:srl_nokia-segment-routing",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:sflow:srl_nokia-sflow",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:ssh:srl_nokia-ssh",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:stamp:srl_nokia-stamp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:static-route:static-routes:srl_nokia-static-routes",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:system:srl_nokia-system",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:system-banner:srl_nokia-system-banner",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:system-bridge-table:srl_nokia-system-bridge-table",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-proxy-arp-nd:system-bridge-table-proxy-arp:srl_nokia-system-bridge-table-proxy-arp",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:system-info:srl_nokia-system-info",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:system-multicast:srl_nokia-system-multicast",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:system-name:srl_nokia-system-name",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:system-network-instance:srl_nokia-system-network-instance",
+      "organization": "Nokia",
+      "version": "2021-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:evpn:system-network-instance-bgp-evpn-ethernet-segments:srl_nokia-system-network-instance-bgp-evpn-ethernet-segments",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bgp:system-network-instance-bgp-vpn:srl_nokia-system-network-instance-bgp-vpn",
+      "organization": "Nokia",
+      "version": "2022-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:system-protocols:srl_nokia-system-protocols",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:snmp:srl_nokia-system-snmp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:tcp-udp:srl_nokia-tcp-udp",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:tepolicy:te-policies:srl_nokia-te-policies",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:timezone:srl_nokia-timezone",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:tls:srl_nokia-tls",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:te:traffic-engineering:srl_nokia-traffic-engineering",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:macsec:transport-security:srl_nokia-transport-security",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:tunnel:srl_nokia-tunnel",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:tunnel-interfaces:srl_nokia-tunnel-interfaces",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:tunnel-interfaces-vxlan-interface-bridge-table:srl_nokia-tunnel-interfaces-vxlan-interface-bridge-table",
+      "organization": "Nokia",
+      "version": "2021-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mcid:tunnel-interfaces-vxlan-interface-bridge-table-multicast-destinations:srl_nokia-tunnel-interfaces-vxlan-interface-bridge-table-multicast-destinations",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:tunnel-interfaces-vxlan-interface-bridge-table-unicast-destinations:srl_nokia-tunnel-interfaces-vxlan-interface-bridge-table-unicast-destinations",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:tunnel-interfaces-vxlan-interface-bridge-table-unicast-es-destination-vteps:srl_nokia-tunnel-interfaces-vxlan-interface-bridge-table-unicast-es-destination-vteps",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:fib:tunnel-tables:srl_nokia-tunnel-tables",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:twamp:srl_nokia-twamp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:vxlan-tunnel-vtep:srl_nokia-vxlan-tunnel-vtep",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:aaa:tools-aaa:srl_nokia-tools-aaa",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:acl:tools-acl:srl_nokia-tools-acl",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:app:tools-app-mgmt:srl_nokia-tools-app-mgmt",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bfd:tools-bfd:srl_nokia-tools-bfd",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:bgp:tools-bgp:srl_nokia-tools-bgp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-boot:srl_nokia-tools-boot",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:tools-bridge-table-mac-duplication:srl_nokia-tools-bridge-table-mac-duplication",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:tools-bridge-table-mac-learning:srl_nokia-tools-bridge-table-mac-learning",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-proxy-arp-nd:tools-bridge-table-proxy-arp-nd:srl_nokia-tools-bridge-table-proxy-arp-nd",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-cgroup:srl_nokia-tools-cgroup",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:tools-configuration:srl_nokia-tools-configuration",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:tools-connection-point-bridge-table-mac-duplication:srl_nokia-tools-connection-point-bridge-table-mac-duplication",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:tools-connection-point-bridge-table-mac-learning:srl_nokia-tools-connection-point-bridge-table-mac-learning",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp-relay:tools-dhcp-relay:srl_nokia-tools-dhcp-relay",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp:tools-dhcp-server:srl_nokia-tools-dhcp-server",
+      "organization": "Nokia",
+      "version": "2021-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ethcfm:tools-ethcfm:srl_nokia-tools-ethcfm",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:event:tools-event-handler:srl_nokia-tools-event-handler",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:grpc:tools-gnoi:srl_nokia-tools-gnoi",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:grpc:tools-gnoi-healthz:srl_nokia-tools-gnoi-healthz",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:aaa:tools-gnsi-authz:srl_nokia-tools-gnsi-authz",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:tools-gnsi-certz:srl_nokia-tools-gnsi-certz",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:grpc:tools-grpc:srl_nokia-tools-grpc",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:tools-icmp:srl_nokia-tools-icmp",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-interfaces:srl_nokia-tools-interfaces",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac:tools-interfaces-bridge-table-mac-duplication:srl_nokia-tools-interfaces-bridge-table-mac-duplication",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:l2-mac-learn:tools-interfaces-bridge-table-mac-learning:srl_nokia-tools-interfaces-bridge-table-mac-learning",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:dhcp-relay:tools-interfaces-ip-dhcp-relay:srl_nokia-tools-interfaces-ip-dhcp-relay",
+      "organization": "Nokia",
+      "version": "2021-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vrrp:tools-interfaces-ip-vrrp:srl_nokia-tools-interfaces-ip-vrrp",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:arp-nd:tools-interfaces-nbr:srl_nokia-tools-interfaces-nbr",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:arp-nd:tools-interfaces-nbr-virtual-ip-discovery:srl_nokia-tools-interfaces-nbr-virtual-ip-discovery",
+      "organization": "Nokia",
+      "version": "2022-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-interfaces-packet-link-qual:srl_nokia-tools-interfaces-packet-link-qual",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:isis:tools-isis:srl_nokia-tools-isis",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-l2cp:srl_nokia-tools-l2cp",
+      "organization": "Nokia",
+      "version": "2022-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ldp:tools-ldp:srl_nokia-tools-ldp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:lldp:tools-lldp:srl_nokia-tools-lldp",
+      "organization": "Nokia",
+      "version": "2022-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mplsoam:tools-lsp-ping-trace:srl_nokia-tools-lsp-ping-trace",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:mirror:tools-mirroring:srl_nokia-tools-mirroring",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:net-inst:tools-network-instance:srl_nokia-tools-network-instance",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:oam:tools-oam:srl_nokia-tools-oam",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ethcfm:tools-oam-pm-ethcfm:srl_nokia-tools-oam-pm-ethcfm",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:tools-oam-pm-ip:srl_nokia-tools-oam-pm-ip",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:ospf:tools-ospf:srl_nokia-tools-ospf",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:oam:tools-packet-trace:srl_nokia-tools-packet-trace",
+      "organization": "Nokia",
+      "version": "2023-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-platform:srl_nokia-tools-platform",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-platform-attestation:srl_nokia-tools-platform-attestation",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-platform-redundancy:srl_nokia-tools-platform-redundancy",
+      "organization": "Nokia",
+      "version": "2020-06-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:chassis:tools-platform-secure-boot:srl_nokia-tools-platform-secure-boot",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:qos:tools-qos:srl_nokia-tools-qos",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:qos:tools-qos-policers:srl_nokia-tools-qos-policers",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:general:tools-system:srl_nokia-tools-system",
+      "organization": "Nokia",
+      "version": "2019-11-30"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:tepolicy:tools-te-policies:srl_nokia-tools-te-policies",
+      "organization": "Nokia",
+      "version": "2023-07-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:linux:tools-tls:srl_nokia-tools-tls",
+      "organization": "Nokia",
+      "version": "2023-10-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:tools-tunnel:srl_nokia-tools-tunnel",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:twamp:tools-twamp:srl_nokia-tools-twamp",
+      "organization": "Nokia",
+      "version": "2024-03-31"
+    },
+    {
+      "name": "urn:nokia.com:srlinux:vxlan:tools-vxlan-tunnel:srl_nokia-tools-vxlan-tunnel",
+      "organization": "Nokia",
+      "version": "2021-03-31"
+    }
+  ],
+  "supportedEncodings": [
+    "JSON_IETF",
+    "PROTO",
+    "ASCII",
+    52,
+    42,
+    43,
+    45,
+    44,
+    46,
+    47,
+    48,
+    49,
+    50,
+    53
+  ],
+  "gNMIVersion": "0.10.0"
+}

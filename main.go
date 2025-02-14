@@ -35,7 +35,6 @@ import (
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	_ "github.com/sdcio/config-server/pkg/discovery/discoverers/all"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
 	"github.com/sdcio/config-server/pkg/output/prometheusserver"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -87,6 +86,7 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
 
 	targetStore := memstore.NewStore[*target.Context]()
 	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
