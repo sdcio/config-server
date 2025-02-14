@@ -314,7 +314,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 		return "", nil
 	}
 
-	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
@@ -351,7 +351,7 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 
 	log.Debug("device intent receovery")
 
-	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: "recovery",
 		DatastoreName: key.String(),
 		DryRun:        false,
