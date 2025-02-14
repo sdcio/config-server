@@ -81,11 +81,12 @@ func TestParseDiscoveryInformation(t *testing.T) {
 
 			getRsp := tc.getResponse()
 
-			// Convert paths into a map for quick lookup
-			pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
-			for _, param := range profiles[tc.provider].Paths {
-				pathMap[param.Path] = param // Store the key for fast lookup
+			// Convert paths into a map for quick lookup			
+			pathMap, err := getPathMap(&gnmi.GetRequest{}, profiles[tc.provider].Paths)
+			if err != nil {
+				t.Fatalf("Expected error: %v, got: %v", tc.expectError, err)
 			}
+
 			if err != nil {
 				t.Fatalf("Failed to load capability response: %v", err)
 			}

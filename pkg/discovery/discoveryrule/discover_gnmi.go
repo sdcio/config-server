@@ -160,17 +160,7 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	req.Path = make([]*gnmi.Path, 0, len(r.DiscoveryParameters.Paths))
 
 	// Convert paths into a map for quick lookup
-	pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
-	for _, param := range r.DiscoveryParameters.Paths {
-		parsedPath, err := path.ParsePath(param.Path)
-		if err != nil {
-			return nil, fmt.Errorf("invalid GNMI path %q: %w", param.Path, err)
-		}
-		req.Path = append(req.Path, parsedPath)
-
-		gnmiPath := GnmiPathToXPath(parsedPath, true)
-		pathMap[gnmiPath] = param // Store the key for fast lookup
-	}
+	pathMap, err := getPathMap(req, r.DiscoveryParameters.Paths)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +174,21 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	}
 
 	return r.parseDiscoveryInformation(ctx, pathMap, capRsp, getRsp)
+}
+
+func getPathMap(req *gnmi.GetRequest, discoveryPaths []invv1alpha1.DiscoveryPathDefinition) (map[string]invv1alpha1.DiscoveryPathDefinition, error) {
+	pathMap := make(map[string]invv1alpha1.DiscoveryPathDefinition)
+	for _, param := range discoveryPaths {
+		parsedPath, err := path.ParsePath(param.Path)
+		if err != nil {
+			return nil, fmt.Errorf("invalid GNMI path %q: %w", param.Path, err)
+		}
+		req.Path = append(req.Path, parsedPath)
+
+		gnmiPath := GnmiPathToXPath(parsedPath, true)
+		pathMap[gnmiPath] = param // Store the key for fast lookup
+	}
+	return pathMap, nil
 }
 
 func (r *Discoverer) parseDiscoveryInformation(

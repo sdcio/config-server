@@ -3,7 +3,7 @@
     "supportedModels": [
       {
         "name": "arista-vlan-augments",
-        "organization": "Arista Networks",
+        "organization": "Arista Networks, Inc.",
         "version": "1.1.2"
       },
       {
