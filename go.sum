@@ -279,8 +279,8 @@ github.com/sdcio/data-server v0.0.51 h1:PBoUkLld/jw35N1XJ+ODqB8ZFDZOTOJ5EWrK0DtM
 github.com/sdcio/data-server v0.0.51/go.mod h1:pxkCNGvJyHZUkZkeymwJmTKQHu4xWRErkHU6XoYQIfE=
 github.com/sdcio/schema-server v0.0.28 h1:Tj3AI0WA5zrT2Tm8SGW0g9i+dQOWUsIWFQC/IWN/8Ps=
 github.com/sdcio/schema-server v0.0.28/go.mod h1:uwX0+giyy7Y/cgX7mVf6GojCvE/XSEZomzhLaBzPYQg=
-github.com/sdcio/sdc-protos v0.0.38-0.20250124133536-66b3343fe7d2 h1:jZvwea12+1dw8ocx8O6nonOTlXLMdDAUwQKALiPGkzg=
-github.com/sdcio/sdc-protos v0.0.38-0.20250124133536-66b3343fe7d2/go.mod h1:uG2jk1oV3iQ6WRypxJA+vssPqtfZchQzGwAXueV9z6A=
+github.com/sdcio/sdc-protos v0.0.39 h1:GDpiUcMmOnHDSCD92t3brZ315QfmkN4yBiFdaZJv5B0=
+github.com/sdcio/sdc-protos v0.0.39/go.mod h1:uG2jk1oV3iQ6WRypxJA+vssPqtfZchQzGwAXueV9z6A=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 h1:n661drycOFuPLCN3Uc8sB6B/s6Z4t2xvBgU1htSHuq8=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
