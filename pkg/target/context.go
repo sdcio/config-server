@@ -439,7 +439,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
 		if er, ok := status.FromError(rsperr); ok {
 			switch er.Code() {
-			case codes.ResourceExhausted:
+			case codes.Aborted, codes.ResourceExhausted:
 				recoverable = true
 			default:
 				recoverable = false
