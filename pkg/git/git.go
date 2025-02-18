@@ -28,6 +28,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -360,4 +361,204 @@ func (g *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport
 	}
 
 	return g.credential.ToAuthMethod(), nil
+}
+
+func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, error) {
+	log := log.FromContext(ctx)
+
+	// Clone repo if not present
+	if err := g.Clone(ctx); err != nil {
+		return "", err
+	}
+
+	// Check if commit exists
+	if !g.commitExists(ctx, commitHash) {
+		log.Info("Commit not found locally, fetching from remote")
+		if err := g.fetchCommit(ctx, commitHash); err != nil {
+			return "", err
+		}
+	}
+
+	// Find the branch that contains the commit
+	branch, err := g.checkCommitStatus(ctx, commitHash)
+	if err != nil {
+		return "", err
+	}
+
+	return branch, nil
+}
+
+func (g *GoGit) commitExists(_ context.Context, commitHash string) bool {
+	_, err := g.r.CommitObject(plumbing.NewHash(commitHash))
+	return err == nil
+}
+
+func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
+	log := log.FromContext(ctx)
+	log.Info("Fetching commit", "commit", commitHash)
+
+	err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+		return g.r.FetchContext(ctx, &gogit.FetchOptions{
+			RefSpecs: []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/*:refs/*"))}, // Fetch all refs
+			Depth:    0,
+			Auth:     auth,
+			Force:    true,
+			Prune:    true,
+		})
+	})
+	if err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to fetch commit", WrappedError: err}
+	}
+
+	if err := resetToRemoteHead(ctx, g.r, MainBranch.BranchInRemote()); err != nil {
+		return fmt.Errorf("failed to reset to remote head: %v", err)
+	}
+	return nil
+}
+
+func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (string, error) {
+	log := log.FromContext(ctx)
+
+	log.Info("Searching for commit in branches", "commit", commitHash)
+
+	// Convert commit hash to a plumbing.Hash
+	commitObj, err := g.r.CommitObject(plumbing.NewHash(commitHash))
+	if err != nil {
+		return "", &sdcerrors.UnrecoverableError{Message: "Commit not found", WrappedError: err}
+	}
+
+	// Step 1: Get the main branch (default is "main")
+	mainBranchName := "main"
+	if detectedBranch, err := g.getDefaultBranch(ctx); err == nil {
+		mainBranchName = detectedBranch
+		log.Info("Detected main branch", "branch", mainBranchName)
+	}
+
+	// Step 2: Check if the commit is an ancestor of main
+	mainRef := plumbing.NewBranchReferenceName(mainBranchName)
+	mainHash, err := g.r.ResolveRevision(plumbing.Revision(mainRef))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve main branch: %w", err)
+	}
+
+	mainCommitObj, err := g.r.CommitObject(*mainHash) // Convert hash to commit
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit object for main branch: %w", err)
+	}
+
+	// Check if the commit is already merged into main
+	if isAncestor(commitObj, mainCommitObj) {
+		log.Info("Commit is already merged into main", "commit", commitHash)
+		return "merged", nil
+	}
+
+	// Step 3: Check if the commit exists in another branch (feature branch)
+	iter, err := g.r.References()
+	if err != nil {
+		return "", fmt.Errorf("failed to list branches: %w", err)
+	}
+	defer iter.Close()
+
+	var featureBranch string
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Type() == plumbing.HashReference && ref.Name().IsBranch() {
+			branchName := ref.Name().Short()
+			branchCommit, err := g.r.CommitObject(ref.Hash())
+			if err != nil {
+				return nil // Skip if the branch has issues
+			}
+
+			if isAncestor(commitObj, branchCommit) {
+				featureBranch = branchName
+				log.Info("Commit is in a feature branch", "commit", commitHash, "branch", branchName)
+				return nil // Stop iteration once found
+			}
+		}
+		return nil
+	})
+
+	if featureBranch != "" {
+		return fmt.Sprintf("pending merge in %s", featureBranch), nil
+	}
+
+	// If commit is not found in any branch
+	log.Warn("Commit is not found in main or any feature branch", "commit", commitHash)
+	return "detached", nil
+}
+
+func isAncestor(commit, branchCommit *object.Commit) bool {
+	queue := []*object.Commit{branchCommit}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:] // Pop first element
+
+		if current.Hash == commit.Hash {
+			return true // Commit is found in branch history
+		}
+
+		// Add parents (ancestors) to the queue
+		parentIter := current.Parents()
+		_ = parentIter.ForEach(func(parent *object.Commit) error {
+			queue = append(queue, parent)
+			return nil
+		})
+	}
+
+	return false
+}
+
+func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
+	log := log.FromContext(ctx)
+
+	if err := g.openRepo(ctx); err != nil {
+		return err
+	}
+
+	// Ensure the commit exists
+	if !g.commitExists(ctx, commitHash) {
+		log.Info("Commit not found locally, fetching...")
+		if err := g.fetchCommit(ctx, commitHash); err != nil {
+			return err
+		}
+	}
+
+	// Checkout the commit
+	worktree, err := g.r.Worktree()
+	if err != nil {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to get worktree", WrappedError: err}
+	}
+
+	log.Info("Checking out commit", "hash", commitHash)
+	err = worktree.Checkout(&gogit.CheckoutOptions{
+		Hash: plumbing.NewHash(commitHash),
+	})
+	if err != nil {
+		return &sdcerrors.UnrecoverableError{Message: "Failed to checkout commit", WrappedError: err}
+	}
+
+	return nil
+}
+
+func resetToRemoteHead(ctx context.Context, repo *gogit.Repository, branch plumbing.ReferenceName) error {
+	log := log.FromContext(ctx)
+	ref, err := repo.Reference(branch, true)
+	if err != nil {
+		log.Error("Failed to get reference", "branch", branch, "error", err)
+		return fmt.Errorf("failed to get reference for branch %s: %v", branch, err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		log.Error("Failed to get worktree", "error", err)
+		return fmt.Errorf("cannot get worktree: %v", err)
+	}
+	err = wt.Reset(&gogit.ResetOptions{
+		Mode:   gogit.HardReset,
+		Commit: ref.Hash(),
+	})
+	if err != nil {
+		log.Error("Failed to reset worktree", "ref", ref.Hash(), "error", err)
+		return fmt.Errorf("cannot reset worktree: %v", err)
+	}
+	return nil
 }

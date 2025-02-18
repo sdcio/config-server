@@ -29,7 +29,7 @@ type ConfigSetSpec struct {
 	Target Target `json:"target" protobuf:"bytes,1,opt,name=target"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
-	Lifecycle Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
+	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
 	// Priority defines the priority of this config
 	Priority int64 `json:"priority,omitempty" protobuf:"bytes,3,opt,name=priority"`
 	// Config defines the configuration to be applied to a target device

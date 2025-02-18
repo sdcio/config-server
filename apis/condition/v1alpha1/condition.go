@@ -39,6 +39,7 @@ const (
 	ConditionReasonReady   ConditionReason = "Ready"
 	ConditionReasonFailed  ConditionReason = "Failed"
 	ConditionReasonUnknown ConditionReason = "Unknown"
+	ConditionReasonRollout ConditionReason = "Rollout"
 )
 
 type Condition struct {
@@ -173,6 +174,18 @@ func Ready() Condition {
 	}}
 }
 
+// Ready returns a condition that indicates the resource is
+// ready for use.
+func ReadyWithMsg(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonReady),
+		Message:            msg,
+	}}
+}
+
 // Unknown returns a condition that indicates the resource is in an
 // unknown status.
 func Unknown() Condition {
@@ -192,6 +205,18 @@ func Failed(msg string) Condition {
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+// Rollout returns a condition that indicates the resource
+// is being rolled out.
+func Rollout(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonRollout),
 		Message:            msg,
 	}}
 }

@@ -74,6 +74,20 @@ message DiscoveryParameters {
   optional int64 concurrentScans = 6;
 }
 
+message DiscoveryPathDefinition {
+  // Key defines the key of the path for fast lookup
+  optional string key = 1;
+
+  // Path associated with the key
+  optional string path = 2;
+
+  // Script defines the starlark script to transform the value
+  optional string script = 3;
+
+  // Regex defines the regex to transform the value
+  optional string regex = 4;
+}
+
 message DiscoveryProfile {
   // Credentials defines the name of the secret that holds the credentials to connect to the target
   optional string credentials = 1;
@@ -167,6 +181,128 @@ message DiscoveryRuleStatus {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:categories={sdc,inv}
+// DiscoveryVendorProfile is the Schema for the DiscoveryVendorProfile API
+// +k8s:openapi-gen=true
+message DiscoveryVendorProfile {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional DiscoveryVendorProfileSpec spec = 2;
+}
+
+// +kubebuilder:object:root=true
+// DiscoveryVendorProfileList contains a list of DiscoveryVendorProfileList
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message DiscoveryVendorProfileList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated DiscoveryVendorProfile items = 2;
+}
+
+// DiscoveryProfileSpec defines the desired state of DiscoveryProfile
+message DiscoveryVendorProfileSpec {
+  optional GnmiDiscoveryVendorProfileParameters gnmi = 1;
+}
+
+message GnmiDiscoveryVendorProfileParameters {
+  optional string organization = 1;
+
+  optional string modelMatch = 2;
+
+  // Paths        DiscoveryPaths `json:"paths" protobuf:"bytes,3,opt,name=paths"`
+  repeated DiscoveryPathDefinition paths = 3;
+
+  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
+  // +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
+  // +kubebuilder:default:=JSON_IETF
+  optional string encoding = 5;
+}
+
+message Proxy {
+  // URL specifies the base URL of the HTTP/HTTPS proxy server.
+  optional string URL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
+  optional string credentials = 2;
+}
+
+message Repository {
+  // RepositoryURL specifies the base URL for a given repository
+  optional string repoURL = 1;
+
+  // Credentials defines the name of the secret that holds the credentials to connect to the repo
+  optional string credentials = 2;
+
+  // Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.
+  optional Proxy proxy = 3;
+
+  // +kubebuilder:validation:Enum=branch;tag;hash;
+  // +kubebuilder:default:=tag
+  // Kind defines the that the BranchOrTag string is a repository branch or a tag
+  optional string kind = 4;
+
+  // Ref defines the branch or tag of the repository corresponding to the
+  // provider schema version
+  optional string ref = 5;
+}
+
+// +kubebuilder:object:root=true
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
+// +kubebuilder:resource:categories={sdc,inv}
+// Rollout is the Rollout for the Rollout API
+// +k8s:openapi-gen=true
+message Rollout {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional RolloutSpec spec = 2;
+
+  optional RolloutStatus status = 3;
+}
+
+// +kubebuilder:object:root=true
+// RolloutList contains a list of Rollouts
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message RolloutList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated Rollout items = 2;
+}
+
+// RolloutSpec defines the desired state of Rollout
+message RolloutSpec {
+  optional Repository repository = 1;
+
+  optional string strategy = 2;
+
+  optional bool skipUnavailableTarget = 3;
+}
+
+// RolloutStatus defines the observed state of Rollout
+message RolloutStatus {
+  // ConditionedStatus provides the status of the Rollout using conditions
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // Targets defines the status of the rollout on the respective target
+  repeated RolloutTargetStatus targets = 2;
+}
+
+message RolloutTargetStatus {
+  optional string name = 1;
+
+  // ConditionedStatus provides the status of the Rollout using conditions
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 2;
+}
+
+// +kubebuilder:object:root=true
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
@@ -217,32 +353,8 @@ message SchemaSpec {
   repeated SchemaSpecRepository repositories = 3;
 }
 
-message SchemaSpecProxy {
-  // URL specifies the base URL of the HTTP/HTTPS proxy server.
-  optional string URL = 1;
-
-  // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
-  optional string credentials = 2;
-}
-
 message SchemaSpecRepository {
-  // RepositoryURL specifies the base URL for a given repository
-  optional string repoURL = 1;
-
-  // Credentials defines the name of the secret that holds the credentials to connect to the repo
-  optional string credentials = 2;
-
-  // Proxy defines the HTTP/HTTPS proxy to be used to download the models.
-  optional SchemaSpecProxy proxy = 3;
-
-  // +kubebuilder:validation:Enum=branch;tag;
-  // +kubebuilder:default:=tag
-  // Kind defines the that the BranchOrTag string is a repository branch or a tag
-  optional string kind = 4;
-
-  // Ref defines the branch or tag of the repository corresponding to the
-  // provider schema version
-  optional string ref = 5;
+  optional Repository repository = 8;
 
   // +kubebuilder:validation:MaxItems=10
   // Dirs defines the list of directories that identified the provider schema in src/dst pairs
@@ -388,6 +500,7 @@ message SubscriptionTarget {
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].message"
 // +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
+// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".status.discoveryInfo.version"
 // +kubebuilder:printcolumn:name="ADDRESS",type="string",JSONPath=".spec.address"
 // +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"
 // +kubebuilder:printcolumn:name="SERIALNUMBER",type="string",JSONPath=".status.discoveryInfo.serialNumber"
@@ -632,5 +745,51 @@ message TargetTemplate {
   // Labels is a key value map to be copied to the target CR.
   // +optional
   map<string, string> labels = 3;
+}
+
+// +kubebuilder:object:root=true
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="URL",type="string",JSONPath=".spec.repoURL"
+// +kubebuilder:printcolumn:name="REF",type="string",JSONPath=".spec.ref"
+// +kubebuilder:resource:categories={sdc,inv}
+// Workspace is the Workspace for the Workspace API
+// +k8s:openapi-gen=true
+message Workspace {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional WorkspaceSpec spec = 2;
+
+  optional WorkspaceStatus status = 3;
+}
+
+// +kubebuilder:object:root=true
+// WorkspaceList contains a list of Workspaces
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message WorkspaceList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated Workspace items = 2;
+}
+
+// WorkspaceSpec defines the desired state of Workspace
+message WorkspaceSpec {
+  optional Repository repository = 1;
+}
+
+// WorkspaceStatus defines the observed state of Workspace
+message WorkspaceStatus {
+  // ConditionedStatus provides the status of the Workspace using conditions
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // +kubebuilder:validation:Enum=branch;tag;hash;
+  // Kind defines the that the BranchOrTag string is a repository branch or a tag
+  optional string kind = 2;
+
+  // DeployedRef is the reference that is deployed
+  optional string deployedRef = 3;
 }
 

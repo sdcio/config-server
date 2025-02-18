@@ -455,7 +455,7 @@ func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpe
 	if err := Convert_v1alpha1_Target_To_config_Target(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha1_Lifecycle_To_config_Lifecycle(&in.Lifecycle, &out.Lifecycle, s); err != nil {
+	if err := Convert_v1alpha1_Lifecycle_To_config_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
 		return err
 	}
 	out.Priority = in.Priority
@@ -472,7 +472,7 @@ func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.Confi
 	if err := Convert_config_Target_To_v1alpha1_Target(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
-	if err := Convert_config_Lifecycle_To_v1alpha1_Lifecycle(&in.Lifecycle, &out.Lifecycle, s); err != nil {
+	if err := Convert_config_Lifecycle_To_v1alpha1_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
 		return err
 	}
 	out.Priority = in.Priority
@@ -532,7 +532,7 @@ func Convert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus(in *config.Confi
 }
 
 func autoConvert_v1alpha1_ConfigSpec_To_config_ConfigSpec(in *ConfigSpec, out *config.ConfigSpec, s conversion.Scope) error {
-	if err := Convert_v1alpha1_Lifecycle_To_config_Lifecycle(&in.Lifecycle, &out.Lifecycle, s); err != nil {
+	if err := Convert_v1alpha1_Lifecycle_To_config_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
 		return err
 	}
 	out.Priority = in.Priority
@@ -546,7 +546,7 @@ func Convert_v1alpha1_ConfigSpec_To_config_ConfigSpec(in *ConfigSpec, out *confi
 }
 
 func autoConvert_config_ConfigSpec_To_v1alpha1_ConfigSpec(in *config.ConfigSpec, out *ConfigSpec, s conversion.Scope) error {
-	if err := Convert_config_Lifecycle_To_v1alpha1_Lifecycle(&in.Lifecycle, &out.Lifecycle, s); err != nil {
+	if err := Convert_config_Lifecycle_To_v1alpha1_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
 		return err
 	}
 	out.Priority = in.Priority
@@ -640,7 +640,7 @@ func Convert_config_Deviation_To_v1alpha1_Deviation(in *config.Deviation, out *D
 }
 
 func autoConvert_v1alpha1_Lifecycle_To_config_Lifecycle(in *Lifecycle, out *config.Lifecycle, s conversion.Scope) error {
-	out.DeletionPolicy = config.DeletionPolicy(in.DeletionPolicy)
+	out.DeletionPolicy = config.DeletionPolicy(string(in.DeletionPolicy))
 	return nil
 }
 
@@ -650,7 +650,7 @@ func Convert_v1alpha1_Lifecycle_To_config_Lifecycle(in *Lifecycle, out *config.L
 }
 
 func autoConvert_config_Lifecycle_To_v1alpha1_Lifecycle(in *config.Lifecycle, out *Lifecycle, s conversion.Scope) error {
-	out.DeletionPolicy = DeletionPolicy(in.DeletionPolicy)
+	//out.DeletionPolicy = DeletionPolicy(in.DeletionPolicy)
 	return nil
 }
 

@@ -145,11 +145,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		// delete the reference from disk
 		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
-			return r.handleError(ctx, schema, "cannot delete reference", err)
+			return r.handleError(ctx, schemaOrig, "cannot delete reference", err)
 		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, schema); err != nil {
-			return r.handleError(ctx, schema, "cannot remove finalizer", err)
+			return r.handleError(ctx, schemaOrig, "cannot remove finalizer", err)
 		}
 		// done deleting
 		return ctrl.Result{}, nil
@@ -159,14 +159,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datastore/etc
 	if err := r.finalizer.AddFinalizer(ctx, schema); err != nil {
 		// we always retry when status fails -> optimistic concurrency
-		return r.handleError(ctx, schema, "cannot add finalizer", err)
+		return r.handleError(ctx, schemaOrig, "cannot add finalizer", err)
 	}
 
 	// we just insert the schema again
 	r.schemaLoader.AddRef(ctx, schema)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
 	if err != nil {
-		return r.handleError(ctx, schema, "cannot get schema reference", err)
+		return r.handleError(ctx, schemaOrig, "cannot get schema reference", err)
 	}
 
 	if !dirExists {
@@ -174,7 +174,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		schema.SetConditions(invv1alpha1.Loading())
 		if err := r.Status().Update(ctx, schema); err != nil {
 			// we always retry when status fails -> optimistic concurrency
-			return r.handleError(ctx, schema, "cannot update status", err)
+			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
 		r.recorder.Eventf(schema, corev1.EventTypeNormal,
 			"schema", "loading")

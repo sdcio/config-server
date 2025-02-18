@@ -69,6 +69,7 @@ const (
 var (
 	schemaBaseDir = "/schemas"
 	configDir     = "/config"
+	workspaceDir  = "/workspace"
 )
 
 func main() {
@@ -152,6 +153,11 @@ func main() {
 		configDir = envDir
 	}
 
+	// SchemaServerBaseDir is overwritable via Environment var
+	if envDir, found := os.LookupEnv("SDC_WORKSPACE_DIR"); found {
+		workspaceDir = envDir
+	}
+
 	targetHandler := target.NewTargetHandler(mgr.GetClient(), targetStore)
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
@@ -160,6 +166,7 @@ func main() {
 		SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
 		TargetHandler:     targetHandler,
+		WorkspaceDir:      workspaceDir,
 	}
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -173,7 +180,7 @@ func main() {
 	}
 
 	promserver := prometheusserver.NewServer(&prometheusserver.Config{
-		Address: ":9443",
+		Address:     ":9443",
 		TargetStore: targetStore,
 	})
 	go func() {
@@ -182,7 +189,6 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	
 
 	db, err := badgerdb.OpenDB(ctx, configDir)
 	if err != nil {

@@ -82,11 +82,8 @@ func (r *client) Start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	var err error
-	r.conn, err = grpc.DialContext(ctx, r.cfg.Address,
-		grpc.WithBlock(),
-		grpc.WithTransportCredentials(
-			insecure.NewCredentials(),
-		),
+	r.conn, err = grpc.NewClient(r.cfg.Address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		return err
@@ -134,9 +131,9 @@ func (r *client) GetData(ctx context.Context, in *sdcpb.GetDataRequest, opts ...
 	return r.dsclient.GetData(ctx, in, opts...)
 }
 
-func (r *client) SetData(ctx context.Context, in *sdcpb.SetDataRequest, opts ...grpc.CallOption) (*sdcpb.SetDataResponse, error) {
-	return r.dsclient.SetData(ctx, in, opts...)
-}
+//func (r *client) SetData(ctx context.Context, in *sdcpb.SetDataRequest, opts ...grpc.CallOption) (*sdcpb.SetDataResponse, error) {
+//	return r.dsclient.SetData(ctx, in, opts...)
+//}
 
 func (r *client) Diff(ctx context.Context, in *sdcpb.DiffRequest, opts ...grpc.CallOption) (*sdcpb.DiffResponse, error) {
 	return r.dsclient.Diff(ctx, in, opts...)
@@ -163,6 +160,18 @@ func (r *client) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest, op
 
 func (r *client) WatchDeviations(ctx context.Context, in *sdcpb.WatchDeviationRequest, opts ...grpc.CallOption) (sdcpb.DataServer_WatchDeviationsClient, error) {
 	return r.dsclient.WatchDeviations(ctx, in, opts...)
+}
+
+func (r *client) TransactionSet(ctx context.Context, in *sdcpb.TransactionSetRequest, opts ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+	return r.dsclient.TransactionSet(ctx, in, opts...)
+}
+
+func (r *client) TransactionConfirm(ctx context.Context, in *sdcpb.TransactionConfirmRequest, opts ...grpc.CallOption) (*sdcpb.TransactionConfirmResponse, error) {
+	return r.dsclient.TransactionConfirm(ctx, in, opts...)
+}
+
+func (r *client) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCancelRequest, opts ...grpc.CallOption) (*sdcpb.TransactionCancelResponse, error) {
+	return r.dsclient.TransactionCancel(ctx, in, opts...)
 }
 
 /*

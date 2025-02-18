@@ -33,8 +33,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -80,7 +78,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client.Client
 	finalizer     *resource.APIFinalizer
-	targetHandler *target.TargetHandler
+	targetHandler target.TargetHandler
 	recorder      record.EventRecorder
 }
 
@@ -112,8 +110,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !cfg.GetDeletionTimestamp().IsZero() {
-		_, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false)
-		if err != nil {
+		if _, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
 			if errors.Is(err, target.LookupError) {
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
@@ -124,12 +121,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
-			if er, ok := status.FromError(err); ok {
-				if er.Code() == codes.ResourceExhausted {
-					return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-						errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err), errUpdateStatus)
-				}
+			var txErr *target.TransactionError
+			if errors.As(err, &txErr) && txErr.Recoverable {
+				// Retry logic for recoverable errors
+				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
+					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err), errUpdateStatus)
 			}
+
 			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err), errUpdateStatus)
 
 		}
@@ -164,35 +162,35 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	_, internalSchema, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, true, false)
+	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
 	if err != nil {
-		// all grpc errors except resource exhausted will not retry
-		// and a human need to intervene
-		if er, ok := status.FromError(err); ok {
-			if er.Code() == codes.ResourceExhausted {
-				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed", err), errUpdateStatus)
-			}
+		// TODO distinguish between recoeverable and non recoverable
+		var txErr *target.TransactionError
+		if errors.As(err, &txErr) && txErr.Recoverable {
+			// Retry logic for recoverable errors
+			
+			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
+				errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed (recoverable)", warnings), err), errUpdateStatus)
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed", err), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed", warnings), err), errUpdateStatus)
 	}
-
+	
 	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	if err := configv1alpha1.Convert_config_ConfigStatusLastKnownGoodSchema_To_v1alpha1_ConfigStatusLastKnownGoodSchema(internalSchema, schema, nil); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot convert schema", err), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("cannot convert schema", warnings), err), errUpdateStatus)
 	}
-
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema), errUpdateStatus)
+	
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, warnings), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema) error {
+func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, msg string) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
-	cfg.SetConditions(condv1alpha1.Ready())
+	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	cfg.Status.LastKnownGoodSchema = schema
 	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	cfg.Status.AppliedConfig = &cfg.Spec
@@ -225,4 +223,12 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 			FieldManager: reconcilerName,
 		},
 	})
+}
+
+
+func processMessageWithWarning(msg, warnings string) string {
+	if warnings != "" {
+		return fmt.Sprintf("%s warnings: %s", msg, warnings)
+	}
+	return msg
 }

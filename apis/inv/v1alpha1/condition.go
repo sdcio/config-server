@@ -31,6 +31,10 @@ const (
 	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
 	// ConditionTypeTargetConnectionReady represents the resource target ready condition
 	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+
+	ConditionTypeConfigApply   condv1alpha1.ConditionType = "ConfigApply"
+	ConditionTypeConfigConfirm condv1alpha1.ConditionType = "ConfigConfirm"
+	ConditionTypeConfigCancel  condv1alpha1.ConditionType = "ConfigCancel"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -43,6 +47,8 @@ const (
 	ConditionReasonLoading        ConditionReason = "Loading"
 	ConditionReasonSchemaNotReady ConditionReason = "SchemaNotReady"
 	ConditionReasonReApplyFailed  ConditionReason = "ReApplyConfigFailed"
+	ConditionReasonUnavailable    ConditionReason = "Unavailable"
+	ConditionReasonUnknown        ConditionReason = "Unknown"
 )
 
 // Action returns a condition that indicates the resource is in an
@@ -117,12 +123,13 @@ func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
 
 // ConfigReady return a condition that indicates the config
 // get re-applied when the target became ready
-func ConfigReady() condv1alpha1.Condition {
+func ConfigReady(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonReady),
+		Message:            msg,
 	}}
 }
 
@@ -189,6 +196,85 @@ func TargetConnectionReady() condv1alpha1.Condition {
 func TargetConnectionFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeTargetConnectionReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+// TargetConnectionFailed returns a condition that indicates the target connection
+// is in failed condition
+
+func ConfigApplyReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigApply),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+	}}
+}
+
+func ConfigApplyFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigApply),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+func ConfigApplyUnavailable(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigApply),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUnavailable),
+		Message:            msg,
+	}}
+}
+
+func ConfigApplyUnknown() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigApply),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUnknown),
+	}}
+}
+
+func ConfigConfirmReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigConfirm),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+	}}
+}
+
+func ConfigConfirmFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigConfirm),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+func ConfigCancelReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigCancel),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+	}}
+}
+
+func ConfigCancelFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigCancel),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonFailed),
