@@ -455,9 +455,7 @@ func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpe
 	if err := Convert_v1alpha1_Target_To_config_Target(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
-	if err := Convert_v1alpha1_Lifecycle_To_config_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
-		return err
-	}
+	out.Lifecycle = (*config.Lifecycle)(unsafe.Pointer(in.Lifecycle))
 	out.Priority = in.Priority
 	out.Config = *(*[]config.ConfigBlob)(unsafe.Pointer(&in.Config))
 	return nil
@@ -472,9 +470,7 @@ func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.Confi
 	if err := Convert_config_Target_To_v1alpha1_Target(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
-	if err := Convert_config_Lifecycle_To_v1alpha1_Lifecycle(in.Lifecycle, out.Lifecycle, s); err != nil {
-		return err
-	}
+	out.Lifecycle = (*Lifecycle)(unsafe.Pointer(in.Lifecycle))
 	out.Priority = in.Priority
 	out.Config = *(*[]ConfigBlob)(unsafe.Pointer(&in.Config))
 	return nil
