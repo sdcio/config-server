@@ -324,6 +324,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 				Intent:   getGVKNSN(config),
 				Priority: int32(config.Spec.Priority),
 				Delete:   true,
+				Orphan:   config.Orphan(),
 			},
 		},
 	})
@@ -464,7 +465,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 		err = NewTransactionError(errs, recoverable)
 	}
 	if len(collectedWarnings) > 0 {
-		msg =  strings.Join(collectedWarnings, "; ")
+		msg = strings.Join(collectedWarnings, "; ")
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
 	return msg, err

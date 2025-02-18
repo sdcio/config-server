@@ -36,10 +36,10 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady       ConditionReason = "Ready"
-	ConditionReasonFailed      ConditionReason = "Failed"
-	ConditionReasonUnknown     ConditionReason = "Unknown"
-	ConditionReasonRollout     ConditionReason = "Rollout"
+	ConditionReasonReady   ConditionReason = "Ready"
+	ConditionReasonFailed  ConditionReason = "Failed"
+	ConditionReasonUnknown ConditionReason = "Unknown"
+	ConditionReasonRollout ConditionReason = "Rollout"
 )
 
 type Condition struct {

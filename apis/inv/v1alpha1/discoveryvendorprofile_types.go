@@ -37,18 +37,17 @@ type GnmiDiscoveryVendorProfileParameters struct {
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
 	// +kubebuilder:default:=JSON_IETF
 	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,5,opt,name=encoding,casttype=Encoding"`
-
 }
 
 type DiscoveryPathDefinition struct {
 	// Key defines the key of the path for fast lookup
-	Key    string  `json:"key" protobuf:"bytes,1,opt,name=key"`
+	Key string `json:"key" protobuf:"bytes,1,opt,name=key"`
 	// Path associated with the key
-	Path   string  `json:"path" protobuf:"bytes,2,opt,name=path"`
+	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
 	// Script defines the starlark script to transform the value
-	Script *string `json:"script,omitempty" protobuf:"bytes,3,opt,name=script"` 
+	Script *string `json:"script,omitempty" protobuf:"bytes,3,opt,name=script"`
 	// Regex defines the regex to transform the value
-	Regex *string  `json:"regex,omitempty" protobuf:"bytes,4,opt,name=regex"`
+	Regex *string `json:"regex,omitempty" protobuf:"bytes,4,opt,name=regex"`
 }
 
 // +kubebuilder:object:root=true

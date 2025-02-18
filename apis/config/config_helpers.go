@@ -65,9 +65,18 @@ func (r *Config) GetTarget() string {
 	return sb.String()
 }
 
+func (r *Config) Orphan() bool {
+	if r.Spec.Lifecycle != nil  {
+		return  r.Spec.Lifecycle.DeletionPolicy == DeletionOrphan
+	}
+	return false
+}
+
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }
+
+
 
 func GetTargetKey(labels map[string]string) (types.NamespacedName, error) {
 	var targetName, targetNamespace string

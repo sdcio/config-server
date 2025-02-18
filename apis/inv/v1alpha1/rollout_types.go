@@ -49,7 +49,7 @@ type RolloutStatus struct {
 type RolloutTargetStatus struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// ConditionedStatus provides the status of the Rollout using conditions
-	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,2,opt,name=conditionedStatus"`
 }
 
 // +kubebuilder:object:root=true
