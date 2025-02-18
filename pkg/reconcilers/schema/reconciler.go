@@ -183,9 +183,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 	// check if the schema exists
-	if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
+	rsp, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
-	}); err != nil {
+	})
+	if err != nil {
 		// schema does not exists in schema-server -> create it
 		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
@@ -195,16 +196,28 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
 		}
-	} else {
-		// if schema exists, reload it from disk
-		_, err := r.schemaclient.ReloadSchema(ctx, &sdcpb.ReloadSchemaRequest{Schema: spec.GetSchema()})
-		if err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot reload schema", err)
-		}
+		return r.handleSuccess(ctx, schemaOrig)
+	}
+	if rsp == nil || rsp.Schema == nil {
+		return r.handleError(ctx, schemaOrig, "get schema detail response w/o a response or schems", nil)
 	}
 
-	// schema ready
-	return r.handleSuccess(ctx, schemaOrig)
+	switch rsp.Schema.Status {
+	case sdcpb.SchemaStatus_FAILED:
+		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
+			Schema:    spec.GetSchema(),
+			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
+			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
+			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
+		}); err != nil {
+			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
+		}
+		return r.handleSuccess(ctx, schemaOrig)
+	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
+		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
+	default: // OK case
+		return r.handleSuccess(ctx, schemaOrig)
+	}
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema) (ctrl.Result, error) {
