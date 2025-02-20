@@ -211,7 +211,7 @@ func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelecto
 		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if fieldSelector == nil {
 			if ok {
-				return &ConfigFilter{Namespace: namespace}, nil
+				return &UnManagedConfigFilter{Namespace: namespace}, nil
 			}
 			return filter, nil
 		}
