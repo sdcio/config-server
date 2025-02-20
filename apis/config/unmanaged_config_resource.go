@@ -205,26 +205,29 @@ func (r *UnManagedConfig) FieldLabelConversion() runtime.FieldLabelConversionFun
 
 func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
 	return func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
-		var filter *UnManagedConfigFilter
+		filter := &UnManagedConfigFilter{}
 
 		// add the namespace to the list
 		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if fieldSelector == nil {
 			if ok {
-				return &UnManagedConfigFilter{Namespace: namespace}, nil
+				filter.Namespace = namespace
 			}
 			return filter, nil
 		}
 		requirements := fieldSelector.Requirements()
 		for _, requirement := range requirements {
-			filter = &UnManagedConfigFilter{}
 			switch requirement.Operator {
 			case selection.Equals, selection.DoesNotExist:
 				if requirement.Value == "" {
-					return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector value %q for field %q with operator %q", requirement.Value, requirement.Field, requirement.Operator))
+					return filter, apierrors.NewBadRequest(fmt.Sprintf(
+						"unsupported fieldSelector value %q for field %q with operator %q", 
+						requirement.Value, requirement.Field, requirement.Operator))
 				}
 			default:
-				return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector operator %q for field %q", requirement.Operator, requirement.Field))
+				return filter, apierrors.NewBadRequest(fmt.Sprintf(
+					"unsupported fieldSelector operator %q for field %q", 
+					requirement.Operator, requirement.Field))
 			}
 
 			switch requirement.Field {
@@ -238,17 +241,17 @@ func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelecto
 		}
 		// add namespace to the filter selector if specified
 		if ok {
-			if filter != nil {
-				filter.Namespace = namespace
-			} else {
-				filter = &UnManagedConfigFilter{Namespace: namespace}
-			}
-			return filter, nil
+			if filter.Namespace == "" {
+                filter.Namespace = namespace
+            } else if filter.Namespace != namespace {
+                return nil, apierrors.NewBadRequest(fmt.Sprintf(
+                    "conflicting namespace in fieldSelector (%s) and request context (%s)", filter.Namespace, namespace,
+                ))
+            }
 		}
-
-		return &UnManagedConfigFilter{}, nil
+		fmt.Println("unmanaged filter", filter)
+		return filter, nil
 	}
-
 }
 
 type UnManagedConfigFilter struct {
@@ -261,7 +264,7 @@ type UnManagedConfigFilter struct {
 
 func (r *UnManagedConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 	f := false // result of the previous filter
-	o, ok := obj.(*Config)
+	o, ok := obj.(*UnManagedConfig)
 	if !ok {
 		return f
 	}
