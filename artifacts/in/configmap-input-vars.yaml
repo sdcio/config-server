@@ -5,5 +5,5 @@ metadata:
 data: 
   #configServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
   #dataServerImage: ghcr.io/sdcio/data-server:v0.0.53
-  configServerImage: ghcr.io/sdcio/config-server:v0.0.47
+  configServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/config-server:latest
   dataServerImage: ghcr.io/steiler/data-server:v0.0.0-bbd639d
