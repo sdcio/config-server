@@ -220,8 +220,7 @@ func (r *Config) FieldSelector() func(ctx context.Context, fieldSelector fields.
 		filter := &ConfigFilter{}
 
 		if fieldSelector != nil {
-			requirements := fieldSelector.Requirements()
-			for _, requirement := range requirements {
+			for _, requirement := range fieldSelector.Requirements() {
 				switch requirement.Operator {
 				case selection.Equals, selection.DoesNotExist:
 					if requirement.Value == "" {

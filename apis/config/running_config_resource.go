@@ -158,9 +158,9 @@ func (r *RunningConfig) FieldSelector() func(ctx context.Context, fieldSelector 
 		filter := &RunningConfigFilter{}
 
 		// add the namespace to the list
-		requirements := fieldSelector.Requirements()
+
 		if fieldSelector != nil {
-			for _, requirement := range requirements {
+			for _, requirement := range fieldSelector.Requirements() {
 				switch requirement.Operator {
 				case selection.Equals, selection.DoesNotExist:
 					if requirement.Value == "" {

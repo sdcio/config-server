@@ -215,8 +215,7 @@ func (r *ConfigSet) FieldSelector() func(ctx context.Context, fieldSelector fiel
 
 		// add the namespace to the list
 		if fieldSelector != nil {
-			requirements := fieldSelector.Requirements()
-			for _, requirement := range requirements {
+			for _, requirement := range fieldSelector.Requirements() {
 				switch requirement.Operator {
 				case selection.Equals, selection.DoesNotExist:
 					if requirement.Value == "" {

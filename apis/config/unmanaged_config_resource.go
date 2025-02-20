@@ -207,9 +207,8 @@ func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelecto
 	return func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
 		filter := &UnManagedConfigFilter{}
 
-		requirements := fieldSelector.Requirements()
 		if fieldSelector != nil {
-			for _, requirement := range requirements {
+			for _, requirement := range fieldSelector.Requirements() {
 				switch requirement.Operator {
 				case selection.Equals, selection.DoesNotExist:
 					if requirement.Value == "" {
