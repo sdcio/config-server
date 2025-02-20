@@ -217,16 +217,8 @@ func (r *Config) FieldLabelConversion() runtime.FieldLabelConversionFunc {
 
 func (r *Config) FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
 	return func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
-		var filter *ConfigFilter
+		filter := &ConfigFilter{}
 
-		// add the namespace to the list
-		namespace, ok := genericapirequest.NamespaceFrom(ctx)
-		if fieldSelector == nil {
-			if ok {
-				return &ConfigFilter{Namespace: namespace}, nil
-			}
-			return filter, nil
-		}
 		requirements := fieldSelector.Requirements()
 		for _, requirement := range requirements {
 			filter = &ConfigFilter{}
@@ -249,16 +241,14 @@ func (r *Config) FieldSelector() func(ctx context.Context, fieldSelector fields.
 			}
 		}
 		// add namespace to the filter selector if specified
+		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if ok {
-			if filter != nil {
-				filter.Namespace = namespace
-			} else {
-				filter = &ConfigFilter{Namespace: namespace}
-			}
-			return filter, nil
+			if filter.Namespace == "" {
+                filter.Namespace = namespace
+            } 
 		}
 
-		return &ConfigFilter{}, nil
+		return filter, nil
 	}
 
 }

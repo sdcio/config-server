@@ -232,7 +232,6 @@ func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelecto
 			}
 		}
 		// add namespace to the filter selector if specified
-		// add the namespace to the list
 		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if ok {
 			if filter.Namespace == "" {
