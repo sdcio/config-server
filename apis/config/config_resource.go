@@ -217,48 +217,38 @@ func (r *Config) FieldLabelConversion() runtime.FieldLabelConversionFunc {
 
 func (r *Config) FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
 	return func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
-		var filter *ConfigFilter
+		filter := &ConfigFilter{}
 
-		// add the namespace to the list
-		namespace, ok := genericapirequest.NamespaceFrom(ctx)
-		if fieldSelector == nil {
-			if ok {
-				return &ConfigFilter{Namespace: namespace}, nil
-			}
-			return filter, nil
-		}
-		requirements := fieldSelector.Requirements()
-		for _, requirement := range requirements {
-			filter = &ConfigFilter{}
-			switch requirement.Operator {
-			case selection.Equals, selection.DoesNotExist:
-				if requirement.Value == "" {
-					return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector value %q for field %q with operator %q", requirement.Value, requirement.Field, requirement.Operator))
+		if fieldSelector != nil {
+			for _, requirement := range fieldSelector.Requirements() {
+				switch requirement.Operator {
+				case selection.Equals, selection.DoesNotExist:
+					if requirement.Value == "" {
+						return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector value %q for field %q with operator %q", requirement.Value, requirement.Field, requirement.Operator))
+					}
+				default:
+					return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector operator %q for field %q", requirement.Operator, requirement.Field))
 				}
-			default:
-				return filter, apierrors.NewBadRequest(fmt.Sprintf("unsupported fieldSelector operator %q for field %q", requirement.Operator, requirement.Field))
-			}
 
-			switch requirement.Field {
-			case "metadata.name":
-				filter.Name = requirement.Value
-			case "metadata.namespace":
-				filter.Namespace = requirement.Value
-			default:
-				return filter, apierrors.NewBadRequest(fmt.Sprintf("unknown fieldSelector field %q", requirement.Field))
+				switch requirement.Field {
+				case "metadata.name":
+					filter.Name = requirement.Value
+				case "metadata.namespace":
+					filter.Namespace = requirement.Value
+				default:
+					return filter, apierrors.NewBadRequest(fmt.Sprintf("unknown fieldSelector field %q", requirement.Field))
+				}
 			}
 		}
 		// add namespace to the filter selector if specified
+		namespace, ok := genericapirequest.NamespaceFrom(ctx)
 		if ok {
-			if filter != nil {
+			if filter.Namespace == "" {
 				filter.Namespace = namespace
-			} else {
-				filter = &ConfigFilter{Namespace: namespace}
 			}
-			return filter, nil
 		}
 
-		return &ConfigFilter{}, nil
+		return filter, nil
 	}
 
 }
