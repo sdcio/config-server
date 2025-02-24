@@ -31,7 +31,7 @@ require (
 	go.starlark.net v0.0.0-20250205221240-492d3672b3f4
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.22.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.11.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 	k8s.io/api v0.31.4
