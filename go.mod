@@ -8,7 +8,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.4-0.20241023220418-f1bacfdbb4da
 	github.com/henderiw/apiserver-store v0.0.3-0.20250220181356-a6222bd4cfa9
