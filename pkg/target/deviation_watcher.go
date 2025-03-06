@@ -153,7 +153,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			log.Info("unexecpted deviation event", "event", resp.Event)
 			continue
 		}	
-		resp = nil
+		//resp = nil
 	}
 }
 
