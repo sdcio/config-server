@@ -34,6 +34,7 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -180,4 +181,15 @@ func (r ConfigStatus) HasNotAppliedDeviation() bool {
 		}
 	}
 	return false
+}
+
+// +k8s:deepcopy-gen=false
+var _ ConfigDeviations = &Config{}
+
+func (r *Config) SetDeviations(d []Deviation) {
+	r.Status.Deviations = d
+}
+
+func (r *Config) DeepObjectCopy() client.Object {
+	return r.DeepCopy()
 }

@@ -31,7 +31,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apiserver/pkg/registry/generic/registry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -90,16 +89,8 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if stream, err = r.dsclient.WatchDeviations(ctx, &sdcpb.WatchDeviationRequest{
 				Name: []string{r.targetKey.String()},
 			}); err != nil && !errors.Is(err, context.Canceled) {
-				if er, ok := status.FromError(err); ok {
-					switch er.Code() {
-					case codes.Canceled:
-						// dont log when context got cancelled
-					default:
-						log.Error("cannot subscribe", "error", err)
-					}
-				}
-				time.Sleep(time.Second * 1) //- resilience for server crash
-				// retry on failure
+				log.Error("cannot subscribe", "error", err)
+				time.Sleep(time.Second * 1) // Resilience
 				continue
 			}
 		}
@@ -116,8 +107,8 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			// clearing the stream will force the client to resubscribe in the next iteration
 			stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 			stream = nil
-			time.Sleep(time.Second * 1) //- resilience for server crash
-			// retry on failure
+			time.Sleep(time.Second * 1) //- resilience for server crash, retry on failure
+			
 			continue
 		}
 		switch resp.Event {
@@ -145,7 +136,6 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0, 1)
 			}
 			deviations[intent] = append(deviations[intent], resp)
-			continue
 		case sdcpb.DeviationEvent_END:
 			if !started {
 				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
@@ -154,55 +144,60 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 			started = false
-			// handle deviations
+			r.processDeviations(ctx, deviations) // Process & clear deviations
+			deviations = nil
 		case sdcpb.DeviationEvent_CLEAR:
 			// manage them in batches going fwd, not implemented right now
-			continue
+			deviations = nil
 		default:
 			log.Info("unexecpted deviation event", "event", resp.Event)
 			continue
-		}
-		for configName, devs := range deviations {
-			configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
-			if configName == unManagedConfigDeviation {
-				// TODO add deviation to target or deviation object
-				log.Info("unintended deviations", "devs", len(devs))
-			UpdateUnManagedConfig:
-				cfg := &configv1alpha1.UnManagedConfig{}
-				if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
-					log.Error("cannot get intent for recieved deviation", "config", configName)
-					continue
-				}
-				cfg.Status.Deviations = configDevs
-				if err := r.client.Status().Update(ctx, cfg); err != nil {
-					log.Error("cannot update intent for recieved deviation", "config", configName)
-					if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
-						goto UpdateUnManagedConfig
-					}
-					continue
-				}
-				continue
-			}
-			log.Info("deviations", "config", configName, "devs", devs)
+		}	
+	}
+}
+
+func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map[string][]*sdcpb.WatchDeviationResponse) {
+	log := log.FromContext(ctx)
+	log.Info("process deviations")
+	for configName, devs := range deviations {
+		configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
+
+		nsn := r.targetKey.NamespacedName
+		var cfg  configv1alpha1.ConfigDeviations
+		if configName == unManagedConfigDeviation {
+			cfg = &configv1alpha1.UnManagedConfig{}
+			log.Info("unmanaged deviations", "devs", len(configDevs))
+		} else {
+			cfg = &configv1alpha1.Config{}
 			parts := strings.SplitN(configName, ".", 2)
+			nsn = types.NamespacedName{
+				Namespace: parts[0],
+				Name: parts[1],
+			}
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
-				continue
+				return
 			}
-		UpdateConfig:
-			cfg := &configv1alpha1.Config{}
-			if err := r.client.Get(ctx, types.NamespacedName{Namespace: parts[0], Name: parts[1]}, cfg); err != nil {
-				log.Error("cannot get config for received deviation", "config", configName)
-				continue
-			}
-			cfg.Status.Deviations = configDevs
-			if err := r.client.Status().Update(ctx, cfg); err != nil {
-				log.Error("cannot update config for received deviation", "config", configName)
-				if strings.Contains(err.Error(), registry.OptimisticLockErrorMsg) {
-					goto UpdateConfig
-				}
-				continue
-			}
+			log.Info("managed deviations", "devs", len(configDevs))
 		}
+		r.processConfigDeviations(ctx, nsn, cfg, configDevs)
+	}
+}
+
+func (r *DeviationWatcher) processConfigDeviations(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
+	log := log.FromContext(ctx)
+	log.Info("unintended deviations", "devs", len(devs))
+	if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
+		log.Error("cannot get intent for recieved deviation", "config", nsn)
+		return 
+	}
+	patch := client.MergeFrom(cfg.DeepObjectCopy())
+	cfg.SetDeviations(devs)
+	if err := r.client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: "deviationManager",
+		},
+	}); err != nil {
+		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}
 }
