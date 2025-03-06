@@ -137,6 +137,7 @@ func main() {
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
+		PprofBindAddress: "127.0.0.1:8081",
 	})
 	if err != nil {
 		log.Error("cannot start manager", "err", err)
