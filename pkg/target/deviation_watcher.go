@@ -194,7 +194,6 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 
 func (r *DeviationWatcher) processConfigDeviations(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
 	log := log.FromContext(ctx)
-	log.Info("unintended deviations", "devs", len(devs))
 	if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn)
 		return 
