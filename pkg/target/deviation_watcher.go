@@ -89,8 +89,16 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if stream, err = r.dsclient.WatchDeviations(ctx, &sdcpb.WatchDeviationRequest{
 				Name: []string{r.targetKey.String()},
 			}); err != nil && !errors.Is(err, context.Canceled) {
-				log.Error("cannot subscribe", "error", err)
-				time.Sleep(time.Second * 1) // Resilience
+				if er, ok := status.FromError(err); ok {
+					switch er.Code() {
+					case codes.Canceled:
+						// dont log when context got cancelled
+					default:
+						log.Error("cannot subscribe", "error", err)
+					}
+				}
+				time.Sleep(time.Second * 1) //- resilience for server crash
+				// retry on failure
 				continue
 			}
 		}
@@ -151,9 +159,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 		default:
 			log.Info("unexecpted deviation event", "event", resp.Event)
-			continue
 		}	
-		//resp = nil
 	}
 }
 
