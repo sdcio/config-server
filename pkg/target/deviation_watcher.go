@@ -133,7 +133,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				intent = unManagedConfigDeviation
 			}
 			if _, ok := deviations[intent]; !ok {
-				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0, 1)
+				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0)
 			}
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
@@ -145,14 +145,15 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			}
 			started = false
 			r.processDeviations(ctx, deviations) // Process & clear deviations
-			deviations = nil
+			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 		case sdcpb.DeviationEvent_CLEAR:
 			// manage them in batches going fwd, not implemented right now
-			deviations = nil
+			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 		default:
 			log.Info("unexecpted deviation event", "event", resp.Event)
 			continue
 		}	
+		resp = nil
 	}
 }
 
