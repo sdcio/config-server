@@ -159,7 +159,8 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
 		default:
 			log.Info("unexecpted deviation event", "event", resp.Event)
-		}	
+		}
+		resp = nil
 	}
 }
 
