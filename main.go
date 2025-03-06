@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +60,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -86,7 +88,6 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
 
 	targetStore := memstore.NewStore[*target.Context]()
 	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
@@ -131,14 +132,18 @@ func main() {
 		TLSOpts: tlsOpts,
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
 		Metrics: metricsServerOptions,
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
-		PprofBindAddress: "127.0.0.1:8081",
-	})
+	}
+	if port := IsPProfEnabled(); port != nil {
+		mgr_options.PprofBindAddress = *port
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgr_options)
 	if err != nil {
 		log.Error("cannot start manager", "err", err)
 		os.Exit(1)
@@ -251,6 +256,17 @@ func main() {
 		log.Error("problem running manager", "error", err.Error())
 		os.Exit(1)
 	}
+}
+
+func IsPProfEnabled() *string {
+	if val, found := os.LookupEnv(fmt.Sprintf("PPROF_PORT")); found {
+		port, err := strconv.Atoi(val)
+		if err != nil {
+			return nil
+		}
+		return ptr.To(fmt.Sprintf("127.0.0.1:%d", port))
+	}
+	return nil
 }
 
 // IsReconcilerEnabled checks if an environment variable `ENABLE_<reconcilerName>` exists

@@ -60,6 +60,8 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
+        - name: PPROF_PORT
+          value: "8081"
         - name: ENABLE_SUBSCRIPTION
           value: "true"
         - name: ENABLE_TARGET
