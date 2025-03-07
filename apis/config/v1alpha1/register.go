@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -65,4 +66,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
+}
+
+type ConfigDeviations interface {
+	client.Object
+	SetDeviations([]Deviation)
+	DeepObjectCopy() client.Object
 }

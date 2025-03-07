@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // BuildUnManagedConfig returns a reource from a client Object a Spec/Status
@@ -31,4 +32,15 @@ func BuildUnManagedConfig(meta metav1.ObjectMeta, spec UnManagedConfigSpec, stat
 		Spec:       spec,
 		Status:     status,
 	}
+}
+
+// +k8s:deepcopy-gen=false
+var _ ConfigDeviations = &UnManagedConfig{}
+
+func (r *UnManagedConfig) SetDeviations(d []Deviation) {
+	r.Status.Deviations = d
+}
+
+func (r *UnManagedConfig) DeepObjectCopy() client.Object {
+	return r.DeepCopy()
 }
