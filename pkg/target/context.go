@@ -46,7 +46,7 @@ import (
 
 type Context struct {
 	targetKey        storebackend.Key
-	client           client.Client
+	client           client.Client // k8s client
 	dsclient         dsclient.Client
 	deviationWatcher *DeviationWatcher
 	// Subscription parameters
@@ -97,6 +97,10 @@ func (r *Context) setReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.ready = b
+}
+
+func (r *Context) GetDSClient() dsclient.Client {
+	return r.dsclient
 }
 
 func (r *Context) GetAddress() string {

@@ -63,7 +63,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 	}
 	//ctx := context.Background()
 	log := log.FromContext(ctx)
-	log.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log.Debug("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -81,7 +81,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 			key := types.NamespacedName{
 				Namespace: dr.Namespace,
 				Name:      dr.Name}
-			log.Info("event requeue dr", "key", key.String())
+			log.Debug("event requeue dr", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 			return
 		}
@@ -90,7 +90,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 				key := types.NamespacedName{
 					Namespace: dr.Namespace,
 					Name:      dr.Name}
-				log.Info("event requeue dr", "key", key.String())
+				log.Debug("event requeue dr", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
 				return
 			}

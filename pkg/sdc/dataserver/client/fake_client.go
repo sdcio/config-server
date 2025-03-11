@@ -29,6 +29,10 @@ func NewFakeClient() Client {
 
 type fakeclient struct{}
 
+func (r *fakeclient) IsDSConnectionReady() bool {return true}
+
+func (r *fakeclient) IsDSConnected() bool {return true}
+
 func (r *fakeclient) Start(ctx context.Context) error { return nil }
 
 func (r *fakeclient) Stop(ctx context.Context) {}

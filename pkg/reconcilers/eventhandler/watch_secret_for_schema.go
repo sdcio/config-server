@@ -79,7 +79,7 @@ func (r *SecretForSchemaEventHandler) add(ctx context.Context, obj runtime.Objec
 					Name:      schema.GetName(),
 					Namespace: schema.GetNamespace(),
 				}
-				log.Info("event requeue", "key", key.String())
+				log.Debug("event requeue", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
 				return // these should be 1 configset for a config
 			}

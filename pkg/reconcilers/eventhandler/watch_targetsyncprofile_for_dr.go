@@ -61,7 +61,7 @@ func (r *TargetSyncProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 	}
 	//ctx := context.Background()
 	log := log.FromContext(ctx)
-	log.Info("event", "gvk", invv1alpha1.TargetSyncProfileGroupVersionKind.String(), "name", cr.GetName())
+	log.Debug("event", "gvk", invv1alpha1.TargetSyncProfileGroupVersionKind.String(), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -79,7 +79,7 @@ func (r *TargetSyncProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}
-			log.Info("event requeue target", "key", key.String())
+			log.Debug("event requeue target", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 			continue
 		}

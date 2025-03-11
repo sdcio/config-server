@@ -62,7 +62,7 @@ func (r *TargetConnProfileForTargetEventHandler) add(ctx context.Context, obj ru
 	}
 	//ctx := context.Background()
 	log := log.FromContext(ctx)
-	log.Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log.Debug("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -79,7 +79,7 @@ func (r *TargetConnProfileForTargetEventHandler) add(ctx context.Context, obj ru
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}
-			log.Info("event requeue target", "key", key.String())
+			log.Debug("event requeue target", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		}
 	}
