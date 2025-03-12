@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,10 +37,11 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady   ConditionReason = "Ready"
-	ConditionReasonFailed  ConditionReason = "Failed"
-	ConditionReasonUnknown ConditionReason = "Unknown"
-	ConditionReasonRollout ConditionReason = "Rollout"
+	ConditionReasonReady         ConditionReason = "Ready"
+	ConditionReasonFailed        ConditionReason = "Failed"
+	ConditionReasonUnrecoverable ConditionReason = "Unrecoverable"
+	ConditionReasonUnknown       ConditionReason = "Unknown"
+	ConditionReasonRollout       ConditionReason = "Rollout"
 )
 
 type Condition struct {
@@ -209,6 +211,16 @@ func Failed(msg string) Condition {
 	}}
 }
 
+func FailedUnRecoverable(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUnrecoverable),
+		Message:            msg,
+	}}
+}
+
 // Rollout returns a condition that indicates the resource
 // is being rolled out.
 func Rollout(msg string) Condition {
@@ -219,4 +231,20 @@ func Rollout(msg string) Condition {
 		Reason:             string(ConditionReasonRollout),
 		Message:            msg,
 	}}
+}
+
+type UnrecoverableMessage struct {
+	ResourceVersion string `json:"resourceVersion"`
+	Message         string `json:"message"`
+}
+
+func (c Condition) IsUnRecoverable() (bool, string) {
+	if c.Reason == string(ConditionReasonUnrecoverable) {
+		unrecoverableMessage := &UnrecoverableMessage{}
+		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+			return true, ""
+		}
+		return true, unrecoverableMessage.ResourceVersion
+	}
+	return false, ""
 }

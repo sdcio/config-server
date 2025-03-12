@@ -263,21 +263,22 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (*sdcpb.TransactionSetResponse, error) {
-	rsp, err := r.dsclient.TransactionSet(ctx, req)
-	if err != nil {
-		return rsp, err
+	func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
+		rsp, err := r.dsclient.TransactionSet(ctx, req)
+		msg, err := r.processTransactionResponse(ctx, rsp, err)
+		if err != nil {
+			return msg, err
+		}
+		// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
+		// retrieved from the individual intents
+		if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+			DatastoreName: req.DatastoreName,
+			TransactionId: req.TransactionId,
+		}); err != nil {
+			return msg, err
+		}
+		return msg, nil
 	}
-	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-	// retrieved from the individual intents
-	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
-		return rsp, err
-	}
-	return rsp, nil
-}
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
@@ -291,7 +292,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	}
 	log.Debug("SetIntent", "update", update)
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
@@ -304,7 +305,6 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			},
 		},
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
@@ -318,7 +318,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 		return "", nil
 	}
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
@@ -332,7 +332,6 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 			},
 		},
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) (string, error) {
@@ -360,14 +359,13 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 
 	log.Debug("device intent receovery")
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: "recovery",
 		DatastoreName: key.String(),
 		DryRun:        false,
 		Timeout:       ptr.To(int32(120)),
 		Intents:       intents,
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (string, error) {
@@ -405,7 +403,7 @@ func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transact
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
+	return r.processTransactionResponse(ctx, rsp, err)
 }
 
 func (r *Context) Confirm(ctx context.Context, key storebackend.Key, transactionID string) error {
@@ -434,8 +432,10 @@ func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionI
 	return err
 }
 
-func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String())
+// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them 
+// as recoverable or non recoverable.
+func (r *Context) processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
+	log := log.FromContext(ctx)
 	var errs error
 	var collectedWarnings []string
 	var recoverable bool
