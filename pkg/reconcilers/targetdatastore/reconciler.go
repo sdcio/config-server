@@ -189,7 +189,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// update the target store with the updated information
 	curtctx, err := r.targetStore.Get(ctx, targetKey)
 	if err != nil || !curtctx.IsReady() {
-		if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsDSConnectionReady() {
+		if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 			// The dataserver connection exists
 			return ctrl.Result{},
 				errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)
@@ -230,7 +230,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// check if the data server is down or not
-	if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsDSConnectionReady() {
+	if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 		// The dataserver connection exists
 		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)

@@ -32,8 +32,8 @@ type Client interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
 	GetAddress() string
-	IsDSConnectionReady() bool
-	IsDSConnected() bool
+	IsConnectionReady() bool
+	IsConnected() bool
 	sdcpb.DataServerClient
 }
 
@@ -73,14 +73,14 @@ type client struct {
 
 const DSConnectionStatusNotConnected = "DATASERVER_NOT_CONNECTED"
 
-func (r *client) IsDSConnectionReady() bool {
+func (r *client) IsConnectionReady() bool {
 	if r.conn == nil {
 		return false
 	}
 	return r.conn.GetState() == connectivity.Ready
 }
 
-func (r *client) IsDSConnected() bool {
+func (r *client) IsConnected() bool {
 	if r.conn == nil {
 		return false
 	}

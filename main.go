@@ -29,7 +29,6 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
@@ -45,22 +44,19 @@ import (
 	"github.com/sdcio/config-server/pkg/registry/options"
 	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	"github.com/sdcio/config-server/pkg/target"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -88,20 +84,6 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	targetStore := memstore.NewStore[*target.Context]()
-	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
-	time.Sleep(5 * time.Second)
-	dataServerStore := memstore.NewStore[sdcctx.DSContext]()
-	if err := createDataServerClient(ctx, dataServerStore); err != nil {
-		log.Error("cannot create data server", "error", err.Error())
-		os.Exit(1)
-	}
-	schemaServerStore := memstore.NewStore[sdcctx.SSContext]()
-	if err := createSchemaServerClient(ctx, schemaServerStore); err != nil {
-		log.Error("cannot create schema server", "error", err.Error())
-		os.Exit(1)
-	}
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
@@ -146,6 +128,20 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgr_options)
 	if err != nil {
 		log.Error("cannot start manager", "err", err)
+		os.Exit(1)
+	}
+
+	targetStore := memstore.NewStore[*target.Context]()
+	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
+	time.Sleep(5 * time.Second)
+	dataServerStore := memstore.NewStore[sdcctx.DSContext]()
+	if err := sdcctx.CreateDataServerClient(ctx, dataServerStore, mgr.GetClient()); err != nil {
+		log.Error("cannot create data server", "error", err.Error())
+		os.Exit(1)
+	}
+	schemaServerStore := memstore.NewStore[sdcctx.SSContext]()
+	if err := sdcctx.CreateSchemaServerClient(ctx, schemaServerStore, mgr.GetClient()); err != nil {
+		log.Error("cannot create schema server", "error", err.Error())
 		os.Exit(1)
 	}
 
@@ -278,77 +274,4 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 		}
 	}
 	return false
-}
-
-func createDataServerClient(ctx context.Context, dataServerStore storebackend.Storer[sdcctx.DSContext]) error {
-	log := log.FromContext(ctx)
-
-	dataServerAddress := localDataServerAddress
-	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-		dataServerAddress = address
-	}
-
-	// TODO the population of the dataservers in the store should become dynamic, through a controller
-	// right now it is static since all of this happens in the same pod and we dont have scaled out dataservers
-	dsConfig := &dsclient.Config{
-		Address: dataServerAddress,
-	}
-	dsClient, err := dsclient.New(dsConfig)
-	if err != nil {
-		log.Error("cannot initialize dataserver client", "err", err)
-		return err
-	}
-	if err := dsClient.Start(ctx); err != nil {
-		log.Error("cannot start dataserver client", "err", err)
-		return err
-	}
-	dsCtx := sdcctx.DSContext{
-		Config:   dsConfig,
-		Targets:  sets.New[string](),
-		DSClient: dsClient,
-	}
-	if err := dataServerStore.Create(ctx, storebackend.ToKey(dataServerAddress), dsCtx); err != nil {
-		log.Error("cannot store datastore context in dataserver", "err", err)
-		return err
-	}
-	log.Info("dataserver client created")
-	return nil
-}
-
-func createSchemaServerClient(ctx context.Context, schemaServerStore storebackend.Storer[sdcctx.SSContext]) error {
-	log := log.FromContext(ctx)
-
-	// For the schema server we first check if the SDC_SCHEMA_SERVER was et if not we could also use
-	// the SDC_DATA_SERVER as fallback. If none are set it is the default address (localhost)
-	schemaServerAddress := localDataServerAddress
-	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
-		schemaServerAddress = address
-	} else {
-		if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-			schemaServerAddress = address
-		}
-	}
-
-	ssConfig := &ssclient.Config{
-		Address: schemaServerAddress,
-	}
-	ssClient, err := ssclient.New(ssConfig)
-	if err != nil {
-		log.Error("cannot initialize schemaserver client", "err", err)
-		return err
-	}
-	if err := ssClient.Start(ctx); err != nil {
-		log.Error("cannot start schemaserver client", "err", err)
-		return err
-	}
-	ssCtx := sdcctx.SSContext{
-		Config:   ssConfig,
-		SSClient: ssClient,
-	}
-	if err := schemaServerStore.Create(ctx, storebackend.ToKey(schemaServerAddress), ssCtx); err != nil {
-		log.Error("cannot store schema context in schemaserver", "err", err)
-		return err
-	}
-	log.Info("schemaserver client created")
-	return nil
 }

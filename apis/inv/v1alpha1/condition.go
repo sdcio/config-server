@@ -35,6 +35,8 @@ const (
 	ConditionTypeConfigApply   condv1alpha1.ConditionType = "ConfigApply"
 	ConditionTypeConfigConfirm condv1alpha1.ConditionType = "ConfigConfirm"
 	ConditionTypeConfigCancel  condv1alpha1.ConditionType = "ConfigCancel"
+
+	ConditionTypeSchemaServerReady condv1alpha1.ConditionType = "SchemaServerReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -279,5 +281,25 @@ func ConfigCancelFailed(msg string) condv1alpha1.Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonFailed),
 		Message:            msg,
+	}}
+}
+
+
+func SchemaServerReady() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeSchemaServerReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+	}}
+}
+
+func SchemaServerFailed() condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeSchemaServerReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            "connection Not Ready",
 	}}
 }
