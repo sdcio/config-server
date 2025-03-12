@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,25 @@ func (r *Config) GetCondition(t condition.ConditionType) condition.Condition {
 // to be set at once
 func (r *Config) SetConditions(c ...condition.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func (r *Config) IsConditionReady() bool {
+	return r.GetCondition(condition.ConditionTypeReady).Status == metav1.ConditionTrue
+}
+
+func (r *Config) IsRecoverable() bool {
+	c := r.GetCondition(condition.ConditionTypeReady)
+	if c.Reason == string(condition.ConditionReasonUnrecoverable) {
+		unrecoverableMessage := &condition.UnrecoverableMessage{}
+		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+			return true
+		}
+		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
+			return true
+		}
+		return false
+	}
+	return true
 }
 
 func (r *Config) GetNamespacedName() types.NamespacedName {
@@ -66,8 +86,8 @@ func (r *Config) GetTarget() string {
 }
 
 func (r *Config) Orphan() bool {
-	if r.Spec.Lifecycle != nil  {
-		return  r.Spec.Lifecycle.DeletionPolicy == DeletionOrphan
+	if r.Spec.Lifecycle != nil {
+		return r.Spec.Lifecycle.DeletionPolicy == DeletionOrphan
 	}
 	return false
 }
@@ -75,8 +95,6 @@ func (r *Config) Orphan() bool {
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }
-
-
 
 func GetTargetKey(labels map[string]string) (types.NamespacedName, error) {
 	var targetName, targetNamespace string
@@ -98,7 +116,7 @@ func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec) *Config {
 	return &Config{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind: ConfigKind,
+			Kind:       ConfigKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,

@@ -52,16 +52,19 @@ func (r *Config) IsConditionReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
-func (r *Config) IsConditionUnRecoverable() (bool, string) {
-	condition := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	if condition.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
+func (r *Config) IsRecoverable() bool {
+	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
+	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
 		unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(condition.Message), unrecoverableMessage); err != nil {
-			return true, ""
+		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+			return true
 		}
-		return true, unrecoverableMessage.ResourceVersion
+		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
+			return true
+		}
+		return false
 	}
-	return false, ""
+	return true
 }
 
 func (r *Config) GetNamespacedName() types.NamespacedName {

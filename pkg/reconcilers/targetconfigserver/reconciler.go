@@ -226,9 +226,11 @@ func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1
 		return nil, err
 	}
 	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil {
-			configs = append(configs, &config)
+		if config.Status.AppliedConfig == nil || !config.IsRecoverable() {
+			continue // skip
 		}
+
+		configs = append(configs, &config)
 	}
 
 	sort.Slice(configs, func(i, j int) bool {

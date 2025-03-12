@@ -163,8 +163,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Check if we got an unrecoverable error and if the resourceVersion has not changed we can stop here
-	isUnRecoverable, lastResourceVersion := cfg.IsConditionUnRecoverable()
-	if isUnRecoverable && lastResourceVersion == cfg.ResourceVersion {
+	if !cfg.IsRecoverable() {
 		return ctrl.Result{}, nil
 	}
 

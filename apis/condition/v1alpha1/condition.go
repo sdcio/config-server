@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/json"
 	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -236,15 +235,4 @@ func Rollout(msg string) Condition {
 type UnrecoverableMessage struct {
 	ResourceVersion string `json:"resourceVersion"`
 	Message         string `json:"message"`
-}
-
-func (c Condition) IsUnRecoverable() (bool, string) {
-	if c.Reason == string(ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			return true, ""
-		}
-		return true, unrecoverableMessage.ResourceVersion
-	}
-	return false, ""
 }

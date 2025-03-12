@@ -28,7 +28,7 @@ type ConditionType string
 // Condition Types.
 const (
 	// ConditionTypeReady represents the resource ready condition
-	ConditionTypeReady             ConditionType = "Ready"
+	ConditionTypeReady ConditionType = "Ready"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -36,9 +36,10 @@ type ConditionReason string
 
 // Reasons a resource is ready or not
 const (
-	ConditionReasonReady      ConditionReason = "Ready"
-	ConditionReasonFailed     ConditionReason = "Failed"
-	ConditionReasonUnknown    ConditionReason = "Unknown"
+	ConditionReasonReady         ConditionReason = "Ready"
+	ConditionReasonFailed        ConditionReason = "Failed"
+	ConditionReasonUnknown       ConditionReason = "Unknown"
+	ConditionReasonUnrecoverable ConditionReason = "Unrecoverable"
 )
 
 // +k8s:openapi-gen=true
@@ -207,4 +208,19 @@ func Failed(msg string) Condition {
 		Reason:             string(ConditionReasonFailed),
 		Message:            msg,
 	}}
+}
+
+func FailedUnRecoverable(msg string) Condition {
+	return Condition{metav1.Condition{
+		Type:               string(ConditionTypeReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(ConditionReasonUnrecoverable),
+		Message:            msg,
+	}}
+}
+
+type UnrecoverableMessage struct {
+	ResourceVersion string `json:"resourceVersion"`
+	Message         string `json:"message"`
 }
