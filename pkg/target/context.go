@@ -124,13 +124,8 @@ func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
 
 func (r *Context) DeleteDS(ctx context.Context) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	r.setReady(false)
-	if r.deviationWatcher != nil {
-		r.deviationWatcher.Stop(ctx)
-	}
-	if r.collector != nil {
-		r.collector.Stop(ctx)
-	}
+	// stops also the deviation watcher and collector
+	r.SetNotReady(ctx)
 	r.setDatastoreReq(nil)
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
 	if err != nil {
@@ -149,19 +144,9 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 		return err
 	}
 	r.setDatastoreReq(datastoreReq)
-	r.setReady(true)
-	if r.deviationWatcher != nil {
-		r.deviationWatcher.Start(ctx)
-	}
-	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
-		req := r.getDatastoreReq()
-		if r.IsReady() && req != nil && req.Target != nil {
-			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
-				log.Error("setready starting collector failed", "err", err)
-			}
-		}
-
-	}
+	// will also create the deviation watcher and collector
+	r.SetReady(ctx)
+	
 	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
@@ -200,7 +185,6 @@ func (r *Context) SetReady(ctx context.Context) {
 				log.Error("setready starting collector failed", "err", err)
 			}
 		}
-
 	}
 }
 
