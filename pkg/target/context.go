@@ -20,7 +20,6 @@ import (
 	"context"
 	errors "errors"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 
@@ -145,7 +144,7 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 	r.setDatastoreReq(datastoreReq)
 	// will also create the deviation watcher and collector
 	r.SetReady(ctx)
-	
+
 	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Debug("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
@@ -246,22 +245,22 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-	func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
-		rsp, err := r.dsclient.TransactionSet(ctx, req)
-		msg, err := r.processTransactionResponse(ctx, rsp, err)
-		if err != nil {
-			return msg, err
-		}
-		// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-		// retrieved from the individual intents
-		if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-			DatastoreName: req.DatastoreName,
-			TransactionId: req.TransactionId,
-		}); err != nil {
-			return msg, err
-		}
-		return msg, nil
+func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
+	rsp, err := r.dsclient.TransactionSet(ctx, req)
+	msg, err := r.processTransactionResponse(ctx, rsp, err)
+	if err != nil {
+		return msg, err
 	}
+	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
+	// retrieved from the individual intents
+	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: req.DatastoreName,
+		TransactionId: req.TransactionId,
+	}); err != nil {
+		return msg, err
+	}
+	return msg, nil
+}
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
@@ -415,7 +414,7 @@ func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionI
 	return err
 }
 
-// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them 
+// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them
 // as recoverable or non recoverable.
 func (r *Context) processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
 	log := log.FromContext(ctx)
@@ -464,42 +463,15 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
 	}
-	path, err := utils.ParsePath("/")
-	if err != nil {
-		return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), "/")
-	}
 
-	stream, err := r.dsclient.GetData(ctx, &sdcpb.GetDataRequest{
-		Name:      key.String(),
-		Datastore: &sdcpb.DataStore{Type: sdcpb.Type_MAIN},
-		Path:      []*sdcpb.Path{path},
-		DataType:  sdcpb.DataType_CONFIG,
-		Encoding:  sdcpb.Encoding_JSON,
+	rsp, err := r.dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
+		DatastoreName: key.String(),
+		Intent:        "running",
+		Format:        sdcpb.Format_Intent_Format_JSON,
 	})
 	if err != nil {
 		log.Error("get data failed", "error", err.Error())
 		return nil, err
-	}
-
-	var b []byte
-	for {
-		rsp, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-
-		if len(rsp.GetNotification()) == 1 {
-			if len(rsp.GetNotification()[0].GetUpdate()) == 1 {
-				b = rsp.GetNotification()[0].GetUpdate()[0].GetValue().GetJsonVal()
-			} else {
-				log.Debug("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
-			}
-		} else {
-			log.Debug("get data", "notifications", len(rsp.GetNotification()))
-		}
 	}
 
 	return config.BuildRunningConfig(
@@ -510,7 +482,7 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 		config.RunningConfigSpec{},
 		config.RunningConfigStatus{
 			Value: runtime.RawExtension{
-				Raw: b,
+				Raw: rsp.GetBlob(),
 			},
 		},
 	), nil

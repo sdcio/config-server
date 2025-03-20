@@ -134,45 +134,14 @@ func (r *client) DeleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreR
 	return r.dsclient.DeleteDataStore(ctx, in, opts...)
 }
 
-func (r *client) Commit(ctx context.Context, in *sdcpb.CommitRequest, opts ...grpc.CallOption) (*sdcpb.CommitResponse, error) {
-	return r.dsclient.Commit(ctx, in, opts...)
-}
-
-func (r *client) Rebase(ctx context.Context, in *sdcpb.RebaseRequest, opts ...grpc.CallOption) (*sdcpb.RebaseResponse, error) {
-	return r.dsclient.Rebase(ctx, in, opts...)
-}
-
-func (r *client) Discard(ctx context.Context, in *sdcpb.DiscardRequest, opts ...grpc.CallOption) (*sdcpb.DiscardResponse, error) {
-	return r.dsclient.Discard(ctx, in, opts...)
-}
-
-func (r *client) GetData(ctx context.Context, in *sdcpb.GetDataRequest, opts ...grpc.CallOption) (sdcpb.DataServer_GetDataClient, error) {
-	return r.dsclient.GetData(ctx, in, opts...)
-}
-
 //func (r *client) SetData(ctx context.Context, in *sdcpb.SetDataRequest, opts ...grpc.CallOption) (*sdcpb.SetDataResponse, error) {
 //	return r.dsclient.SetData(ctx, in, opts...)
 //}
-
-func (r *client) Diff(ctx context.Context, in *sdcpb.DiffRequest, opts ...grpc.CallOption) (*sdcpb.DiffResponse, error) {
-	return r.dsclient.Diff(ctx, in, opts...)
-}
-
-func (r *client) Subscribe(ctx context.Context, in *sdcpb.SubscribeRequest, opts ...grpc.CallOption) (sdcpb.DataServer_SubscribeClient, error) {
-	return r.dsclient.Subscribe(ctx, in, opts...)
-}
-
-func (r *client) Watch(ctx context.Context, in *sdcpb.WatchRequest, opts ...grpc.CallOption) (sdcpb.DataServer_WatchClient, error) {
-	return r.dsclient.Watch(ctx, in, opts...)
-}
 
 func (r *client) GetIntent(ctx context.Context, in *sdcpb.GetIntentRequest, opts ...grpc.CallOption) (*sdcpb.GetIntentResponse, error) {
 	return r.dsclient.GetIntent(ctx, in, opts...)
 }
 
-func (r *client) SetIntent(ctx context.Context, in *sdcpb.SetIntentRequest, opts ...grpc.CallOption) (*sdcpb.SetIntentResponse, error) {
-	return r.dsclient.SetIntent(ctx, in, opts...)
-}
 func (r *client) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest, opts ...grpc.CallOption) (*sdcpb.ListIntentResponse, error) {
 	return r.dsclient.ListIntent(ctx, in, opts...)
 }

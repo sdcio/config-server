@@ -124,3 +124,8 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 kform: $(KFORM) ## Download kform locally if necessary.
 $(KFORM): $(LOCALBIN)
 	test -s $(LOCALBIN)/kform || GOBIN=$(LOCALBIN) go install github.com/kform-dev/kform/cmd/kform@$(KFORM_VERSION)
+
+.PHONY: goreleaser-nightly
+goreleaser-nightly:
+	go install github.com/goreleaser/goreleaser/v2@latest
+	goreleaser release --clean -f .goreleaser.nightlies.yml --skip=validate
