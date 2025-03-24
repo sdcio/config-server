@@ -23,9 +23,9 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 type SSContext struct {
@@ -71,10 +71,10 @@ func CreateSchemaServerClient(ctx context.Context, schemaServerStore storebacken
 		Config:      ssConfig,
 		SSClient:    ssClient,
 		cancelWatch: cancelWatch,
+		client:      client,
 	}
 
 	go ssCtx.watchSchemaServerConnection(watchCtx)
-
 
 	if err := schemaServerStore.Create(ctx, storebackend.ToKey(schemaServerAddress), ssCtx); err != nil {
 		log.Error("cannot store schema context in schemaserver", "err", err)
@@ -89,18 +89,17 @@ func (r *SSContext) watchSchemaServerConnection(ctx context.Context) {
 	prevState := r.SSClient.IsConnectionReady()
 
 	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop() 
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info("Stopping schema server connection watcher")
 			return
-		case <-ticker.C: 
+		case <-ticker.C:
 			currentState := r.SSClient.IsConnectionReady()
 			if currentState != prevState {
 				log.Info("Schema server connection state changed", "ready", currentState)
-
 
 				schemaList := &invv1alpha1.SchemaList{}
 				if err := r.client.List(ctx, schemaList); err != nil {
@@ -120,14 +119,13 @@ func (r *SSContext) watchSchemaServerConnection(ctx context.Context) {
 						},
 					}); err != nil {
 						log.Error("cannot get schemas", "error", err)
-					}	
+					}
 				}
 				prevState = currentState
 			}
 		}
 	}
 }
-
 
 func DeleteSchemaServerClient(ctx context.Context, schemaServerStore storebackend.Storer[SSContext], schemaServerAddress string) error {
 	log := log.FromContext(ctx)
