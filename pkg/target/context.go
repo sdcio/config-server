@@ -426,6 +426,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, rsp *sdcpb.Tra
 		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
 		if er, ok := status.FromError(rsperr); ok {
 			switch er.Code() {
+			// Aborted is the refering to a lock in the dataserver
 			case codes.Aborted, codes.ResourceExhausted:
 				recoverable = true
 			default:
