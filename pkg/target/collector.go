@@ -27,7 +27,6 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/gnmic/pkg/api"
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
@@ -110,23 +109,23 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	ctx, r.cancel = context.WithCancel(ctx)
 
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	tOpts := []api.TargetOption{
-		api.Name(r.targetKey.String()),
-		api.Address(fmt.Sprintf("%s:%d", req.Target.Address, r.port)),
-		api.Username(string(req.Target.Credentials.Username)),
-		api.Password(string(req.Target.Credentials.Password)),
-		api.Timeout(5 * time.Second),
+	tOpts := []gapi.TargetOption{
+		gapi.Name(r.targetKey.String()),
+		gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, r.port)),
+		gapi.Username(string(req.Target.Credentials.Username)),
+		gapi.Password(string(req.Target.Credentials.Password)),
+		gapi.Timeout(5 * time.Second),
 	}
 	if req.Target.Tls == nil {
-		tOpts = append(tOpts, api.Insecure(true))
+		tOpts = append(tOpts, gapi.Insecure(true))
 	} else {
-		tOpts = append(tOpts, api.SkipVerify(req.Target.Tls.SkipVerify))
-		tOpts = append(tOpts, api.TLSCA(req.Target.Tls.Ca))
-		tOpts = append(tOpts, api.TLSCert(req.Target.Tls.Cert))
-		tOpts = append(tOpts, api.TLSKey(req.Target.Tls.Key))
+		tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
+		tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
+		tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
+		tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
 	}
 	var err error
-	r.target, err = api.NewTarget(tOpts...)
+	r.target, err = gapi.NewTarget(tOpts...)
 	if err != nil {
 		log.Error("cannot create gnmi target", "err", err)
 		return err

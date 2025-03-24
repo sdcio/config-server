@@ -147,7 +147,7 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 	r.SetReady(ctx)
 	
 	// The collector is not started when a datastore is created but when a subscription is received.
-	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
+	log.Debug("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
 }
 
@@ -297,7 +297,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	}
 
 	if config.Status.AppliedConfig == nil {
-		log.Info("delete intent was never applied")
+		log.Debug("delete intent was never applied")
 		return "", nil
 	}
 
@@ -476,7 +476,7 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 		Encoding:  sdcpb.Encoding_JSON,
 	})
 	if err != nil {
-		log.Info("get data failed", "error", err.Error())
+		log.Error("get data failed", "error", err.Error())
 		return nil, err
 	}
 
@@ -494,10 +494,10 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 			if len(rsp.GetNotification()[0].GetUpdate()) == 1 {
 				b = rsp.GetNotification()[0].GetUpdate()[0].GetValue().GetJsonVal()
 			} else {
-				log.Info("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
+				log.Debug("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
 			}
 		} else {
-			log.Info("get data", "notifications", len(rsp.GetNotification()))
+			log.Debug("get data", "notifications", len(rsp.GetNotification()))
 		}
 	}
 
@@ -520,7 +520,7 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
+	log.Debug("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
 	// if we have no longer subscriptions we stop the collector
 	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
 		r.collector.Stop(ctx)
