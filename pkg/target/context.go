@@ -124,7 +124,6 @@ func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
 
 func (r *Context) DeleteDS(ctx context.Context) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	// stops also the deviation watcher and collector
 	r.SetNotReady(ctx)
 	r.setDatastoreReq(nil)
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
