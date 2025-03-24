@@ -128,6 +128,9 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
+			// set the unmanaged devidations to 0 upon start; if no unmanaged deviations are reported
+			// this will reset the unmanaged deviations.
+			deviations[unManagedConfigDeviation] = make([]*sdcpb.WatchDeviationResponse, 0)
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
 			if !started {
