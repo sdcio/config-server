@@ -29,7 +29,7 @@ import (
 
 const maxInterval = 1000
 
-var supportIntervals []int = []int{0, 1, 15, 30, 60}
+//var supportIntervals []int = []int{0, 1, 15, 30, 60}
 
 type Subscriptions struct {
 	Paths store.Storer[*PathSubscriptions]

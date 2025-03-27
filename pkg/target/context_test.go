@@ -21,7 +21,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -99,10 +98,10 @@ func TestProcessTransactionResponse(t *testing.T) {
 
 	ctx := context.Background()
 	mockCtx := &Context{}
-	key := storebackend.ToKey("dummy")
+	//key := storebackend.ToKey("dummy")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			warning, err := mockCtx.processTransactionResponse(ctx, key, tc.rsp, tc.err)
+			warning, err := mockCtx.processTransactionResponse(ctx, tc.rsp, tc.err)
 
 			if tc.expectErr {
 				assert.Error(t, err, "expected an error but got none")

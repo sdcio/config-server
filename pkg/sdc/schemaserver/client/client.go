@@ -25,12 +25,15 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/connectivity"
 )
 
 type Client interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
 	GetAddress() string
+	IsConnectionReady() bool
+	IsConnected() bool
 	sdcpb.SchemaServerClient
 }
 
@@ -66,6 +69,20 @@ type client struct {
 	cancel       context.CancelFunc
 	conn         *grpc.ClientConn
 	schemaclient sdcpb.SchemaServerClient
+}
+
+func (r *client) IsConnectionReady() bool {
+	if r.conn == nil {
+		return false
+	}
+	return r.conn.GetState() == connectivity.Ready
+}
+
+func (r *client) IsConnected() bool {
+	if r.conn == nil {
+		return false
+	}
+	return true
 }
 
 func (r *client) Stop(ctx context.Context) {

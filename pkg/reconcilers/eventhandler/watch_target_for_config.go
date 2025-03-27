@@ -66,7 +66,7 @@ func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Objec
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.Debug("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list all the configs of the particular target that got changed
 	opts := []client.ListOption{
@@ -85,7 +85,7 @@ func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Objec
 		key := types.NamespacedName{
 			Namespace: config.Namespace,
 			Name:      config.Name}
-		log.Info("event requeue config", "key", key.String())
+		log.Debug("event requeue config", "key", key.String())
 		queue.Add(reconcile.Request{NamespacedName: key})
 	}
 }

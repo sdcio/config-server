@@ -162,6 +162,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, schemaOrig, "cannot add finalizer", err)
 	}
 
+	if schema.IsSchemaServerReady() {
+		return r.handleError(ctx, schemaOrig, "schema server not ready", nil)
+	}
+
 	// we just insert the schema again
 	r.schemaLoader.AddRef(ctx, schema)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())

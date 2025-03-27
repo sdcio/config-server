@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var LookupError = errors.New("target lookup error")
+var ErrLookup = errors.New("target lookup error")
 
 type TargetHandler interface {
 	GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error)
@@ -60,20 +60,20 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
 			Message:      "target get failed",
-			WrappedError: errors.Join(LookupError, err),
+			WrappedError: errors.Join(ErrLookup, err),
 		}
 	}
 	if !target.IsReady() {
 		return nil, nil, &sdcerrors.RecoverableError{
 			Message:      "target not ready",
-			WrappedError: pkgerrors.Wrap(LookupError, string(config.ConditionReasonTargetNotReady)),
+			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotReady)),
 		}
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
 	if err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
 			Message:      "target not found",
-			WrappedError: pkgerrors.Wrap(LookupError, string(config.ConditionReasonTargetNotFound)),
+			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotFound)),
 		}
 	}
 	return target, tctx, nil

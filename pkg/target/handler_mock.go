@@ -60,13 +60,13 @@ func (r *mockTargetHandler) getMockContext(ctx context.Context, targetKey types.
 	if err != nil {
 		return nil, &sdcerrors.RecoverableError{
 			Message:      "target not found",
-			WrappedError: pkgerrors.Wrap(LookupError, string(configapi.ConditionReasonTargetNotFound)),
+			WrappedError: pkgerrors.Wrap(ErrLookup, string(configapi.ConditionReasonTargetNotFound)),
 		}
 	}
 	if !mtctx.Ready {
 		return mtctx, &sdcerrors.RecoverableError{
 			Message:      "target not ready",
-			WrappedError: pkgerrors.Wrap(LookupError, string(configapi.ConditionReasonTargetNotReady)),
+			WrappedError: pkgerrors.Wrap(ErrLookup, string(configapi.ConditionReasonTargetNotReady)),
 		}
 	}
 	return mtctx, nil

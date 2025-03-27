@@ -66,7 +66,7 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Info("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.Debug("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list the configsets and see
 	opts := []client.ListOption{
@@ -86,12 +86,12 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 		}
 		found := false
 		if selector.Matches(labels.Set(target.GetLabels())) {
-			log.Info("event target selector matches")
+			log.Debug("event target selector matches")
 			// we always requeue since it allows to handle delete of targets that were previously there
 			key := types.NamespacedName{
 				Namespace: subscription.Namespace,
 				Name:      subscription.Name}
-			log.Info("event requeue subscription with target create", "key", key.String(), "target", target.GetName())
+			log.Debug("event requeue subscription with target create", "key", key.String(), "target", target.GetName())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
@@ -105,7 +105,7 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 				key := types.NamespacedName{
 					Namespace: subscription.Namespace,
 					Name:      subscription.Name}
-				log.Info("event requeue subscription with target delete", "key", key.String(), "target", target.GetName())
+				log.Debug("event requeue subscription with target delete", "key", key.String(), "target", target.GetName())
 				queue.Add(reconcile.Request{NamespacedName: key})
 			}
 		}

@@ -48,6 +48,25 @@ func (r *Config) SetConditions(c ...condv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
 }
 
+func (r *Config) IsConditionReady() bool {
+	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
+}
+
+func (r *Config) IsRecoverable() bool {
+	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
+	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
+		unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
+		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+			return true
+		}
+		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
+			return true
+		}
+		return false
+	}
+	return true
+}
+
 func (r *Config) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
@@ -193,3 +212,4 @@ func (r *Config) SetDeviations(d []Deviation) {
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
+

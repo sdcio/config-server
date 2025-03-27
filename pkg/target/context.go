@@ -46,7 +46,7 @@ import (
 
 type Context struct {
 	targetKey        storebackend.Key
-	client           client.Client
+	client           client.Client // k8s client
 	dsclient         dsclient.Client
 	deviationWatcher *DeviationWatcher
 	// Subscription parameters
@@ -99,6 +99,10 @@ func (r *Context) setReady(b bool) {
 	r.ready = b
 }
 
+func (r *Context) GetDSClient() dsclient.Client {
+	return r.dsclient
+}
+
 func (r *Context) GetAddress() string {
 	if r.dsclient != nil {
 		return r.dsclient.GetAddress()
@@ -120,13 +124,7 @@ func (r *Context) GetSchema() *config.ConfigStatusLastKnownGoodSchema {
 
 func (r *Context) DeleteDS(ctx context.Context) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
-	r.setReady(false)
-	if r.deviationWatcher != nil {
-		r.deviationWatcher.Stop(ctx)
-	}
-	if r.collector != nil {
-		r.collector.Stop(ctx)
-	}
+	r.SetNotReady(ctx)
 	r.setDatastoreReq(nil)
 	rsp, err := r.deleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: r.targetKey.String()})
 	if err != nil {
@@ -145,21 +143,11 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 		return err
 	}
 	r.setDatastoreReq(datastoreReq)
-	r.setReady(true)
-	if r.deviationWatcher != nil {
-		r.deviationWatcher.Start(ctx)
-	}
-	if r.subscriptions.HasSubscriptions() && r.collector != nil && !r.collector.IsRunning() {
-		req := r.getDatastoreReq()
-		if r.IsReady() && req != nil && req.Target != nil {
-			if err := r.collector.Start(ctx, r.getDatastoreReq()); err != nil {
-				log.Error("setready starting collector failed", "err", err)
-			}
-		}
-
-	}
+	// will also create the deviation watcher and collector
+	r.SetReady(ctx)
+	
 	// The collector is not started when a datastore is created but when a subscription is received.
-	log.Info("create datastore succeeded", "resp", prototext.Format(rsp))
+	log.Debug("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
 }
 
@@ -196,7 +184,6 @@ func (r *Context) SetReady(ctx context.Context) {
 				log.Error("setready starting collector failed", "err", err)
 			}
 		}
-
 	}
 }
 
@@ -259,21 +246,22 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (*sdcpb.TransactionSetResponse, error) {
-	rsp, err := r.dsclient.TransactionSet(ctx, req)
-	if err != nil {
-		return rsp, err
+	func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
+		rsp, err := r.dsclient.TransactionSet(ctx, req)
+		msg, err := r.processTransactionResponse(ctx, rsp, err)
+		if err != nil {
+			return msg, err
+		}
+		// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
+		// retrieved from the individual intents
+		if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+			DatastoreName: req.DatastoreName,
+			TransactionId: req.TransactionId,
+		}); err != nil {
+			return msg, err
+		}
+		return msg, nil
 	}
-	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-	// retrieved from the individual intents
-	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
-		return rsp, err
-	}
-	return rsp, nil
-}
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
@@ -287,7 +275,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	}
 	log.Debug("SetIntent", "update", update)
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
@@ -300,7 +288,6 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			},
 		},
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
@@ -310,11 +297,11 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	}
 
 	if config.Status.AppliedConfig == nil {
-		log.Info("delete intent was never applied")
+		log.Debug("delete intent was never applied")
 		return "", nil
 	}
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
@@ -328,7 +315,6 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 			},
 		},
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) (string, error) {
@@ -356,14 +342,13 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 
 	log.Debug("device intent receovery")
 
-	rsp, err := r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: "recovery",
 		DatastoreName: key.String(),
 		DryRun:        false,
 		Timeout:       ptr.To(int32(120)),
 		Intents:       intents,
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
 }
 
 func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (string, error) {
@@ -401,7 +386,7 @@ func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transact
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
-	return r.processTransactionResponse(ctx, key, rsp, err)
+	return r.processTransactionResponse(ctx, rsp, err)
 }
 
 func (r *Context) Confirm(ctx context.Context, key storebackend.Key, transactionID string) error {
@@ -430,8 +415,10 @@ func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionI
 	return err
 }
 
-func (r *Context) processTransactionResponse(ctx context.Context, key storebackend.Key, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String())
+// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them 
+// as recoverable or non recoverable.
+func (r *Context) processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
+	log := log.FromContext(ctx)
 	var errs error
 	var collectedWarnings []string
 	var recoverable bool
@@ -439,6 +426,7 @@ func (r *Context) processTransactionResponse(ctx context.Context, key storebacke
 		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
 		if er, ok := status.FromError(rsperr); ok {
 			switch er.Code() {
+			// Aborted is the refering to a lock in the dataserver
 			case codes.Aborted, codes.ResourceExhausted:
 				recoverable = true
 			default:
@@ -489,7 +477,7 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 		Encoding:  sdcpb.Encoding_JSON,
 	})
 	if err != nil {
-		log.Info("get data failed", "error", err.Error())
+		log.Error("get data failed", "error", err.Error())
 		return nil, err
 	}
 
@@ -507,10 +495,10 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 			if len(rsp.GetNotification()[0].GetUpdate()) == 1 {
 				b = rsp.GetNotification()[0].GetUpdate()[0].GetValue().GetJsonVal()
 			} else {
-				log.Info("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
+				log.Debug("get data", "updates", len(rsp.GetNotification()[0].GetUpdate()))
 			}
 		} else {
-			log.Info("get data", "notifications", len(rsp.GetNotification()))
+			log.Debug("get data", "notifications", len(rsp.GetNotification()))
 		}
 	}
 
@@ -533,7 +521,7 @@ func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subsc
 	if err := r.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-	log.Info("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
+	log.Debug("deleteSubscription", "hasSubscriptions", r.subscriptions.HasSubscriptions(), "paths", r.subscriptions.GetPaths())
 	// if we have no longer subscriptions we stop the collector
 	if r.collector != nil && r.collector.IsRunning() && !r.subscriptions.HasSubscriptions() {
 		r.collector.Stop(ctx)

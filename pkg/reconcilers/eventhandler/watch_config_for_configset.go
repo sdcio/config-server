@@ -82,7 +82,7 @@ func (r *ConfigForConfigSetEventHandler) add(ctx context.Context, obj runtime.Ob
 					Name:      configSet.GetName(),
 					Namespace: configSet.GetNamespace(),
 				}
-				log.Info("event requeue", "key", key.String())
+				log.Debug("event requeue", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
 				return // these should be 1 configset for a config
 			}

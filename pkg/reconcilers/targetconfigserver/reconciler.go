@@ -124,7 +124,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
 	if !ready {
-		return ctrl.Result{Requeue: true}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
 	// we split the config in config that were successfully applied and config that was not yet
@@ -226,9 +226,11 @@ func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1
 		return nil, err
 	}
 	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil {
-			configs = append(configs, &config)
+		if config.Status.AppliedConfig == nil || !config.IsRecoverable() {
+			continue // skip
 		}
+
+		configs = append(configs, &config)
 	}
 
 	sort.Slice(configs, func(i, j int) bool {
