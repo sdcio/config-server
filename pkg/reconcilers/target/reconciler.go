@@ -117,7 +117,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "tcxt does not exist", err), errUpdateStatus)
 	}
 
-	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: targetKey.String()})
 	if err != nil {
 		if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 			if tctx != nil {

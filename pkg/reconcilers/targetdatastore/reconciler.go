@@ -412,7 +412,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 	// timeout to wait for target connection in the data-server since it is just created
 	time.Sleep(1 * time.Second)
-	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: targetKey.String()})
 	if err != nil {
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
 		return false, err
@@ -463,7 +463,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, target *inv
 		return changed, nil, err
 	}
 	// get the datastore from the dataserver
-	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: targetKey.String()})
 	if err != nil {
 		// datastore does not exist or dataserver is unhealthy
 		if !strings.Contains(err.Error(), "unknown datastore") {
@@ -517,14 +517,14 @@ func (r *reconciler) hasDataStoreChanged(
 ) bool {
 	log := log.FromContext(ctx)
 	log.Debug("hasDataStoreChanged",
-		"name", fmt.Sprintf("%s/%s", req.Name, rsp.Name),
+		"name", fmt.Sprintf("%s/%s", req.GetDatastoreName(), rsp.GetDatastoreName()),
 		"schema Name", fmt.Sprintf("%s/%s", req.Schema.Name, rsp.Schema.Name),
 		"schema Vendor", fmt.Sprintf("%s/%s", req.Schema.Vendor, rsp.Schema.Vendor),
 		"schema Version", fmt.Sprintf("%s/%s", req.Schema.Version, rsp.Schema.Version),
 		"target Type", fmt.Sprintf("%s/%s", req.Target.Type, rsp.Target.Type),
 		"target Address", fmt.Sprintf("%s/%s", req.Target.Address, rsp.Target.Address),
 	)
-	if req.Name != rsp.Name {
+	if req.GetDatastoreName() != rsp.GetDatastoreName() {
 		return true
 	}
 
@@ -668,7 +668,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	}
 
 	req := &sdcpb.CreateDataStoreRequest{
-		Name: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
+		DatastoreName: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
 		Target: &sdcpb.Target{
 			Type:    string(connProfile.Spec.Protocol),
 			Address: target.Spec.Address,
