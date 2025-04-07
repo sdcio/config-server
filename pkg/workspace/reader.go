@@ -19,13 +19,13 @@ package workspace
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -49,29 +49,41 @@ func NewReader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 }
 
 func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (storebackend.Storer[storebackend.Storer[*config.Config]], error) {
-	log := log.FromContext(ctx)
+	// log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(rollout.Spec.RepositoryURL)
+	repoUrl, err := url.Parse(rollout.Spec.RepositoryURL)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := git.NewRepoSpec(repoUrl)
 	if err != nil {
 		return nil, err
 	}
 	repoPath := path.Join(r.workspaceDir, repo.GetCloneURL().Path)
 	repo.SetLocalPath(repoPath)
 
-	// init the actual git instance
-	goGit := git.NewGoGit(repo,
-		types.NamespacedName{
-			Namespace: rollout.Namespace,
-			Name:      rollout.Spec.Credentials},
-		r.credentialResolver,
-	)
 	if rollout.Spec.Proxy != nil && rollout.Spec.Proxy.URL != "" {
-		err = goGit.SetProxy(rollout.Spec.Proxy.URL)
+		proxyUrl, err := url.Parse(rollout.Spec.Proxy.URL)
 		if err != nil {
 			return nil, err
 		}
-		log.Debug("SetProxy", "proxy", rollout.Spec.Proxy.URL)
+		repo.SetProxy(proxyUrl)
 	}
+
+	if rollout.Spec.Credentials != "" {
+		cred, err := r.credentialResolver.ResolveCredential(ctx, types.NamespacedName{
+			Namespace: rollout.Namespace,
+			Name:      rollout.Spec.Credentials})
+		if err != nil {
+			return nil, err
+		}
+		repo.SetAuth(cred.ToAuthMethod())
+	}
+
+	// init the actual git instance
+	goGit := git.NewGoGit(repo)
+
 	if err := goGit.CheckoutCommit(ctx, rollout.Spec.Ref); err != nil {
 		return nil, err
 	}
