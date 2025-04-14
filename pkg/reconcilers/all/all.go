@@ -20,11 +20,11 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/config"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/configset"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/discoveryrule"
+	_ "github.com/sdcio/config-server/pkg/reconcilers/rollout"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/schema"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/subscription"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/target"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetconfigserver"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/targetdatastore"
-	// _ "github.com/sdcio/config-server/pkg/reconcilers/workspace"
-	// _ "github.com/sdcio/config-server/pkg/reconcilers/rollout"
+	_ "github.com/sdcio/config-server/pkg/reconcilers/workspace"
 )
