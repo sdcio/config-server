@@ -223,6 +223,8 @@ func (r *Discoverer) parseDiscoveryInformation(
 			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
 
 			log.Info("discovery", "path", gnmiPath)
+			log.Info("discovery", "value", upd.GetVal())
+			log.Info("discovery", "pathMap", pathMap)
 
 			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
 			// for which the first key was found
