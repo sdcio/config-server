@@ -16,7 +16,7 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
-type SchemaManager struct {
+type SchemaLoader struct {
 	tmpDir             string
 	schemaDir          string
 	schemas            map[SchemaIDHash]*SchemaDefinition
@@ -25,7 +25,7 @@ type SchemaManager struct {
 	schemaUploader     SchemaServerConnector
 }
 
-func NewSchemaManager(tmpDir string, schemaDir string, ssc sdcpb.SchemaServerClient, schemaUploader SchemaServerConnector) (*SchemaManager, error) {
+func NewSchemaLoader(tmpDir string, schemaDir string, ssc sdcpb.SchemaServerClient, schemaUploader SchemaServerConnector) (*SchemaLoader, error) {
 	var err error
 
 	// create the temp dir if not existing
@@ -44,7 +44,7 @@ func NewSchemaManager(tmpDir string, schemaDir string, ssc sdcpb.SchemaServerCli
 		}
 	}
 
-	return &SchemaManager{
+	return &SchemaLoader{
 		tmpDir:             tmpDir,
 		schemaDir:          schemaDir,
 		schemaServerClient: ssc,
@@ -54,14 +54,14 @@ func NewSchemaManager(tmpDir string, schemaDir string, ssc sdcpb.SchemaServerCli
 	}, nil
 }
 
-func (s *SchemaManager) SchemaExists(sid *SchemaID) bool {
+func (s *SchemaLoader) SchemaExists(sid *SchemaID) bool {
 	s.schemasMutex.Lock()
 	defer s.schemasMutex.Unlock()
 	_, exists := s.schemas[sid.Hash()]
 	return exists
 }
 
-func (s *SchemaManager) AddSchema(ctx context.Context, sd *SchemaDefinition) error {
+func (s *SchemaLoader) AddSchema(ctx context.Context, sd *SchemaDefinition) error {
 
 	relSchemaDstPath := path.Join(sd.provider, sd.version)
 	absSchemaDstPath := path.Join(s.schemaDir, sd.provider, sd.version)
@@ -129,7 +129,7 @@ func (s *SchemaManager) AddSchema(ctx context.Context, sd *SchemaDefinition) err
 	return nil
 }
 
-func (s *SchemaManager) copyDirs(ctx context.Context, repoPath string, schemaDstPath string, sdp []*SrcDstPath) error {
+func (s *SchemaLoader) copyDirs(ctx context.Context, repoPath string, schemaDstPath string, sdp []*SrcDstPath) error {
 
 	log := logger.FromContext(ctx)
 
@@ -161,7 +161,7 @@ func (s *SchemaManager) copyDirs(ctx context.Context, repoPath string, schemaDst
 	return nil
 }
 
-func (s *SchemaManager) RemoveSchema(ctx context.Context, schema *SchemaID) error {
+func (s *SchemaLoader) RemoveSchema(ctx context.Context, schema *SchemaID) error {
 	_, err := s.schemaServerClient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{Schema: schema.ToSdcpbSchema()})
 	return err
 }

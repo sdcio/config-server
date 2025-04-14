@@ -88,7 +88,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
-	r.schemaManager, err = yangSchema.NewSchemaManager(path.Join(r.schemaBasePath, "tmp"), r.schemaBasePath, r.schemaclient, yangSchema.NewSchemaUploaderLocal(r.schemaclient))
+	r.schemaLoader, err = yangSchema.NewSchemaLoader(path.Join(r.schemaBasePath, "tmp"), r.schemaBasePath, r.schemaclient, yangSchema.NewSchemaUploaderLocal(r.schemaclient))
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "cannot initialize schemaloader")
 	}
@@ -105,7 +105,7 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	schemaManager  *yangSchema.SchemaManager
+	schemaLoader   *yangSchema.SchemaLoader
 	schemaclient   ssclient.Client
 	schemaBasePath string
 	recorder       record.EventRecorder
@@ -141,7 +141,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// delete the reference from disk
-		if err := r.schemaManager.RemoveSchema(ctx, yangSchema.NewSchemaID(spec.Provider, spec.Version)); err != nil {
+		if err := r.schemaLoader.RemoveSchema(ctx, yangSchema.NewSchemaID(spec.Provider, spec.Version)); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot delete reference", err)
 		}
 		// remove the finalizer
@@ -163,7 +163,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, schemaOrig, "schema server not ready", nil)
 	}
 
-	if !r.schemaManager.SchemaExists(yangSchema.NewSchemaID(spec.Provider, spec.Version)) {
+	if !r.schemaLoader.SchemaExists(yangSchema.NewSchemaID(spec.Provider, spec.Version)) {
 		// we set the loading condition to know loading started
 		schema.SetConditions(invv1alpha1.Loading())
 		if err := r.Status().Update(ctx, schema); err != nil {
@@ -177,7 +177,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return r.handleError(ctx, schemaOrig, "error converting from api type to internal", nil)
 		}
 
-		if err = r.schemaManager.AddSchema(ctx, schemaDef); err != nil {
+		if err = r.schemaLoader.AddSchema(ctx, schemaDef); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
 		}
 	}
