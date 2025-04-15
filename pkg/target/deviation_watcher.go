@@ -116,7 +116,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 			stream = nil
 			time.Sleep(time.Second * 1) //- resilience for server crash, retry on failure
-			
+
 			continue
 		}
 		switch resp.Event {
@@ -171,10 +171,13 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 	log := log.FromContext(ctx)
 	log.Info("process deviations")
 	for configName, devs := range deviations {
+		if configName == "default" {
+			continue
+		}
 		configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
 
 		nsn := r.targetKey.NamespacedName
-		var cfg  configv1alpha1.ConfigDeviations
+		var cfg configv1alpha1.ConfigDeviations
 		if configName == unManagedConfigDeviation {
 			cfg = &configv1alpha1.UnManagedConfig{}
 			log.Info("unmanaged deviations", "devs", len(configDevs))
@@ -183,7 +186,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
 				Namespace: parts[0],
-				Name: parts[1],
+				Name:      parts[1],
 			}
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
@@ -199,7 +202,7 @@ func (r *DeviationWatcher) processConfigDeviations(ctx context.Context, nsn type
 	log := log.FromContext(ctx)
 	if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn)
-		return 
+		return
 	}
 	patch := client.MergeFrom(cfg.DeepObjectCopy())
 	cfg.SetDeviations(devs)

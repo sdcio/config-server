@@ -339,7 +339,7 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 		})
 	}
 
-	log.Debug("device intent receovery")
+	log.Debug("device intent recovery")
 
 	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: "recovery",
