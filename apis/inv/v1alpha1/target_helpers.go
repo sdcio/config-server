@@ -18,10 +18,12 @@ package v1alpha1
 
 import (
 	"fmt"
+	strings "strings"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -66,28 +68,50 @@ func (r *Target) SetOverallStatus() {
 	}
 }
 
+func (r *Target) SetStatusResourceVersion() {
+	r.Status.ResourceVersion = ptr.To(r.ObjectMeta.ResourceVersion)
+}
+
+func (r *Target) SetStatusGeneration() {
+	r.Status.Generation = ptr.To(r.ObjectMeta.Generation)
+}
+
+func (r *Target) HasResourceversionAndGenerationChanged() bool {
+	return r.Status.ResourceVersion != nil && *r.Status.ResourceVersion != r.ObjectMeta.ResourceVersion &&
+		r.Status.Generation != nil && *r.Status.Generation != r.ObjectMeta.Generation
+}
+
 func (r *Target) IsDatastoreReady() bool {
 	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue
+		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) IsReady() bool {
-	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue
+	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) NotReadyReason() string {
-	discoveryReadyCondition := r.GetCondition(ConditionTypeDiscoveryReady)
-	datastoreReadyCondition := r.GetCondition(ConditionTypeDatastoreReady)
-	return fmt.Sprintf("ready: %v, reason: %s, msg: %s dsready: %v, reason: %s, msg: %s",
-		discoveryReadyCondition.Status,
-		discoveryReadyCondition.Reason,
-		discoveryReadyCondition.Message,
-		datastoreReadyCondition.Status,
-		datastoreReadyCondition.Reason,
-		datastoreReadyCondition.Message,
-	)
+	reasons := []string{}
+
+	check := func(name string, cond condv1alpha1.Condition) {
+		if cond.Status != metav1.ConditionTrue {
+			reasons = append(reasons,
+				fmt.Sprintf("%s: %s (Reason: %s, Msg: %s)",
+					name, cond.Status, cond.Reason, cond.Message))
+		}
+	}
+
+	check("DiscoveryReady", r.GetCondition(ConditionTypeDiscoveryReady))
+	check("DatastoreReady", r.GetCondition(ConditionTypeDatastoreReady))
+	check("ConfigReady", r.GetCondition(ConditionTypeConfigReady))
+	check("ConnectionReady", r.GetCondition(ConditionTypeTargetConnectionReady))
+
+	if len(reasons) == 0 {
+		return "All conditions are ready"
+	}
+
+	return strings.Join(reasons, "; ")
 }
 
 func (r *TargetList) GetItems() []client.Object {

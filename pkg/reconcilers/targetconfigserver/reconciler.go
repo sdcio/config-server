@@ -127,6 +127,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
+	// if the resource version and generation did not change we dont have to recover again
+	if !target.HasResourceversionAndGenerationChanged() {
+		return ctrl.Result{}, nil
+	}
+
 	// we split the config in config that were successfully applied and config that was not yet
 	recoveryConfigs, err := r.getRecoveryConfigs(ctx, target)
 	if err != nil {
