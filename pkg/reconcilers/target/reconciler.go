@@ -170,13 +170,12 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	}
 	target.SetOverallStatus()
-	target.SetStatusResourceVersion()
 	// if ready update the resourceversion in the status -> goal is to use this to prevent recovering again
 	if target.IsReady() {
 		target.SetStatusGeneration()
 		target.SetStatusResourceVersion()
 	}
-	//r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
