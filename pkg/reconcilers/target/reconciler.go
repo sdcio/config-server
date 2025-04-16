@@ -30,7 +30,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	sdctarget "github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
@@ -78,7 +77,6 @@ type reconciler struct {
 	client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
-	dataServerStore storebackend.Storer[sdcctx.DSContext]
 	recorder        record.EventRecorder
 }
 
@@ -178,7 +176,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		target.SetStatusGeneration()
 		target.SetStatusResourceVersion()
 	}
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	//r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
