@@ -19,6 +19,7 @@ package target
 import (
 	"context"
 	errors "errors"
+	"fmt"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	pkgerrors "github.com/pkg/errors"
@@ -70,7 +71,7 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
 	if err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target not found",
+			Message:      fmt.Sprintf("target %s not found ", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotFound)),
 		}
 	}
