@@ -210,9 +210,6 @@ spec:
                 - connectionProfileResourceVersion
                 - syncProfileResourceVersion
                 type: object
-            required:
-            - generation
-            - resourceVersion
             type: object
         type: object
     served: true

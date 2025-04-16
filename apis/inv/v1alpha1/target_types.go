@@ -43,9 +43,9 @@ type TargetStatus struct {
 	// UsedReferences track the resource used to reconcile the cr
 	UsedReferences *TargetStatusUsedReferences `json:"usedReferences,omitempty" protobuf:"bytes,3,opt,name=usedReferences"`
 	// ResourceVersion used by recovery
-	ResourceVersion *string `json:"resourceVersion" protobuf:"bytes,4,opt,name=resourceVersion"`
+	ResourceVersion *string `json:"resourceVersion,omitempty" protobuf:"bytes,4,opt,name=resourceVersion"`
 	// Generation used by recovery
-	Generation *int64 `json:"generation" protobuf:"bytes,5,opt,name=generation"`
+	Generation *int64 `json:"generation,omitempty" protobuf:"bytes,5,opt,name=generation"`
 }
 
 type DiscoveryInfo struct {
