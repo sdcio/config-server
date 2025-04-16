@@ -53,6 +53,10 @@ type Context struct {
 	collector     *Collector
 	subscriptions *Subscriptions
 
+	// this is the resource version that was available when the target get Ready
+	resourceVersion string
+	generation      int64
+
 	m            sync.RWMutex
 	ready        bool
 	datastoreReq *sdcpb.CreateDataStoreRequest
@@ -97,6 +101,19 @@ func (r *Context) setReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.ready = b
+}
+
+func (r *Context) setResourceVersionAndGeneration(resourceVersion string, generation int64) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.resourceVersion = resourceVersion
+	r.generation = generation
+}
+
+func (r *Context) getResourceVersionAndGeneration() (string, int64) {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.resourceVersion, r.generation
 }
 
 func (r *Context) GetDSClient() dsclient.Client {
@@ -185,6 +202,21 @@ func (r *Context) SetReady(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (r *Context) SetResourceVersionAndGeneration(ctx context.Context, resourceVersion string, generation int64) {
+	log := log.FromContext(ctx)
+	r.setResourceVersionAndGeneration(resourceVersion, generation)
+
+	if !r.IsReady() {
+		log.Error("setting resource version and generation w/o target being ready")
+		r.SetReady(ctx)
+	}
+}
+
+func (r *Context) HasResourceVersionAndGenerationChanged(ctx context.Context, newResourceVersion string, newGeneration int64) bool {
+	existingResourceVersion, existingGeneration := r.getResourceVersionAndGeneration()
+	return existingResourceVersion == newResourceVersion && existingGeneration == newGeneration
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {

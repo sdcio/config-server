@@ -147,7 +147,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 		if tctx != nil {
-			tctx.SetReady(ctx)
+			tctx.SetResourceVersionAndGeneration(ctx, target.GetResourceVersion(), target.GetGeneration())
 		}
 		return tctx
 	}); errs != nil {
@@ -166,15 +166,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.TargetConnectionReady())
-	if target.IsReady() {
-
-	}
 	target.SetOverallStatus()
-	// if ready update the resourceversion in the status -> goal is to use this to prevent recovering again
-	if target.IsReady() {
-		target.SetStatusGeneration()
-		target.SetStatusResourceVersion()
-	}
+	
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)

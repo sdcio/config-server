@@ -127,8 +127,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
 
-	// if the resource version and generation did not change we dont have to recover again
-	if !target.HasResourceversionAndGenerationChanged() {
+	// validates if the resource version and target changed since the last ready state.
+	if !tctx.HasResourceVersionAndGenerationChanged(ctx, target.GetResourceVersion(), target.GetGeneration()) {
 		return ctrl.Result{}, nil
 	}
 
