@@ -58,20 +58,20 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target get failed",
+			Message:      fmt.Sprintf("target %s get failed to k8s apiserver ", targetKey.String()),
 			WrappedError: errors.Join(ErrLookup, err),
 		}
 	}
 	if !target.IsDatastoreReady() {
 		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target not ready",
+			Message:      fmt.Sprintf("target %s not ready ", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotReady)),
 		}
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
 	if err != nil {
 		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      fmt.Sprintf("target %s not found ", targetKey.String()),
+			Message:      fmt.Sprintf("target %s not found in target datastore", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotFound)),
 		}
 	}
