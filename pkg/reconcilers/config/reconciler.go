@@ -216,9 +216,9 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	cfg.Status.LastKnownGoodSchema = nil
-	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-	cfg.Status.AppliedConfig = &cfg.Spec
+	//cfg.Status.LastKnownGoodSchema = nil
+	//cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
+	//cfg.Status.AppliedConfig = &cfg.Spec
 
 	if recoverable {
 		cfg.SetConditions(condv1alpha1.Failed(msg))
