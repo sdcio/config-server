@@ -145,10 +145,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
-		cfg.Status.LastKnownGoodSchema = nil
-		cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-		cfg.Status.AppliedConfig = &cfg.Spec
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target error", err, true), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target not ready", err, true), errUpdateStatus)
 	}
 
 	// check if we have to reapply the config
@@ -218,6 +215,10 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+
+	cfg.Status.LastKnownGoodSchema = nil
+	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
+	cfg.Status.AppliedConfig = &cfg.Spec
 
 	if recoverable {
 		cfg.SetConditions(condv1alpha1.Failed(msg))
