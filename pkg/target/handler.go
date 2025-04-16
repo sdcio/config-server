@@ -61,7 +61,7 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 			WrappedError: errors.Join(ErrLookup, err),
 		}
 	}
-	if !target.IsReady() {
+	if !target.IsDatastoreReady() {
 		return nil, nil, &sdcerrors.RecoverableError{
 			Message:      "target not ready",
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotReady)),
