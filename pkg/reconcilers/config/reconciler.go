@@ -174,7 +174,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		var txErr *target.TransactionError
 		if errors.As(err, &txErr) && txErr.Recoverable {
 			// Retry logic for recoverable errors
-
 			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
 				errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed (recoverable)", warnings), err, true), errUpdateStatus)
 		}
