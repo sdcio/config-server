@@ -178,6 +178,8 @@ func (r *Context) IsReady() bool {
 }
 
 func (r *Context) SetNotReady(ctx context.Context) {
+	log := log.FromContext(ctx)
+	log.Info("SetNotReady", "ready", r.getReady())
 	r.setReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
@@ -189,6 +191,7 @@ func (r *Context) SetNotReady(ctx context.Context) {
 
 func (r *Context) SetReady(ctx context.Context) {
 	log := log.FromContext(ctx)
+	log.Info("SetReady", "ready", r.getReady())
 	// if we already are in ready state we can ignore
 	if r.getReady() {
 		return
