@@ -34,7 +34,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/discovery"
@@ -116,13 +115,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
-		// datastore not ready so we can wait till the target goes to ready state
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
-			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not ready", nil), errUpdateStatus)
-	}
-
-	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
+	// to reapply existing configs we should check if the datastore is ready and if the target context is ready
+	ready, tctx := r.IsTargetDataStoreReady(ctx, targetKey, target)
 	if !ready {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
 	}
@@ -210,8 +204,12 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 	return configList, nil
 }
 
-func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
+func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
 	log := log.FromContext(ctx)
+	// datastore not ready so we can wait till the target goes to ready state
+	if target.IsDatastoreReady() {
+		return false, nil
+	}
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {

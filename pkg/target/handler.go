@@ -54,6 +54,7 @@ type targetHandler struct {
 }
 
 // GetTargetContext returns a invTarget and targetContext when the target is ready and the ctx is found
+// Used by the config controller and should only act when the Config is ready
 func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
@@ -62,7 +63,8 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 			WrappedError: errors.Join(ErrLookup, err),
 		}
 	}
-	if !target.IsDatastoreReady() {
+	// A config snippet should only be applied if the Target is in ready state
+	if !target.IsReady() {
 		return nil, nil, &sdcerrors.RecoverableError{
 			Message:      fmt.Sprintf("target %s not ready ", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotReady)),
