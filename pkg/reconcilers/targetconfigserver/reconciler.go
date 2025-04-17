@@ -143,7 +143,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("config recovery new ....")
 
 	// We need to restore the config on the target
-	//for _, config := range configsToReApply {
 	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs)
 	if err != nil {
 		// This is bad since this means we cannot recover the applied config
@@ -151,7 +150,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Most likely a human intervention is needed
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
-	//}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 

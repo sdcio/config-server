@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 const (
@@ -140,17 +141,30 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	}
 
 	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: targetNew.Namespace,
-			Name:      targetNew.Name,
-		},
-		target.Spec,
+		targetNew.ObjectMeta,
+		targetNew.Spec,
 		targetNew.Status,
 	)
 	// set old condition to avoid updating the new status if not changed
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
 	// set new conditions
 	newTarget.Status.SetConditions(invv1alpha1.DiscoveryReady())
+
+
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
+		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo){
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)),
+		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
+		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
+	)
+
+
+
 	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
