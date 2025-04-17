@@ -144,8 +144,8 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 			Namespace: targetNew.Namespace,
 			Name:      targetNew.Name,
 		},
-		targetNew.Spec,
-		targetNew.Status,
+		targetCurrent.Spec,
+		targetCurrent.Status,
 	)
 	target.Status.SetConditions(invv1alpha1.DiscoveryReady())
 	err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
