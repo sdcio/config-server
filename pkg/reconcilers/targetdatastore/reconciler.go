@@ -295,7 +295,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target = invv1alpha1.BuildTarget(
+	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
 			Name:      target.Name,
@@ -303,14 +303,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	target.SetConditions(invv1alpha1.DatastoreReady())
-	target.Status.UsedReferences = usedRefs
+	newTarget.SetConditions(invv1alpha1.DatastoreReady())
+	newTarget.Status.UsedReferences = usedRefs
 	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	return r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

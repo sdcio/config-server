@@ -196,7 +196,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	target = invv1alpha1.BuildTarget(
+	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
 			Name:      target.Name,
@@ -205,12 +205,12 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetStatus{},
 	)
 	//target.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
-	target.SetOverallStatus()
+	newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+	newTarget.SetOverallStatus()
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
