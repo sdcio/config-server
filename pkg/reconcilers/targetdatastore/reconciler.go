@@ -264,14 +264,23 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
-	target.Status.UsedReferences = nil
+
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
+	newTarget.Status.UsedReferences = nil
 	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
 
-	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("updateStatusReinitializing", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	if err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
