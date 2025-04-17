@@ -317,7 +317,7 @@ func (r *reconciler) handleStatus(
 	err error,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
-	patch := client.MergeFrom(rollout.DeepCopy())
+	//patch := client.MergeFrom(rollout.DeepCopy())
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
@@ -331,7 +331,7 @@ func (r *reconciler) handleStatus(
 		r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, condition.Message)
 	}
 	result := ctrl.Result{Requeue: requeue}
-	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
+	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

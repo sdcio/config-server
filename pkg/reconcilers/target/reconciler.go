@@ -163,7 +163,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.TargetConnectionReady())
 	target.SetOverallStatus()
@@ -172,7 +172,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -182,7 +182,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -192,7 +192,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

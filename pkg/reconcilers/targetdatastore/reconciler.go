@@ -262,7 +262,7 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 	log := log.FromContext(ctx)
 	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
 	target.Status.UsedReferences = nil
@@ -271,7 +271,7 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -293,7 +293,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log := log.FromContext(ctx)
 	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	target.SetConditions(invv1alpha1.DatastoreReady())
 	target.Status.UsedReferences = usedRefs
@@ -302,7 +302,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -312,7 +312,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -325,7 +325,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

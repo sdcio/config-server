@@ -328,14 +328,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status old", configSet.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(configSet.DeepCopy())
+	//patch := client.MergeFrom(configSet.DeepCopy())
 	// update status
 	configSet.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
 
 	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status new", configSet.Status)
 
-	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, configSet, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -345,7 +345,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(configSet.DeepCopy())
+	//patch := client.MergeFrom(configSet.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -354,7 +354,7 @@ func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.
 	log.Error(msg)
 	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
-	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, configSet, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

@@ -190,7 +190,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(cfg.DeepCopy())
+	//patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
 	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	cfg.Status.LastKnownGoodSchema = schema
@@ -200,7 +200,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status new", cfg.Status)
 
-	return r.Client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, cfg, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -210,7 +210,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(cfg.DeepCopy())
+	//patch := client.MergeFrom(cfg.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -236,7 +236,7 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	log.Error(msg)
 	r.recorder.Eventf(cfg, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
 
-	return r.Client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, cfg, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

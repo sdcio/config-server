@@ -152,7 +152,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	)
 
 	// Apply the patch
-	err := r.client.Status().Patch(ctx, targetPatch, client.MergeFrom(targetCurrent), &client.SubResourcePatchOptions{
+	err := r.client.Status().Patch(ctx, targetPatch, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
