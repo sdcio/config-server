@@ -156,10 +156,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "update targetstore failed", errs), errUpdateStatus)
 	}
 
-	return ctrl.Result{RequeueAfter: 5 * time.Minute}, pkgerrors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+
+	return r.handleSuccess(ctx, targetOrig)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
@@ -180,7 +181,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+
+	result := ctrl.Result{RequeueAfter: 5 * time.Minute}
+	if !target.IsReady() {
+		result= ctrl.Result{Requeue: true}
+	}	
+
+	return result, r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
