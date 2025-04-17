@@ -42,24 +42,24 @@ func (r *Target) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-func (r *Target) SetOverallStatus() {
+func (r *Target) SetOverallStatus(target *Target) {
 	ready := true
 	msg := "target ready"
-	if ready && !r.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
 		ready = false
-		msg = "discovery not ready"
+		msg = fmt.Sprintf("discovery not ready: %s", target.GetCondition(ConditionTypeDiscoveryReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
 		ready = false
-		msg = "datastore not ready"
+		msg = fmt.Sprintf("datastore not ready: %s", target.GetCondition(ConditionTypeDatastoreReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeConfigReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeConfigReady).IsTrue() {
 		ready = false
-		msg = "config not ready"
+		msg = fmt.Sprintf("config not ready: %s", target.GetCondition(ConditionTypeConfigReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
-		msg = "target connection not ready"
+		msg =fmt.Sprintf("datastore connection not ready: %s", target.GetCondition(ConditionTypeTargetConnectionReady).Message)
 	}
 	if ready {
 		r.Status.SetConditions(condv1alpha1.Ready())

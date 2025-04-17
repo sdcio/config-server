@@ -166,7 +166,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target = invv1alpha1.BuildTarget(
+	newtarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
 			Name:      target.Name,
@@ -174,12 +174,12 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	target.SetConditions(invv1alpha1.TargetConnectionReady())
-	target.SetOverallStatus()
+	newtarget.SetConditions(invv1alpha1.TargetConnectionReady())
+	newtarget.SetOverallStatus(target)
 	
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	r.recorder.Eventf(newtarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("handleSuccess", "key", newtarget.GetNamespacedName(), "status new", target.Status)
 
 
 	result := ctrl.Result{RequeueAfter: 5 * time.Minute}
@@ -187,7 +187,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		result= ctrl.Result{Requeue: true}
 	}	
 
-	return result, r.Client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	return result, r.Client.Status().Patch(ctx, newtarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -213,7 +213,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	)
 	//target.Status.SetConditions(invv1alpha1.DiscoveryReady())
 	newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
-	newTarget.SetOverallStatus()
+	newTarget.SetOverallStatus(target)
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
