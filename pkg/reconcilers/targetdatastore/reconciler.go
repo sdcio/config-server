@@ -44,6 +44,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 func init() {
@@ -324,12 +325,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	// we don't update the resource if no condition changed
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
-		newTarget.Status.UsedReferences == target.Status.UsedReferences{
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
 			log.Info("handleSuccess -> no change")
 		return nil
-	}
-	log.Info("handleSuccess", 
-				"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)))
+   }
+   log.Info("handleSuccess", 
+				"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+				"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+			)
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 

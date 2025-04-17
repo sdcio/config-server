@@ -188,7 +188,6 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		result= ctrl.Result{Requeue: true}
 	}
 	
-
 	// we don't update the resource if no condition changed
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
 		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
