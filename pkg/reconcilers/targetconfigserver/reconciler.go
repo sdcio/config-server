@@ -116,6 +116,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// to reapply existing configs we should check if the datastore is ready and if the target context is ready
+	// DataStore ready means: target is discovered, datastore is created and connection to the dataserver is up + target context is ready
 	ready, tctx := r.IsTargetDataStoreReady(ctx, targetKey, target)
 	if !ready {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
