@@ -295,6 +295,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
+	target = invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
 	target.SetConditions(invv1alpha1.DatastoreReady())
 	target.Status.UsedReferences = usedRefs
 	//target.SetOverallStatus()
@@ -317,6 +325,14 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+	target = invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
 	target.SetConditions(invv1alpha1.DatastoreFailed(msg))
 	//target.SetOverallStatus()
 	if resetUsedRefs {

@@ -192,6 +192,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
+	cfg.ObjectMeta.ManagedFields = nil
 	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	cfg.Status.LastKnownGoodSchema = schema
 	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
@@ -219,7 +220,7 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	//cfg.Status.LastKnownGoodSchema = nil
 	//cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	//cfg.Status.AppliedConfig = &cfg.Spec
-
+	cfg.ObjectMeta.ManagedFields = nil
 	if recoverable {
 		cfg.SetConditions(condv1alpha1.Failed(msg))
 	} else {

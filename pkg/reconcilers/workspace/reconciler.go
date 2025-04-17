@@ -183,6 +183,7 @@ func (r *reconciler) handleStatus(
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
 
+	workspace.ManagedFields = nil
 	workspace.SetConditions(condition)
 
 	// Determine event type based on condition type

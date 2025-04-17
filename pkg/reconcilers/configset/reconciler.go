@@ -330,6 +330,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(configSet.DeepCopy())
 	// update status
+	configSet.ObjectMeta.ManagedFields = nil
 	configSet.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
 
@@ -350,6 +351,7 @@ func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+	configSet.ObjectMeta.ManagedFields = nil
 	configSet.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)

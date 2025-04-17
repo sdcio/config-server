@@ -23,7 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,10 +139,28 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		}
 	}
 
-	targetPatch := targetCurrent.DeepCopy()
-
-	targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	targetPatch.Status.DiscoveryInfo = di
+	target := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: targetNew.Namespace,
+			Name:      targetNew.Name,
+		},
+		targetNew.Spec,
+		targetNew.Status,
+	)
+	target.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
+	if err != nil {
+		log.Error("failed to patch target status", "err", err)
+		return err
+	}
+	/*
+	//targetPatch := targetCurrent.DeepCopy()
+	//targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	//targetPatch.Status.DiscoveryInfo = di
 
 	log.Info("discovery target apply",
 		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
@@ -161,6 +179,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		log.Error("failed to patch target status", "err", err)
 		return err
 	}
+		*/
 
 	return nil
 }

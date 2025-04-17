@@ -230,6 +230,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(schema.DeepCopy())
 	// update status
+	schema.ObjectMeta.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 
@@ -251,7 +252,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-
+	schema.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(schema, corev1.EventTypeWarning, crName, msg)

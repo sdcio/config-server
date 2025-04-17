@@ -41,6 +41,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -153,6 +154,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
+	target = invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
 	target.SetConditions(invv1alpha1.ConfigReady(msg))
 	//target.SetOverallStatus()
 	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
@@ -174,6 +183,14 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+	target = invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
 	target.SetConditions(invv1alpha1.ConfigFailed(msg))
 	//target.SetOverallStatus()
 	log.Error(msg, "error", err)
@@ -195,7 +212,6 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 			config.TargetNameKey:      target.GetName(),
 		},
 	}
-
 	v1alpha1configList := &configv1alpha1.ConfigList{}
 	if err := r.List(ctx, v1alpha1configList, opts...); err != nil {
 		return nil, err

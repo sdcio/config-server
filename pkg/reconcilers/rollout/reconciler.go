@@ -321,6 +321,7 @@ func (r *reconciler) handleStatus(
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
+	rollout.ManagedFields = nil
 	rollout.SetConditions(condition)
 	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
 
