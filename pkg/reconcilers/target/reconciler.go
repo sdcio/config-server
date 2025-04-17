@@ -186,14 +186,20 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	result := ctrl.Result{RequeueAfter: 5 * time.Minute}
 	if !target.IsReady() {
 		result= ctrl.Result{Requeue: true}
-	}	
+	}
+	
 
 	// we don't update the resource if no condition changed
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
 		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
 			return result, nil
 	}
-	
+	log.Info("handleSuccess -> change", 
+			"connReady condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)),
+			"Ready condition change", newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)),
+	)
+
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)

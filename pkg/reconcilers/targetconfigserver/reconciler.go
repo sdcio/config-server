@@ -177,9 +177,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
 	// we don't update the resource if no condition changed
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) {
-		 return nil
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+		// we don't update the resource if no condition changed
+		log.Info("handleSuccess -> no change")
+		return nil
 	}
+	log.Info("handleSuccess -> change", 
+			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
 
@@ -213,6 +217,14 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	//target.SetOverallStatus()
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+		// we don't update the resource if no condition changed
+		log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError -> change", 
+			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 
 	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{

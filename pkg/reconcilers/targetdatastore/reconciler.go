@@ -303,7 +303,7 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	//log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
@@ -325,8 +325,11 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// we don't update the resource if no condition changed
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
 		newTarget.Status.UsedReferences == target.Status.UsedReferences{
+			log.Info("handleSuccess -> no change")
 		return nil
-   }
+	}
+	log.Info("handleSuccess", 
+				"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)))
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
