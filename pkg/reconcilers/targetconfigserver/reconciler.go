@@ -128,13 +128,19 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Info("config recovery done")
 		return ctrl.Result{}, nil
 	}
-	log.Info("config recovery new ....")
 
 	// we split the config in config that were successfully applied and config that was not yet
 	recoveryConfigs, err := r.getRecoveryConfigs(ctx, target)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
+
+	if len(recoveryConfigs) == 0 {
+		log.Info("config recovery done, no configs to recover")
+		return ctrl.Result{}, nil
+	}
+
+	log.Info("config recovery new ....")
 
 	// We need to restore the config on the target
 	//for _, config := range configsToReApply {
