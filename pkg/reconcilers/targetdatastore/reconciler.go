@@ -321,6 +321,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	newTarget.SetConditions(invv1alpha1.DatastoreReady())
 	newTarget.Status.UsedReferences = usedRefs
 	//target.SetOverallStatus()
+
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		newTarget.Status.UsedReferences == target.Status.UsedReferences{
+		return nil
+   }
+
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)

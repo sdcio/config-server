@@ -167,9 +167,15 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.ConfigReady(msg))
-	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
-
+	
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) {
+		 return nil
+	}
+
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
 
 	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
