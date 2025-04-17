@@ -163,7 +163,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetStatus{},
 	)
 	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady))
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.ConfigReady(msg))
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
