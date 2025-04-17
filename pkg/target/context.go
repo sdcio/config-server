@@ -53,13 +53,10 @@ type Context struct {
 	collector     *Collector
 	subscriptions *Subscriptions
 
-	// this is the resource version that was available when the target get Ready
-	resourceVersion string
-	generation      int64
-
-	m            sync.RWMutex
-	ready        bool
-	datastoreReq *sdcpb.CreateDataStoreRequest
+	m               sync.RWMutex
+	ready           bool
+	recoveredConfigs bool
+	datastoreReq    *sdcpb.CreateDataStoreRequest
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
@@ -101,19 +98,21 @@ func (r *Context) setReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.ready = b
+	if !b {
+		r.recoveredConfigs = false
+	}
 }
 
-func (r *Context) setResourceVersionAndGeneration(resourceVersion string, generation int64) {
+func (r *Context) setRecoveredConfigs() {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.resourceVersion = resourceVersion
-	r.generation = generation
+	r.recoveredConfigs = true
 }
 
-func (r *Context) getResourceVersionAndGeneration() (string, int64) {
+func (r *Context) getRecoveredConfigs() bool {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	return r.resourceVersion, r.generation
+	return r.recoveredConfigs
 }
 
 func (r *Context) GetDSClient() dsclient.Client {
@@ -162,7 +161,7 @@ func (r *Context) CreateDS(ctx context.Context, datastoreReq *sdcpb.CreateDataSt
 	r.setDatastoreReq(datastoreReq)
 	// will also create the deviation watcher and collector
 	r.SetReady(ctx)
-	
+
 	// The collector is not started when a datastore is created but when a subscription is received.
 	log.Debug("create datastore succeeded", "resp", prototext.Format(rsp))
 	return nil
@@ -190,6 +189,12 @@ func (r *Context) SetNotReady(ctx context.Context) {
 
 func (r *Context) SetReady(ctx context.Context) {
 	log := log.FromContext(ctx)
+	// if we already are in ready state we can ignore
+	if r.getReady() {
+		return
+	}
+
+	// if we are not ready we set the status to ready and start the deviation watcher and subscription handler
 	r.setReady(true)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
@@ -204,9 +209,9 @@ func (r *Context) SetReady(ctx context.Context) {
 	}
 }
 
-func (r *Context) SetResourceVersionAndGeneration(ctx context.Context, resourceVersion string, generation int64) {
+func (r *Context) SetRecoveredConfigs(ctx context.Context) {
 	log := log.FromContext(ctx)
-	r.setResourceVersionAndGeneration(resourceVersion, generation)
+	r.setRecoveredConfigs()
 
 	if !r.IsReady() {
 		log.Error("setting resource version and generation w/o target being ready")
@@ -214,9 +219,8 @@ func (r *Context) SetResourceVersionAndGeneration(ctx context.Context, resourceV
 	}
 }
 
-func (r *Context) HasResourceVersionAndGenerationChanged(ctx context.Context, newResourceVersion string, newGeneration int64) bool {
-	existingResourceVersion, existingGeneration := r.getResourceVersionAndGeneration()
-	return existingResourceVersion == newResourceVersion && existingGeneration == newGeneration
+func (r *Context) IsConfigRecovered(ctx context.Context) bool {
+	return r.getRecoveredConfigs()
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
@@ -278,22 +282,25 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-	func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
-		rsp, err := r.dsclient.TransactionSet(ctx, req)
-		msg, err := r.processTransactionResponse(ctx, rsp, err)
-		if err != nil {
-			return msg, err
-		}
-		// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-		// retrieved from the individual intents
-		if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-			DatastoreName: req.DatastoreName,
-			TransactionId: req.TransactionId,
-		}); err != nil {
-			return msg, err
-		}
-		return msg, nil
+func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
+	rsp, err := r.dsclient.TransactionSet(ctx, req)
+	msg, err := r.processTransactionResponse(ctx, rsp, err)
+	if err != nil {
+		return msg, err
 	}
+	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
+	// retrieved from the individual intents
+	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: req.DatastoreName,
+		TransactionId: req.TransactionId,
+	}); err != nil {
+		return msg, err
+	}
+
+	// we initialize the context with the recovered configs
+	r.SetRecoveredConfigs(ctx)
+	return msg, nil
+}
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
@@ -447,7 +454,7 @@ func (r *Context) Cancel(ctx context.Context, key storebackend.Key, transactionI
 	return err
 }
 
-// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them 
+// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them
 // as recoverable or non recoverable.
 func (r *Context) processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
 	log := log.FromContext(ctx)

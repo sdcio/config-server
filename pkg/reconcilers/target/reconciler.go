@@ -148,7 +148,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if errs := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
 		if tctx != nil {
-			tctx.SetResourceVersionAndGeneration(ctx, target.GetResourceVersion(), target.GetGeneration())
+			tctx.SetReady(ctx)
 		}
 		return tctx
 	}); errs != nil {
