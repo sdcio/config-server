@@ -137,7 +137,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if len(recoveryConfigs) == 0 {
 		log.Info("config recovery done, no configs to recover")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
 	}
 
 	log.Info("config recovery new ....")
