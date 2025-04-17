@@ -225,10 +225,6 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 
 func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
 	log := log.FromContext(ctx)
-	// datastore not ready so we can wait till the target goes to ready state
-	if target.IsDatastoreReady() {
-		return false, nil
-	}
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
