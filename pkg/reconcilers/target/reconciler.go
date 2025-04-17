@@ -39,6 +39,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 func init() {
@@ -166,7 +167,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	newtarget := invv1alpha1.BuildTarget(
+	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
 			Name:      target.Name,
@@ -174,12 +175,16 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	newtarget.SetConditions(invv1alpha1.TargetConnectionReady())
-	newtarget.SetOverallStatus(target)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady))
+	newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.TargetConnectionReady())
+	newTarget.SetOverallStatus(target)
 	
-	r.recorder.Eventf(newtarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
 
-	log.Debug("handleSuccess", "key", newtarget.GetNamespacedName(), "status new", target.Status)
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
 
 	result := ctrl.Result{RequeueAfter: 5 * time.Minute}
@@ -187,7 +192,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		result= ctrl.Result{Requeue: true}
 	}	
 
-	return result, r.Client.Status().Patch(ctx, newtarget, client.Apply, &client.SubResourcePatchOptions{
+	return result, r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -211,7 +216,10 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	//target.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady))
+	newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
+	// set new conditions
 	newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
 	newTarget.SetOverallStatus(target)
 	log.Error(msg, "error", err)

@@ -113,11 +113,11 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
 
 	// Check if the target already exists
-	targetCurrent := &invv1alpha1.Target{}
+	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: targetNew.Namespace,
 		Name:      targetNew.Name,
-	}, targetCurrent); err != nil {
+	}, target); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
@@ -129,25 +129,28 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		time.Sleep(500 * time.Millisecond)
 
 		// we get the target again to get the latest update
-		targetCurrent = &invv1alpha1.Target{}
+		target = &invv1alpha1.Target{}
 		if err := r.client.Get(ctx, types.NamespacedName{
 			Namespace: targetNew.Namespace,
 			Name:      targetNew.Name,
-		}, targetCurrent); err != nil {
+		}, target); err != nil {
 			// the resource should always exist
 			return err
 		}
 	}
 
-	target := invv1alpha1.BuildTarget(
+	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: targetNew.Namespace,
 			Name:      targetNew.Name,
 		},
-		targetCurrent.Spec,
+		target.Spec,
 		targetNew.Status,
 	)
-	target.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
+	// set new conditions
+	newTarget.Status.SetConditions(invv1alpha1.DiscoveryReady())
 	err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,

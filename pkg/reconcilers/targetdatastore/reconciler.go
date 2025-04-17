@@ -273,6 +273,9 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
 	newTarget.Status.UsedReferences = nil
 	//target.SetOverallStatus()
@@ -312,6 +315,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DatastoreReady())
 	newTarget.Status.UsedReferences = usedRefs
 	//target.SetOverallStatus()
@@ -334,7 +340,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target = invv1alpha1.BuildTarget(
+	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
 			Name:      target.Name,
@@ -342,15 +348,18 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	target.SetConditions(invv1alpha1.DatastoreFailed(msg))
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed(msg))
 	//target.SetOverallStatus()
 	if resetUsedRefs {
-		target.Status.UsedReferences = nil
+		newTarget.Status.UsedReferences = nil
 	}
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
