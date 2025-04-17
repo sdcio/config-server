@@ -118,9 +118,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// to reapply existing configs we should check if the datastore is ready and if the target context is ready
 	// DataStore ready means: target is discovered, datastore is created and connection to the dataserver is up + target context is ready
-	ready, tctx := r.IsTargetDataStoreReady(ctx, targetKey, target)
-	if !ready {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
+	tctx, err := r.IsTargetDataStoreReady(ctx, targetKey, target)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err.Error(), nil), errUpdateStatus)
 	}
 
 	// validates if the resource version and target changed since the last ready state.
@@ -223,18 +223,18 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 	return configList, nil
 }
 
-func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
+func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*target.Context, error) {
 	log := log.FromContext(ctx)
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
-		return false, nil
+		return nil, fmt.Errorf("no target context")
 	}
 	log.Info("getTargetReadiness", "datastoreReady", target.IsDatastoreReady(), "tctx ready", tctx.IsReady())
-	if target.IsDatastoreReady() && tctx.IsReady() {
-		return true, tctx
+	if !target.IsDatastoreReady() || !tctx.IsReady() {
+		return tctx, fmt.Errorf("target not ready")
 	}
-	return false, tctx
+	return tctx, nil 
 }
 
 func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
