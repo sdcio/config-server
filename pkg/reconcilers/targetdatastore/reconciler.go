@@ -321,18 +321,17 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DatastoreReady())
 	newTarget.Status.UsedReferences = usedRefs
-	//target.SetOverallStatus()
 
 	// we don't update the resource if no condition changed
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
 		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
 			log.Info("handleSuccess -> no change")
 		return nil
-   }
-   log.Info("handleSuccess", 
-				"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
-				"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
-			)
+	}
+	log.Info("handleSuccess", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
 
@@ -369,6 +368,18 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if resetUsedRefs {
 		newTarget.Status.UsedReferences = nil
 	}
+
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
+			log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
+
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 

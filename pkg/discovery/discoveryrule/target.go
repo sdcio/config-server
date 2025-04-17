@@ -151,7 +151,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
 	// set new conditions
 	newTarget.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
