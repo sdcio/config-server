@@ -204,7 +204,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	target.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	//target.Status.SetConditions(invv1alpha1.DiscoveryReady())
 	target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
 	target.SetOverallStatus()
 	log.Error(msg, "error", err)
