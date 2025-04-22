@@ -299,8 +299,6 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 		return msg, err
 	}
 
-	// we initialize the context with the recovered configs
-	r.SetRecoveredConfigs(ctx)
 	return msg, nil
 }
 

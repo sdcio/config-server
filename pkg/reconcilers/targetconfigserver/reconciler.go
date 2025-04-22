@@ -125,7 +125,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// if the config is recovered we can stop the reconcile loop
 	if tctx.IsConfigRecovered(ctx) {
-		log.Info("config recovery done")
+		log.Info("config recovery -> already recovered")
 		return ctrl.Result{}, nil
 	}
 
@@ -136,7 +136,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if len(recoveryConfigs) == 0 {
-		log.Info("config recovery done, no configs to recover")
+		tctx.SetRecoveredConfigs(ctx)
+		log.Info("config recovery done -> no configs to recover")
 		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
 	}
 
@@ -150,6 +151,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Most likely a human intervention is needed
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
+	tctx.SetRecoveredConfigs(ctx)
+	log.Info("config recovery done -> configs recovered")
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 
