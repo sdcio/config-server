@@ -229,7 +229,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 		log.Info("handleSuccess -> LastKnownGoodSchema changed", "schema-a", newConfig.Status.LastKnownGoodSchema, "schema-b", cfg.Status.LastKnownGoodSchema)
 	}
 	if !equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
-		log.Info("handleSuccess -> Deviations changed")
+		log.Info("handleSuccess -> Deviations changed", "dev-a", newConfig.Status.Deviations, "dev-b", cfg.Status.Deviations)
 	}
 	if !equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> AppliedConfig changed")
