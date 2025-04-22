@@ -222,6 +222,19 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	}
 	log.Info("handleSuccess -> changes")
 
+	if !newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
+		log.Info("handleSuccess -> condition changed")
+	}
+	if equality.Semantic.DeepEqual(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
+		log.Info("handleSuccess -> LastKnownGoodSchema changed")
+	}
+	if equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
+		log.Info("handleSuccess -> Deviations changed")
+	}
+	if equality.Semantic.DeepEqual(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+		log.Info("handleSuccess -> AppliedConfig changed")
+	}
+
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status new", cfg.Status)
 
 	r.recorder.Eventf(newConfig, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
