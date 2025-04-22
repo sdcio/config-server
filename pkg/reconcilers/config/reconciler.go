@@ -148,8 +148,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
+		log.Info("applying config -> target not ready")
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target not ready", err, true), errUpdateStatus)
 	}
+
+	log.Info("applying config -> target ready")
 
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
