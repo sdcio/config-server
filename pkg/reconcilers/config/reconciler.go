@@ -254,7 +254,7 @@ func equalAppliedConfig(a, b *configv1alpha1.ConfigSpec) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return equality.Semantic.DeepEqual(a, b)
+	return equality.Semantic.DeepEqual(*a, *b)
 }
 
 func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
@@ -264,7 +264,7 @@ func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return equality.Semantic.DeepEqual(a, b)
+	return equality.Semantic.DeepEqual(*a, *b)
 }
 
 func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
