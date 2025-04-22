@@ -226,7 +226,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 		log.Info("handleSuccess -> condition changed")
 	}
 	if equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
-		log.Info("handleSuccess -> LastKnownGoodSchema changed")
+		log.Info("handleSuccess -> LastKnownGoodSchema changed", "schema", newConfig.Status.LastKnownGoodSchema, "schema", cfg.Status.LastKnownGoodSchema)
 	}
 	if equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
 		log.Info("handleSuccess -> Deviations changed")
