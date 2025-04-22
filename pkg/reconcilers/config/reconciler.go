@@ -40,6 +40,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+
 )
 
 func init() {
@@ -192,16 +195,35 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
-	cfg.ObjectMeta.ManagedFields = nil
-	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
-	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-	cfg.Status.AppliedConfig = &cfg.Spec
-	r.recorder.Eventf(cfg, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
+	newConfig := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{
+			Namespace: cfg.Namespace,
+			Name: cfg.Name,
+		},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+
+	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
+	newConfig.SetConditions(condv1alpha1.ReadyWithMsg(msg))
+	newConfig.Status.LastKnownGoodSchema = schema
+	newConfig.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
+	newConfig.Status.AppliedConfig = &cfg.Spec
+	
+	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
+		equality.Semantic.DeepEqual(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
+		equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) &&
+		equality.Semantic.DeepEqual(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess -> changes")
 
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status new", cfg.Status)
 
-	return r.Client.Status().Patch(ctx, cfg, client.Apply, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newConfig, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
+
+	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -217,10 +239,17 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	//cfg.Status.LastKnownGoodSchema = nil
-	//cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-	//cfg.Status.AppliedConfig = &cfg.Spec
-	cfg.ObjectMeta.ManagedFields = nil
+	newConfig := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{
+			Namespace: cfg.Namespace,
+			Name: cfg.Name,
+		},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+
+	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
+	
 	if recoverable {
 		cfg.SetConditions(condv1alpha1.Failed(msg))
 	} else {
@@ -234,10 +263,17 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 		}
 		cfg.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
 	}
-	log.Error(msg)
-	r.recorder.Eventf(cfg, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
 
-	return r.Client.Status().Patch(ctx, cfg, client.Apply, &client.SubResourcePatchOptions{
+	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError -> changes")
+
+	log.Error(msg)
+	r.recorder.Eventf(newConfig, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
+
+	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

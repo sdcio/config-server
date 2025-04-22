@@ -181,7 +181,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	for i, target := range targets {
 		TargetsStatus[i] = configv1alpha1.TargetStatus{Name: target.Name}
 
-		var oldConfig *configv1alpha1.Config
+		//var oldConfig *configv1alpha1.Config
 		newConfig := buildConfig(ctx, configSet, target)
 
 		// check if the config is part of the existing map
@@ -189,12 +189,22 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		// if yes check if the config needs updates
 		// all other configs will be deleted afterwards since they are no longer needed
 		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
-		oldConfig, ok := existingConfigs[nsnKey]
+		//oldConfig, _ = existingConfigs[nsnKey]
 		// delete the config from the existing configs -> this list is emptied such that the remaining entries
 		// can be deleted
 		delete(existingConfigs, nsnKey)
+
+		return r.Client.Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{
+				FieldManager: reconcilerName,
+			},
+		})
+
+		/*
 		if !ok { // config does not exist -> create it
 			//log.Info("config does not exist", "nsn", nsnKey.String())
+
+
 
 			if err := r.Create(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
@@ -252,6 +262,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			}
 			TargetsStatus[i].Condition = configv1alpha1.Updating()
 		}
+		*/
 	}
 
 	// These configs no longer match a target
@@ -330,13 +341,26 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(configSet.DeepCopy())
 	// update status
-	configSet.ObjectMeta.ManagedFields = nil
-	configSet.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
+	newConfigSet := configv1alpha1.BuildConfigSet(
+		metav1.ObjectMeta{
+			Namespace: configSet.Namespace,
+			Name: configSet.Name,
+		},
+		configv1alpha1.ConfigSetSpec{},
+		configv1alpha1.ConfigSetStatus{},
+	)
+	newConfigSet.SetConditions(configSet.GetCondition(condv1alpha1.ConditionTypeReady))
+	newConfigSet.SetConditions(condv1alpha1.Ready())
 
-	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status new", configSet.Status)
+	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess -> changes")
 
-	return r.Client.Status().Patch(ctx, configSet, client.Apply, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newConfigSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
+
+	return r.Client.Status().Patch(ctx, newConfigSet, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -351,12 +375,28 @@ func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	configSet.ObjectMeta.ManagedFields = nil
-	configSet.SetConditions(condv1alpha1.Failed(msg))
-	log.Error(msg)
-	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
-	return r.Client.Status().Patch(ctx, configSet, client.Apply, &client.SubResourcePatchOptions{
+	newConfigSet := configv1alpha1.BuildConfigSet(
+		metav1.ObjectMeta{
+			Namespace: configSet.Namespace,
+			Name: configSet.Name,
+		},
+		configv1alpha1.ConfigSetSpec{},
+		configv1alpha1.ConfigSetStatus{},
+	)
+	newConfigSet.SetConditions(configSet.GetCondition(condv1alpha1.ConditionTypeReady))
+	newConfigSet.SetConditions(condv1alpha1.Failed(msg))
+
+	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess -> changes")
+
+	log.Error(msg)
+	r.recorder.Eventf(newConfigSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
+
+	return r.Client.Status().Patch(ctx, newConfigSet, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
