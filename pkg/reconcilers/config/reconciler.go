@@ -225,13 +225,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	if !newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
 		log.Info("handleSuccess -> condition changed")
 	}
-	if equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
+	if !equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
 		log.Info("handleSuccess -> LastKnownGoodSchema changed", "schema-a", newConfig.Status.LastKnownGoodSchema, "schema-b", cfg.Status.LastKnownGoodSchema)
 	}
-	if equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
+	if !equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
 		log.Info("handleSuccess -> Deviations changed")
 	}
-	if equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+	if !equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> AppliedConfig changed")
 	}
 
