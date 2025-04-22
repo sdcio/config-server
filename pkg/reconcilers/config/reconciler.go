@@ -35,14 +35,14 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
-
+	"k8s.io/utils/ptr"
 )
 
 func init() {
@@ -198,7 +198,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	newConfig := configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
 			Namespace: cfg.Namespace,
-			Name: cfg.Name,
+			Name:      cfg.Name,
 		},
 		configv1alpha1.ConfigSpec{},
 		configv1alpha1.ConfigStatus{},
@@ -209,12 +209,12 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	newConfig.Status.LastKnownGoodSchema = schema
 	newConfig.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	newConfig.Status.AppliedConfig = &cfg.Spec
-	
+
 	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
 		equality.Semantic.DeepEqual(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
 		equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) &&
 		equality.Semantic.DeepEqual(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
-			log.Info("handleSuccess -> no change")
+		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess -> changes")
@@ -226,6 +226,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
+			Force:        ptr.To(true),
 		},
 	})
 }
@@ -242,14 +243,14 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	newConfig := configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{
 			Namespace: cfg.Namespace,
-			Name: cfg.Name,
+			Name:      cfg.Name,
 		},
 		configv1alpha1.ConfigSpec{},
 		configv1alpha1.ConfigStatus{},
 	)
 
 	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
-	
+
 	if recoverable {
 		cfg.SetConditions(condv1alpha1.Failed(msg))
 	} else {
@@ -265,7 +266,7 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	}
 
 	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
-			log.Info("handleError -> no change")
+		log.Info("handleError -> no change")
 		return nil
 	}
 	log.Info("handleError -> changes")

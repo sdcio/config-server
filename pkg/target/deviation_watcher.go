@@ -30,7 +30,9 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -181,6 +183,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		if configName == unManagedConfigDeviation {
 			cfg = &configv1alpha1.UnManagedConfig{}
 			log.Info("unmanaged deviations", "devs", len(configDevs))
+			r.processConfigDeviationsForUnManagedConfig(ctx, nsn, cfg, configDevs)
 		} else {
 			cfg = &configv1alpha1.Config{}
 			parts := strings.SplitN(configName, ".", 2)
@@ -193,22 +196,65 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 				return
 			}
 			log.Info("managed deviations", "devs", len(configDevs))
+			r.processConfigDeviationsForConfig(ctx, nsn, cfg, configDevs)
 		}
-		r.processConfigDeviations(ctx, nsn, cfg, configDevs)
+
 	}
 }
 
-func (r *DeviationWatcher) processConfigDeviations(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
+func (r *DeviationWatcher) processConfigDeviationsForConfig(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
 	log := log.FromContext(ctx)
+	/*
+		if err := r.client.Get(ctx, nsn, cfg); err != nil {
+			log.Error("cannot get intent for recieved deviation", "config", nsn)
+			return
+		}
+	*/
+	newConfig := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{
+			Namespace: nsn.Namespace,
+			Name:      nsn.Name,
+		},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+
+	//patch := client.MergeFrom(cfg.DeepObjectCopy())
+	newConfig.SetDeviations(devs)
+	if err := r.client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: "deviationManager",
+			Force:        ptr.To(true),
+		},
+	}); err != nil {
+		log.Error("cannot update intent for recieved deviation", "config", nsn)
+	}
+}
+
+func (r *DeviationWatcher) processConfigDeviationsForUnManagedConfig(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
+	log := log.FromContext(ctx)
+	/*
 	if err := r.client.Get(ctx, nsn, cfg); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn)
 		return
 	}
-	patch := client.MergeFrom(cfg.DeepObjectCopy())
-	cfg.SetDeviations(devs)
-	if err := r.client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+		*/
+
+	newUnmanagedConfig := configv1alpha1.BuildUnManagedConfig(
+		metav1.ObjectMeta{
+			Namespace: nsn.Namespace,
+			Name:      nsn.Name,
+		},
+		configv1alpha1.UnManagedConfigSpec{},
+		configv1alpha1.UnManagedConfigStatus{},
+	)
+
+	//patch := client.MergeFrom(cfg.DeepObjectCopy())
+	newUnmanagedConfig.SetDeviations(devs)
+	if err := r.client.Status().Patch(ctx, newUnmanagedConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: "deviationManager",
+			Force:        ptr.To(true),
 		},
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
