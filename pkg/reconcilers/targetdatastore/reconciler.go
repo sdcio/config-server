@@ -44,6 +44,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 func init() {
@@ -262,16 +263,28 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 	log := log.FromContext(ctx)
 	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
-	target.Status.UsedReferences = nil
+
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
+	newTarget.Status.UsedReferences = nil
 	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
 
-	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("updateStatusReinitializing", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -291,18 +304,40 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	//log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.DatastoreReady())
-	target.Status.UsedReferences = usedRefs
-	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreReady())
+	newTarget.Status.UsedReferences = usedRefs
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -312,20 +347,43 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetConditions(invv1alpha1.DatastoreFailed(msg))
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed(msg))
 	//target.SetOverallStatus()
 	if resetUsedRefs {
-		target.Status.UsedReferences = nil
+		newTarget.Status.UsedReferences = nil
 	}
-	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
+			log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
+
+	log.Error(msg, "error", err)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

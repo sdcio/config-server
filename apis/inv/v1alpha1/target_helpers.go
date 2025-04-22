@@ -18,10 +18,12 @@ package v1alpha1
 
 import (
 	"fmt"
+	strings "strings"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,24 +42,24 @@ func (r *Target) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-func (r *Target) SetOverallStatus() {
+func (r *Target) SetOverallStatus(target *Target) {
 	ready := true
 	msg := "target ready"
-	if ready && !r.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
 		ready = false
-		msg = "discovery not ready"
+		msg = fmt.Sprintf("discovery not ready")// target.GetCondition(ConditionTypeDiscoveryReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
 		ready = false
-		msg = "datastore not ready"
+		msg = fmt.Sprintf("datastore not ready") // target.GetCondition(ConditionTypeDatastoreReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeConfigReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeConfigReady).IsTrue() {
 		ready = false
-		msg = "config not ready"
+		msg = fmt.Sprintf("config not ready")//, target.GetCondition(ConditionTypeConfigReady).Message)
 	}
-	if ready && !r.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
-		msg = "target connection not ready"
+		msg =fmt.Sprintf("datastore connection not ready")// target.GetCondition(ConditionTypeTargetConnectionReady).Message)
 	}
 	if ready {
 		r.Status.SetConditions(condv1alpha1.Ready())
@@ -66,28 +68,50 @@ func (r *Target) SetOverallStatus() {
 	}
 }
 
+func (r *Target) SetStatusResourceVersion() {
+	r.Status.ResourceVersion = ptr.To(r.ObjectMeta.ResourceVersion)
+}
+
+func (r *Target) SetStatusGeneration() {
+	r.Status.Generation = ptr.To(r.ObjectMeta.Generation)
+}
+
+func (r *Target) HasResourceversionAndGenerationChanged() bool {
+	return r.Status.ResourceVersion != nil && *r.Status.ResourceVersion != r.ObjectMeta.ResourceVersion &&
+		r.Status.Generation != nil && *r.Status.Generation != r.ObjectMeta.Generation
+}
+
 func (r *Target) IsDatastoreReady() bool {
 	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue
+		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) IsReady() bool {
-	return r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeConfigReady).Status == metav1.ConditionTrue
+	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) NotReadyReason() string {
-	discoveryReadyCondition := r.GetCondition(ConditionTypeDiscoveryReady)
-	datastoreReadyCondition := r.GetCondition(ConditionTypeDatastoreReady)
-	return fmt.Sprintf("ready: %v, reason: %s, msg: %s dsready: %v, reason: %s, msg: %s",
-		discoveryReadyCondition.Status,
-		discoveryReadyCondition.Reason,
-		discoveryReadyCondition.Message,
-		datastoreReadyCondition.Status,
-		datastoreReadyCondition.Reason,
-		datastoreReadyCondition.Message,
-	)
+	reasons := []string{}
+
+	check := func(name string, cond condv1alpha1.Condition) {
+		if cond.Status != metav1.ConditionTrue {
+			reasons = append(reasons,
+				fmt.Sprintf("%s: %s (Reason: %s, Msg: %s)",
+					name, cond.Status, cond.Reason, cond.Message))
+		}
+	}
+
+	check("DiscoveryReady", r.GetCondition(ConditionTypeDiscoveryReady))
+	check("DatastoreReady", r.GetCondition(ConditionTypeDatastoreReady))
+	check("ConfigReady", r.GetCondition(ConditionTypeConfigReady))
+	check("ConnectionReady", r.GetCondition(ConditionTypeTargetConnectionReady))
+
+	if len(reasons) == 0 {
+		return "All conditions are ready"
+	}
+
+	return strings.Join(reasons, "; ")
 }
 
 func (r *TargetList) GetItems() []client.Object {

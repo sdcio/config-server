@@ -228,14 +228,15 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(schema.DeepCopy())
+	//patch := client.MergeFrom(schema.DeepCopy())
 	// update status
+	schema.ObjectMeta.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status new", schema.Status)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, schema, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -251,7 +252,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-
+	schema.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(schema, corev1.EventTypeWarning, crName, msg)

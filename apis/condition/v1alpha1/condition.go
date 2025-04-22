@@ -116,13 +116,11 @@ func (r *ConditionedStatus) SetConditions(c ...Condition) {
 				continue
 			}
 
-			if existing.Equal(new) {
-				exists = true
-				continue
-			}
-
-			r.Conditions[i] = new
 			exists = true
+			if existing.Equal(new) {
+				break
+			}
+			r.Conditions[i] = new
 		}
 		if !exists {
 			r.Conditions = append(r.Conditions, new)

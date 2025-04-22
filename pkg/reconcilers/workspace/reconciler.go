@@ -177,12 +177,13 @@ func (r *reconciler) handleStatus(
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	patch := client.MergeFrom(workspace.DeepCopy())
+	//patch := client.MergeFrom(workspace.DeepCopy())
 
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
 
+	workspace.ManagedFields = nil
 	workspace.SetConditions(condition)
 
 	// Determine event type based on condition type
@@ -194,7 +195,7 @@ func (r *reconciler) handleStatus(
 	}
 
 	result := ctrl.Result{Requeue: requeue}
-	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
+	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

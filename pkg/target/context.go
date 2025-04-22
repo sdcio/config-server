@@ -52,9 +52,10 @@ type Context struct {
 	collector     *Collector
 	subscriptions *Subscriptions
 
-	m            sync.RWMutex
-	ready        bool
-	datastoreReq *sdcpb.CreateDataStoreRequest
+	m                sync.RWMutex
+	ready            bool
+	recoveredConfigs bool
+	datastoreReq     *sdcpb.CreateDataStoreRequest
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
@@ -96,6 +97,21 @@ func (r *Context) setReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.ready = b
+	if !b {
+		r.recoveredConfigs = false
+	}
+}
+
+func (r *Context) setRecoveredConfigs() {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.recoveredConfigs = true
+}
+
+func (r *Context) getRecoveredConfigs() bool {
+	r.m.RLock()
+	defer r.m.RUnlock()
+	return r.recoveredConfigs
 }
 
 func (r *Context) GetDSClient() dsclient.Client {
@@ -161,6 +177,8 @@ func (r *Context) IsReady() bool {
 }
 
 func (r *Context) SetNotReady(ctx context.Context) {
+	log := log.FromContext(ctx)
+	log.Info("SetNotReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
 	r.setReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
@@ -172,6 +190,13 @@ func (r *Context) SetNotReady(ctx context.Context) {
 
 func (r *Context) SetReady(ctx context.Context) {
 	log := log.FromContext(ctx)
+	log.Info("SetReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
+	// if we already are in ready state we can ignore
+	if r.getReady() {
+		return
+	}
+
+	// if we are not ready we set the status to ready and start the deviation watcher and subscription handler
 	r.setReady(true)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
@@ -184,6 +209,20 @@ func (r *Context) SetReady(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func (r *Context) SetRecoveredConfigs(ctx context.Context) {
+	log := log.FromContext(ctx)
+	r.setRecoveredConfigs()
+
+	if !r.IsReady() {
+		log.Error("setting resource version and generation w/o target being ready")
+		r.SetReady(ctx)
+	}
+}
+
+func (r *Context) IsConfigRecovered(ctx context.Context) bool {
+	return r.getRecoveredConfigs()
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
@@ -259,6 +298,9 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	}); err != nil {
 		return msg, err
 	}
+
+	// we initialize the context with the recovered configs
+	r.SetRecoveredConfigs(ctx)
 	return msg, nil
 }
 

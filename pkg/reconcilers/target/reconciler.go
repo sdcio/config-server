@@ -30,7 +30,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	sdctarget "github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +39,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 )
 
 func init() {
@@ -78,7 +78,6 @@ type reconciler struct {
 	client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
-	dataServerStore storebackend.Storer[sdcctx.DSContext]
 	recorder        record.EventRecorder
 }
 
@@ -158,22 +157,53 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "update targetstore failed", errs), errUpdateStatus)
 	}
 
-	return ctrl.Result{RequeueAfter: 5 * time.Minute}, pkgerrors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+
+	return r.handleSuccess(ctx, targetOrig)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.TargetConnectionReady())
-	target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady))
+	newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.TargetConnectionReady())
+	newTarget.SetOverallStatus(target)
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	result := ctrl.Result{RequeueAfter: 5 * time.Minute}
+	if !target.IsReady() {
+		result= ctrl.Result{Requeue: true}
+	}
+	
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
+		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
+			return result, nil
+	}
+	log.Info("handleSuccess -> change", 
+			"connReady condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)),
+			"Ready condition change", newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)),
+	)
+
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+
+	return result, r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -183,17 +213,30 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
-	target.SetOverallStatus()
-	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady))
+	newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+	newTarget.SetOverallStatus(target)
+	log.Error(msg, "error", err)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+
+	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

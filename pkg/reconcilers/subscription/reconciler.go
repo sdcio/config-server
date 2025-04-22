@@ -32,7 +32,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	sdctarget "github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,7 +80,7 @@ type reconciler struct {
 	client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
-	dataServerStore storebackend.Storer[sdcctx.DSContext]
+	//dataServerStore storebackend.Storer[sdcctx.DSContext]
 	recorder        record.EventRecorder
 }
 
@@ -184,7 +183,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(state.DeepCopy())
+	//patch := client.MergeFrom(state.DeepCopy())
 	// update status
 	state.SetConditions(condv1alpha1.Ready())
 	state.SetTargets(targets)
@@ -192,7 +191,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status new", state.Status)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, state, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -208,7 +207,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-
+	state.ObjectMeta.ManagedFields = nil
 	state.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(state, corev1.EventTypeWarning, crName, msg)

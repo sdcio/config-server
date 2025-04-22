@@ -257,8 +257,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(discoveryRule.DeepCopy())
+	//patch := client.MergeFrom(discoveryRule.DeepCopy())
 	// update status
+	discoveryRule.ObjectMeta.ManagedFields = nil
 	discoveryRule.SetConditions(condv1alpha1.Ready())
 	if changed {
 		discoveryRule.Status.StartTime = metav1.Now()
@@ -267,7 +268,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status new", discoveryRule.Status)
 
-	return r.Client.Status().Patch(ctx, discoveryRule, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -277,17 +278,18 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(discoveryRule.DeepCopy())
+	//patch := client.MergeFrom(discoveryRule.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+	discoveryRule.ObjectMeta.ManagedFields = nil
 	discoveryRule.Status.StartTime = metav1.Time{}
 	discoveryRule.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
 
-	return r.Client.Status().Patch(ctx, discoveryRule, patch, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
