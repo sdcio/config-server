@@ -214,9 +214,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	newConfig.Status.AppliedConfig = &cfg.Spec
 
 	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
-		equality.Semantic.DeepEqual(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
+		equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
 		equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) &&
-		equality.Semantic.DeepEqual(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+		equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
@@ -225,13 +225,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	if !newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
 		log.Info("handleSuccess -> condition changed")
 	}
-	if equality.Semantic.DeepEqual(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
+	if equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
 		log.Info("handleSuccess -> LastKnownGoodSchema changed")
 	}
 	if equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
 		log.Info("handleSuccess -> Deviations changed")
 	}
-	if equality.Semantic.DeepEqual(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+	if equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> AppliedConfig changed")
 	}
 
@@ -245,6 +245,26 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 			Force:        ptr.To(true),
 		},
 	})
+}
+
+func equalAppliedConfig(a, b *configv1alpha1.ConfigSpec) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return equality.Semantic.DeepEqual(a, b)
+}
+
+func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return equality.Semantic.DeepEqual(a, b)
 }
 
 func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
