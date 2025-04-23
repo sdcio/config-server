@@ -147,7 +147,7 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 	// set old condition to avoid updating the new status if not changed
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
 	// set new conditions
-	newTarget.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	newTarget.SetConditions(invv1alpha1.DiscoveryReady())
 
 
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
@@ -161,6 +161,8 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
 		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
 	)
+
+	log.Info("newTarget", "target", newTarget)
 
 	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
