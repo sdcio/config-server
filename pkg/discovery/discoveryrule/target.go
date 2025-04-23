@@ -82,8 +82,8 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 		return nil, err
 	}
 
-	return &invv1alpha1.Target{
-		ObjectMeta: metav1.ObjectMeta{
+	return invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
 			Name:        getTargetName(di.HostName),
 			Namespace:   r.cfg.CR.GetNamespace(),
 			Labels:      labels,
@@ -100,18 +100,18 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 					Controller: ptr.To[bool](true),
 				}},
 		},
-		Spec: targetSpec,
-		Status: invv1alpha1.TargetStatus{
+		targetSpec,
+		invv1alpha1.TargetStatus{
 			DiscoveryInfo: di,
 		},
-	}, nil
+	), nil
 }
 
 // w/o seperated discovery info
 
 func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
-	di := newTarget.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address, "discovery info", di)
+	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address)
 
 	// Check if the target already exists
 	target := &invv1alpha1.Target{}
