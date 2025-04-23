@@ -223,8 +223,7 @@ func (r *DeviationWatcher) processConfigDeviationsForConfig(ctx context.Context,
 	newConfig.SetDeviations(devs)
 	if err := r.client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
-			FieldManager: "deviationManager",
-			Force:        ptr.To(true),
+			FieldManager: "ConfigController",
 		},
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
