@@ -267,50 +267,33 @@ func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
 	return equality.Semantic.DeepEqual(*a, *b)
 }
 
-func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+func (r *reconciler) handleError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(cfg.DeepCopy())
+	patch := client.MergeFrom(config.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	newConfig := configv1alpha1.BuildConfig(
-		metav1.ObjectMeta{
-			Namespace: cfg.Namespace,
-			Name:      cfg.Name,
-		},
-		configv1alpha1.ConfigSpec{},
-		configv1alpha1.ConfigStatus{},
-	)
-
-	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
-
 	if recoverable {
-		cfg.SetConditions(condv1alpha1.Failed(msg))
+		config.SetConditions(condv1alpha1.Failed(msg))
 	} else {
 		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: cfg.GetResourceVersion(),
+			ResourceVersion: config.GetResourceVersion(),
 			Message:         msg,
 		}
 		newmsg, err := json.Marshal(newMessage)
 		if err != nil {
 			return err
 		}
-		cfg.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
+		config.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
 	}
-
-	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
-		log.Info("handleError -> no change")
-		return nil
-	}
-	log.Info("handleError -> changes")
 
 	log.Error(msg)
-	r.recorder.Eventf(newConfig, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
+	r.recorder.Eventf(config, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
 
-	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

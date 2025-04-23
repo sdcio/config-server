@@ -339,20 +339,22 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status old", configSet.DeepCopy().Status)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(configSet.DeepCopy())
+	patch := client.MergeFrom(configSet.DeepCopy())
 	// update status
-	newConfigSet := configSet.DeepCopy()
-	newConfigSet.SetConditions(condv1alpha1.Ready())
+	//newConfigSet := configSet.DeepCopy()
+	configSet.SetConditions(condv1alpha1.Ready())
 
-	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
+	/*
+	if configSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess -> changes")
+	*/
 
-	r.recorder.Eventf(newConfigSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
+	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
 
-	return r.Client.Status().Patch(ctx, newConfigSet, client.Apply, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -362,25 +364,25 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(configSet.DeepCopy())
+	patch := client.MergeFrom(configSet.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	newConfigSet := configSet.DeepCopy()
-	newConfigSet.SetConditions(condv1alpha1.Failed(msg))
+	//newConfigSet := configSet.DeepCopy()
+	configSet.SetConditions(condv1alpha1.Failed(msg))
 
-	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
+	if configSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess -> changes")
 
 	log.Error(msg)
-	r.recorder.Eventf(newConfigSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
+	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
-	return r.Client.Status().Patch(ctx, newConfigSet, client.Apply, &client.SubResourcePatchOptions{
+	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
