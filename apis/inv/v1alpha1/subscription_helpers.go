@@ -53,8 +53,8 @@ func (r *SubscriptionParameters) GetIntervalSeconds() int {
 	return int(r.Interval.Duration.Seconds())
 }
 
-func (r *Subscription) GetExistingTargets() sets.String {
-	existingTargetSet := sets.NewString()
+func (r *Subscription) GetExistingTargets() sets.Set[string] {
+	existingTargetSet := sets.New[string]()
 	for _, targetname := range r.Status.Targets {
 		existingTargetSet.Insert(targetname)
 	}

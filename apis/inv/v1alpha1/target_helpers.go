@@ -47,19 +47,19 @@ func (r *Target) SetOverallStatus(target *Target) {
 	msg := "target ready"
 	if ready && !target.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
 		ready = false
-		msg = fmt.Sprintf("discovery not ready")// target.GetCondition(ConditionTypeDiscoveryReady).Message)
+		msg = "discovery not ready"// target.GetCondition(ConditionTypeDiscoveryReady).Message)
 	}
 	if ready && !target.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
 		ready = false
-		msg = fmt.Sprintf("datastore not ready") // target.GetCondition(ConditionTypeDatastoreReady).Message)
+		msg = "datastore not ready" // target.GetCondition(ConditionTypeDatastoreReady).Message)
 	}
 	if ready && !target.GetCondition(ConditionTypeConfigReady).IsTrue() {
 		ready = false
-		msg = fmt.Sprintf("config not ready")//, target.GetCondition(ConditionTypeConfigReady).Message)
+		msg = "config not ready"//, target.GetCondition(ConditionTypeConfigReady).Message)
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
-		msg =fmt.Sprintf("datastore connection not ready")// target.GetCondition(ConditionTypeTargetConnectionReady).Message)
+		msg = "datastore connection not ready"// target.GetCondition(ConditionTypeTargetConnectionReady).Message)
 	}
 	if ready {
 		r.Status.SetConditions(condv1alpha1.Ready())
