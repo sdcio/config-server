@@ -102,7 +102,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cfgOrig := cfg.DeepCopy()
 	internalcfg := &config.Config{}
 	if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(cfg, internalcfg, nil); err != nil {
-		r.handleError(ctx, cfg, "cannot convert config", err, true)
+		r.handleError(ctx, cfgOrig, cfg, "cannot convert config", err, true)
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 
@@ -120,7 +120,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				// The target config might not be deleted
 				if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 					return ctrl.Result{Requeue: true},
-						errors.Wrap(r.handleError(ctx, cfgOrig, "cannot delete finalizer", err, true), errUpdateStatus)
+						errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
 				}
 			}
 			// all grpc errors except resource exhausted will not retry
@@ -129,27 +129,27 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if errors.As(err, &txErr) && txErr.Recoverable {
 				// Retry logic for recoverable errors
 				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err, true), errUpdateStatus)
+					errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "set intent failed (recoverable)", err, true), errUpdateStatus)
 			}
 
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err, false), errUpdateStatus)
+			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "delete intent failed", err, false), errUpdateStatus)
 
 		}
 		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot delete finalizer", err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cfg); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot add finalizer", err, true), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot add finalizer", err, true), errUpdateStatus)
 	}
 
 	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
 		log.Info("applying config -> target not ready")
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target not ready", err, true), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "target not ready", err, true), errUpdateStatus)
 	}
 
 	log.Info("applying config -> target ready")
@@ -178,15 +178,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.As(err, &txErr) && txErr.Recoverable {
 			// Retry logic for recoverable errors
 			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-				errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed (recoverable)", warnings), err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("set intent failed (recoverable)", warnings), err, true), errUpdateStatus)
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed", warnings), err, true), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("set intent failed", warnings), err, true), errUpdateStatus)
 	}
 
 	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	if err := configv1alpha1.Convert_config_ConfigStatusLastKnownGoodSchema_To_v1alpha1_ConfigStatusLastKnownGoodSchema(internalSchema, schema, nil); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("cannot convert schema", warnings), err, true), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot convert schema", warnings), err, true), errUpdateStatus)
 	}
 
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, warnings), errUpdateStatus)
@@ -267,10 +267,10 @@ func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
 	return equality.Semantic.DeepEqual(*a, *b)
 }
 
-func (r *reconciler) handleError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+func (r *reconciler) handleError(ctx context.Context, configOrig, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(config.DeepCopy())
+	patch := client.MergeFrom(configOrig)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
