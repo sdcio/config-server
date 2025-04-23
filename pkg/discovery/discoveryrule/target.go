@@ -109,27 +109,30 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) error {
-	di := targetNew.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
+func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
+	di := newTarget.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address, "discovery info", di)
 
 	// Check if the target already exists
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: targetNew.Namespace,
-		Name:      targetNew.Name,
+		Namespace: newTarget.Namespace,
+		Name:      newTarget.Name,
 	}, target); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		log.Info("discovery target apply, target does not exist -> create")
 
-		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
+		target := newTarget.DeepCopy()
+
+		if err := r.client.Create(ctx, target, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
 		time.Sleep(500 * time.Millisecond)
 
 		// we get the target again to get the latest update
+		/*
 		target = &invv1alpha1.Target{}
 		if err := r.client.Get(ctx, types.NamespacedName{
 			Namespace: targetNew.Namespace,
@@ -138,13 +141,9 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 			// the resource should always exist
 			return err
 		}
+			*/
 	}
 
-	newTarget := invv1alpha1.BuildTarget(
-		targetNew.ObjectMeta,
-		targetNew.Spec,
-		targetNew.Status,
-	)
 	// set old condition to avoid updating the new status if not changed
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
 	// set new conditions
@@ -162,8 +161,6 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
 		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
 	)
-
-
 
 	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
