@@ -135,7 +135,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	msg := r.determineOverallStatus(ctx, configSet)
 	if msg != "" {
-		return ctrl.Result{Requeue: true},
+		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, msg, nil), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, configSetOrig, configSet), errUpdateStatus)
