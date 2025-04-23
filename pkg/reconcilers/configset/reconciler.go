@@ -341,19 +341,11 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(configSet.DeepCopy())
 	// update status
-	newConfigSet := configv1alpha1.BuildConfigSet(
-		metav1.ObjectMeta{
-			Namespace: configSet.Namespace,
-			Name: configSet.Name,
-		},
-		configv1alpha1.ConfigSetSpec{},
-		configv1alpha1.ConfigSetStatus{},
-	)
-	newConfigSet.SetConditions(configSet.GetCondition(condv1alpha1.ConditionTypeReady))
+	newConfigSet := configSet.DeepCopy()
 	newConfigSet.SetConditions(condv1alpha1.Ready())
 
 	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
-			log.Info("handleSuccess -> no change")
+		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess -> changes")
@@ -380,7 +372,7 @@ func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.
 	newConfigSet.SetConditions(condv1alpha1.Failed(msg))
 
 	if newConfigSet.GetCondition(condv1alpha1.ConditionTypeReady).Equal(configSet.GetCondition(condv1alpha1.ConditionTypeReady)) {
-			log.Info("handleSuccess -> no change")
+		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess -> changes")
