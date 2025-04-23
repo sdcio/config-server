@@ -88,7 +88,10 @@ func (r *Target) IsDatastoreReady() bool {
 }
 
 func (r *Target) IsReady() bool {
-	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
+	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
+		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue 
 }
 
 func (r *Target) NotReadyReason() string {

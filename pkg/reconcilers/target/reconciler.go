@@ -106,7 +106,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
-		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second},
+		return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
 			pkgerrors.Wrap(r.handleError(ctx, targetOrig, "datastore not ready", nil), errUpdateStatus)
 	}
 
@@ -233,6 +233,17 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
 	newTarget.SetOverallStatus(target)
+
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
+		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
+			return nil
+	}
+	log.Info("handleSuccess -> change", 
+			"connReady condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)),
+			"Ready condition change", newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)),
+	)
+
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
