@@ -149,7 +149,6 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DiscoveryReady())
 
-
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
 		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
 		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo){
