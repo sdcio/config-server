@@ -114,7 +114,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !cfg.GetDeletionTimestamp().IsZero() {
 		if _, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
-			if errors.Is(err, target.TargetLookupErr) {
+			if errors.Is(err, target.ErrLookup) {
 				log.Warn("deleted config, target unavailable", "config", req, "err", err)
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
