@@ -38,3 +38,7 @@ func (e *LookupError) Error() string {
 	}
 	return e.Message
 }
+
+func (e *LookupError) Unwrap() error {
+	return e.WrappedError
+}

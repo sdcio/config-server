@@ -122,6 +122,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					return ctrl.Result{Requeue: true},
 						errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
 				}
+				return ctrl.Result{}, nil
 			}
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
