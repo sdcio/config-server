@@ -110,6 +110,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot delete child configs", errs), errUpdateStatus)
 		}
 
+		// it is possible that the child resource cannot be deleted - due to dependency
+		// we should only remove the finalizer when all resources get deleted.
+		if len(existingChildConfigs) != 0 {
+			log.Info("not all resources deleted, will retry once upon child config removal")
+			return ctrl.Result{}, nil
+		}
+
 		if err := r.finalizer.RemoveFinalizer(ctx, configSet); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot delete finalizer", err), errUpdateStatus)
