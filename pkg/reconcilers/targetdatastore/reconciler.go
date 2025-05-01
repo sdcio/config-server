@@ -44,6 +44,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 func init() {
@@ -170,7 +171,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
 	if target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
 		// target not ready so we can wait till the target goes to ready state
-		return ctrl.Result{Requeue: true, RequeueAfter: 1 * time.Second},
+		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, targetOrig, "discovery not ready", nil, true), errUpdateStatus)
 	}
 
@@ -262,16 +263,28 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 	log := log.FromContext(ctx)
 	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
-	target.Status.UsedReferences = nil
+
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed("reinitializing"))
+	newTarget.Status.UsedReferences = nil
 	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "reinitializing")
 
-	log.Debug("updateStatusReinitializing", "key", target.GetNamespacedName(), "status new", target.Status)
+	log.Debug("updateStatusReinitializing", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	if err := r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -291,18 +304,40 @@ func (r *reconciler) updateStatusReinitializing(ctx context.Context, target *inv
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	//log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.DatastoreReady())
-	target.Status.UsedReferences = usedRefs
-	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreReady())
+	newTarget.Status.UsedReferences = usedRefs
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -312,20 +347,43 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetConditions(invv1alpha1.DatastoreFailed(msg))
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DatastoreFailed(msg))
 	//target.SetOverallStatus()
 	if resetUsedRefs {
-		target.Status.UsedReferences = nil
+		newTarget.Status.UsedReferences = nil
 	}
-	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences){
+			log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
+		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+	)
+
+	log.Error(msg, "error", err)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -412,7 +470,7 @@ func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target
 	}
 	// timeout to wait for target connection in the data-server since it is just created
 	time.Sleep(1 * time.Second)
-	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	resp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: targetKey.String()})
 	if err != nil {
 		log.Error("cannot get target from the datastore", "key", targetKey.String(), "error", err)
 		return false, err
@@ -463,7 +521,7 @@ func (r *reconciler) updateDataStoreTargetReady(ctx context.Context, target *inv
 		return changed, nil, err
 	}
 	// get the datastore from the dataserver
-	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{Name: targetKey.String()})
+	getRsp, err := tctx.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: targetKey.String()})
 	if err != nil {
 		// datastore does not exist or dataserver is unhealthy
 		if !strings.Contains(err.Error(), "unknown datastore") {
@@ -517,14 +575,14 @@ func (r *reconciler) hasDataStoreChanged(
 ) bool {
 	log := log.FromContext(ctx)
 	log.Debug("hasDataStoreChanged",
-		"name", fmt.Sprintf("%s/%s", req.Name, rsp.Name),
+		"name", fmt.Sprintf("%s/%s", req.GetDatastoreName(), rsp.GetDatastoreName()),
 		"schema Name", fmt.Sprintf("%s/%s", req.Schema.Name, rsp.Schema.Name),
 		"schema Vendor", fmt.Sprintf("%s/%s", req.Schema.Vendor, rsp.Schema.Vendor),
 		"schema Version", fmt.Sprintf("%s/%s", req.Schema.Version, rsp.Schema.Version),
 		"target Type", fmt.Sprintf("%s/%s", req.Target.Type, rsp.Target.Type),
 		"target Address", fmt.Sprintf("%s/%s", req.Target.Address, rsp.Target.Address),
 	)
-	if req.Name != rsp.Name {
+	if req.GetDatastoreName() != rsp.GetDatastoreName() {
 		return true
 	}
 
@@ -668,7 +726,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	}
 
 	req := &sdcpb.CreateDataStoreRequest{
-		Name: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
+		DatastoreName: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
 		Target: &sdcpb.Target{
 			Type:    string(connProfile.Spec.Protocol),
 			Address: target.Spec.Address,

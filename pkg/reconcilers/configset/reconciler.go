@@ -107,38 +107,45 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		if errs != nil {
 			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, configSetOrig, "cannot delete child configs", errs), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot delete child configs", errs), errUpdateStatus)
+		}
+
+		// it is possible that the child resource cannot be deleted - due to dependency
+		// we should only remove the finalizer when all resources get deleted.
+		if len(existingChildConfigs) != 0 {
+			log.Info("not all resources deleted, will retry once upon child config removal")
+			return ctrl.Result{}, nil
 		}
 
 		if err := r.finalizer.RemoveFinalizer(ctx, configSet); err != nil {
 			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, configSetOrig, "cannot delete finalizer", err), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot delete finalizer", err), errUpdateStatus)
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, configSet); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, "cannot add finalizer", err), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot add finalizer", err), errUpdateStatus)
 	}
 
 	targets, err := r.unrollDownstreamTargets(ctx, configSet)
 	if err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, "cannot unroll downstream targets", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot unroll downstream targets", nil), errUpdateStatus)
 	}
 
 	if err := r.ensureConfigs(ctx, configSet, targets); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, "cannot ensure configs", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", nil), errUpdateStatus)
 	}
 
 	msg := r.determineOverallStatus(ctx, configSet)
 	if msg != "" {
-		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, msg, nil), errUpdateStatus)
+		return ctrl.Result{},
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, msg, nil), errUpdateStatus)
 	}
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, configSetOrig), errUpdateStatus)
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, configSetOrig, configSet), errUpdateStatus)
 }
 
 // unrollDownstreamTargets list the targets
@@ -324,11 +331,11 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 	)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha1.ConfigSet) error {
+func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status old", configSet.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(configSet.DeepCopy())
+	patch := client.MergeFrom(configSetOrig)
 	// update status
 	configSet.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
@@ -342,10 +349,10 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSet *configv1alpha
 	})
 }
 
-func (r *reconciler) handleError(ctx context.Context, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
+func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(configSet.DeepCopy())
+	patch := client.MergeFrom(configSetOrig.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())

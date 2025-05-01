@@ -35,11 +35,14 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"k8s.io/utils/ptr"
 )
 
 func init() {
@@ -99,7 +102,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cfgOrig := cfg.DeepCopy()
 	internalcfg := &config.Config{}
 	if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(cfg, internalcfg, nil); err != nil {
-		r.handleError(ctx, cfg, "cannot convert config", err, true)
+		r.handleError(ctx, cfgOrig, cfg, "cannot convert config", err, true)
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 
@@ -112,12 +115,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !cfg.GetDeletionTimestamp().IsZero() {
 		if _, err := r.targetHandler.DeleteIntent(ctx, targetKey, internalcfg, false); err != nil {
 			if errors.Is(err, target.ErrLookup) {
+				log.Warn("deleted config, target unavailable", "config", req, "err", err)
 				// Since the target is not available we delete the resource
 				// The target config might not be deleted
 				if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 					return ctrl.Result{Requeue: true},
-						errors.Wrap(r.handleError(ctx, cfgOrig, "cannot delete finalizer", err, true), errUpdateStatus)
+						errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
 				}
+				return ctrl.Result{}, nil
 			}
 			// all grpc errors except resource exhausted will not retry
 			// and a human need to intervene
@@ -125,30 +130,30 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			if errors.As(err, &txErr) && txErr.Recoverable {
 				// Retry logic for recoverable errors
 				return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-					errors.Wrap(r.handleError(ctx, cfgOrig, "set intent failed (recoverable)", err, true), errUpdateStatus)
+					errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "set intent failed (recoverable)", err, true), errUpdateStatus)
 			}
 
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "delete intent failed", err, false), errUpdateStatus)
+			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "delete intent failed", err, false), errUpdateStatus)
 
 		}
 		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot delete finalizer", err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, cfg); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot add finalizer", err, true), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot add finalizer", err, true), errUpdateStatus)
 	}
 
 	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
-		cfg.Status.LastKnownGoodSchema = nil
-		cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-		cfg.Status.AppliedConfig = &cfg.Spec
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, "target error", err, true), errUpdateStatus)
+		log.Info("applying config -> target not ready")
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "target not ready", err, true), errUpdateStatus)
 	}
+
+	log.Info("applying config -> target ready")
 
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
@@ -173,17 +178,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		var txErr *target.TransactionError
 		if errors.As(err, &txErr) && txErr.Recoverable {
 			// Retry logic for recoverable errors
-
 			return ctrl.Result{Requeue: true, RequeueAfter: 5 * time.Second},
-				errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed (recoverable)", warnings), err, true), errUpdateStatus)
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("set intent failed (recoverable)", warnings), err, true), errUpdateStatus)
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("set intent failed", warnings), err, true), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("set intent failed", warnings), err, true), errUpdateStatus)
 	}
 
 	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	if err := configv1alpha1.Convert_config_ConfigStatusLastKnownGoodSchema_To_v1alpha1_ConfigStatusLastKnownGoodSchema(internalSchema, schema, nil); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, processMessageWithWarning("cannot convert schema", warnings), err, true), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot convert schema", warnings), err, true), errUpdateStatus)
 	}
 
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, warnings), errUpdateStatus)
@@ -193,49 +197,104 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(cfg.DeepCopy())
+	//patch := client.MergeFrom(cfg.DeepCopy())
 	// update status
-	cfg.SetConditions(condv1alpha1.ReadyWithMsg(msg))
-	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
-	cfg.Status.AppliedConfig = &cfg.Spec
-	r.recorder.Eventf(cfg, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
+	newConfig := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{
+			Namespace: cfg.Namespace,
+			Name:      cfg.Name,
+		},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+
+	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
+	newConfig.SetConditions(condv1alpha1.ReadyWithMsg(msg))
+	newConfig.Status.LastKnownGoodSchema = schema
+	newConfig.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
+	newConfig.Status.AppliedConfig = &cfg.Spec
+
+	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
+		equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
+		equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) &&
+		equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+		log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess -> changes")
+
+	if !newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) {
+		log.Info("handleSuccess -> condition changed")
+	}
+	if !equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
+		log.Info("handleSuccess -> LastKnownGoodSchema changed", "schema-a", newConfig.Status.LastKnownGoodSchema, "schema-b", cfg.Status.LastKnownGoodSchema)
+	}
+	if !equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
+		log.Info("handleSuccess -> Deviations changed", "dev-a", newConfig.Status.Deviations, "dev-b", cfg.Status.Deviations)
+	}
+	if !equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
+		log.Info("handleSuccess -> AppliedConfig changed")
+	}
 
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status new", cfg.Status)
 
-	return r.Client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newConfig, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
+
+	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
+			Force:        ptr.To(true),
 		},
 	})
 }
 
-func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+func equalAppliedConfig(a, b *configv1alpha1.ConfigSpec) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return equality.Semantic.DeepEqual(*a, *b)
+}
+
+func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return equality.Semantic.DeepEqual(*a, *b)
+}
+
+func (r *reconciler) handleError(ctx context.Context, configOrig, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(cfg.DeepCopy())
+	patch := client.MergeFrom(configOrig)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
 	if recoverable {
-		cfg.SetConditions(condv1alpha1.Failed(msg))
+		config.SetConditions(condv1alpha1.Failed(msg))
 	} else {
 		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: cfg.GetResourceVersion(),
+			ResourceVersion: config.GetResourceVersion(),
 			Message:         msg,
 		}
 		newmsg, err := json.Marshal(newMessage)
 		if err != nil {
 			return err
 		}
-		cfg.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
+		config.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
 	}
-	log.Error(msg)
-	r.recorder.Eventf(cfg, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
 
-	return r.Client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+	log.Error(msg)
+	r.recorder.Eventf(config, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
+
+	return r.Client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

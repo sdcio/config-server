@@ -116,7 +116,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
 			stream = nil
 			time.Sleep(time.Second * 1) //- resilience for server crash, retry on failure
-			
+
 			continue
 		}
 		switch resp.Event {
@@ -140,12 +140,14 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 			intent := resp.GetIntent()
+			// override intent if it is unhandled -> this is an unmanaged intent
 			if resp.Reason == sdcpb.DeviationReason_UNHANDLED {
 				intent = unManagedConfigDeviation
 			}
 			if _, ok := deviations[intent]; !ok {
 				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0)
 			}
+			
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
 			if !started {
@@ -171,10 +173,13 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 	log := log.FromContext(ctx)
 	log.Info("process deviations")
 	for configName, devs := range deviations {
+		if configName == "default" {
+			continue
+		}
 		configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
 
 		nsn := r.targetKey.NamespacedName
-		var cfg  configv1alpha1.ConfigDeviations
+		var cfg configv1alpha1.ConfigDeviations
 		if configName == unManagedConfigDeviation {
 			cfg = &configv1alpha1.UnManagedConfig{}
 			log.Info("unmanaged deviations", "devs", len(configDevs))
@@ -183,7 +188,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
 				Namespace: parts[0],
-				Name: parts[1],
+				Name:      parts[1],
 			}
 			if len(parts) != 2 {
 				log.Info("unexpected configName", "got", configName)
@@ -195,19 +200,39 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 	}
 }
 
-func (r *DeviationWatcher) processConfigDeviations(ctx context.Context, nsn types.NamespacedName, cfg configv1alpha1.ConfigDeviations, devs []configv1alpha1.Deviation) {
+func (r *DeviationWatcher) processConfigDeviations(
+	ctx context.Context, 
+	nsn types.NamespacedName, 
+	cfg configv1alpha1.ConfigDeviations, 
+	deviations []configv1alpha1.Deviation,
+) {
 	log := log.FromContext(ctx)
-	if err := r.client.Get(ctx, r.targetKey.NamespacedName, cfg); err != nil {
+	if err := r.client.Get(ctx, nsn, cfg); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn)
-		return 
+		return
 	}
 	patch := client.MergeFrom(cfg.DeepObjectCopy())
-	cfg.SetDeviations(devs)
+
+	// check if deviations can be cleared or not
+	if clearDeviations(deviations) {
+		deviations = []configv1alpha1.Deviation{}
+	} 
+	cfg.SetDeviations(deviations)
+	
 	if err := r.client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
-			FieldManager: "deviationManager",
+			FieldManager: "ConfigController",
 		},
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}
+}
+
+// clearDeviations checks if the deviations received is indicating that deviations can be cleared
+// clearing deviations = true when deviations = 1 and the reason indicates intent exists
+func clearDeviations(deviations []configv1alpha1.Deviation) bool {
+	if len(deviations) == 1 && deviations[0].Reason == sdcpb.DeviationReason_INTENT_EXISTS.String() {
+		return true
+	}
+	return false
 }

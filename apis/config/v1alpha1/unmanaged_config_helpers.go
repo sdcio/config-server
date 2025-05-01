@@ -37,8 +37,8 @@ func BuildUnManagedConfig(meta metav1.ObjectMeta, spec UnManagedConfigSpec, stat
 // +k8s:deepcopy-gen=false
 var _ ConfigDeviations = &UnManagedConfig{}
 
-func (r *UnManagedConfig) SetDeviations(d []Deviation) {
-	r.Status.Deviations = d
+func (r *UnManagedConfig) SetDeviations(deviations []Deviation) {
+	r.Status.Deviations = deviations
 }
 
 func (r *UnManagedConfig) DeepObjectCopy() client.Object {

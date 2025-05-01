@@ -34,7 +34,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/discovery"
@@ -42,6 +41,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -116,15 +116,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	if target.Status.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status != metav1.ConditionTrue {
-		// datastore not ready so we can wait till the target goes to ready state
-		return ctrl.Result{}, // requeue will happen automatically when discovery is done
-			errors.Wrap(r.handleError(ctx, targetOrig, "target datastore not ready", nil), errUpdateStatus)
+	// to reapply existing configs we should check if the datastore is ready and if the target context is ready
+	// DataStore ready means: target is discovered, datastore is created and connection to the dataserver is up + target context is ready
+	tctx, err := r.IsTargetDataStoreReady(ctx, targetKey, target)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err.Error(), nil), errUpdateStatus)
 	}
 
-	ready, tctx := r.GetTargetReadiness(ctx, targetKey, target)
-	if !ready {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, string(configv1alpha1.ConditionReasonTargetNotReady), nil), errUpdateStatus)
+	// if the config is recovered we can stop the reconcile loop
+	if tctx.IsConfigRecovered(ctx) {
+		log.Info("config recovery -> already recovered")
+		return ctrl.Result{}, nil
 	}
 
 	// we split the config in config that were successfully applied and config that was not yet
@@ -133,8 +135,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
 
+	if len(recoveryConfigs) == 0 {
+		tctx.SetRecoveredConfigs(ctx)
+		log.Info("config recovery done -> no configs to recover")
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
+	}
+
+	log.Info("config recovery new ....")
+
 	// We need to restore the config on the target
-	//for _, config := range configsToReApply {
 	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs)
 	if err != nil {
 		// This is bad since this means we cannot recover the applied config
@@ -142,7 +151,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Most likely a human intervention is needed
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
-	//}
+	tctx.SetRecoveredConfigs(ctx)
+	log.Info("config recovery done -> configs recovered")
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 
@@ -150,15 +160,35 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
-	target.SetConditions(invv1alpha1.ConfigReady(msg))
-	//target.SetOverallStatus()
-	r.recorder.Eventf(target, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.ConfigReady(msg))
+	
+	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status new", target.Status)
+	// we don't update the resource if no condition changed
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+		// we don't update the resource if no condition changed
+		log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess -> change", 
+			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+
+	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -168,17 +198,36 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	patch := client.MergeFrom(target.DeepCopy())
+	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	target.SetConditions(invv1alpha1.ConfigFailed(msg))
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.ConfigFailed(msg))
 	//target.SetOverallStatus()
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, target, patch, &client.SubResourcePatchOptions{
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+		// we don't update the resource if no condition changed
+		log.Info("handleError -> no change")
+		return nil
+	}
+	log.Info("handleError -> change", 
+			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
+
+	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -194,7 +243,6 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 			config.TargetNameKey:      target.GetName(),
 		},
 	}
-
 	v1alpha1configList := &configv1alpha1.ConfigList{}
 	if err := r.List(ctx, v1alpha1configList, opts...); err != nil {
 		return nil, err
@@ -205,18 +253,18 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 	return configList, nil
 }
 
-func (r *reconciler) GetTargetReadiness(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (bool, *target.Context) {
+func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*target.Context, error) {
 	log := log.FromContext(ctx)
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)
 	if err != nil {
-		return false, nil
+		return nil, fmt.Errorf("no target context")
 	}
 	log.Info("getTargetReadiness", "datastoreReady", target.IsDatastoreReady(), "tctx ready", tctx.IsReady())
-	if target.IsDatastoreReady() && tctx.IsReady() {
-		return true, tctx
+	if !target.IsDatastoreReady() || !tctx.IsReady() {
+		return tctx, fmt.Errorf("target not ready")
 	}
-	return false, tctx
+	return tctx, nil 
 }
 
 func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {

@@ -19,17 +19,15 @@ package target
 import (
 	"context"
 	errors "errors"
+	"fmt"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var ErrLookup = errors.New("target lookup error")
 
 type TargetHandler interface {
 	GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error)
@@ -55,24 +53,26 @@ type targetHandler struct {
 }
 
 // GetTargetContext returns a invTarget and targetContext when the target is ready and the ctx is found
+// Used by the config controller and should only act when the Config is ready
 func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error) {
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target get failed",
+		return nil, nil, &LookupError{
+			Message:      fmt.Sprintf("target %s get failed to k8s apiserver ", targetKey.String()),
 			WrappedError: errors.Join(ErrLookup, err),
 		}
 	}
+	// A config snippet should only be applied if the Target is in ready state
 	if !target.IsReady() {
-		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target not ready",
+		return nil, nil, &LookupError{
+			Message:      fmt.Sprintf("target %s not ready ", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotReady)),
 		}
 	}
 	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
 	if err != nil {
-		return nil, nil, &sdcerrors.RecoverableError{
-			Message:      "target not found",
+		return nil, nil, &LookupError{
+			Message:      fmt.Sprintf("target %s not found in target datastore", targetKey.String()),
 			WrappedError: pkgerrors.Wrap(ErrLookup, string(config.ConditionReasonTargetNotFound)),
 		}
 	}

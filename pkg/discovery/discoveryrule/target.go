@@ -23,7 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 const (
@@ -81,8 +82,8 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 		return nil, err
 	}
 
-	return &invv1alpha1.Target{
-		ObjectMeta: metav1.ObjectMeta{
+	return invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
 			Name:        getTargetName(di.HostName),
 			Namespace:   r.cfg.CR.GetNamespace(),
 			Labels:      labels,
@@ -99,50 +100,82 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 					Controller: ptr.To[bool](true),
 				}},
 		},
-		Spec: targetSpec,
-		Status: invv1alpha1.TargetStatus{
+		targetSpec,
+		invv1alpha1.TargetStatus{
 			DiscoveryInfo: di,
 		},
-	}, nil
+	), nil
 }
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) error {
-	di := targetNew.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", targetNew.Name, "address", targetNew.Spec.Address, "discovery info", di)
+func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
+	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address)
 
 	// Check if the target already exists
-	targetCurrent := &invv1alpha1.Target{}
+	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: targetNew.Namespace,
-		Name:      targetNew.Name,
-	}, targetCurrent); err != nil {
+		Namespace: newTarget.Namespace,
+		Name:      newTarget.Name,
+	}, target); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		log.Info("discovery target apply, target does not exist -> create")
 
-		if err := r.client.Create(ctx, targetNew, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
+		target := newTarget.DeepCopy()
+
+		if err := r.client.Create(ctx, target, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
 			return err
 		}
 		time.Sleep(500 * time.Millisecond)
 
 		// we get the target again to get the latest update
-		targetCurrent = &invv1alpha1.Target{}
+		/*
+		target = &invv1alpha1.Target{}
 		if err := r.client.Get(ctx, types.NamespacedName{
 			Namespace: targetNew.Namespace,
 			Name:      targetNew.Name,
-		}, targetCurrent); err != nil {
+		}, target); err != nil {
 			// the resource should always exist
 			return err
 		}
+			*/
 	}
 
-	targetPatch := targetCurrent.DeepCopy()
+	// set old condition to avoid updating the new status if not changed
+	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
+	// set new conditions
+	newTarget.SetConditions(invv1alpha1.DiscoveryReady())
 
-	targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	targetPatch.Status.DiscoveryInfo = di
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
+		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
+		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo){
+			log.Info("handleSuccess -> no change")
+		return nil
+	}
+	log.Info("handleSuccess", 
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)),
+		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
+		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
+	)
+
+	log.Info("newTarget", "target", newTarget)
+
+	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	})
+	if err != nil {
+		log.Error("failed to patch target status", "err", err)
+		return err
+	}
+	/*
+	//targetPatch := targetCurrent.DeepCopy()
+	//targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
+	//targetPatch.Status.DiscoveryInfo = di
 
 	log.Info("discovery target apply",
 		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
@@ -152,7 +185,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 	)
 
 	// Apply the patch
-	err := r.client.Status().Patch(ctx, targetPatch, client.MergeFrom(targetCurrent), &client.SubResourcePatchOptions{
+	err := r.client.Status().Patch(ctx, targetPatch, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -161,6 +194,7 @@ func (r *dr) applyTarget(ctx context.Context, targetNew *invv1alpha1.Target) err
 		log.Error("failed to patch target status", "err", err)
 		return err
 	}
+		*/
 
 	return nil
 }

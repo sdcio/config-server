@@ -187,6 +187,13 @@ spec:
                     description: Version associated with the target
                     type: string
                 type: object
+              generation:
+                description: Generation used by recovery
+                format: int64
+                type: integer
+              resourceVersion:
+                description: ResourceVersion used by recovery
+                type: string
               usedReferences:
                 description: UsedReferences track the resource used to reconcile the
                   cr

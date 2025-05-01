@@ -27,21 +27,25 @@ import (
 // TargetSpec defines the desired state of Target
 type TargetSpec struct {
 	// Provider specifies the provider using this target.
-	Provider string `json:"provider" yaml:"provider" protobuf:"bytes,1,opt,name=provider"`
+	Provider string `json:"provider" protobuf:"bytes,1,opt,name=provider"`
 	// Address defines the address to connect to the target
-	Address string `json:"address" yaml:"address" protobuf:"bytes,2,opt,name=address"`
+	Address string `json:"address" protobuf:"bytes,2,opt,name=address"`
 	// TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
-	TargetProfile `json:",inline" yaml:",inline" protobuf:"bytes,3,opt,name=targetProfile"`
+	TargetProfile `json:",inline" protobuf:"bytes,3,opt,name=targetProfile"`
 }
 
 // TargetStatus defines the observed state of Target
 type TargetStatus struct {
 	// ConditionedStatus provides the status of the Target using conditions
-	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Discovery info defines the information retrieved during discovery
-	DiscoveryInfo *DiscoveryInfo `json:"discoveryInfo,omitempty" yaml:"discoveryInfo,omitempty" protobuf:"bytes,2,opt,name=discoveryInfo"`
+	DiscoveryInfo *DiscoveryInfo `json:"discoveryInfo,omitempty" protobuf:"bytes,2,opt,name=discoveryInfo"`
 	// UsedReferences track the resource used to reconcile the cr
-	UsedReferences *TargetStatusUsedReferences `json:"usedReferences,omitempty" yaml:"usedReferences,omitempty" protobuf:"bytes,3,opt,name=usedReferences"`
+	UsedReferences *TargetStatusUsedReferences `json:"usedReferences,omitempty" protobuf:"bytes,3,opt,name=usedReferences"`
+	// ResourceVersion used by recovery
+	ResourceVersion *string `json:"resourceVersion,omitempty" protobuf:"bytes,4,opt,name=resourceVersion"`
+	// Generation used by recovery
+	Generation *int64 `json:"generation,omitempty" protobuf:"bytes,5,opt,name=generation"`
 }
 
 type DiscoveryInfo struct {
