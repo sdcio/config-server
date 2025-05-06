@@ -18,6 +18,7 @@ package workspace
 
 import (
 	"context"
+	"net/url"
 	"path"
 
 	"github.com/henderiw/logger/log"
@@ -48,22 +49,39 @@ func NewLoader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 func (r *Loader) EnsureCommit(ctx context.Context, workspace *invv1alpha1.Workspace) (string, error) {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(workspace.Spec.RepositoryURL)
+	repoUrl, err := url.Parse(workspace.Spec.RepositoryURL)
+	if err != nil {
+		return "", err
+	}
+
+	repo, err := git.NewRepoSpec(repoUrl)
 	if err != nil {
 		return "", err
 	}
 	repoPath := path.Join(r.workspaceDir, repo.GetCloneURL().Path)
 	repo.SetLocalPath(repoPath)
 
-	// init the actual git instance
-	goGit := git.NewGoGit(repo,
-		types.NamespacedName{
+	if workspace.Spec.Credentials != "" {
+		cred, err := r.credentialResolver.ResolveCredential(ctx, types.NamespacedName{
 			Namespace: workspace.Namespace,
-			Name:      workspace.Spec.Credentials},
-		r.credentialResolver,
-	)
+			Name:      workspace.Spec.Credentials,
+		})
+		if err != nil {
+			return "", err
+		}
+		repo.SetAuth(cred.ToAuthMethod())
+	}
+
+	// init the actual git instance
+	goGit := git.NewGoGit(repo)
 	if workspace.Spec.Proxy != nil && workspace.Spec.Proxy.URL != "" {
-		err = goGit.SetProxy(workspace.Spec.Proxy.URL)
+
+		proxyUrl, err := url.Parse(workspace.Spec.Proxy.URL)
+		if err != nil {
+			return "", err
+		}
+
+		repo.SetProxy(proxyUrl)
 		if err != nil {
 			return "", err
 		}

@@ -1,6 +1,8 @@
 module github.com/sdcio/config-server
 
-go 1.23.3
+go 1.23.4
+
+toolchain go1.23.5
 
 replace sigs.k8s.io/structured-merge-diff/v4 => sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 
