@@ -23,7 +23,6 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -66,19 +65,6 @@ func (r *Target) SetOverallStatus(target *Target) {
 	} else {
 		r.Status.SetConditions(condv1alpha1.Failed(msg))
 	}
-}
-
-func (r *Target) SetStatusResourceVersion() {
-	r.Status.ResourceVersion = ptr.To(r.ObjectMeta.ResourceVersion)
-}
-
-func (r *Target) SetStatusGeneration() {
-	r.Status.Generation = ptr.To(r.ObjectMeta.Generation)
-}
-
-func (r *Target) HasResourceversionAndGenerationChanged() bool {
-	return r.Status.ResourceVersion != nil && *r.Status.ResourceVersion != r.ObjectMeta.ResourceVersion &&
-		r.Status.Generation != nil && *r.Status.Generation != r.ObjectMeta.Generation
 }
 
 func (r *Target) IsDatastoreReady() bool {
