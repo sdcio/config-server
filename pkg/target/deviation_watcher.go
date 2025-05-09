@@ -214,7 +214,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 	patch := client.MergeFrom(cfg.DeepObjectCopy())
 
 	// check if deviations can be cleared or not
-	if clearDeviations(deviations) {
+	if clearDeviations(ctx, deviations) {
 		deviations = []configv1alpha1.Deviation{}
 	} 
 	cfg.SetDeviations(deviations)
@@ -230,8 +230,13 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 // clearDeviations checks if the deviations received is indicating that deviations can be cleared
 // clearing deviations = true when deviations = 1 and the reason indicates intent exists
-func clearDeviations(deviations []configv1alpha1.Deviation) bool {
+func clearDeviations(ctx context.Context, deviations []configv1alpha1.Deviation) bool {
+	log := log.FromContext(ctx)
+	if len(deviations) > 0 {
+		log.Info("clear deviation", "reason", deviations[0].Reason)
+	}
 	if len(deviations) == 1 && deviations[0].Reason == sdcpb.DeviationReason_INTENT_EXISTS.String() {
+		log.Info("clear deviation true")
 		return true
 	}
 	return false
