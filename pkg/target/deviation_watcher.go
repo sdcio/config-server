@@ -140,14 +140,19 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				continue
 			}
 			intent := resp.GetIntent()
-			// override intent if it is unhandled -> this is an unmanaged intent
+			// override intentName if it is unhandled -> this is an unmanaged intent
 			if resp.Reason == sdcpb.DeviationReason_UNHANDLED {
 				intent = unManagedConfigDeviation
 			}
 			if _, ok := deviations[intent]; !ok {
 				deviations[intent] = make([]*sdcpb.WatchDeviationResponse, 0)
 			}
-			
+			// do not append the devations with Intent exist data as they are used
+			// to indicate an intent exist and will allow to clear the deviations
+			// when no other deviations are reported.
+			if resp.Reason == sdcpb.DeviationReason_INTENT_EXISTS {
+				continue
+			}
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
 			if !started {
@@ -213,10 +218,6 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 	patch := client.MergeFrom(cfg.DeepObjectCopy())
 
-	// check if deviations can be cleared or not
-	if clearDeviations(deviations) {
-		deviations = []configv1alpha1.Deviation{}
-	} 
 	cfg.SetDeviations(deviations)
 	
 	if err := r.client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
@@ -226,13 +227,4 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}
-}
-
-// clearDeviations checks if the deviations received is indicating that deviations can be cleared
-// clearing deviations = true when deviations = 1 and the reason indicates intent exists
-func clearDeviations(deviations []configv1alpha1.Deviation) bool {
-	if len(deviations) == 1 && deviations[0].Reason == sdcpb.DeviationReason_INTENT_EXISTS.String() {
-		return true
-	}
-	return false
 }
