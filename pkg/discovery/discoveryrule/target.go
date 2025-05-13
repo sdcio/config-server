@@ -56,7 +56,16 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 		log.Info("dynamic target creation failed", "error", err)
 		return err
 	}
-	if err := r.applyUnManagedConfigCR(ctx, newTarget.Name); err != nil {
+
+	targetKey := newTarget.GetNamespacedName()
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, targetKey, target); err != nil {
+		log.Info("cannot get target", "error", err)
+		return err
+	}
+
+
+	if err := r.applyUnManagedConfigCR(ctx, target); err != nil {
 		return err
 	}
 	return nil
