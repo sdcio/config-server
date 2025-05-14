@@ -93,7 +93,7 @@ func (r *Context) getReady() bool {
 	return r.ready
 }
 
-func (r *Context) setReady(b bool) {
+func (r *Context) setCtxReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.ready = b
@@ -179,7 +179,7 @@ func (r *Context) IsReady() bool {
 func (r *Context) SetNotReady(ctx context.Context) {
 	log := log.FromContext(ctx)
 	log.Info("SetNotReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
-	r.setReady(false)
+	r.setCtxReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
 	}
@@ -191,13 +191,13 @@ func (r *Context) SetNotReady(ctx context.Context) {
 func (r *Context) SetReady(ctx context.Context) {
 	log := log.FromContext(ctx)
 	log.Info("SetReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
-	// if we already are in ready state we can ignore
-	if r.getReady() {
-		return
+
+	alreadyReady := r.getReady()
+	if !alreadyReady {
+		r.setCtxReady(true)
 	}
 
 	// if we are not ready we set the status to ready and start the deviation watcher and subscription handler
-	r.setReady(true)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Start(ctx)
 	}
