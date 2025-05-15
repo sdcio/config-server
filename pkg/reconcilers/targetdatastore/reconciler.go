@@ -247,7 +247,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot update target ready in dataserver", err, true), errUpdateStatus)
 	}
 
-	ready, err := r.getTargetStatus(ctx, target)
+	// check the status in the dataserver and set ready status in the target context based on feedback
+	ready, err := r.updateTargetCtxtStatus(ctx, target)
 	if err != nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot get target ready status", err, false), errUpdateStatus)
@@ -457,8 +458,8 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	return selectedDSctx, nil
 }
 
-// getTargetStatus
-func (r *reconciler) getTargetStatus(ctx context.Context, cr *invv1alpha1.Target) (bool, error) {
+// updateTargetCtxtStatus checks the target datastore in the dataserver and updates the ready state in the target context
+func (r *reconciler) updateTargetCtxtStatus(ctx context.Context, cr *invv1alpha1.Target) (bool, error) {
 	targetKey := storebackend.KeyFromNSN(types.NamespacedName{Namespace: cr.GetNamespace(), Name: cr.GetName()})
 	log := log.FromContext(ctx).With("targetkey", targetKey.String())
 

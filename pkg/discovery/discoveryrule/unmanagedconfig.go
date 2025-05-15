@@ -26,10 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
-func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) error {
-	newUnManagedConfigCR, err := r.newUnManagedConfigCR(ctx, targetName)
+func (r *dr) applyUnManagedConfigCR(ctx context.Context, target *invv1alpha1.Target) error {
+	newUnManagedConfigCR, err := r.newUnManagedConfigCR(ctx, target)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, targetName string) erro
 	return nil
 }
 
-func (r *dr) newUnManagedConfigCR(_ context.Context, targetName string) (*configv1alpha1.UnManagedConfig, error) {
+func (r *dr) newUnManagedConfigCR(_ context.Context, target *invv1alpha1.Target) (*configv1alpha1.UnManagedConfig, error) {
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
@@ -64,19 +65,19 @@ func (r *dr) newUnManagedConfigCR(_ context.Context, targetName string) (*config
 
 	return &configv1alpha1.UnManagedConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        targetName,
-			Namespace:   r.cfg.CR.GetNamespace(),
+			Name:        target.Name,
+			Namespace:   target.Namespace,
 			Labels:      labels,
 			Annotations: anno,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: schema.GroupVersion{
-						Group:   r.cfg.CR.GetObjectKind().GroupVersionKind().Group,
-						Version: r.cfg.CR.GetObjectKind().GroupVersionKind().Version,
+						Group:   target.GetObjectKind().GroupVersionKind().Group,
+						Version: target.GetObjectKind().GroupVersionKind().Version,
 					}.String(),
-					Kind:       r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
-					Name:       r.cfg.CR.GetName(),
-					UID:        r.cfg.CR.GetUID(),
+					Kind:       target.GetObjectKind().GroupVersionKind().Kind,
+					Name:       target.GetName(),
+					UID:        target.GetUID(),
 					Controller: ptr.To[bool](true),
 				}},
 		},
