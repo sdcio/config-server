@@ -43,6 +43,19 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 	log.Info("prometheus collect")
 
 	wg1 := new(sync.WaitGroup)
+
+	nKeys := len(keys)
+	targetMetricsAvailable := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "sdcio_target_metrics_available",
+		Help: "1.0 means at least one target metric is available while 0.0 means no target metrics to export. Ensure subscriptions are declaired to export target metrics as documented on https://docs.sdcio.dev/user-guide/configuration/subscription/subscription/ .",
+	})
+	if nKeys <= 0 {
+		targetMetricsAvailable.Set(0.0)
+	} else {
+		targetMetricsAvailable.Set(1.0)
+	}
+	ch <- targetMetricsAvailable
+
 	wg1.Add(len(keys))
 	for _, key := range keys {
 		go func(key storebackend.Key) {
