@@ -18,15 +18,15 @@ KFORM_VERSION ?= v0.0.2
 
 GOBIN := $(shell go env GOPATH)/bin
 
-.PHONY: codegen fix fmt vet lint test tidy
-
+.PHONY: all
 all: codegen fmt vet lint test tidy
 
+.PHONY: docker
 docker:
 	GOOS=linux GOARCH=arm64 go build -o install/bin/apiserver
 	docker build install --tag apiserver-caas:v0.0.0 --ssh default="$(SSH_AUTH_SOCK)"
 
-.PHONY:
+.PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	ssh-add ./keys/id_rsa 2>/dev/null; true
 	docker build --build-arg USERID="$(USERID)" . -t ${IMG} --ssh default="$(SSH_AUTH_SOCK)"
@@ -35,20 +35,25 @@ docker-build: ## Build docker image with the manager.
 docker-push:  docker-build ## Push docker image with the manager.
 	docker push ${IMG}
 
+.PHONY: install
 install: docker
 	kustomize build install | kubectl apply -f -
 
+.PHONY: reinstall
 reinstall: docker
 	kustomize build install | kubectl apply -f -
 	kubectl delete pods -n config-system --all
 
+.PHONY: apiserver-logs
 apiserver-logs:
 	kubectl logs -l apiserver=true --container apiserver -n config-system -f --tail 1000
 
+.PHONY: codegen
 codegen:
 	(which apiserver-runtime-gen || go get sigs.k8s.io/apiserver-runtime/tools/apiserver-runtime-gen)
 	go generate
 
+.PHONY: genclients
 genclients:
 	go run ./tools/apiserver-runtime-gen \
 		-g deepcopy-gen \
@@ -60,6 +65,7 @@ genclients:
 		-g conversion-gen \
 		--module $(REPO) \
 
+.PHONY: genproto
 genproto:
 	go run ./tools/apiserver-runtime-gen \
 		-g go-to-protobuf \
@@ -83,30 +89,32 @@ artifacts: kform
 	mkdir -p artifacts/out
 	$(KFORM) apply artifacts -i artifacts/in/configmap-input-vars.yaml -o artifacts/out/artifacts.yaml
 
-.PHONY:
+.PHONY: fix
 fix:
 	go fix ./...
 
-.PHONY:
+.PHONY: fmt
 fmt:
 	test -z $(go fmt ./tools/...)
 
-.PHONY:
+.PHONY: tidy
 tidy:
 	go mod tidy
 
-.PHONY:
+.PHONY: lint
 lint:
 	(which golangci-lint || go get github.com/golangci/golangci-lint/cmd/golangci-lint)
 	$(GOBIN)/golangci-lint run ./...
 
-.PHONY:
+.PHONY: test
 test:
 	go test -cover ./...
 
+.PHONY: vet
 vet:
 	go vet ./...
 
+.PHONY: local-run
 local-run:
 	apiserver-boot run local --run=etcd,apiserver
 

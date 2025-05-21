@@ -34,3 +34,9 @@ scripts/
 kubeconfig
 tls.crt
 tls.key
+
+# IDE specific configuration
+.vscode/
+
+# goreleaser build directories
+dist/
