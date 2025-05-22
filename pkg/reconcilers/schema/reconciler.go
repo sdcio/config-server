@@ -20,7 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"net/url"
+	"path"
 	"reflect"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -29,18 +30,20 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
+	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	schemaloader "github.com/sdcio/config-server/pkg/schema"
+	yangSchema "github.com/sdcio/config-server/pkg/schema"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -85,13 +88,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
-	r.schemaLoader, err = schemaloader.NewLoader(
-		filepath.Join(r.schemaBasePath, "tmp"),
-		r.schemaBasePath,
-		secret.NewCredentialResolver(mgr.GetClient(), []secret.Resolver{
-			secret.NewBasicAuthResolver(),
-		}),
-	)
+	r.schemaLoader, err = yangSchema.NewSchemaLoader(path.Join(r.schemaBasePath, "tmp"), r.schemaBasePath, r.schemaclient, yangSchema.NewSchemaUploaderLocal(r.schemaclient))
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "cannot initialize schemaloader")
 	}
@@ -108,7 +105,7 @@ type reconciler struct {
 	client.Client
 	finalizer *resource.APIFinalizer
 
-	schemaLoader   *schemaloader.Loader
+	schemaLoader   *yangSchema.SchemaLoader
 	schemaclient   ssclient.Client
 	schemaBasePath string
 	recorder       record.EventRecorder
@@ -144,7 +141,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// delete the reference from disk
-		if err := r.schemaLoader.DelRef(ctx, spec.GetKey()); err != nil {
+		if err := r.schemaLoader.RemoveSchema(ctx, yangSchema.NewSchemaID(spec.Provider, spec.Version)); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot delete reference", err)
 		}
 		// remove the finalizer
@@ -166,23 +163,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, schemaOrig, "schema server not ready", nil)
 	}
 
-	// we just insert the schema again
-	r.schemaLoader.AddRef(ctx, schema)
-	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
-	if err != nil {
-		return r.handleError(ctx, schemaOrig, "cannot get schema reference", err)
-	}
-
-	if !dirExists {
+	if !r.schemaLoader.SchemaExists(yangSchema.NewSchemaID(spec.Provider, spec.Version)) {
 		// we set the loading condition to know loading started
 		schema.SetConditions(invv1alpha1.Loading())
 		if err := r.Status().Update(ctx, schema); err != nil {
 			// we always retry when status fails -> optimistic concurrency
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
-		r.recorder.Eventf(schema, corev1.EventTypeNormal,
-			"schema", "loading")
-		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
+		r.recorder.Eventf(schema, corev1.EventTypeNormal, "schema", "loading")
+		// we just insert the schema again
+		schemaDef, err := schemaSpecToSchemaDefinition(ctx, schema, r.Client)
+		if err != nil {
+			return r.handleError(ctx, schemaOrig, "error converting from api type to internal", nil)
+		}
+
+		if err = r.schemaLoader.AddSchema(ctx, schemaDef); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
 		}
 	}
@@ -191,37 +186,89 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Schema: spec.GetSchema(),
 	})
 	if err != nil {
-		// schema does not exists in schema-server -> create it
-		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
-			Schema:    spec.GetSchema(),
-			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
-			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
-			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
-		}); err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
-		}
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleError(ctx, schemaOrig, "get schema detail returned with error", err)
 	}
 	if rsp == nil || rsp.Schema == nil {
 		return r.handleError(ctx, schemaOrig, "get schema detail response w/o a response or schems", nil)
 	}
 
-	switch rsp.Schema.Status {
-	case sdcpb.SchemaStatus_FAILED:
-		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
-			Schema:    spec.GetSchema(),
-			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
-			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
-			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
-		}); err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
+	// switch rsp.Schema.Status {
+	// case sdcpb.SchemaStatus_FAILED:
+	// 	if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
+	// 		Schema:    spec.GetSchema(),
+	// 		File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
+	// 		Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
+	// 		Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
+	// 	}); err != nil {
+	// 		return r.handleError(ctx, schemaOrig, "cannot create schema", err)
+	// 	}
+	// 	return r.handleSuccess(ctx, schemaOrig)
+	// case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
+	// 	return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
+	// default: // OK case
+	// 	return r.handleSuccess(ctx, schemaOrig)
+	// }
+	return r.handleSuccess(ctx, schemaOrig)
+}
+
+func schemaSpecToSchemaDefinition(ctx context.Context, schema *invv1alpha1.Schema, client client.Reader) (*yangSchema.SchemaDefinition, error) {
+	sid := yangSchema.NewSchemaID(schema.Spec.Provider, schema.Spec.Version)
+	sd := yangSchema.NewSchemaDefinition(sid)
+
+	for _, r := range schema.Spec.Repositories {
+		repoUrl, err := url.Parse(r.RepositoryURL)
+		if err != nil {
+			return nil, err
 		}
-		return r.handleSuccess(ctx, schemaOrig)
-	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
-		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
-	default: // OK case
-		return r.handleSuccess(ctx, schemaOrig)
+
+		dirs := make([]*yangSchema.SrcDstPath, 0, len(r.Dirs))
+
+		for _, d := range r.Dirs {
+			dirs = append(dirs, yangSchema.NewSrcDstPath(d.Src, d.Dst))
+		}
+
+		refKind, err := convertRefKind(r.Kind)
+		if err != nil {
+			return nil, err
+		}
+
+		rs := yangSchema.NewRepositorySpec(repoUrl, refKind, r.Ref, yangSchema.NewSchemaLoadSpec(r.Schema.Models, r.Schema.Includes, r.Schema.Excludes), dirs)
+
+		// set proxy for the repo
+		if r.Proxy != nil && r.Proxy.URL != "" {
+			purl, err := url.Parse(r.Proxy.URL)
+			if err != nil {
+				return nil, err
+			}
+			rs.SetProxy(purl)
+		}
+
+		if r.Credentials != "" {
+			cred, err := secret.NewCredentialResolver(client, []secret.Resolver{
+				secret.NewBasicAuthResolver(),
+			}).ResolveCredential(ctx, types.NamespacedName{Namespace: schema.Namespace, Name: r.Credentials})
+			if err != nil {
+				return nil, err
+			}
+			rs.SetCredentials(cred.ToAuthMethod())
+		}
+
+		sd.AddRepositorySpec(rs)
 	}
+
+	return sd, nil
+}
+
+func convertRefKind(btc invv1alpha1.BranchTagKind) (git.GitRefKind, error) {
+	switch btc {
+	case invv1alpha1.BranchTagKindBranch:
+		return git.GitRefKindBranch, nil
+	case invv1alpha1.BranchTagKindTag:
+		return git.GitRefKindTag, nil
+	case invv1alpha1.BranchTagKindHash:
+		return git.GitRefKindHash, nil
+	}
+	return "", fmt.Errorf("unknown BranchTagKind")
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema) (ctrl.Result, error) {
