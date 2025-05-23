@@ -552,7 +552,7 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 		config.ConfigBlameSpec{},
 		config.ConfigBlameStatus{
 			Value: runtime.RawExtension{
-				Raw: []byte(rsp.String()),
+				Raw: []byte(rsp.ConfigTree.String()),
 			},
 		},
 	), nil
