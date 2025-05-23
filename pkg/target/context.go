@@ -551,7 +551,7 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 		},
 		config.ConfigBlameSpec{},
 		config.ConfigBlameStatus{
-			Value: rsp.String(),
+			Value: rsp.GetConfigTree().ToString(),
 		},
 	), nil
 }
