@@ -58,7 +58,8 @@ message ConfigBlameSpec {
 
 // ConfigBlameStatus defines the observed state of ConfigBlame
 message ConfigBlameStatus {
-  optional string value = 1;
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
 message ConfigBlob {

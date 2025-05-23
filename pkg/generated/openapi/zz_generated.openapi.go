@@ -453,8 +453,18 @@ func schema_config_server_apis_config_v1alpha1_ConfigBlameStatus(ref common.Refe
 			SchemaProps: spec.SchemaProps{
 				Description: "ConfigBlameStatus defines the observed state of ConfigBlame",
 				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+						},
+					},
+				},
+				Required: []string{"value"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 

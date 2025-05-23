@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // ConfigBlameSpec defines the desired state of ConfigBlame
@@ -28,7 +29,8 @@ type ConfigBlameSpec struct {
 
 // ConfigBlameStatus defines the observed state of ConfigBlame
 type ConfigBlameStatus struct {
-	Value string `json:",inline" protobuf:"bytes,1,opt,name=value"`
+	//+kubebuilder:pruning:PreserveUnknownFields
+	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
 // +genclient
