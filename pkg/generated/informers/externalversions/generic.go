@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=config.sdcio.dev, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("configs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().Configs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("configblames"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigBlames().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("configsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigSets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("runningconfigs"):
@@ -65,14 +67,22 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		// Group=inv.sdcio.dev, Version=v1alpha1
 	case invv1alpha1.SchemeGroupVersion.WithResource("discoveryrules"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().DiscoveryRules().Informer()}, nil
+	case invv1alpha1.SchemeGroupVersion.WithResource("discoveryvendorprofiles"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().DiscoveryVendorProfiles().Informer()}, nil
+	case invv1alpha1.SchemeGroupVersion.WithResource("rollouts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Rollouts().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("schemas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Schemas().Informer()}, nil
+	case invv1alpha1.SchemeGroupVersion.WithResource("subscriptions"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Subscriptions().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("targets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Targets().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("targetconnectionprofiles"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().TargetConnectionProfiles().Informer()}, nil
 	case invv1alpha1.SchemeGroupVersion.WithResource("targetsyncprofiles"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().TargetSyncProfiles().Informer()}, nil
+	case invv1alpha1.SchemeGroupVersion.WithResource("workspaces"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Inv().V1alpha1().Workspaces().Informer()}, nil
 
 	}
 

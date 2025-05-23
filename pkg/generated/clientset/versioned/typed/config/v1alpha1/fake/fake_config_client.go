@@ -31,6 +31,10 @@ func (c *FakeConfigV1alpha1) Configs(namespace string) v1alpha1.ConfigInterface 
 	return &FakeConfigs{c, namespace}
 }
 
+func (c *FakeConfigV1alpha1) ConfigBlames(namespace string) v1alpha1.ConfigBlameInterface {
+	return &FakeConfigBlames{c, namespace}
+}
+
 func (c *FakeConfigV1alpha1) ConfigSets(namespace string) v1alpha1.ConfigSetInterface {
 	return &FakeConfigSets{c, namespace}
 }

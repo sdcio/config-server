@@ -31,8 +31,20 @@ func (c *FakeInvV1alpha1) DiscoveryRules(namespace string) v1alpha1.DiscoveryRul
 	return &FakeDiscoveryRules{c, namespace}
 }
 
+func (c *FakeInvV1alpha1) DiscoveryVendorProfiles(namespace string) v1alpha1.DiscoveryVendorProfileInterface {
+	return &FakeDiscoveryVendorProfiles{c, namespace}
+}
+
+func (c *FakeInvV1alpha1) Rollouts(namespace string) v1alpha1.RolloutInterface {
+	return &FakeRollouts{c, namespace}
+}
+
 func (c *FakeInvV1alpha1) Schemas(namespace string) v1alpha1.SchemaInterface {
 	return &FakeSchemas{c, namespace}
+}
+
+func (c *FakeInvV1alpha1) Subscriptions(namespace string) v1alpha1.SubscriptionInterface {
+	return &FakeSubscriptions{c, namespace}
 }
 
 func (c *FakeInvV1alpha1) Targets(namespace string) v1alpha1.TargetInterface {
@@ -45,6 +57,10 @@ func (c *FakeInvV1alpha1) TargetConnectionProfiles(namespace string) v1alpha1.Ta
 
 func (c *FakeInvV1alpha1) TargetSyncProfiles(namespace string) v1alpha1.TargetSyncProfileInterface {
 	return &FakeTargetSyncProfiles{c, namespace}
+}
+
+func (c *FakeInvV1alpha1) Workspaces(namespace string) v1alpha1.WorkspaceInterface {
+	return &FakeWorkspaces{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -28,6 +28,7 @@ import (
 type ConfigV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ConfigsGetter
+	ConfigBlamesGetter
 	ConfigSetsGetter
 	RunningConfigsGetter
 	UnManagedConfigsGetter
@@ -40,6 +41,10 @@ type ConfigV1alpha1Client struct {
 
 func (c *ConfigV1alpha1Client) Configs(namespace string) ConfigInterface {
 	return newConfigs(c, namespace)
+}
+
+func (c *ConfigV1alpha1Client) ConfigBlames(namespace string) ConfigBlameInterface {
+	return newConfigBlames(c, namespace)
 }
 
 func (c *ConfigV1alpha1Client) ConfigSets(namespace string) ConfigSetInterface {

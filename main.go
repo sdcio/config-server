@@ -40,6 +40,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
@@ -219,6 +220,11 @@ func main() {
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
+	// no storage required since the targetStore is acting as the storage for the running config resource
+	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, &sdcconfig.ConfigBlame{}, &options.Options{
+		Client:      mgr.GetClient(),
+		TargetStore: targetStore,
+	})
 
 	go func() {
 		if err := builder.APIServer.
@@ -232,6 +238,8 @@ func main() {
 			WithResourceAndHandler(&configv1alpha1.UnManagedConfig{}, unmanagedConfigStorageProvider).
 			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.ConfigBlame{}, configBlameStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.ConfigBlame{}, configBlameStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

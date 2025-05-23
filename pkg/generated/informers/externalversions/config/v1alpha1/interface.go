@@ -25,6 +25,8 @@ import (
 type Interface interface {
 	// Configs returns a ConfigInformer.
 	Configs() ConfigInformer
+	// ConfigBlames returns a ConfigBlameInformer.
+	ConfigBlames() ConfigBlameInformer
 	// ConfigSets returns a ConfigSetInformer.
 	ConfigSets() ConfigSetInformer
 	// RunningConfigs returns a RunningConfigInformer.
@@ -47,6 +49,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // Configs returns a ConfigInformer.
 func (v *version) Configs() ConfigInformer {
 	return &configInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ConfigBlames returns a ConfigBlameInformer.
+func (v *version) ConfigBlames() ConfigBlameInformer {
+	return &configBlameInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ConfigSets returns a ConfigSetInformer.

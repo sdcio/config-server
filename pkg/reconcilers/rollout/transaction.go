@@ -92,7 +92,7 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 			// target unavailable -> we continue for now
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnavailable(fmt.Sprintf("target unavailable %s", err.Error())))
-			_ = r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 			if r.skipUnavailableTarget  {
 				globalCancel()
 				return r.targetStatus, fmt.Errorf("transaction aborted: target %s is unavailable", targetKey.String())
@@ -109,21 +109,21 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 				log.Error("global timeout reached")
 				// Timeout reached, exit goroutine
 				targetStatus.SetConditions(invv1alpha1.ConfigApplyFailed("transaction timeout"))
-				_ = r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 				return
 			default:
 				if err := r.applyConfigToTarget(ctx, targetKey, transactionID); err != nil {
 					// Apply failed
 					log.Error("apply failed", "target", targetKey.String(), "error", err.Error())
 					targetStatus.SetConditions(invv1alpha1.ConfigApplyFailed(err.Error()))
-					_ = r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+					_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 					errChan <- fmt.Errorf("target %s failed: %w", targetKey.String(), err)
 					return
 				}
 				// Apply success
 				log.Debug("apply success", "target", targetKey.String())
 				targetStatus.SetConditions(invv1alpha1.ConfigApplyReady())
-				_ = r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 				return
 			}
 		}(targetKey)
@@ -160,7 +160,7 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 		if err != nil {
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
-			r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 			continue
 		}
 		if targetStatus.GetCondition(invv1alpha1.ConditionTypeConfigApply).Reason != string(invv1alpha1.ConditionReasonUnavailable) &&
@@ -173,7 +173,7 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 				} else {
 					targetStatus.SetConditions(invv1alpha1.ConfigCancelReady())
 				}
-				r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 			}(targetKey)
 		}
 	}
@@ -191,7 +191,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 		if err != nil {
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
-			r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 			continue
 		}
 		if targetStatus.GetCondition(invv1alpha1.ConditionTypeConfigApply).Reason != string(invv1alpha1.ConditionReasonUnavailable) &&
@@ -207,7 +207,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 				} else {
 					targetStatus.SetConditions(invv1alpha1.ConfigConfirmReady())
 				}
-				r.targetStatus.Apply(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 			}(targetKey)
 		}
 	}

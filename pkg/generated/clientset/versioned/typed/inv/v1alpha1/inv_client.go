@@ -28,10 +28,14 @@ import (
 type InvV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	DiscoveryRulesGetter
+	DiscoveryVendorProfilesGetter
+	RolloutsGetter
 	SchemasGetter
+	SubscriptionsGetter
 	TargetsGetter
 	TargetConnectionProfilesGetter
 	TargetSyncProfilesGetter
+	WorkspacesGetter
 }
 
 // InvV1alpha1Client is used to interact with features provided by the inv.sdcio.dev group.
@@ -43,8 +47,20 @@ func (c *InvV1alpha1Client) DiscoveryRules(namespace string) DiscoveryRuleInterf
 	return newDiscoveryRules(c, namespace)
 }
 
+func (c *InvV1alpha1Client) DiscoveryVendorProfiles(namespace string) DiscoveryVendorProfileInterface {
+	return newDiscoveryVendorProfiles(c, namespace)
+}
+
+func (c *InvV1alpha1Client) Rollouts(namespace string) RolloutInterface {
+	return newRollouts(c, namespace)
+}
+
 func (c *InvV1alpha1Client) Schemas(namespace string) SchemaInterface {
 	return newSchemas(c, namespace)
+}
+
+func (c *InvV1alpha1Client) Subscriptions(namespace string) SubscriptionInterface {
+	return newSubscriptions(c, namespace)
 }
 
 func (c *InvV1alpha1Client) Targets(namespace string) TargetInterface {
@@ -57,6 +73,10 @@ func (c *InvV1alpha1Client) TargetConnectionProfiles(namespace string) TargetCon
 
 func (c *InvV1alpha1Client) TargetSyncProfiles(namespace string) TargetSyncProfileInterface {
 	return newTargetSyncProfiles(c, namespace)
+}
+
+func (c *InvV1alpha1Client) Workspaces(namespace string) WorkspaceInterface {
+	return newWorkspaces(c, namespace)
 }
 
 // NewForConfig creates a new InvV1alpha1Client for the given config.

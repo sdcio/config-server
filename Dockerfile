@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Build the manager binary
-FROM golang:1.23 as builder
+FROM golang:1.24 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 

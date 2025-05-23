@@ -29,117 +29,143 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition":                    schema_config_server_apis_condition_v1alpha1_Condition(ref),
-		"github.com/sdcio/config-server/apis/condition/v1alpha1.ConditionedStatus":            schema_config_server_apis_condition_v1alpha1_ConditionedStatus(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.Config":                          schema_config_server_apis_config_v1alpha1_Config(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob":                      schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigList":                      schema_config_server_apis_config_v1alpha1_ConfigList(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet":                       schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetList":                   schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec":                   schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus":                 schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                      schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                    schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema": schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation":                       schema_config_server_apis_config_v1alpha1_Deviation(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle":                       schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig":                   schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":               schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec":               schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":             schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                          schema_config_server_apis_config_v1alpha1_Target(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                    schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfig":                 schema_config_server_apis_config_v1alpha1_UnManagedConfig(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigList":             schema_config_server_apis_config_v1alpha1_UnManagedConfigList(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigSpec":             schema_config_server_apis_config_v1alpha1_UnManagedConfigSpec(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigStatus":           schema_config_server_apis_config_v1alpha1_UnManagedConfigStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                      schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryParameters":                schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile":                   schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRule":                      schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress":               schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix":                schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.Schema":                             schema_config_server_apis_inv_v1alpha1_Schema(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey":                          schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                         schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                         schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy":                    schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository":               schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                   schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus":                       schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath":                         schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.Target":                             schema_config_server_apis_inv_v1alpha1_Target(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile":            schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":        schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetList":                         schema_config_server_apis_inv_v1alpha1_TargetList(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile":                      schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec":                         schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus":                       schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":         schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile":                  schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileList":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSync":              schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate":                     schema_config_server_apis_inv_v1alpha1_TargetTemplate(ref),
-		"k8s.io/apimachinery/pkg/api/resource.Quantity":                                       schema_apimachinery_pkg_api_resource_Quantity(ref),
-		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                                    schema_apimachinery_pkg_api_resource_int64Amount(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                       schema_pkg_apis_meta_v1_APIGroup(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                   schema_pkg_apis_meta_v1_APIGroupList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                    schema_pkg_apis_meta_v1_APIResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                                schema_pkg_apis_meta_v1_APIResourceList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                    schema_pkg_apis_meta_v1_APIVersions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                   schema_pkg_apis_meta_v1_ApplyOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                      schema_pkg_apis_meta_v1_Condition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                                  schema_pkg_apis_meta_v1_CreateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                                  schema_pkg_apis_meta_v1_DeleteOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                       schema_pkg_apis_meta_v1_Duration(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldSelectorRequirement":                       schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                       schema_pkg_apis_meta_v1_FieldsV1(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                     schema_pkg_apis_meta_v1_GetOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                      schema_pkg_apis_meta_v1_GroupKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                                  schema_pkg_apis_meta_v1_GroupResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                   schema_pkg_apis_meta_v1_GroupVersion(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                       schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                               schema_pkg_apis_meta_v1_GroupVersionKind(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                           schema_pkg_apis_meta_v1_GroupVersionResource(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                                  schema_pkg_apis_meta_v1_InternalEvent(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                                  schema_pkg_apis_meta_v1_LabelSelector(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                       schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                           schema_pkg_apis_meta_v1_List(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                       schema_pkg_apis_meta_v1_ListMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                    schema_pkg_apis_meta_v1_ListOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                             schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                      schema_pkg_apis_meta_v1_MicroTime(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                     schema_pkg_apis_meta_v1_ObjectMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                                 schema_pkg_apis_meta_v1_OwnerReference(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                          schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                      schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                          schema_pkg_apis_meta_v1_Patch(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                   schema_pkg_apis_meta_v1_PatchOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                                  schema_pkg_apis_meta_v1_Preconditions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                      schema_pkg_apis_meta_v1_RootPaths(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                      schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                         schema_pkg_apis_meta_v1_Status(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                    schema_pkg_apis_meta_v1_StatusCause(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                                  schema_pkg_apis_meta_v1_StatusDetails(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                          schema_pkg_apis_meta_v1_Table(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                          schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                   schema_pkg_apis_meta_v1_TableOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                       schema_pkg_apis_meta_v1_TableRow(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                              schema_pkg_apis_meta_v1_TableRowCondition(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                           schema_pkg_apis_meta_v1_Time(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                      schema_pkg_apis_meta_v1_Timestamp(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                       schema_pkg_apis_meta_v1_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                  schema_pkg_apis_meta_v1_UpdateOptions(ref),
-		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                     schema_pkg_apis_meta_v1_WatchEvent(ref),
-		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                        schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
-		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                            schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
-		"k8s.io/apimachinery/pkg/runtime.Unknown":                                             schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
-		"k8s.io/apimachinery/pkg/version.Info":                                                schema_k8sio_apimachinery_pkg_version_Info(ref),
+		"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition":                      schema_config_server_apis_condition_v1alpha1_Condition(ref),
+		"github.com/sdcio/config-server/apis/condition/v1alpha1.ConditionedStatus":              schema_config_server_apis_condition_v1alpha1_ConditionedStatus(ref),
+		"github.com/sdcio/config-server/apis/condition/v1alpha1.UnrecoverableMessage":           schema_config_server_apis_condition_v1alpha1_UnrecoverableMessage(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Config":                            schema_config_server_apis_config_v1alpha1_Config(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlame":                       schema_config_server_apis_config_v1alpha1_ConfigBlame(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameList":                   schema_config_server_apis_config_v1alpha1_ConfigBlameList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameSpec":                   schema_config_server_apis_config_v1alpha1_ConfigBlameSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameStatus":                 schema_config_server_apis_config_v1alpha1_ConfigBlameStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob":                        schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigList":                        schema_config_server_apis_config_v1alpha1_ConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet":                         schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetList":                     schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec":                     schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus":                   schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                        schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                      schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema":   schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation":                         schema_config_server_apis_config_v1alpha1_Deviation(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle":                         schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig":                     schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":                 schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec":                 schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":               schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfig":                   schema_config_server_apis_config_v1alpha1_UnManagedConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigList":               schema_config_server_apis_config_v1alpha1_UnManagedConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigSpec":               schema_config_server_apis_config_v1alpha1_UnManagedConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.UnManagedConfigStatus":             schema_config_server_apis_config_v1alpha1_UnManagedConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                        schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryParameters":                  schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryPathDefinition":              schema_config_server_apis_inv_v1alpha1_DiscoveryPathDefinition(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile":                     schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRule":                        schema_config_server_apis_inv_v1alpha1_DiscoveryRule(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleAddress":                 schema_config_server_apis_inv_v1alpha1_DiscoveryRuleAddress(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleList":                    schema_config_server_apis_inv_v1alpha1_DiscoveryRuleList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRulePrefix":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRulePrefix(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleSpec":                    schema_config_server_apis_inv_v1alpha1_DiscoveryRuleSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryRuleStatus":                  schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfile":               schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfileList":           schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfileList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfileSpec":           schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfileSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.GnmiDiscoveryVendorProfileParameters": schema_config_server_apis_inv_v1alpha1_GnmiDiscoveryVendorProfileParameters(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy":                                schema_config_server_apis_inv_v1alpha1_Proxy(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Repository":                           schema_config_server_apis_inv_v1alpha1_Repository(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Rollout":                              schema_config_server_apis_inv_v1alpha1_Rollout(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutList":                          schema_config_server_apis_inv_v1alpha1_RolloutList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutSpec":                          schema_config_server_apis_inv_v1alpha1_RolloutSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutStatus":                        schema_config_server_apis_inv_v1alpha1_RolloutStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutTargetStatus":                  schema_config_server_apis_inv_v1alpha1_RolloutTargetStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Schema":                               schema_config_server_apis_inv_v1alpha1_Schema(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey":                            schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                           schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                           schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository":                 schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                     schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaStatus":                         schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath":                           schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Subscription":                         schema_config_server_apis_inv_v1alpha1_Subscription(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionList":                     schema_config_server_apis_inv_v1alpha1_SubscriptionList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionParameters":               schema_config_server_apis_inv_v1alpha1_SubscriptionParameters(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionSpec":                     schema_config_server_apis_inv_v1alpha1_SubscriptionSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionStatus":                   schema_config_server_apis_inv_v1alpha1_SubscriptionStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionTarget":                   schema_config_server_apis_inv_v1alpha1_SubscriptionTarget(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Target":                               schema_config_server_apis_inv_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile":              schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":          schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":          schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetList":                           schema_config_server_apis_inv_v1alpha1_TargetList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile":                        schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec":                           schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus":                         schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":           schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile":                    schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileList":                schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec":                schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSync":                schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetTemplate":                       schema_config_server_apis_inv_v1alpha1_TargetTemplate(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.Workspace":                            schema_config_server_apis_inv_v1alpha1_Workspace(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceList":                        schema_config_server_apis_inv_v1alpha1_WorkspaceList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceSpec":                        schema_config_server_apis_inv_v1alpha1_WorkspaceSpec(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceStatus":                      schema_config_server_apis_inv_v1alpha1_WorkspaceStatus(ref),
+		"k8s.io/apimachinery/pkg/api/resource.Quantity":                                         schema_apimachinery_pkg_api_resource_Quantity(ref),
+		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                                      schema_apimachinery_pkg_api_resource_int64Amount(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                         schema_pkg_apis_meta_v1_APIGroup(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                     schema_pkg_apis_meta_v1_APIGroupList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                      schema_pkg_apis_meta_v1_APIResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResourceList":                                  schema_pkg_apis_meta_v1_APIResourceList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.APIVersions":                                      schema_pkg_apis_meta_v1_APIVersions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ApplyOptions":                                     schema_pkg_apis_meta_v1_ApplyOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Condition":                                        schema_pkg_apis_meta_v1_Condition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.CreateOptions":                                    schema_pkg_apis_meta_v1_CreateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.DeleteOptions":                                    schema_pkg_apis_meta_v1_DeleteOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Duration":                                         schema_pkg_apis_meta_v1_Duration(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldSelectorRequirement":                         schema_pkg_apis_meta_v1_FieldSelectorRequirement(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.FieldsV1":                                         schema_pkg_apis_meta_v1_FieldsV1(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GetOptions":                                       schema_pkg_apis_meta_v1_GetOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind":                                        schema_pkg_apis_meta_v1_GroupKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupResource":                                    schema_pkg_apis_meta_v1_GroupResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersion":                                     schema_pkg_apis_meta_v1_GroupVersion(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionForDiscovery":                         schema_pkg_apis_meta_v1_GroupVersionForDiscovery(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionKind":                                 schema_pkg_apis_meta_v1_GroupVersionKind(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.GroupVersionResource":                             schema_pkg_apis_meta_v1_GroupVersionResource(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent":                                    schema_pkg_apis_meta_v1_InternalEvent(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector":                                    schema_pkg_apis_meta_v1_LabelSelector(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelectorRequirement":                         schema_pkg_apis_meta_v1_LabelSelectorRequirement(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.List":                                             schema_pkg_apis_meta_v1_List(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta":                                         schema_pkg_apis_meta_v1_ListMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ListOptions":                                      schema_pkg_apis_meta_v1_ListOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ManagedFieldsEntry":                               schema_pkg_apis_meta_v1_ManagedFieldsEntry(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.MicroTime":                                        schema_pkg_apis_meta_v1_MicroTime(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta":                                       schema_pkg_apis_meta_v1_ObjectMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.OwnerReference":                                   schema_pkg_apis_meta_v1_OwnerReference(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadata":                            schema_pkg_apis_meta_v1_PartialObjectMetadata(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PartialObjectMetadataList":                        schema_pkg_apis_meta_v1_PartialObjectMetadataList(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Patch":                                            schema_pkg_apis_meta_v1_Patch(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.PatchOptions":                                     schema_pkg_apis_meta_v1_PatchOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Preconditions":                                    schema_pkg_apis_meta_v1_Preconditions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.RootPaths":                                        schema_pkg_apis_meta_v1_RootPaths(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.ServerAddressByClientCIDR":                        schema_pkg_apis_meta_v1_ServerAddressByClientCIDR(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Status":                                           schema_pkg_apis_meta_v1_Status(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusCause":                                      schema_pkg_apis_meta_v1_StatusCause(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.StatusDetails":                                    schema_pkg_apis_meta_v1_StatusDetails(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Table":                                            schema_pkg_apis_meta_v1_Table(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableColumnDefinition":                            schema_pkg_apis_meta_v1_TableColumnDefinition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableOptions":                                     schema_pkg_apis_meta_v1_TableOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRow":                                         schema_pkg_apis_meta_v1_TableRow(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TableRowCondition":                                schema_pkg_apis_meta_v1_TableRowCondition(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Time":                                             schema_pkg_apis_meta_v1_Time(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.Timestamp":                                        schema_pkg_apis_meta_v1_Timestamp(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta":                                         schema_pkg_apis_meta_v1_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.UpdateOptions":                                    schema_pkg_apis_meta_v1_UpdateOptions(ref),
+		"k8s.io/apimachinery/pkg/apis/meta/v1.WatchEvent":                                       schema_pkg_apis_meta_v1_WatchEvent(ref),
+		"k8s.io/apimachinery/pkg/runtime.RawExtension":                                          schema_k8sio_apimachinery_pkg_runtime_RawExtension(ref),
+		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                              schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
+		"k8s.io/apimachinery/pkg/runtime.Unknown":                                               schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
+		"k8s.io/apimachinery/pkg/version.Info":                                                  schema_k8sio_apimachinery_pkg_version_Info(ref),
 	}
 }
 
@@ -240,6 +266,33 @@ func schema_config_server_apis_condition_v1alpha1_ConditionedStatus(ref common.R
 	}
 }
 
+func schema_config_server_apis_condition_v1alpha1_UnrecoverableMessage(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"resourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"resourceVersion", "message"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -284,6 +337,124 @@ func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigBlame(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigBlame is the Schema for the ConfigBlame API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigBlameList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigBlameList contains a list of ConfigBlames",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlame"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlame", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigBlameSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigBlameSpec defines the desired state of ConfigBlame",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigBlameStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigBlameStatus defines the observed state of ConfigBlame",
+				Type:        []string{"object"},
+			},
+		},
 	}
 }
 
@@ -476,7 +647,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"),
 						},
 					},
@@ -571,7 +741,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"),
 						},
 					},
@@ -1247,6 +1416,49 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref common.Refer
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_DiscoveryPathDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Key defines the key of the path for fast lookup",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path associated with the key",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"script": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Script defines the starlark script to transform the value",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"regex": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Regex defines the regex to transform the value",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"key", "path"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1601,6 +1813,504 @@ func schema_config_server_apis_inv_v1alpha1_DiscoveryRuleStatus(ref common.Refer
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryVendorProfile is the Schema for the DiscoveryVendorProfile API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfileSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfileSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfileList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryVendorProfileList contains a list of DiscoveryVendorProfileList",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfile"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryVendorProfile", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_DiscoveryVendorProfileSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DiscoveryProfileSpec defines the desired state of DiscoveryProfile",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"gnmi": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.GnmiDiscoveryVendorProfileParameters"),
+						},
+					},
+				},
+				Required: []string{"gnmi"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.GnmiDiscoveryVendorProfileParameters"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_GnmiDiscoveryVendorProfileParameters(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"organization": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"modelMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"paths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Paths        DiscoveryPaths `json:\"paths\" protobuf:\"bytes,3,opt,name=paths\"`",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryPathDefinition"),
+									},
+								},
+							},
+						},
+					},
+					"encoding": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"organization", "paths"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryPathDefinition"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Proxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"URL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "URL specifies the base URL of the HTTP/HTTPS proxy server.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the proxy server",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"URL", "credentials"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Repository(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryURL specifies the base URL for a given repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.",
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"),
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines the that the BranchOrTag string is a repository branch or a tag",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref defines the branch or tag of the repository corresponding to the provider schema version",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"repoURL", "kind", "ref"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Rollout(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Rollout is the Rollout for the Rollout API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_RolloutList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutList contains a list of Rollouts",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Rollout"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Rollout", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_RolloutSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutSpec defines the desired state of Rollout",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryURL specifies the base URL for a given repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.",
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"),
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines the that the BranchOrTag string is a repository branch or a tag",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref defines the branch or tag of the repository corresponding to the provider schema version",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"strategy": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"skipUnavailableTarget": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"repoURL", "kind", "ref", "strategy"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_RolloutStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RolloutStatus defines the observed state of Rollout",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"targets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the status of the rollout on the respective target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutTargetStatus"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/inv/v1alpha1.RolloutTargetStatus"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_RolloutTargetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_Schema(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1771,32 +2481,6 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallb
 	}
 }
 
-func schema_config_server_apis_inv_v1alpha1_SchemaSpecProxy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"URL": {
-						SchemaProps: spec.SchemaProps{
-							Description: "URL specifies the base URL of the HTTP/HTTPS proxy server.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"credentials": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Credentials defines the name of the secret that holds the credentials to connect to the proxy server",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1820,9 +2504,8 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref common.Refe
 					},
 					"proxy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Proxy defines the HTTP/HTTPS proxy to be used to download the models.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy"),
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.",
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"),
 						},
 					},
 					"kind": {
@@ -1867,7 +2550,7 @@ func schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecProxy", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema", "github.com/sdcio/config-server/apis/inv/v1alpha1.SrcDstPath"},
 	}
 }
 
@@ -1992,6 +2675,310 @@ func schema_config_server_apis_inv_v1alpha1_SrcDstPath(ref common.ReferenceCallb
 				Required: []string{"src", "dst"},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Subscription(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Subscription is the Schema for the Subscription API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SubscriptionList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionList contains a list of Subscriptions",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Subscription"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Subscription", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SubscriptionParameters(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionSync defines the desired Subscription of SubscriptionSync",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name defines the name of the group of the Subscription to be collected",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description details what the Subscription collection is about",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels can be defined as user defined data to provide extra context",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"adminState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdminState allows to disable the subscription",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"interval": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"paths": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "mode", "paths"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SubscriptionSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionSpec defines the desired Subscription of Subscription",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"target": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the targets on which this Subscription applies",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionTarget"),
+						},
+					},
+					"protocol": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port defines the port on which the scan runs",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"encoding": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"subscriptions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionParameters"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"target", "protocol", "port", "subscriptions"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionParameters", "github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionTarget"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SubscriptionStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"targets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Targets defines the list of targets this resource applies to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_SubscriptionTarget(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetSelector defines the selector used to select the targets to which the config applies",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -2161,7 +3148,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 							Description: "Port defines the port on which the scan runs",
 							Default:     0,
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"encoding": {
@@ -2624,7 +3611,7 @@ func schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSync(ref common.Ref
 							Description: "Port defines the port on which the scan runs",
 							Default:     0,
 							Type:        []string{"integer"},
-							Format:      "int32",
+							Format:      "int64",
 						},
 					},
 					"paths": {
@@ -2717,6 +3704,206 @@ func schema_config_server_apis_inv_v1alpha1_TargetTemplate(ref common.ReferenceC
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_Workspace(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Workspace is the Workspace for the Workspace API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.WorkspaceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_WorkspaceList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkspaceList contains a list of Workspaces",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Workspace"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Workspace", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_WorkspaceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkspaceSpec defines the desired state of Workspace",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepositoryURL specifies the base URL for a given repository",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the repo",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.",
+							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"),
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines the that the BranchOrTag string is a repository branch or a tag",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref defines the branch or tag of the repository corresponding to the provider schema version",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"repoURL", "kind", "ref"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/inv/v1alpha1.Proxy"},
+	}
+}
+
+func schema_config_server_apis_inv_v1alpha1_WorkspaceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WorkspaceStatus defines the observed state of Workspace",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines the that the BranchOrTag string is a repository branch or a tag",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"deployedRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeployedRef is the reference that is deployed",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"},
 	}
 }
 
