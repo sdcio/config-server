@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type UnManagedConfigsGetter interface {
 
 // UnManagedConfigInterface has methods to work with UnManagedConfig resources.
 type UnManagedConfigInterface interface {
-	Create(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.CreateOptions) (*v1alpha1.UnManagedConfig, error)
-	Update(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.UpdateOptions) (*v1alpha1.UnManagedConfig, error)
+	Create(ctx context.Context, unManagedConfig *configv1alpha1.UnManagedConfig, opts v1.CreateOptions) (*configv1alpha1.UnManagedConfig, error)
+	Update(ctx context.Context, unManagedConfig *configv1alpha1.UnManagedConfig, opts v1.UpdateOptions) (*configv1alpha1.UnManagedConfig, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, unManagedConfig *v1alpha1.UnManagedConfig, opts v1.UpdateOptions) (*v1alpha1.UnManagedConfig, error)
+	UpdateStatus(ctx context.Context, unManagedConfig *configv1alpha1.UnManagedConfig, opts v1.UpdateOptions) (*configv1alpha1.UnManagedConfig, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.UnManagedConfig, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.UnManagedConfigList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.UnManagedConfig, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.UnManagedConfigList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.UnManagedConfig, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.UnManagedConfig, err error)
 	UnManagedConfigExpansion
 }
 
 // unManagedConfigs implements UnManagedConfigInterface
 type unManagedConfigs struct {
-	*gentype.ClientWithList[*v1alpha1.UnManagedConfig, *v1alpha1.UnManagedConfigList]
+	*gentype.ClientWithList[*configv1alpha1.UnManagedConfig, *configv1alpha1.UnManagedConfigList]
 }
 
 // newUnManagedConfigs returns a UnManagedConfigs
 func newUnManagedConfigs(c *ConfigV1alpha1Client, namespace string) *unManagedConfigs {
 	return &unManagedConfigs{
-		gentype.NewClientWithList[*v1alpha1.UnManagedConfig, *v1alpha1.UnManagedConfigList](
+		gentype.NewClientWithList[*configv1alpha1.UnManagedConfig, *configv1alpha1.UnManagedConfigList](
 			"unmanagedconfigs",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.UnManagedConfig { return &v1alpha1.UnManagedConfig{} },
-			func() *v1alpha1.UnManagedConfigList { return &v1alpha1.UnManagedConfigList{} }),
+			func() *configv1alpha1.UnManagedConfig { return &configv1alpha1.UnManagedConfig{} },
+			func() *configv1alpha1.UnManagedConfigList { return &configv1alpha1.UnManagedConfigList{} },
+		),
 	}
 }

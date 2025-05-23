@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ConfigSetLister helps list ConfigSets.
@@ -29,7 +29,7 @@ import (
 type ConfigSetLister interface {
 	// List lists all ConfigSets in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ConfigSet, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.ConfigSet, err error)
 	// ConfigSets returns an object that can list and get ConfigSets.
 	ConfigSets(namespace string) ConfigSetNamespaceLister
 	ConfigSetListerExpansion
@@ -37,17 +37,17 @@ type ConfigSetLister interface {
 
 // configSetLister implements the ConfigSetLister interface.
 type configSetLister struct {
-	listers.ResourceIndexer[*v1alpha1.ConfigSet]
+	listers.ResourceIndexer[*configv1alpha1.ConfigSet]
 }
 
 // NewConfigSetLister returns a new ConfigSetLister.
 func NewConfigSetLister(indexer cache.Indexer) ConfigSetLister {
-	return &configSetLister{listers.New[*v1alpha1.ConfigSet](indexer, v1alpha1.Resource("configset"))}
+	return &configSetLister{listers.New[*configv1alpha1.ConfigSet](indexer, configv1alpha1.Resource("configset"))}
 }
 
 // ConfigSets returns an object that can list and get ConfigSets.
 func (s *configSetLister) ConfigSets(namespace string) ConfigSetNamespaceLister {
-	return configSetNamespaceLister{listers.NewNamespaced[*v1alpha1.ConfigSet](s.ResourceIndexer, namespace)}
+	return configSetNamespaceLister{listers.NewNamespaced[*configv1alpha1.ConfigSet](s.ResourceIndexer, namespace)}
 }
 
 // ConfigSetNamespaceLister helps list and get ConfigSets.
@@ -55,15 +55,15 @@ func (s *configSetLister) ConfigSets(namespace string) ConfigSetNamespaceLister 
 type ConfigSetNamespaceLister interface {
 	// List lists all ConfigSets in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ConfigSet, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.ConfigSet, err error)
 	// Get retrieves the ConfigSet from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ConfigSet, error)
+	Get(name string) (*configv1alpha1.ConfigSet, error)
 	ConfigSetNamespaceListerExpansion
 }
 
 // configSetNamespaceLister implements the ConfigSetNamespaceLister
 // interface.
 type configSetNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.ConfigSet]
+	listers.ResourceIndexer[*configv1alpha1.ConfigSet]
 }

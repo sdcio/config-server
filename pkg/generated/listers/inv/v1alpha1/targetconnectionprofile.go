@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // TargetConnectionProfileLister helps list TargetConnectionProfiles.
@@ -29,7 +29,7 @@ import (
 type TargetConnectionProfileLister interface {
 	// List lists all TargetConnectionProfiles in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.TargetConnectionProfile, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.TargetConnectionProfile, err error)
 	// TargetConnectionProfiles returns an object that can list and get TargetConnectionProfiles.
 	TargetConnectionProfiles(namespace string) TargetConnectionProfileNamespaceLister
 	TargetConnectionProfileListerExpansion
@@ -37,17 +37,17 @@ type TargetConnectionProfileLister interface {
 
 // targetConnectionProfileLister implements the TargetConnectionProfileLister interface.
 type targetConnectionProfileLister struct {
-	listers.ResourceIndexer[*v1alpha1.TargetConnectionProfile]
+	listers.ResourceIndexer[*invv1alpha1.TargetConnectionProfile]
 }
 
 // NewTargetConnectionProfileLister returns a new TargetConnectionProfileLister.
 func NewTargetConnectionProfileLister(indexer cache.Indexer) TargetConnectionProfileLister {
-	return &targetConnectionProfileLister{listers.New[*v1alpha1.TargetConnectionProfile](indexer, v1alpha1.Resource("targetconnectionprofile"))}
+	return &targetConnectionProfileLister{listers.New[*invv1alpha1.TargetConnectionProfile](indexer, invv1alpha1.Resource("targetconnectionprofile"))}
 }
 
 // TargetConnectionProfiles returns an object that can list and get TargetConnectionProfiles.
 func (s *targetConnectionProfileLister) TargetConnectionProfiles(namespace string) TargetConnectionProfileNamespaceLister {
-	return targetConnectionProfileNamespaceLister{listers.NewNamespaced[*v1alpha1.TargetConnectionProfile](s.ResourceIndexer, namespace)}
+	return targetConnectionProfileNamespaceLister{listers.NewNamespaced[*invv1alpha1.TargetConnectionProfile](s.ResourceIndexer, namespace)}
 }
 
 // TargetConnectionProfileNamespaceLister helps list and get TargetConnectionProfiles.
@@ -55,15 +55,15 @@ func (s *targetConnectionProfileLister) TargetConnectionProfiles(namespace strin
 type TargetConnectionProfileNamespaceLister interface {
 	// List lists all TargetConnectionProfiles in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.TargetConnectionProfile, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.TargetConnectionProfile, err error)
 	// Get retrieves the TargetConnectionProfile from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.TargetConnectionProfile, error)
+	Get(name string) (*invv1alpha1.TargetConnectionProfile, error)
 	TargetConnectionProfileNamespaceListerExpansion
 }
 
 // targetConnectionProfileNamespaceLister implements the TargetConnectionProfileNamespaceLister
 // interface.
 type targetConnectionProfileNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.TargetConnectionProfile]
+	listers.ResourceIndexer[*invv1alpha1.TargetConnectionProfile]
 }

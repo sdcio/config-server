@@ -25,6 +25,22 @@ type DiscoveryRuleListerExpansion interface{}
 // DiscoveryRuleNamespaceLister.
 type DiscoveryRuleNamespaceListerExpansion interface{}
 
+// DiscoveryVendorProfileListerExpansion allows custom methods to be added to
+// DiscoveryVendorProfileLister.
+type DiscoveryVendorProfileListerExpansion interface{}
+
+// DiscoveryVendorProfileNamespaceListerExpansion allows custom methods to be added to
+// DiscoveryVendorProfileNamespaceLister.
+type DiscoveryVendorProfileNamespaceListerExpansion interface{}
+
+// RolloutListerExpansion allows custom methods to be added to
+// RolloutLister.
+type RolloutListerExpansion interface{}
+
+// RolloutNamespaceListerExpansion allows custom methods to be added to
+// RolloutNamespaceLister.
+type RolloutNamespaceListerExpansion interface{}
+
 // SchemaListerExpansion allows custom methods to be added to
 // SchemaLister.
 type SchemaListerExpansion interface{}
@@ -32,6 +48,14 @@ type SchemaListerExpansion interface{}
 // SchemaNamespaceListerExpansion allows custom methods to be added to
 // SchemaNamespaceLister.
 type SchemaNamespaceListerExpansion interface{}
+
+// SubscriptionListerExpansion allows custom methods to be added to
+// SubscriptionLister.
+type SubscriptionListerExpansion interface{}
+
+// SubscriptionNamespaceListerExpansion allows custom methods to be added to
+// SubscriptionNamespaceLister.
+type SubscriptionNamespaceListerExpansion interface{}
 
 // TargetListerExpansion allows custom methods to be added to
 // TargetLister.
@@ -56,3 +80,11 @@ type TargetSyncProfileListerExpansion interface{}
 // TargetSyncProfileNamespaceListerExpansion allows custom methods to be added to
 // TargetSyncProfileNamespaceLister.
 type TargetSyncProfileNamespaceListerExpansion interface{}
+
+// WorkspaceListerExpansion allows custom methods to be added to
+// WorkspaceLister.
+type WorkspaceListerExpansion interface{}
+
+// WorkspaceNamespaceListerExpansion allows custom methods to be added to
+// WorkspaceNamespaceLister.
+type WorkspaceNamespaceListerExpansion interface{}

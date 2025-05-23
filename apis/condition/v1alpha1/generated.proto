@@ -38,3 +38,9 @@ message ConditionedStatus {
   repeated Condition conditions = 1;
 }
 
+message UnrecoverableMessage {
+  optional string resourceVersion = 1;
+
+  optional string message = 2;
+}
+

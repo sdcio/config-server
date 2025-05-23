@@ -284,7 +284,6 @@ func ConfigCancelFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
-
 func SchemaServerReady() condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeSchemaServerReady),

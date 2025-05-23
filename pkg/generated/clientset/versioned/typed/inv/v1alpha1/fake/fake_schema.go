@@ -18,129 +18,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSchemas implements SchemaInterface
-type FakeSchemas struct {
+// fakeSchemas implements SchemaInterface
+type fakeSchemas struct {
+	*gentype.FakeClientWithList[*v1alpha1.Schema, *v1alpha1.SchemaList]
 	Fake *FakeInvV1alpha1
-	ns   string
 }
 
-var schemasResource = v1alpha1.SchemeGroupVersion.WithResource("schemas")
-
-var schemasKind = v1alpha1.SchemeGroupVersion.WithKind("Schema")
-
-// Get takes name of the schema, and returns the corresponding schema object, and an error if there is any.
-func (c *FakeSchemas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Schema, err error) {
-	emptyResult := &v1alpha1.Schema{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(schemasResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeSchemas(fake *FakeInvV1alpha1, namespace string) invv1alpha1.SchemaInterface {
+	return &fakeSchemas{
+		gentype.NewFakeClientWithList[*v1alpha1.Schema, *v1alpha1.SchemaList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("schemas"),
+			v1alpha1.SchemeGroupVersion.WithKind("Schema"),
+			func() *v1alpha1.Schema { return &v1alpha1.Schema{} },
+			func() *v1alpha1.SchemaList { return &v1alpha1.SchemaList{} },
+			func(dst, src *v1alpha1.SchemaList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.SchemaList) []*v1alpha1.Schema { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.SchemaList, items []*v1alpha1.Schema) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Schema), err
-}
-
-// List takes label and field selectors, and returns the list of Schemas that match those selectors.
-func (c *FakeSchemas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.SchemaList, err error) {
-	emptyResult := &v1alpha1.SchemaList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(schemasResource, schemasKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.SchemaList{ListMeta: obj.(*v1alpha1.SchemaList).ListMeta}
-	for _, item := range obj.(*v1alpha1.SchemaList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested schemas.
-func (c *FakeSchemas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(schemasResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a schema and creates it.  Returns the server's representation of the schema, and an error, if there is any.
-func (c *FakeSchemas) Create(ctx context.Context, schema *v1alpha1.Schema, opts v1.CreateOptions) (result *v1alpha1.Schema, err error) {
-	emptyResult := &v1alpha1.Schema{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(schemasResource, c.ns, schema, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Schema), err
-}
-
-// Update takes the representation of a schema and updates it. Returns the server's representation of the schema, and an error, if there is any.
-func (c *FakeSchemas) Update(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (result *v1alpha1.Schema, err error) {
-	emptyResult := &v1alpha1.Schema{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(schemasResource, c.ns, schema, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Schema), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSchemas) UpdateStatus(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (result *v1alpha1.Schema, err error) {
-	emptyResult := &v1alpha1.Schema{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(schemasResource, "status", c.ns, schema, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Schema), err
-}
-
-// Delete takes name of the schema and deletes it. Returns an error if one occurs.
-func (c *FakeSchemas) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(schemasResource, c.ns, name, opts), &v1alpha1.Schema{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeSchemas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(schemasResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.SchemaList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched schema.
-func (c *FakeSchemas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Schema, err error) {
-	emptyResult := &v1alpha1.Schema{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(schemasResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Schema), err
 }

@@ -46,7 +46,7 @@ func (r *Target) SetOverallStatus(target *Target) {
 	msg := "target ready"
 	if ready && !target.GetCondition(ConditionTypeDiscoveryReady).IsTrue() {
 		ready = false
-		msg = "discovery not ready"// target.GetCondition(ConditionTypeDiscoveryReady).Message)
+		msg = "discovery not ready" // target.GetCondition(ConditionTypeDiscoveryReady).Message)
 	}
 	if ready && !target.GetCondition(ConditionTypeDatastoreReady).IsTrue() {
 		ready = false
@@ -54,11 +54,11 @@ func (r *Target) SetOverallStatus(target *Target) {
 	}
 	if ready && !target.GetCondition(ConditionTypeConfigReady).IsTrue() {
 		ready = false
-		msg = "config not ready"//, target.GetCondition(ConditionTypeConfigReady).Message)
+		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
-		msg = "datastore connection not ready"// target.GetCondition(ConditionTypeTargetConnectionReady).Message)
+		msg = "datastore connection not ready" // target.GetCondition(ConditionTypeTargetConnectionReady).Message)
 	}
 	if ready {
 		r.Status.SetConditions(condv1alpha1.Ready())
@@ -77,7 +77,7 @@ func (r *Target) IsReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue 
+		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) NotReadyReason() string {

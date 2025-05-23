@@ -18,116 +18,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeTargetSyncProfiles implements TargetSyncProfileInterface
-type FakeTargetSyncProfiles struct {
+// fakeTargetSyncProfiles implements TargetSyncProfileInterface
+type fakeTargetSyncProfiles struct {
+	*gentype.FakeClientWithList[*v1alpha1.TargetSyncProfile, *v1alpha1.TargetSyncProfileList]
 	Fake *FakeInvV1alpha1
-	ns   string
 }
 
-var targetsyncprofilesResource = v1alpha1.SchemeGroupVersion.WithResource("targetsyncprofiles")
-
-var targetsyncprofilesKind = v1alpha1.SchemeGroupVersion.WithKind("TargetSyncProfile")
-
-// Get takes name of the targetSyncProfile, and returns the corresponding targetSyncProfile object, and an error if there is any.
-func (c *FakeTargetSyncProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.TargetSyncProfile, err error) {
-	emptyResult := &v1alpha1.TargetSyncProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(targetsyncprofilesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeTargetSyncProfiles(fake *FakeInvV1alpha1, namespace string) invv1alpha1.TargetSyncProfileInterface {
+	return &fakeTargetSyncProfiles{
+		gentype.NewFakeClientWithList[*v1alpha1.TargetSyncProfile, *v1alpha1.TargetSyncProfileList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("targetsyncprofiles"),
+			v1alpha1.SchemeGroupVersion.WithKind("TargetSyncProfile"),
+			func() *v1alpha1.TargetSyncProfile { return &v1alpha1.TargetSyncProfile{} },
+			func() *v1alpha1.TargetSyncProfileList { return &v1alpha1.TargetSyncProfileList{} },
+			func(dst, src *v1alpha1.TargetSyncProfileList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.TargetSyncProfileList) []*v1alpha1.TargetSyncProfile {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.TargetSyncProfileList, items []*v1alpha1.TargetSyncProfile) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.TargetSyncProfile), err
-}
-
-// List takes label and field selectors, and returns the list of TargetSyncProfiles that match those selectors.
-func (c *FakeTargetSyncProfiles) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.TargetSyncProfileList, err error) {
-	emptyResult := &v1alpha1.TargetSyncProfileList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(targetsyncprofilesResource, targetsyncprofilesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.TargetSyncProfileList{ListMeta: obj.(*v1alpha1.TargetSyncProfileList).ListMeta}
-	for _, item := range obj.(*v1alpha1.TargetSyncProfileList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested targetSyncProfiles.
-func (c *FakeTargetSyncProfiles) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(targetsyncprofilesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a targetSyncProfile and creates it.  Returns the server's representation of the targetSyncProfile, and an error, if there is any.
-func (c *FakeTargetSyncProfiles) Create(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.CreateOptions) (result *v1alpha1.TargetSyncProfile, err error) {
-	emptyResult := &v1alpha1.TargetSyncProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(targetsyncprofilesResource, c.ns, targetSyncProfile, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.TargetSyncProfile), err
-}
-
-// Update takes the representation of a targetSyncProfile and updates it. Returns the server's representation of the targetSyncProfile, and an error, if there is any.
-func (c *FakeTargetSyncProfiles) Update(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.UpdateOptions) (result *v1alpha1.TargetSyncProfile, err error) {
-	emptyResult := &v1alpha1.TargetSyncProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(targetsyncprofilesResource, c.ns, targetSyncProfile, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.TargetSyncProfile), err
-}
-
-// Delete takes name of the targetSyncProfile and deletes it. Returns an error if one occurs.
-func (c *FakeTargetSyncProfiles) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(targetsyncprofilesResource, c.ns, name, opts), &v1alpha1.TargetSyncProfile{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeTargetSyncProfiles) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(targetsyncprofilesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.TargetSyncProfileList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched targetSyncProfile.
-func (c *FakeTargetSyncProfiles) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.TargetSyncProfile, err error) {
-	emptyResult := &v1alpha1.TargetSyncProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(targetsyncprofilesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.TargetSyncProfile), err
 }

@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // SchemaLister helps list Schemas.
@@ -29,7 +29,7 @@ import (
 type SchemaLister interface {
 	// List lists all Schemas in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Schema, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Schema, err error)
 	// Schemas returns an object that can list and get Schemas.
 	Schemas(namespace string) SchemaNamespaceLister
 	SchemaListerExpansion
@@ -37,17 +37,17 @@ type SchemaLister interface {
 
 // schemaLister implements the SchemaLister interface.
 type schemaLister struct {
-	listers.ResourceIndexer[*v1alpha1.Schema]
+	listers.ResourceIndexer[*invv1alpha1.Schema]
 }
 
 // NewSchemaLister returns a new SchemaLister.
 func NewSchemaLister(indexer cache.Indexer) SchemaLister {
-	return &schemaLister{listers.New[*v1alpha1.Schema](indexer, v1alpha1.Resource("schema"))}
+	return &schemaLister{listers.New[*invv1alpha1.Schema](indexer, invv1alpha1.Resource("schema"))}
 }
 
 // Schemas returns an object that can list and get Schemas.
 func (s *schemaLister) Schemas(namespace string) SchemaNamespaceLister {
-	return schemaNamespaceLister{listers.NewNamespaced[*v1alpha1.Schema](s.ResourceIndexer, namespace)}
+	return schemaNamespaceLister{listers.NewNamespaced[*invv1alpha1.Schema](s.ResourceIndexer, namespace)}
 }
 
 // SchemaNamespaceLister helps list and get Schemas.
@@ -55,15 +55,15 @@ func (s *schemaLister) Schemas(namespace string) SchemaNamespaceLister {
 type SchemaNamespaceLister interface {
 	// List lists all Schemas in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Schema, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Schema, err error)
 	// Get retrieves the Schema from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Schema, error)
+	Get(name string) (*invv1alpha1.Schema, error)
 	SchemaNamespaceListerExpansion
 }
 
 // schemaNamespaceLister implements the SchemaNamespaceLister
 // interface.
 type schemaNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Schema]
+	listers.ResourceIndexer[*invv1alpha1.Schema]
 }

@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type SchemasGetter interface {
 
 // SchemaInterface has methods to work with Schema resources.
 type SchemaInterface interface {
-	Create(ctx context.Context, schema *v1alpha1.Schema, opts v1.CreateOptions) (*v1alpha1.Schema, error)
-	Update(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (*v1alpha1.Schema, error)
+	Create(ctx context.Context, schema *invv1alpha1.Schema, opts v1.CreateOptions) (*invv1alpha1.Schema, error)
+	Update(ctx context.Context, schema *invv1alpha1.Schema, opts v1.UpdateOptions) (*invv1alpha1.Schema, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, schema *v1alpha1.Schema, opts v1.UpdateOptions) (*v1alpha1.Schema, error)
+	UpdateStatus(ctx context.Context, schema *invv1alpha1.Schema, opts v1.UpdateOptions) (*invv1alpha1.Schema, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Schema, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.SchemaList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.Schema, error)
+	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.SchemaList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Schema, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.Schema, err error)
 	SchemaExpansion
 }
 
 // schemas implements SchemaInterface
 type schemas struct {
-	*gentype.ClientWithList[*v1alpha1.Schema, *v1alpha1.SchemaList]
+	*gentype.ClientWithList[*invv1alpha1.Schema, *invv1alpha1.SchemaList]
 }
 
 // newSchemas returns a Schemas
 func newSchemas(c *InvV1alpha1Client, namespace string) *schemas {
 	return &schemas{
-		gentype.NewClientWithList[*v1alpha1.Schema, *v1alpha1.SchemaList](
+		gentype.NewClientWithList[*invv1alpha1.Schema, *invv1alpha1.SchemaList](
 			"schemas",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.Schema { return &v1alpha1.Schema{} },
-			func() *v1alpha1.SchemaList { return &v1alpha1.SchemaList{} }),
+			func() *invv1alpha1.Schema { return &invv1alpha1.Schema{} },
+			func() *invv1alpha1.SchemaList { return &invv1alpha1.SchemaList{} },
+		),
 	}
 }

@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	apisinvv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	versioned "github.com/sdcio/config-server/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sdcio/config-server/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // DiscoveryRules.
 type DiscoveryRuleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.DiscoveryRuleLister
+	Lister() invv1alpha1.DiscoveryRuleLister
 }
 
 type discoveryRuleInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredDiscoveryRuleInformer(client versioned.Interface, namespace stri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().DiscoveryRules(namespace).List(context.TODO(), options)
+				return client.InvV1alpha1().DiscoveryRules(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().DiscoveryRules(namespace).Watch(context.TODO(), options)
+				return client.InvV1alpha1().DiscoveryRules(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().DiscoveryRules(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().DiscoveryRules(namespace).Watch(ctx, options)
 			},
 		},
-		&invv1alpha1.DiscoveryRule{},
+		&apisinvv1alpha1.DiscoveryRule{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *discoveryRuleInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *discoveryRuleInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&invv1alpha1.DiscoveryRule{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisinvv1alpha1.DiscoveryRule{}, f.defaultInformer)
 }
 
-func (f *discoveryRuleInformer) Lister() v1alpha1.DiscoveryRuleLister {
-	return v1alpha1.NewDiscoveryRuleLister(f.Informer().GetIndexer())
+func (f *discoveryRuleInformer) Lister() invv1alpha1.DiscoveryRuleLister {
+	return invv1alpha1.NewDiscoveryRuleLister(f.Informer().GetIndexer())
 }

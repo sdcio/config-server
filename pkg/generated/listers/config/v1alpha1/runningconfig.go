@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RunningConfigLister helps list RunningConfigs.
@@ -29,7 +29,7 @@ import (
 type RunningConfigLister interface {
 	// List lists all RunningConfigs in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.RunningConfig, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.RunningConfig, err error)
 	// RunningConfigs returns an object that can list and get RunningConfigs.
 	RunningConfigs(namespace string) RunningConfigNamespaceLister
 	RunningConfigListerExpansion
@@ -37,17 +37,17 @@ type RunningConfigLister interface {
 
 // runningConfigLister implements the RunningConfigLister interface.
 type runningConfigLister struct {
-	listers.ResourceIndexer[*v1alpha1.RunningConfig]
+	listers.ResourceIndexer[*configv1alpha1.RunningConfig]
 }
 
 // NewRunningConfigLister returns a new RunningConfigLister.
 func NewRunningConfigLister(indexer cache.Indexer) RunningConfigLister {
-	return &runningConfigLister{listers.New[*v1alpha1.RunningConfig](indexer, v1alpha1.Resource("runningconfig"))}
+	return &runningConfigLister{listers.New[*configv1alpha1.RunningConfig](indexer, configv1alpha1.Resource("runningconfig"))}
 }
 
 // RunningConfigs returns an object that can list and get RunningConfigs.
 func (s *runningConfigLister) RunningConfigs(namespace string) RunningConfigNamespaceLister {
-	return runningConfigNamespaceLister{listers.NewNamespaced[*v1alpha1.RunningConfig](s.ResourceIndexer, namespace)}
+	return runningConfigNamespaceLister{listers.NewNamespaced[*configv1alpha1.RunningConfig](s.ResourceIndexer, namespace)}
 }
 
 // RunningConfigNamespaceLister helps list and get RunningConfigs.
@@ -55,15 +55,15 @@ func (s *runningConfigLister) RunningConfigs(namespace string) RunningConfigName
 type RunningConfigNamespaceLister interface {
 	// List lists all RunningConfigs in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.RunningConfig, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.RunningConfig, err error)
 	// Get retrieves the RunningConfig from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.RunningConfig, error)
+	Get(name string) (*configv1alpha1.RunningConfig, error)
 	RunningConfigNamespaceListerExpansion
 }
 
 // runningConfigNamespaceLister implements the RunningConfigNamespaceLister
 // interface.
 type runningConfigNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.RunningConfig]
+	listers.ResourceIndexer[*configv1alpha1.RunningConfig]
 }

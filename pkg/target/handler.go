@@ -38,6 +38,7 @@ type TargetHandler interface {
 	SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
 	Confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
 	Cancel(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
+	GetBlameConfig(ctx context.Context, targetKey types.NamespacedName) (*config.ConfigBlame, error)
 }
 
 func NewTargetHandler(client client.Client, targetStore storebackend.Storer[*Context]) TargetHandler {
@@ -103,6 +104,15 @@ func (r *targetHandler) GetData(ctx context.Context, targetKey types.NamespacedN
 		return nil, err
 	}
 	return tctx.GetData(ctx, storebackend.Key{NamespacedName: targetKey})
+}
+
+
+func (r *targetHandler) GetBlameConfig(ctx context.Context, targetKey types.NamespacedName) (*config.ConfigBlame, error) {
+	_, tctx, err := r.GetTargetContext(ctx, targetKey)
+	if err != nil {
+		return nil, err
+	}
+	return tctx.GetBlameConfig(ctx, storebackend.Key{NamespacedName: targetKey})
 }
 
 func (r *targetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error) {

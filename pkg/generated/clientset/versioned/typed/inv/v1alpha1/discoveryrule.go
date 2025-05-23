@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type DiscoveryRulesGetter interface {
 
 // DiscoveryRuleInterface has methods to work with DiscoveryRule resources.
 type DiscoveryRuleInterface interface {
-	Create(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.CreateOptions) (*v1alpha1.DiscoveryRule, error)
-	Update(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.UpdateOptions) (*v1alpha1.DiscoveryRule, error)
+	Create(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, opts v1.CreateOptions) (*invv1alpha1.DiscoveryRule, error)
+	Update(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, opts v1.UpdateOptions) (*invv1alpha1.DiscoveryRule, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, discoveryRule *v1alpha1.DiscoveryRule, opts v1.UpdateOptions) (*v1alpha1.DiscoveryRule, error)
+	UpdateStatus(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, opts v1.UpdateOptions) (*invv1alpha1.DiscoveryRule, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.DiscoveryRule, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.DiscoveryRuleList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.DiscoveryRule, error)
+	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.DiscoveryRuleList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DiscoveryRule, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.DiscoveryRule, err error)
 	DiscoveryRuleExpansion
 }
 
 // discoveryRules implements DiscoveryRuleInterface
 type discoveryRules struct {
-	*gentype.ClientWithList[*v1alpha1.DiscoveryRule, *v1alpha1.DiscoveryRuleList]
+	*gentype.ClientWithList[*invv1alpha1.DiscoveryRule, *invv1alpha1.DiscoveryRuleList]
 }
 
 // newDiscoveryRules returns a DiscoveryRules
 func newDiscoveryRules(c *InvV1alpha1Client, namespace string) *discoveryRules {
 	return &discoveryRules{
-		gentype.NewClientWithList[*v1alpha1.DiscoveryRule, *v1alpha1.DiscoveryRuleList](
+		gentype.NewClientWithList[*invv1alpha1.DiscoveryRule, *invv1alpha1.DiscoveryRuleList](
 			"discoveryrules",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.DiscoveryRule { return &v1alpha1.DiscoveryRule{} },
-			func() *v1alpha1.DiscoveryRuleList { return &v1alpha1.DiscoveryRuleList{} }),
+			func() *invv1alpha1.DiscoveryRule { return &invv1alpha1.DiscoveryRule{} },
+			func() *invv1alpha1.DiscoveryRuleList { return &invv1alpha1.DiscoveryRuleList{} },
+		),
 	}
 }

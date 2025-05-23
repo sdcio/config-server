@@ -231,6 +231,6 @@ func Rollout(msg string) Condition {
 }
 
 type UnrecoverableMessage struct {
-	ResourceVersion string `json:"resourceVersion"`
-	Message         string `json:"message"`
+	ResourceVersion string `json:"resourceVersion" protobuf:"bytes,1,opt,name=resourceVersion"`
+	Message         string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }

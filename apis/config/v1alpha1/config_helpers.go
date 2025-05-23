@@ -212,4 +212,3 @@ func (r *Config) SetDeviations(d []Deviation) {
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
-

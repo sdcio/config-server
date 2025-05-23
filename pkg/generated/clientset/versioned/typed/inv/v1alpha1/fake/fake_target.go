@@ -18,129 +18,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeTargets implements TargetInterface
-type FakeTargets struct {
+// fakeTargets implements TargetInterface
+type fakeTargets struct {
+	*gentype.FakeClientWithList[*v1alpha1.Target, *v1alpha1.TargetList]
 	Fake *FakeInvV1alpha1
-	ns   string
 }
 
-var targetsResource = v1alpha1.SchemeGroupVersion.WithResource("targets")
-
-var targetsKind = v1alpha1.SchemeGroupVersion.WithKind("Target")
-
-// Get takes name of the target, and returns the corresponding target object, and an error if there is any.
-func (c *FakeTargets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Target, err error) {
-	emptyResult := &v1alpha1.Target{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(targetsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeTargets(fake *FakeInvV1alpha1, namespace string) invv1alpha1.TargetInterface {
+	return &fakeTargets{
+		gentype.NewFakeClientWithList[*v1alpha1.Target, *v1alpha1.TargetList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("targets"),
+			v1alpha1.SchemeGroupVersion.WithKind("Target"),
+			func() *v1alpha1.Target { return &v1alpha1.Target{} },
+			func() *v1alpha1.TargetList { return &v1alpha1.TargetList{} },
+			func(dst, src *v1alpha1.TargetList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.TargetList) []*v1alpha1.Target { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.TargetList, items []*v1alpha1.Target) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Target), err
-}
-
-// List takes label and field selectors, and returns the list of Targets that match those selectors.
-func (c *FakeTargets) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.TargetList, err error) {
-	emptyResult := &v1alpha1.TargetList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(targetsResource, targetsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.TargetList{ListMeta: obj.(*v1alpha1.TargetList).ListMeta}
-	for _, item := range obj.(*v1alpha1.TargetList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested targets.
-func (c *FakeTargets) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(targetsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a target and creates it.  Returns the server's representation of the target, and an error, if there is any.
-func (c *FakeTargets) Create(ctx context.Context, target *v1alpha1.Target, opts v1.CreateOptions) (result *v1alpha1.Target, err error) {
-	emptyResult := &v1alpha1.Target{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(targetsResource, c.ns, target, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Target), err
-}
-
-// Update takes the representation of a target and updates it. Returns the server's representation of the target, and an error, if there is any.
-func (c *FakeTargets) Update(ctx context.Context, target *v1alpha1.Target, opts v1.UpdateOptions) (result *v1alpha1.Target, err error) {
-	emptyResult := &v1alpha1.Target{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(targetsResource, c.ns, target, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Target), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeTargets) UpdateStatus(ctx context.Context, target *v1alpha1.Target, opts v1.UpdateOptions) (result *v1alpha1.Target, err error) {
-	emptyResult := &v1alpha1.Target{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(targetsResource, "status", c.ns, target, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Target), err
-}
-
-// Delete takes name of the target and deletes it. Returns an error if one occurs.
-func (c *FakeTargets) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(targetsResource, c.ns, name, opts), &v1alpha1.Target{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeTargets) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(targetsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.TargetList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched target.
-func (c *FakeTargets) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Target, err error) {
-	emptyResult := &v1alpha1.Target{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(targetsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Target), err
 }

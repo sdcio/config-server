@@ -36,6 +36,32 @@ message Config {
   optional ConfigStatus status = 3;
 }
 
+// ConfigBlame is the Schema for the ConfigBlame API
+message ConfigBlame {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional ConfigBlameSpec spec = 2;
+
+  optional ConfigBlameStatus status = 3;
+}
+
+// ConfigBlameList contains a list of ConfigBlames
+message ConfigBlameList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated ConfigBlame items = 2;
+}
+
+// ConfigBlameSpec defines the desired state of ConfigBlame
+message ConfigBlameSpec {
+}
+
+// ConfigBlameStatus defines the observed state of ConfigBlame
+message ConfigBlameStatus {
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
+}
+
 message ConfigBlob {
   // Path defines the path relative to which the value is applicable
   optional string config = 1;
