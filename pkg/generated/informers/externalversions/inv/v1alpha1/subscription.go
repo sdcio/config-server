@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	apisinvv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	versioned "github.com/sdcio/config-server/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sdcio/config-server/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // Subscriptions.
 type SubscriptionInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.SubscriptionLister
+	Lister() invv1alpha1.SubscriptionLister
 }
 
 type subscriptionInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredSubscriptionInformer(client versioned.Interface, namespace strin
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().Subscriptions(namespace).List(context.TODO(), options)
+				return client.InvV1alpha1().Subscriptions(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().Subscriptions(namespace).Watch(context.TODO(), options)
+				return client.InvV1alpha1().Subscriptions(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().Subscriptions(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().Subscriptions(namespace).Watch(ctx, options)
 			},
 		},
-		&invv1alpha1.Subscription{},
+		&apisinvv1alpha1.Subscription{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *subscriptionInformer) defaultInformer(client versioned.Interface, resyn
 }
 
 func (f *subscriptionInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&invv1alpha1.Subscription{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisinvv1alpha1.Subscription{}, f.defaultInformer)
 }
 
-func (f *subscriptionInformer) Lister() v1alpha1.SubscriptionLister {
-	return v1alpha1.NewSubscriptionLister(f.Informer().GetIndexer())
+func (f *subscriptionInformer) Lister() invv1alpha1.SubscriptionLister {
+	return invv1alpha1.NewSubscriptionLister(f.Informer().GetIndexer())
 }

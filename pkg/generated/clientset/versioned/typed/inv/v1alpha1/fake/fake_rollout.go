@@ -18,129 +18,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeRollouts implements RolloutInterface
-type FakeRollouts struct {
+// fakeRollouts implements RolloutInterface
+type fakeRollouts struct {
+	*gentype.FakeClientWithList[*v1alpha1.Rollout, *v1alpha1.RolloutList]
 	Fake *FakeInvV1alpha1
-	ns   string
 }
 
-var rolloutsResource = v1alpha1.SchemeGroupVersion.WithResource("rollouts")
-
-var rolloutsKind = v1alpha1.SchemeGroupVersion.WithKind("Rollout")
-
-// Get takes name of the rollout, and returns the corresponding rollout object, and an error if there is any.
-func (c *FakeRollouts) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Rollout, err error) {
-	emptyResult := &v1alpha1.Rollout{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(rolloutsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeRollouts(fake *FakeInvV1alpha1, namespace string) invv1alpha1.RolloutInterface {
+	return &fakeRollouts{
+		gentype.NewFakeClientWithList[*v1alpha1.Rollout, *v1alpha1.RolloutList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("rollouts"),
+			v1alpha1.SchemeGroupVersion.WithKind("Rollout"),
+			func() *v1alpha1.Rollout { return &v1alpha1.Rollout{} },
+			func() *v1alpha1.RolloutList { return &v1alpha1.RolloutList{} },
+			func(dst, src *v1alpha1.RolloutList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.RolloutList) []*v1alpha1.Rollout { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha1.RolloutList, items []*v1alpha1.Rollout) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Rollout), err
-}
-
-// List takes label and field selectors, and returns the list of Rollouts that match those selectors.
-func (c *FakeRollouts) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.RolloutList, err error) {
-	emptyResult := &v1alpha1.RolloutList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(rolloutsResource, rolloutsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.RolloutList{ListMeta: obj.(*v1alpha1.RolloutList).ListMeta}
-	for _, item := range obj.(*v1alpha1.RolloutList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested rollouts.
-func (c *FakeRollouts) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(rolloutsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a rollout and creates it.  Returns the server's representation of the rollout, and an error, if there is any.
-func (c *FakeRollouts) Create(ctx context.Context, rollout *v1alpha1.Rollout, opts v1.CreateOptions) (result *v1alpha1.Rollout, err error) {
-	emptyResult := &v1alpha1.Rollout{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(rolloutsResource, c.ns, rollout, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Rollout), err
-}
-
-// Update takes the representation of a rollout and updates it. Returns the server's representation of the rollout, and an error, if there is any.
-func (c *FakeRollouts) Update(ctx context.Context, rollout *v1alpha1.Rollout, opts v1.UpdateOptions) (result *v1alpha1.Rollout, err error) {
-	emptyResult := &v1alpha1.Rollout{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(rolloutsResource, c.ns, rollout, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Rollout), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeRollouts) UpdateStatus(ctx context.Context, rollout *v1alpha1.Rollout, opts v1.UpdateOptions) (result *v1alpha1.Rollout, err error) {
-	emptyResult := &v1alpha1.Rollout{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(rolloutsResource, "status", c.ns, rollout, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Rollout), err
-}
-
-// Delete takes name of the rollout and deletes it. Returns an error if one occurs.
-func (c *FakeRollouts) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(rolloutsResource, c.ns, name, opts), &v1alpha1.Rollout{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeRollouts) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(rolloutsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.RolloutList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched rollout.
-func (c *FakeRollouts) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Rollout, err error) {
-	emptyResult := &v1alpha1.Rollout{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(rolloutsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Rollout), err
 }

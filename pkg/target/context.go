@@ -528,6 +528,34 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 	), nil
 }
 
+
+func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*config.ConfigBlame, error) {
+	log := log.FromContext(ctx).With("target", key.String())
+	if !r.IsReady() {
+		return nil, fmt.Errorf("target context not ready")
+	}
+
+	rsp, err := r.dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
+		DatastoreName: key.String(),
+		IncludeDefaults:        true,
+	})
+	if err != nil {
+		log.Error("get blame config failed", "error", err.Error())
+		return nil, err
+	}
+
+	return config.BuildConfigBlame(
+		metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		config.ConfigBlameSpec{},
+		config.ConfigBlameStatus{
+			Value: rsp.String(),
+		},
+	), nil
+}
+
 func (r *Context) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
 	log := log.FromContext(ctx).With("targetKey", r.targetKey.String())
 	if err := r.subscriptions.DelSubscription(sub); err != nil {

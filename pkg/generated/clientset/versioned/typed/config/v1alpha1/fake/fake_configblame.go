@@ -18,129 +18,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	configv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/config/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeConfigBlames implements ConfigBlameInterface
-type FakeConfigBlames struct {
+// fakeConfigBlames implements ConfigBlameInterface
+type fakeConfigBlames struct {
+	*gentype.FakeClientWithList[*v1alpha1.ConfigBlame, *v1alpha1.ConfigBlameList]
 	Fake *FakeConfigV1alpha1
-	ns   string
 }
 
-var configblamesResource = v1alpha1.SchemeGroupVersion.WithResource("configblames")
-
-var configblamesKind = v1alpha1.SchemeGroupVersion.WithKind("ConfigBlame")
-
-// Get takes name of the configBlame, and returns the corresponding configBlame object, and an error if there is any.
-func (c *FakeConfigBlames) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ConfigBlame, err error) {
-	emptyResult := &v1alpha1.ConfigBlame{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(configblamesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeConfigBlames(fake *FakeConfigV1alpha1, namespace string) configv1alpha1.ConfigBlameInterface {
+	return &fakeConfigBlames{
+		gentype.NewFakeClientWithList[*v1alpha1.ConfigBlame, *v1alpha1.ConfigBlameList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("configblames"),
+			v1alpha1.SchemeGroupVersion.WithKind("ConfigBlame"),
+			func() *v1alpha1.ConfigBlame { return &v1alpha1.ConfigBlame{} },
+			func() *v1alpha1.ConfigBlameList { return &v1alpha1.ConfigBlameList{} },
+			func(dst, src *v1alpha1.ConfigBlameList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ConfigBlameList) []*v1alpha1.ConfigBlame {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ConfigBlameList, items []*v1alpha1.ConfigBlame) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ConfigBlame), err
-}
-
-// List takes label and field selectors, and returns the list of ConfigBlames that match those selectors.
-func (c *FakeConfigBlames) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ConfigBlameList, err error) {
-	emptyResult := &v1alpha1.ConfigBlameList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(configblamesResource, configblamesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ConfigBlameList{ListMeta: obj.(*v1alpha1.ConfigBlameList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ConfigBlameList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested configBlames.
-func (c *FakeConfigBlames) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(configblamesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a configBlame and creates it.  Returns the server's representation of the configBlame, and an error, if there is any.
-func (c *FakeConfigBlames) Create(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.CreateOptions) (result *v1alpha1.ConfigBlame, err error) {
-	emptyResult := &v1alpha1.ConfigBlame{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(configblamesResource, c.ns, configBlame, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ConfigBlame), err
-}
-
-// Update takes the representation of a configBlame and updates it. Returns the server's representation of the configBlame, and an error, if there is any.
-func (c *FakeConfigBlames) Update(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.UpdateOptions) (result *v1alpha1.ConfigBlame, err error) {
-	emptyResult := &v1alpha1.ConfigBlame{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(configblamesResource, c.ns, configBlame, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ConfigBlame), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeConfigBlames) UpdateStatus(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.UpdateOptions) (result *v1alpha1.ConfigBlame, err error) {
-	emptyResult := &v1alpha1.ConfigBlame{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(configblamesResource, "status", c.ns, configBlame, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ConfigBlame), err
-}
-
-// Delete takes name of the configBlame and deletes it. Returns an error if one occurs.
-func (c *FakeConfigBlames) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(configblamesResource, c.ns, name, opts), &v1alpha1.ConfigBlame{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeConfigBlames) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(configblamesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ConfigBlameList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched configBlame.
-func (c *FakeConfigBlames) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ConfigBlame, err error) {
-	emptyResult := &v1alpha1.ConfigBlame{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(configblamesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.ConfigBlame), err
 }

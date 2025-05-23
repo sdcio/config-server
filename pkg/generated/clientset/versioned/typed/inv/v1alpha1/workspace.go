@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type WorkspacesGetter interface {
 
 // WorkspaceInterface has methods to work with Workspace resources.
 type WorkspaceInterface interface {
-	Create(ctx context.Context, workspace *v1alpha1.Workspace, opts v1.CreateOptions) (*v1alpha1.Workspace, error)
-	Update(ctx context.Context, workspace *v1alpha1.Workspace, opts v1.UpdateOptions) (*v1alpha1.Workspace, error)
+	Create(ctx context.Context, workspace *invv1alpha1.Workspace, opts v1.CreateOptions) (*invv1alpha1.Workspace, error)
+	Update(ctx context.Context, workspace *invv1alpha1.Workspace, opts v1.UpdateOptions) (*invv1alpha1.Workspace, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, workspace *v1alpha1.Workspace, opts v1.UpdateOptions) (*v1alpha1.Workspace, error)
+	UpdateStatus(ctx context.Context, workspace *invv1alpha1.Workspace, opts v1.UpdateOptions) (*invv1alpha1.Workspace, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Workspace, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.WorkspaceList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.Workspace, error)
+	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.WorkspaceList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Workspace, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.Workspace, err error)
 	WorkspaceExpansion
 }
 
 // workspaces implements WorkspaceInterface
 type workspaces struct {
-	*gentype.ClientWithList[*v1alpha1.Workspace, *v1alpha1.WorkspaceList]
+	*gentype.ClientWithList[*invv1alpha1.Workspace, *invv1alpha1.WorkspaceList]
 }
 
 // newWorkspaces returns a Workspaces
 func newWorkspaces(c *InvV1alpha1Client, namespace string) *workspaces {
 	return &workspaces{
-		gentype.NewClientWithList[*v1alpha1.Workspace, *v1alpha1.WorkspaceList](
+		gentype.NewClientWithList[*invv1alpha1.Workspace, *invv1alpha1.WorkspaceList](
 			"workspaces",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.Workspace { return &v1alpha1.Workspace{} },
-			func() *v1alpha1.WorkspaceList { return &v1alpha1.WorkspaceList{} }),
+			func() *invv1alpha1.Workspace { return &invv1alpha1.Workspace{} },
+			func() *invv1alpha1.WorkspaceList { return &invv1alpha1.WorkspaceList{} },
+		),
 	}
 }

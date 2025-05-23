@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type ConfigBlamesGetter interface {
 
 // ConfigBlameInterface has methods to work with ConfigBlame resources.
 type ConfigBlameInterface interface {
-	Create(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.CreateOptions) (*v1alpha1.ConfigBlame, error)
-	Update(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.UpdateOptions) (*v1alpha1.ConfigBlame, error)
+	Create(ctx context.Context, configBlame *configv1alpha1.ConfigBlame, opts v1.CreateOptions) (*configv1alpha1.ConfigBlame, error)
+	Update(ctx context.Context, configBlame *configv1alpha1.ConfigBlame, opts v1.UpdateOptions) (*configv1alpha1.ConfigBlame, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, configBlame *v1alpha1.ConfigBlame, opts v1.UpdateOptions) (*v1alpha1.ConfigBlame, error)
+	UpdateStatus(ctx context.Context, configBlame *configv1alpha1.ConfigBlame, opts v1.UpdateOptions) (*configv1alpha1.ConfigBlame, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ConfigBlame, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ConfigBlameList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.ConfigBlame, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ConfigBlameList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ConfigBlame, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ConfigBlame, err error)
 	ConfigBlameExpansion
 }
 
 // configBlames implements ConfigBlameInterface
 type configBlames struct {
-	*gentype.ClientWithList[*v1alpha1.ConfigBlame, *v1alpha1.ConfigBlameList]
+	*gentype.ClientWithList[*configv1alpha1.ConfigBlame, *configv1alpha1.ConfigBlameList]
 }
 
 // newConfigBlames returns a ConfigBlames
 func newConfigBlames(c *ConfigV1alpha1Client, namespace string) *configBlames {
 	return &configBlames{
-		gentype.NewClientWithList[*v1alpha1.ConfigBlame, *v1alpha1.ConfigBlameList](
+		gentype.NewClientWithList[*configv1alpha1.ConfigBlame, *configv1alpha1.ConfigBlameList](
 			"configblames",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.ConfigBlame { return &v1alpha1.ConfigBlame{} },
-			func() *v1alpha1.ConfigBlameList { return &v1alpha1.ConfigBlameList{} }),
+			func() *configv1alpha1.ConfigBlame { return &configv1alpha1.ConfigBlame{} },
+			func() *configv1alpha1.ConfigBlameList { return &configv1alpha1.ConfigBlameList{} },
+		),
 	}
 }

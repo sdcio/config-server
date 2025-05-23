@@ -78,3 +78,7 @@ func (r *fakeclient) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest
 func (r *fakeclient) WatchDeviations(ctx context.Context, in *sdcpb.WatchDeviationRequest, opts ...grpc.CallOption) (sdcpb.DataServer_WatchDeviationsClient, error) {
 	return nil, nil
 }
+
+func (r *fakeclient) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
+	return &sdcpb.BlameConfigResponse{}, nil
+}

@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // WorkspaceLister helps list Workspaces.
@@ -29,7 +29,7 @@ import (
 type WorkspaceLister interface {
 	// List lists all Workspaces in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Workspace, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Workspace, err error)
 	// Workspaces returns an object that can list and get Workspaces.
 	Workspaces(namespace string) WorkspaceNamespaceLister
 	WorkspaceListerExpansion
@@ -37,17 +37,17 @@ type WorkspaceLister interface {
 
 // workspaceLister implements the WorkspaceLister interface.
 type workspaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Workspace]
+	listers.ResourceIndexer[*invv1alpha1.Workspace]
 }
 
 // NewWorkspaceLister returns a new WorkspaceLister.
 func NewWorkspaceLister(indexer cache.Indexer) WorkspaceLister {
-	return &workspaceLister{listers.New[*v1alpha1.Workspace](indexer, v1alpha1.Resource("workspace"))}
+	return &workspaceLister{listers.New[*invv1alpha1.Workspace](indexer, invv1alpha1.Resource("workspace"))}
 }
 
 // Workspaces returns an object that can list and get Workspaces.
 func (s *workspaceLister) Workspaces(namespace string) WorkspaceNamespaceLister {
-	return workspaceNamespaceLister{listers.NewNamespaced[*v1alpha1.Workspace](s.ResourceIndexer, namespace)}
+	return workspaceNamespaceLister{listers.NewNamespaced[*invv1alpha1.Workspace](s.ResourceIndexer, namespace)}
 }
 
 // WorkspaceNamespaceLister helps list and get Workspaces.
@@ -55,15 +55,15 @@ func (s *workspaceLister) Workspaces(namespace string) WorkspaceNamespaceLister 
 type WorkspaceNamespaceLister interface {
 	// List lists all Workspaces in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Workspace, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Workspace, err error)
 	// Get retrieves the Workspace from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Workspace, error)
+	Get(name string) (*invv1alpha1.Workspace, error)
 	WorkspaceNamespaceListerExpansion
 }
 
 // workspaceNamespaceLister implements the WorkspaceNamespaceLister
 // interface.
 type workspaceNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Workspace]
+	listers.ResourceIndexer[*invv1alpha1.Workspace]
 }

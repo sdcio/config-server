@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	apisconfigv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	versioned "github.com/sdcio/config-server/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sdcio/config-server/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // ConfigBlames.
 type ConfigBlameInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ConfigBlameLister
+	Lister() configv1alpha1.ConfigBlameLister
 }
 
 type configBlameInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredConfigBlameInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().ConfigBlames(namespace).List(context.TODO(), options)
+				return client.ConfigV1alpha1().ConfigBlames(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().ConfigBlames(namespace).Watch(context.TODO(), options)
+				return client.ConfigV1alpha1().ConfigBlames(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().ConfigBlames(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().ConfigBlames(namespace).Watch(ctx, options)
 			},
 		},
-		&configv1alpha1.ConfigBlame{},
+		&apisconfigv1alpha1.ConfigBlame{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *configBlameInformer) defaultInformer(client versioned.Interface, resync
 }
 
 func (f *configBlameInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&configv1alpha1.ConfigBlame{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisconfigv1alpha1.ConfigBlame{}, f.defaultInformer)
 }
 
-func (f *configBlameInformer) Lister() v1alpha1.ConfigBlameLister {
-	return v1alpha1.NewConfigBlameLister(f.Informer().GetIndexer())
+func (f *configBlameInformer) Lister() configv1alpha1.ConfigBlameLister {
+	return configv1alpha1.NewConfigBlameLister(f.Informer().GetIndexer())
 }

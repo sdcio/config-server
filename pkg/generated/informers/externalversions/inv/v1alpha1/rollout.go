@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	apisinvv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	versioned "github.com/sdcio/config-server/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sdcio/config-server/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/inv/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // Rollouts.
 type RolloutInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.RolloutLister
+	Lister() invv1alpha1.RolloutLister
 }
 
 type rolloutInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredRolloutInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().Rollouts(namespace).List(context.TODO(), options)
+				return client.InvV1alpha1().Rollouts(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.InvV1alpha1().Rollouts(namespace).Watch(context.TODO(), options)
+				return client.InvV1alpha1().Rollouts(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().Rollouts(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.InvV1alpha1().Rollouts(namespace).Watch(ctx, options)
 			},
 		},
-		&invv1alpha1.Rollout{},
+		&apisinvv1alpha1.Rollout{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *rolloutInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *rolloutInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&invv1alpha1.Rollout{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisinvv1alpha1.Rollout{}, f.defaultInformer)
 }
 
-func (f *rolloutInformer) Lister() v1alpha1.RolloutLister {
-	return v1alpha1.NewRolloutLister(f.Informer().GetIndexer())
+func (f *rolloutInformer) Lister() invv1alpha1.RolloutLister {
+	return invv1alpha1.NewRolloutLister(f.Informer().GetIndexer())
 }

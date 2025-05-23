@@ -18,116 +18,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeDiscoveryVendorProfiles implements DiscoveryVendorProfileInterface
-type FakeDiscoveryVendorProfiles struct {
+// fakeDiscoveryVendorProfiles implements DiscoveryVendorProfileInterface
+type fakeDiscoveryVendorProfiles struct {
+	*gentype.FakeClientWithList[*v1alpha1.DiscoveryVendorProfile, *v1alpha1.DiscoveryVendorProfileList]
 	Fake *FakeInvV1alpha1
-	ns   string
 }
 
-var discoveryvendorprofilesResource = v1alpha1.SchemeGroupVersion.WithResource("discoveryvendorprofiles")
-
-var discoveryvendorprofilesKind = v1alpha1.SchemeGroupVersion.WithKind("DiscoveryVendorProfile")
-
-// Get takes name of the discoveryVendorProfile, and returns the corresponding discoveryVendorProfile object, and an error if there is any.
-func (c *FakeDiscoveryVendorProfiles) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DiscoveryVendorProfile, err error) {
-	emptyResult := &v1alpha1.DiscoveryVendorProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(discoveryvendorprofilesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeDiscoveryVendorProfiles(fake *FakeInvV1alpha1, namespace string) invv1alpha1.DiscoveryVendorProfileInterface {
+	return &fakeDiscoveryVendorProfiles{
+		gentype.NewFakeClientWithList[*v1alpha1.DiscoveryVendorProfile, *v1alpha1.DiscoveryVendorProfileList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("discoveryvendorprofiles"),
+			v1alpha1.SchemeGroupVersion.WithKind("DiscoveryVendorProfile"),
+			func() *v1alpha1.DiscoveryVendorProfile { return &v1alpha1.DiscoveryVendorProfile{} },
+			func() *v1alpha1.DiscoveryVendorProfileList { return &v1alpha1.DiscoveryVendorProfileList{} },
+			func(dst, src *v1alpha1.DiscoveryVendorProfileList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.DiscoveryVendorProfileList) []*v1alpha1.DiscoveryVendorProfile {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.DiscoveryVendorProfileList, items []*v1alpha1.DiscoveryVendorProfile) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.DiscoveryVendorProfile), err
-}
-
-// List takes label and field selectors, and returns the list of DiscoveryVendorProfiles that match those selectors.
-func (c *FakeDiscoveryVendorProfiles) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.DiscoveryVendorProfileList, err error) {
-	emptyResult := &v1alpha1.DiscoveryVendorProfileList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(discoveryvendorprofilesResource, discoveryvendorprofilesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.DiscoveryVendorProfileList{ListMeta: obj.(*v1alpha1.DiscoveryVendorProfileList).ListMeta}
-	for _, item := range obj.(*v1alpha1.DiscoveryVendorProfileList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested discoveryVendorProfiles.
-func (c *FakeDiscoveryVendorProfiles) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(discoveryvendorprofilesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a discoveryVendorProfile and creates it.  Returns the server's representation of the discoveryVendorProfile, and an error, if there is any.
-func (c *FakeDiscoveryVendorProfiles) Create(ctx context.Context, discoveryVendorProfile *v1alpha1.DiscoveryVendorProfile, opts v1.CreateOptions) (result *v1alpha1.DiscoveryVendorProfile, err error) {
-	emptyResult := &v1alpha1.DiscoveryVendorProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(discoveryvendorprofilesResource, c.ns, discoveryVendorProfile, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.DiscoveryVendorProfile), err
-}
-
-// Update takes the representation of a discoveryVendorProfile and updates it. Returns the server's representation of the discoveryVendorProfile, and an error, if there is any.
-func (c *FakeDiscoveryVendorProfiles) Update(ctx context.Context, discoveryVendorProfile *v1alpha1.DiscoveryVendorProfile, opts v1.UpdateOptions) (result *v1alpha1.DiscoveryVendorProfile, err error) {
-	emptyResult := &v1alpha1.DiscoveryVendorProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(discoveryvendorprofilesResource, c.ns, discoveryVendorProfile, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.DiscoveryVendorProfile), err
-}
-
-// Delete takes name of the discoveryVendorProfile and deletes it. Returns an error if one occurs.
-func (c *FakeDiscoveryVendorProfiles) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(discoveryvendorprofilesResource, c.ns, name, opts), &v1alpha1.DiscoveryVendorProfile{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeDiscoveryVendorProfiles) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(discoveryvendorprofilesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.DiscoveryVendorProfileList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched discoveryVendorProfile.
-func (c *FakeDiscoveryVendorProfiles) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DiscoveryVendorProfile, err error) {
-	emptyResult := &v1alpha1.DiscoveryVendorProfile{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(discoveryvendorprofilesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.DiscoveryVendorProfile), err
 }

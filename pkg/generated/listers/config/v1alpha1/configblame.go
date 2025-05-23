@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ConfigBlameLister helps list ConfigBlames.
@@ -29,7 +29,7 @@ import (
 type ConfigBlameLister interface {
 	// List lists all ConfigBlames in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ConfigBlame, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.ConfigBlame, err error)
 	// ConfigBlames returns an object that can list and get ConfigBlames.
 	ConfigBlames(namespace string) ConfigBlameNamespaceLister
 	ConfigBlameListerExpansion
@@ -37,17 +37,17 @@ type ConfigBlameLister interface {
 
 // configBlameLister implements the ConfigBlameLister interface.
 type configBlameLister struct {
-	listers.ResourceIndexer[*v1alpha1.ConfigBlame]
+	listers.ResourceIndexer[*configv1alpha1.ConfigBlame]
 }
 
 // NewConfigBlameLister returns a new ConfigBlameLister.
 func NewConfigBlameLister(indexer cache.Indexer) ConfigBlameLister {
-	return &configBlameLister{listers.New[*v1alpha1.ConfigBlame](indexer, v1alpha1.Resource("configblame"))}
+	return &configBlameLister{listers.New[*configv1alpha1.ConfigBlame](indexer, configv1alpha1.Resource("configblame"))}
 }
 
 // ConfigBlames returns an object that can list and get ConfigBlames.
 func (s *configBlameLister) ConfigBlames(namespace string) ConfigBlameNamespaceLister {
-	return configBlameNamespaceLister{listers.NewNamespaced[*v1alpha1.ConfigBlame](s.ResourceIndexer, namespace)}
+	return configBlameNamespaceLister{listers.NewNamespaced[*configv1alpha1.ConfigBlame](s.ResourceIndexer, namespace)}
 }
 
 // ConfigBlameNamespaceLister helps list and get ConfigBlames.
@@ -55,15 +55,15 @@ func (s *configBlameLister) ConfigBlames(namespace string) ConfigBlameNamespaceL
 type ConfigBlameNamespaceLister interface {
 	// List lists all ConfigBlames in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ConfigBlame, err error)
+	List(selector labels.Selector) (ret []*configv1alpha1.ConfigBlame, err error)
 	// Get retrieves the ConfigBlame from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ConfigBlame, error)
+	Get(name string) (*configv1alpha1.ConfigBlame, error)
 	ConfigBlameNamespaceListerExpansion
 }
 
 // configBlameNamespaceLister implements the ConfigBlameNamespaceLister
 // interface.
 type configBlameNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.ConfigBlame]
+	listers.ResourceIndexer[*configv1alpha1.ConfigBlame]
 }

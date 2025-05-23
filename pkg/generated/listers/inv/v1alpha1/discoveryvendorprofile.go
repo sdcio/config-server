@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // DiscoveryVendorProfileLister helps list DiscoveryVendorProfiles.
@@ -29,7 +29,7 @@ import (
 type DiscoveryVendorProfileLister interface {
 	// List lists all DiscoveryVendorProfiles in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.DiscoveryVendorProfile, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.DiscoveryVendorProfile, err error)
 	// DiscoveryVendorProfiles returns an object that can list and get DiscoveryVendorProfiles.
 	DiscoveryVendorProfiles(namespace string) DiscoveryVendorProfileNamespaceLister
 	DiscoveryVendorProfileListerExpansion
@@ -37,17 +37,17 @@ type DiscoveryVendorProfileLister interface {
 
 // discoveryVendorProfileLister implements the DiscoveryVendorProfileLister interface.
 type discoveryVendorProfileLister struct {
-	listers.ResourceIndexer[*v1alpha1.DiscoveryVendorProfile]
+	listers.ResourceIndexer[*invv1alpha1.DiscoveryVendorProfile]
 }
 
 // NewDiscoveryVendorProfileLister returns a new DiscoveryVendorProfileLister.
 func NewDiscoveryVendorProfileLister(indexer cache.Indexer) DiscoveryVendorProfileLister {
-	return &discoveryVendorProfileLister{listers.New[*v1alpha1.DiscoveryVendorProfile](indexer, v1alpha1.Resource("discoveryvendorprofile"))}
+	return &discoveryVendorProfileLister{listers.New[*invv1alpha1.DiscoveryVendorProfile](indexer, invv1alpha1.Resource("discoveryvendorprofile"))}
 }
 
 // DiscoveryVendorProfiles returns an object that can list and get DiscoveryVendorProfiles.
 func (s *discoveryVendorProfileLister) DiscoveryVendorProfiles(namespace string) DiscoveryVendorProfileNamespaceLister {
-	return discoveryVendorProfileNamespaceLister{listers.NewNamespaced[*v1alpha1.DiscoveryVendorProfile](s.ResourceIndexer, namespace)}
+	return discoveryVendorProfileNamespaceLister{listers.NewNamespaced[*invv1alpha1.DiscoveryVendorProfile](s.ResourceIndexer, namespace)}
 }
 
 // DiscoveryVendorProfileNamespaceLister helps list and get DiscoveryVendorProfiles.
@@ -55,15 +55,15 @@ func (s *discoveryVendorProfileLister) DiscoveryVendorProfiles(namespace string)
 type DiscoveryVendorProfileNamespaceLister interface {
 	// List lists all DiscoveryVendorProfiles in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.DiscoveryVendorProfile, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.DiscoveryVendorProfile, err error)
 	// Get retrieves the DiscoveryVendorProfile from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.DiscoveryVendorProfile, error)
+	Get(name string) (*invv1alpha1.DiscoveryVendorProfile, error)
 	DiscoveryVendorProfileNamespaceListerExpansion
 }
 
 // discoveryVendorProfileNamespaceLister implements the DiscoveryVendorProfileNamespaceLister
 // interface.
 type discoveryVendorProfileNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.DiscoveryVendorProfile]
+	listers.ResourceIndexer[*invv1alpha1.DiscoveryVendorProfile]
 }

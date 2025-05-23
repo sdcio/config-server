@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,31 +36,32 @@ type TargetSyncProfilesGetter interface {
 
 // TargetSyncProfileInterface has methods to work with TargetSyncProfile resources.
 type TargetSyncProfileInterface interface {
-	Create(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.CreateOptions) (*v1alpha1.TargetSyncProfile, error)
-	Update(ctx context.Context, targetSyncProfile *v1alpha1.TargetSyncProfile, opts v1.UpdateOptions) (*v1alpha1.TargetSyncProfile, error)
+	Create(ctx context.Context, targetSyncProfile *invv1alpha1.TargetSyncProfile, opts v1.CreateOptions) (*invv1alpha1.TargetSyncProfile, error)
+	Update(ctx context.Context, targetSyncProfile *invv1alpha1.TargetSyncProfile, opts v1.UpdateOptions) (*invv1alpha1.TargetSyncProfile, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.TargetSyncProfile, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.TargetSyncProfileList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.TargetSyncProfile, error)
+	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.TargetSyncProfileList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.TargetSyncProfile, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.TargetSyncProfile, err error)
 	TargetSyncProfileExpansion
 }
 
 // targetSyncProfiles implements TargetSyncProfileInterface
 type targetSyncProfiles struct {
-	*gentype.ClientWithList[*v1alpha1.TargetSyncProfile, *v1alpha1.TargetSyncProfileList]
+	*gentype.ClientWithList[*invv1alpha1.TargetSyncProfile, *invv1alpha1.TargetSyncProfileList]
 }
 
 // newTargetSyncProfiles returns a TargetSyncProfiles
 func newTargetSyncProfiles(c *InvV1alpha1Client, namespace string) *targetSyncProfiles {
 	return &targetSyncProfiles{
-		gentype.NewClientWithList[*v1alpha1.TargetSyncProfile, *v1alpha1.TargetSyncProfileList](
+		gentype.NewClientWithList[*invv1alpha1.TargetSyncProfile, *invv1alpha1.TargetSyncProfileList](
 			"targetsyncprofiles",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.TargetSyncProfile { return &v1alpha1.TargetSyncProfile{} },
-			func() *v1alpha1.TargetSyncProfileList { return &v1alpha1.TargetSyncProfileList{} }),
+			func() *invv1alpha1.TargetSyncProfile { return &invv1alpha1.TargetSyncProfile{} },
+			func() *invv1alpha1.TargetSyncProfileList { return &invv1alpha1.TargetSyncProfileList{} },
+		),
 	}
 }

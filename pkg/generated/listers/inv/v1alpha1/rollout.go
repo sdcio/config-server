@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RolloutLister helps list Rollouts.
@@ -29,7 +29,7 @@ import (
 type RolloutLister interface {
 	// List lists all Rollouts in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Rollout, err error)
 	// Rollouts returns an object that can list and get Rollouts.
 	Rollouts(namespace string) RolloutNamespaceLister
 	RolloutListerExpansion
@@ -37,17 +37,17 @@ type RolloutLister interface {
 
 // rolloutLister implements the RolloutLister interface.
 type rolloutLister struct {
-	listers.ResourceIndexer[*v1alpha1.Rollout]
+	listers.ResourceIndexer[*invv1alpha1.Rollout]
 }
 
 // NewRolloutLister returns a new RolloutLister.
 func NewRolloutLister(indexer cache.Indexer) RolloutLister {
-	return &rolloutLister{listers.New[*v1alpha1.Rollout](indexer, v1alpha1.Resource("rollout"))}
+	return &rolloutLister{listers.New[*invv1alpha1.Rollout](indexer, invv1alpha1.Resource("rollout"))}
 }
 
 // Rollouts returns an object that can list and get Rollouts.
 func (s *rolloutLister) Rollouts(namespace string) RolloutNamespaceLister {
-	return rolloutNamespaceLister{listers.NewNamespaced[*v1alpha1.Rollout](s.ResourceIndexer, namespace)}
+	return rolloutNamespaceLister{listers.NewNamespaced[*invv1alpha1.Rollout](s.ResourceIndexer, namespace)}
 }
 
 // RolloutNamespaceLister helps list and get Rollouts.
@@ -55,15 +55,15 @@ func (s *rolloutLister) Rollouts(namespace string) RolloutNamespaceLister {
 type RolloutNamespaceLister interface {
 	// List lists all Rollouts in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Rollout, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.Rollout, err error)
 	// Get retrieves the Rollout from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Rollout, error)
+	Get(name string) (*invv1alpha1.Rollout, error)
 	RolloutNamespaceListerExpansion
 }
 
 // rolloutNamespaceLister implements the RolloutNamespaceLister
 // interface.
 type rolloutNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Rollout]
+	listers.ResourceIndexer[*invv1alpha1.Rollout]
 }
