@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -544,6 +545,11 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 		return nil, err
 	}
 
+	json, err := protojson.Marshal(rsp.ConfigTree)
+	if err != nil {
+		return nil, fmt.Errorf("invalid json %s", err.Error())
+	}
+
 	return config.BuildConfigBlame(
 		metav1.ObjectMeta{
 			Name:      key.Name,
@@ -552,7 +558,7 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 		config.ConfigBlameSpec{},
 		config.ConfigBlameStatus{
 			Value: runtime.RawExtension{
-				Raw: []byte(rsp.ConfigTree.String()),
+				Raw: json,
 			},
 		},
 	), nil
