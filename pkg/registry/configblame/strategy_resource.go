@@ -156,7 +156,7 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 
-	rc, err := tctx.GetData(ctx, storebackend.KeyFromNSN(key))
+	rc, err := tctx.GetBlameConfig(ctx, storebackend.KeyFromNSN(key))
 	if err != nil {
 		return nil, apierrors.NewInternalError(err)
 	}
@@ -229,7 +229,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 				}
 			}
 			if !f {
-				obj, err := tctx.GetData(ctx, key)
+				obj, err := tctx.GetBlameConfig(ctx, key)
 				if err != nil {
 					log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
 					return
@@ -241,7 +241,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 				utils.AppendItem(v, obj)
 			}
 		} else {
-			obj, err := tctx.GetData(ctx, key)
+			obj, err := tctx.GetBlameConfig(ctx, key)
 			if err != nil {
 				log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
 				return
