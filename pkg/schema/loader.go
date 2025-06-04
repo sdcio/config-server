@@ -28,7 +28,10 @@ import (
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
+	"golang.org/x/sync/errgroup"
 )
+
+const concurrentGroupLimit = 3
 
 type Loader struct {
 	tmpDir             string
@@ -38,7 +41,7 @@ type Loader struct {
 	//schemas contains the Schema Reference indexed by Provider.Version key
 	sm      sync.RWMutex
 	schemas map[string]*invv1alpha1.Schema
-	// repo manager allocates sempahores to ensure no concurrent downloads from the same schema
+	// repo manager allocates semaphores to ensure no concurrent downloads from the same schema
 	repoMgr *RepoMgr
 }
 
@@ -135,18 +138,26 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 		return err
 	}
 
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(concurrentGroupLimit)
+
 	for _, schemaRepo := range schema.Spec.Repositories {
-		r.download(ctx, schema, schemaRepo)
+		group.Go(func() error {
+			return r.download(groupCtx, schema, schemaRepo)
+		})
+	}
+
+	err = group.Wait()
+	if err != nil {
+		return err
 	}
 
 	return nil
-
 }
 
 func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) error {
 	log := log.FromContext(ctx)
 
-	
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
 	var downloader downloadable
 	switch {
