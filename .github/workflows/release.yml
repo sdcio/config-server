@@ -13,9 +13,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-    GOVER: 1.21.4
-
 jobs:
   build-and-release:
     runs-on: sdcio-action-runners
@@ -37,7 +34,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GOVER }}
+          go-version-file: 'go.mod'
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
