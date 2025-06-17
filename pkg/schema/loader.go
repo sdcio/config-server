@@ -18,6 +18,7 @@ package schema
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"sync"
@@ -28,10 +29,7 @@ import (
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
-	"golang.org/x/sync/errgroup"
 )
-
-const concurrentGroupLimit = 3
 
 type Loader struct {
 	tmpDir             string
@@ -138,21 +136,22 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 		return err
 	}
 
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(concurrentGroupLimit)
+	errs := make([]error, 0)
 
 	for _, schemaRepo := range schema.Spec.Repositories {
-		group.Go(func() error {
-			return r.download(groupCtx, schema, schemaRepo)
-		})
+		// if an error occurs we can try to download the remaining repos before returning an error
+		err := r.download(ctx, schema, schemaRepo)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 
-	err = group.Wait()
+	err = errors.Join(errs...)
 	if err != nil {
 		return err
 	}
-
 	return nil
+
 }
 
 func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) error {
