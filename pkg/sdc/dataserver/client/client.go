@@ -162,6 +162,10 @@ func (r *client) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCan
 	return r.dsclient.TransactionCancel(ctx, in, opts...)
 }
 
+func (r *client) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
+	return r.dsclient.BlameConfig(ctx, in, opts...)
+}
+
 /*
 func (r *client) getGRPCOpts() ([]grpc.DialOption, error) {
 	var opts []grpc.DialOption

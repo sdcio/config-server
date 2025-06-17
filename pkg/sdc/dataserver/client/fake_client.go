@@ -29,9 +29,9 @@ func NewFakeClient() Client {
 
 type fakeclient struct{}
 
-func (r *fakeclient) IsConnectionReady() bool {return true}
+func (r *fakeclient) IsConnectionReady() bool { return true }
 
-func (r *fakeclient) IsConnected() bool {return true}
+func (r *fakeclient) IsConnected() bool { return true }
 
 func (r *fakeclient) Start(ctx context.Context) error { return nil }
 
@@ -77,4 +77,8 @@ func (r *fakeclient) ListIntent(ctx context.Context, in *sdcpb.ListIntentRequest
 
 func (r *fakeclient) WatchDeviations(ctx context.Context, in *sdcpb.WatchDeviationRequest, opts ...grpc.CallOption) (sdcpb.DataServer_WatchDeviationsClient, error) {
 	return nil, nil
+}
+
+func (r *fakeclient) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
+	return &sdcpb.BlameConfigResponse{}, nil
 }
