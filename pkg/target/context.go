@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -523,6 +524,41 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 		config.RunningConfigStatus{
 			Value: runtime.RawExtension{
 				Raw: rsp.GetBlob(),
+			},
+		},
+	), nil
+}
+
+
+func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*config.ConfigBlame, error) {
+	log := log.FromContext(ctx).With("target", key.String())
+	if !r.IsReady() {
+		return nil, fmt.Errorf("target context not ready")
+	}
+
+	rsp, err := r.dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
+		DatastoreName: key.String(),
+		IncludeDefaults:        true,
+	})
+	if err != nil {
+		log.Error("get blame config failed", "error", err.Error())
+		return nil, err
+	}
+
+	json, err := protojson.Marshal(rsp.ConfigTree)
+	if err != nil {
+		return nil, fmt.Errorf("invalid json %s", err.Error())
+	}
+
+	return config.BuildConfigBlame(
+		metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		config.ConfigBlameSpec{},
+		config.ConfigBlameStatus{
+			Value: runtime.RawExtension{
+				Raw: json,
 			},
 		},
 	), nil

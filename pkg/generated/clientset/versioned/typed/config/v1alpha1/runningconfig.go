@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type RunningConfigsGetter interface {
 
 // RunningConfigInterface has methods to work with RunningConfig resources.
 type RunningConfigInterface interface {
-	Create(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.CreateOptions) (*v1alpha1.RunningConfig, error)
-	Update(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.UpdateOptions) (*v1alpha1.RunningConfig, error)
+	Create(ctx context.Context, runningConfig *configv1alpha1.RunningConfig, opts v1.CreateOptions) (*configv1alpha1.RunningConfig, error)
+	Update(ctx context.Context, runningConfig *configv1alpha1.RunningConfig, opts v1.UpdateOptions) (*configv1alpha1.RunningConfig, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, runningConfig *v1alpha1.RunningConfig, opts v1.UpdateOptions) (*v1alpha1.RunningConfig, error)
+	UpdateStatus(ctx context.Context, runningConfig *configv1alpha1.RunningConfig, opts v1.UpdateOptions) (*configv1alpha1.RunningConfig, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.RunningConfig, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.RunningConfigList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.RunningConfig, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.RunningConfigList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.RunningConfig, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.RunningConfig, err error)
 	RunningConfigExpansion
 }
 
 // runningConfigs implements RunningConfigInterface
 type runningConfigs struct {
-	*gentype.ClientWithList[*v1alpha1.RunningConfig, *v1alpha1.RunningConfigList]
+	*gentype.ClientWithList[*configv1alpha1.RunningConfig, *configv1alpha1.RunningConfigList]
 }
 
 // newRunningConfigs returns a RunningConfigs
 func newRunningConfigs(c *ConfigV1alpha1Client, namespace string) *runningConfigs {
 	return &runningConfigs{
-		gentype.NewClientWithList[*v1alpha1.RunningConfig, *v1alpha1.RunningConfigList](
+		gentype.NewClientWithList[*configv1alpha1.RunningConfig, *configv1alpha1.RunningConfigList](
 			"runningconfigs",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.RunningConfig { return &v1alpha1.RunningConfig{} },
-			func() *v1alpha1.RunningConfigList { return &v1alpha1.RunningConfigList{} }),
+			func() *configv1alpha1.RunningConfig { return &configv1alpha1.RunningConfig{} },
+			func() *configv1alpha1.RunningConfigList { return &configv1alpha1.RunningConfigList{} },
+		),
 	}
 }

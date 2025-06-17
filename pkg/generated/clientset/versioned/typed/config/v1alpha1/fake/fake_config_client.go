@@ -28,19 +28,23 @@ type FakeConfigV1alpha1 struct {
 }
 
 func (c *FakeConfigV1alpha1) Configs(namespace string) v1alpha1.ConfigInterface {
-	return &FakeConfigs{c, namespace}
+	return newFakeConfigs(c, namespace)
+}
+
+func (c *FakeConfigV1alpha1) ConfigBlames(namespace string) v1alpha1.ConfigBlameInterface {
+	return newFakeConfigBlames(c, namespace)
 }
 
 func (c *FakeConfigV1alpha1) ConfigSets(namespace string) v1alpha1.ConfigSetInterface {
-	return &FakeConfigSets{c, namespace}
+	return newFakeConfigSets(c, namespace)
 }
 
 func (c *FakeConfigV1alpha1) RunningConfigs(namespace string) v1alpha1.RunningConfigInterface {
-	return &FakeRunningConfigs{c, namespace}
+	return newFakeRunningConfigs(c, namespace)
 }
 
 func (c *FakeConfigV1alpha1) UnManagedConfigs(namespace string) v1alpha1.UnManagedConfigInterface {
-	return &FakeUnManagedConfigs{c, namespace}
+	return newFakeUnManagedConfigs(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

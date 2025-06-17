@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,33 +36,34 @@ type ConfigSetsGetter interface {
 
 // ConfigSetInterface has methods to work with ConfigSet resources.
 type ConfigSetInterface interface {
-	Create(ctx context.Context, configSet *v1alpha1.ConfigSet, opts v1.CreateOptions) (*v1alpha1.ConfigSet, error)
-	Update(ctx context.Context, configSet *v1alpha1.ConfigSet, opts v1.UpdateOptions) (*v1alpha1.ConfigSet, error)
+	Create(ctx context.Context, configSet *configv1alpha1.ConfigSet, opts v1.CreateOptions) (*configv1alpha1.ConfigSet, error)
+	Update(ctx context.Context, configSet *configv1alpha1.ConfigSet, opts v1.UpdateOptions) (*configv1alpha1.ConfigSet, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, configSet *v1alpha1.ConfigSet, opts v1.UpdateOptions) (*v1alpha1.ConfigSet, error)
+	UpdateStatus(ctx context.Context, configSet *configv1alpha1.ConfigSet, opts v1.UpdateOptions) (*configv1alpha1.ConfigSet, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ConfigSet, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ConfigSetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.ConfigSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.ConfigSetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ConfigSet, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.ConfigSet, err error)
 	ConfigSetExpansion
 }
 
 // configSets implements ConfigSetInterface
 type configSets struct {
-	*gentype.ClientWithList[*v1alpha1.ConfigSet, *v1alpha1.ConfigSetList]
+	*gentype.ClientWithList[*configv1alpha1.ConfigSet, *configv1alpha1.ConfigSetList]
 }
 
 // newConfigSets returns a ConfigSets
 func newConfigSets(c *ConfigV1alpha1Client, namespace string) *configSets {
 	return &configSets{
-		gentype.NewClientWithList[*v1alpha1.ConfigSet, *v1alpha1.ConfigSetList](
+		gentype.NewClientWithList[*configv1alpha1.ConfigSet, *configv1alpha1.ConfigSetList](
 			"configsets",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.ConfigSet { return &v1alpha1.ConfigSet{} },
-			func() *v1alpha1.ConfigSetList { return &v1alpha1.ConfigSetList{} }),
+			func() *configv1alpha1.ConfigSet { return &configv1alpha1.ConfigSet{} },
+			func() *configv1alpha1.ConfigSetList { return &configv1alpha1.ConfigSetList{} },
+		),
 	}
 }

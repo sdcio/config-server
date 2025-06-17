@@ -18,9 +18,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,31 +36,32 @@ type TargetConnectionProfilesGetter interface {
 
 // TargetConnectionProfileInterface has methods to work with TargetConnectionProfile resources.
 type TargetConnectionProfileInterface interface {
-	Create(ctx context.Context, targetConnectionProfile *v1alpha1.TargetConnectionProfile, opts v1.CreateOptions) (*v1alpha1.TargetConnectionProfile, error)
-	Update(ctx context.Context, targetConnectionProfile *v1alpha1.TargetConnectionProfile, opts v1.UpdateOptions) (*v1alpha1.TargetConnectionProfile, error)
+	Create(ctx context.Context, targetConnectionProfile *invv1alpha1.TargetConnectionProfile, opts v1.CreateOptions) (*invv1alpha1.TargetConnectionProfile, error)
+	Update(ctx context.Context, targetConnectionProfile *invv1alpha1.TargetConnectionProfile, opts v1.UpdateOptions) (*invv1alpha1.TargetConnectionProfile, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.TargetConnectionProfile, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.TargetConnectionProfileList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.TargetConnectionProfile, error)
+	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.TargetConnectionProfileList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.TargetConnectionProfile, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.TargetConnectionProfile, err error)
 	TargetConnectionProfileExpansion
 }
 
 // targetConnectionProfiles implements TargetConnectionProfileInterface
 type targetConnectionProfiles struct {
-	*gentype.ClientWithList[*v1alpha1.TargetConnectionProfile, *v1alpha1.TargetConnectionProfileList]
+	*gentype.ClientWithList[*invv1alpha1.TargetConnectionProfile, *invv1alpha1.TargetConnectionProfileList]
 }
 
 // newTargetConnectionProfiles returns a TargetConnectionProfiles
 func newTargetConnectionProfiles(c *InvV1alpha1Client, namespace string) *targetConnectionProfiles {
 	return &targetConnectionProfiles{
-		gentype.NewClientWithList[*v1alpha1.TargetConnectionProfile, *v1alpha1.TargetConnectionProfileList](
+		gentype.NewClientWithList[*invv1alpha1.TargetConnectionProfile, *invv1alpha1.TargetConnectionProfileList](
 			"targetconnectionprofiles",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.TargetConnectionProfile { return &v1alpha1.TargetConnectionProfile{} },
-			func() *v1alpha1.TargetConnectionProfileList { return &v1alpha1.TargetConnectionProfileList{} }),
+			func() *invv1alpha1.TargetConnectionProfile { return &invv1alpha1.TargetConnectionProfile{} },
+			func() *invv1alpha1.TargetConnectionProfileList { return &invv1alpha1.TargetConnectionProfileList{} },
+		),
 	}
 }

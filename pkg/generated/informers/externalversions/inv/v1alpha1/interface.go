@@ -25,14 +25,22 @@ import (
 type Interface interface {
 	// DiscoveryRules returns a DiscoveryRuleInformer.
 	DiscoveryRules() DiscoveryRuleInformer
+	// DiscoveryVendorProfiles returns a DiscoveryVendorProfileInformer.
+	DiscoveryVendorProfiles() DiscoveryVendorProfileInformer
+	// Rollouts returns a RolloutInformer.
+	Rollouts() RolloutInformer
 	// Schemas returns a SchemaInformer.
 	Schemas() SchemaInformer
+	// Subscriptions returns a SubscriptionInformer.
+	Subscriptions() SubscriptionInformer
 	// Targets returns a TargetInformer.
 	Targets() TargetInformer
 	// TargetConnectionProfiles returns a TargetConnectionProfileInformer.
 	TargetConnectionProfiles() TargetConnectionProfileInformer
 	// TargetSyncProfiles returns a TargetSyncProfileInformer.
 	TargetSyncProfiles() TargetSyncProfileInformer
+	// Workspaces returns a WorkspaceInformer.
+	Workspaces() WorkspaceInformer
 }
 
 type version struct {
@@ -51,9 +59,24 @@ func (v *version) DiscoveryRules() DiscoveryRuleInformer {
 	return &discoveryRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// DiscoveryVendorProfiles returns a DiscoveryVendorProfileInformer.
+func (v *version) DiscoveryVendorProfiles() DiscoveryVendorProfileInformer {
+	return &discoveryVendorProfileInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Rollouts returns a RolloutInformer.
+func (v *version) Rollouts() RolloutInformer {
+	return &rolloutInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // Schemas returns a SchemaInformer.
 func (v *version) Schemas() SchemaInformer {
 	return &schemaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Subscriptions returns a SubscriptionInformer.
+func (v *version) Subscriptions() SubscriptionInformer {
+	return &subscriptionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Targets returns a TargetInformer.
@@ -69,4 +92,9 @@ func (v *version) TargetConnectionProfiles() TargetConnectionProfileInformer {
 // TargetSyncProfiles returns a TargetSyncProfileInformer.
 func (v *version) TargetSyncProfiles() TargetSyncProfileInformer {
 	return &targetSyncProfileInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Workspaces returns a WorkspaceInformer.
+func (v *version) Workspaces() WorkspaceInformer {
+	return &workspaceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

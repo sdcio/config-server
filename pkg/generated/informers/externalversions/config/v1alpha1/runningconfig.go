@@ -18,13 +18,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	apisconfigv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	versioned "github.com/sdcio/config-server/pkg/generated/clientset/versioned"
 	internalinterfaces "github.com/sdcio/config-server/pkg/generated/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/pkg/generated/listers/config/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -35,7 +35,7 @@ import (
 // RunningConfigs.
 type RunningConfigInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.RunningConfigLister
+	Lister() configv1alpha1.RunningConfigLister
 }
 
 type runningConfigInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredRunningConfigInformer(client versioned.Interface, namespace stri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().RunningConfigs(namespace).List(context.TODO(), options)
+				return client.ConfigV1alpha1().RunningConfigs(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().RunningConfigs(namespace).Watch(context.TODO(), options)
+				return client.ConfigV1alpha1().RunningConfigs(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().RunningConfigs(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ConfigV1alpha1().RunningConfigs(namespace).Watch(ctx, options)
 			},
 		},
-		&configv1alpha1.RunningConfig{},
+		&apisconfigv1alpha1.RunningConfig{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *runningConfigInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *runningConfigInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&configv1alpha1.RunningConfig{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisconfigv1alpha1.RunningConfig{}, f.defaultInformer)
 }
 
-func (f *runningConfigInformer) Lister() v1alpha1.RunningConfigLister {
-	return v1alpha1.NewRunningConfigLister(f.Informer().GetIndexer())
+func (f *runningConfigInformer) Lister() configv1alpha1.RunningConfigLister {
+	return configv1alpha1.NewRunningConfigLister(f.Informer().GetIndexer())
 }

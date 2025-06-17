@@ -18,10 +18,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // DiscoveryRuleLister helps list DiscoveryRules.
@@ -29,7 +29,7 @@ import (
 type DiscoveryRuleLister interface {
 	// List lists all DiscoveryRules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.DiscoveryRule, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.DiscoveryRule, err error)
 	// DiscoveryRules returns an object that can list and get DiscoveryRules.
 	DiscoveryRules(namespace string) DiscoveryRuleNamespaceLister
 	DiscoveryRuleListerExpansion
@@ -37,17 +37,17 @@ type DiscoveryRuleLister interface {
 
 // discoveryRuleLister implements the DiscoveryRuleLister interface.
 type discoveryRuleLister struct {
-	listers.ResourceIndexer[*v1alpha1.DiscoveryRule]
+	listers.ResourceIndexer[*invv1alpha1.DiscoveryRule]
 }
 
 // NewDiscoveryRuleLister returns a new DiscoveryRuleLister.
 func NewDiscoveryRuleLister(indexer cache.Indexer) DiscoveryRuleLister {
-	return &discoveryRuleLister{listers.New[*v1alpha1.DiscoveryRule](indexer, v1alpha1.Resource("discoveryrule"))}
+	return &discoveryRuleLister{listers.New[*invv1alpha1.DiscoveryRule](indexer, invv1alpha1.Resource("discoveryrule"))}
 }
 
 // DiscoveryRules returns an object that can list and get DiscoveryRules.
 func (s *discoveryRuleLister) DiscoveryRules(namespace string) DiscoveryRuleNamespaceLister {
-	return discoveryRuleNamespaceLister{listers.NewNamespaced[*v1alpha1.DiscoveryRule](s.ResourceIndexer, namespace)}
+	return discoveryRuleNamespaceLister{listers.NewNamespaced[*invv1alpha1.DiscoveryRule](s.ResourceIndexer, namespace)}
 }
 
 // DiscoveryRuleNamespaceLister helps list and get DiscoveryRules.
@@ -55,15 +55,15 @@ func (s *discoveryRuleLister) DiscoveryRules(namespace string) DiscoveryRuleName
 type DiscoveryRuleNamespaceLister interface {
 	// List lists all DiscoveryRules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.DiscoveryRule, err error)
+	List(selector labels.Selector) (ret []*invv1alpha1.DiscoveryRule, err error)
 	// Get retrieves the DiscoveryRule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.DiscoveryRule, error)
+	Get(name string) (*invv1alpha1.DiscoveryRule, error)
 	DiscoveryRuleNamespaceListerExpansion
 }
 
 // discoveryRuleNamespaceLister implements the DiscoveryRuleNamespaceLister
 // interface.
 type discoveryRuleNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.DiscoveryRule]
+	listers.ResourceIndexer[*invv1alpha1.DiscoveryRule]
 }

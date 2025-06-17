@@ -81,10 +81,7 @@ func (r *client) IsConnectionReady() bool {
 }
 
 func (r *client) IsConnected() bool {
-	if r.conn == nil {
-		return false
-	}
-	return true
+	return r.conn != nil 
 }
 
 func (r *client) Stop(ctx context.Context) {
@@ -98,7 +95,7 @@ func (r *client) Start(ctx context.Context) error {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("starting...")
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	_, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	var err error
 	r.conn, err = grpc.NewClient(r.cfg.Address,
@@ -160,6 +157,10 @@ func (r *client) TransactionConfirm(ctx context.Context, in *sdcpb.TransactionCo
 
 func (r *client) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCancelRequest, opts ...grpc.CallOption) (*sdcpb.TransactionCancelResponse, error) {
 	return r.dsclient.TransactionCancel(ctx, in, opts...)
+}
+
+func (r *client) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
+	return r.dsclient.BlameConfig(ctx, in, opts...)
 }
 
 /*

@@ -55,7 +55,8 @@ func CreateFileStore(scheme *runtime.Scheme, obj resource.Object, prefix string)
 	if err != nil {
 		return nil, err
 	}
-	return file.NewStore[runtime.Object](&storebackend.Config{
+
+	return file.NewStore(&storebackend.Config[runtime.Object]{
 		GroupResource: gr,
 		Prefix:        prefix,
 		Codec:         codec,
@@ -75,7 +76,7 @@ func CreateKVStore(db *badger.DB, scheme *runtime.Scheme, obj resource.Object) (
 	if err != nil {
 		return nil, err
 	}
-	return badgerdb.NewStore[runtime.Object](db, &storebackend.Config{
+	return badgerdb.NewStore(db, &storebackend.Config[runtime.Object]{
 		GroupResource: gr,
 		Codec:         codec,
 		NewFunc:       obj.New,

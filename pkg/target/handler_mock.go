@@ -115,6 +115,12 @@ func (r *mockTargetHandler) GetData(ctx context.Context, targetKey types.Namespa
 	}
 }
 
+func (r *mockTargetHandler) GetBlameConfig(ctx context.Context, targetKey types.NamespacedName) (*configapi.ConfigBlame, error) {
+	return nil, &sdcerrors.RecoverableError{
+		Message: "GetData not implemented",
+	}
+}
+
 func (r *mockTargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*configapi.Config) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String())
 	log.Info("RecoverIntents")

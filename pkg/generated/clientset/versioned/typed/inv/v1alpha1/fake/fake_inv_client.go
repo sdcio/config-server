@@ -28,23 +28,39 @@ type FakeInvV1alpha1 struct {
 }
 
 func (c *FakeInvV1alpha1) DiscoveryRules(namespace string) v1alpha1.DiscoveryRuleInterface {
-	return &FakeDiscoveryRules{c, namespace}
+	return newFakeDiscoveryRules(c, namespace)
+}
+
+func (c *FakeInvV1alpha1) DiscoveryVendorProfiles(namespace string) v1alpha1.DiscoveryVendorProfileInterface {
+	return newFakeDiscoveryVendorProfiles(c, namespace)
+}
+
+func (c *FakeInvV1alpha1) Rollouts(namespace string) v1alpha1.RolloutInterface {
+	return newFakeRollouts(c, namespace)
 }
 
 func (c *FakeInvV1alpha1) Schemas(namespace string) v1alpha1.SchemaInterface {
-	return &FakeSchemas{c, namespace}
+	return newFakeSchemas(c, namespace)
+}
+
+func (c *FakeInvV1alpha1) Subscriptions(namespace string) v1alpha1.SubscriptionInterface {
+	return newFakeSubscriptions(c, namespace)
 }
 
 func (c *FakeInvV1alpha1) Targets(namespace string) v1alpha1.TargetInterface {
-	return &FakeTargets{c, namespace}
+	return newFakeTargets(c, namespace)
 }
 
 func (c *FakeInvV1alpha1) TargetConnectionProfiles(namespace string) v1alpha1.TargetConnectionProfileInterface {
-	return &FakeTargetConnectionProfiles{c, namespace}
+	return newFakeTargetConnectionProfiles(c, namespace)
 }
 
 func (c *FakeInvV1alpha1) TargetSyncProfiles(namespace string) v1alpha1.TargetSyncProfileInterface {
-	return &FakeTargetSyncProfiles{c, namespace}
+	return newFakeTargetSyncProfiles(c, namespace)
+}
+
+func (c *FakeInvV1alpha1) Workspaces(namespace string) v1alpha1.WorkspaceInterface {
+	return newFakeWorkspaces(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
