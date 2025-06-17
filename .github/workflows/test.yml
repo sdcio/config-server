@@ -15,9 +15,6 @@ on:
 
 permissions: read-all
 
-env:
-  GOVER: 1.23.3
-
 jobs:
   unittest:
     runs-on: ubuntu-22.04
@@ -26,7 +23,7 @@ jobs:
       
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GOVER }}
+          go-version-file: 'go.mod'
       - run: go test -cover ./...
         env:
           CGO_ENABLED: 0
