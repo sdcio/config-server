@@ -18,6 +18,7 @@ package schema
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"sync"
@@ -38,7 +39,7 @@ type Loader struct {
 	//schemas contains the Schema Reference indexed by Provider.Version key
 	sm      sync.RWMutex
 	schemas map[string]*invv1alpha1.Schema
-	// repo manager allocates sempahores to ensure no concurrent downloads from the same schema
+	// repo manager allocates semaphores to ensure no concurrent downloads from the same schema
 	repoMgr *RepoMgr
 }
 
@@ -135,10 +136,20 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 		return err
 	}
 
+	errs := make([]error, 0)
+
 	for _, schemaRepo := range schema.Spec.Repositories {
-		r.download(ctx, schema, schemaRepo)
+		// if an error occurs we can try to download the remaining repos before returning an error
+		err := r.download(ctx, schema, schemaRepo)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 
+	err = errors.Join(errs...)
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
@@ -146,7 +157,6 @@ func (r *Loader) Load(ctx context.Context, key string) error {
 func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) error {
 	log := log.FromContext(ctx)
 
-	
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
 	var downloader downloadable
 	switch {
