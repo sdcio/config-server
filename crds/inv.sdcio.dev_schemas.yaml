@@ -225,6 +225,16 @@ spec:
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
+              repositories:
+                description: list of repositories used for building the provider schema
+                items:
+                  properties:
+                    repoURL:
+                      description: url of a repository used for building the provider schema
+                      format: string
+                    commitHash:
+                      description: Git commit SHA (hash) that was checked out for this repository when building the schema. Set by the controller.
+                      format: string
                   required:
                   - lastTransitionTime
                   - message
