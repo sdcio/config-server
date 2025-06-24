@@ -82,6 +82,14 @@ type SchemaSpecSchema struct {
 type SchemaStatus struct {
 	// ConditionedStatus provides the status of the Schema using conditions
 	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
+	// SchemaRepositoryStatus provides the array of repositories
+	Repositories []SchemaRepositoryStatus `json:"repositories,omitempty"`
+}
+
+// SchemaRepositoryStatus provides the observed hash of a repository
+type SchemaRepositoryStatus struct {
+    RepoURL    string `json:"repoURL,omitempty"`
+    CommitHash string `json:"commitHash,omitempty"`
 }
 
 // +kubebuilder:object:root=true
