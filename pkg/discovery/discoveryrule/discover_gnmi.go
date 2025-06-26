@@ -222,6 +222,12 @@ func (r *Discoverer) parseDiscoveryInformation(
 		for _, upd := range notif.GetUpdate() {
 			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
 
+			// the device returns the path without namespaces
+			if len(strings.Split(gnmiPath, ":")) > 1 {
+				// remove prefix
+				gnmiPath = strings.Join(strings.Split(gnmiPath, ":")[1:], ":")
+			}
+
 			log.Info("discovery", "path", gnmiPath)
 
 			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
