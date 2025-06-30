@@ -233,7 +233,7 @@ spec:
                       description: url of a repository used for building the provider schema
                       format: string
                     commitHash:
-                      description: Git commit SHA (hash) that was checked out for this repository when building the schema. Set by the controller.
+                      description: Git commit SHA (hash) that was checked out for this repository when building the schema.
                       format: string
                   required:
                   - lastTransitionTime

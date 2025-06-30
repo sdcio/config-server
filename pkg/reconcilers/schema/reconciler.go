@@ -254,7 +254,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 		)
 		if err != nil {
 			log.Error("failed to get commit hash", "repo", repo.RepositoryURL, "err", err)
-			commitHash = "" // or err.Error()
+			commitHash = ""
 		}
 		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{
 			RepoURL:    repo.RepositoryURL,
