@@ -88,8 +88,10 @@ type SchemaStatus struct {
 
 // SchemaRepositoryStatus provides the observed hash of a repository
 type SchemaRepositoryStatus struct {
+	// RepoURL defines URL of the repository
     RepoURL    string `json:"repoURL,omitempty"`
-    CommitHash string `json:"commitHash,omitempty"`
+	// Reference indicating version of loaded repository
+    Reference string `json:"reference,omitempty"`
 }
 
 // +kubebuilder:object:root=true
