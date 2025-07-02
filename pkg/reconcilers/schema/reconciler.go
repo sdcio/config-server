@@ -23,10 +23,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
@@ -134,6 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	schemaOrig := schema.DeepCopy()
 	spec := &schema.Spec
+	status := &schema.Status
 
 	if !schema.GetDeletionTimestamp().IsZero() {
 		// check if the schema exists; this is == nil check; in case of err it does not exist
@@ -186,9 +183,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		r.recorder.Eventf(schema, corev1.EventTypeNormal,
 			"schema", "loading")
-		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
+		repoStatuses, err := r.schemaLoader.Load(ctx, spec.GetKey())
+		if err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
 		}
+		status.Repositories = repoStatuses
 	}
 	// check if the schema exists
 	rsp, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
@@ -204,7 +203,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
 		}
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 	if rsp == nil || rsp.Schema == nil {
 		return r.handleError(ctx, schemaOrig, "get schema detail response w/o a response or schems", nil)
@@ -220,48 +219,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
 		}
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
 		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
 	default: // OK case
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema) (ctrl.Result, error) {
+func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(schema.DeepCopy())
 	// update status
+	schema.Status = *updatedStatus
 	//schema.ObjectMeta.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status new", schema.Status)
-
-	// Collect repository statuses with commit hashes
-	var repoStatuses []invv1alpha1.SchemaRepositoryStatus
-	for _, repo := range schema.Spec.Repositories {
-		commitHash, err := getCommitHashForRepo(
-			ctx,
-			r.Client,
-			schema.Namespace,
-			repo.Credentials,
-			repo.RepositoryURL,
-			repo.Kind,
-			repo.Ref,
-		)
-		if err != nil {
-			log.Error("failed to get commit hash", "repo", repo.RepositoryURL, "err", err)
-			commitHash = ""
-		}
-		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{
-			RepoURL:    repo.RepositoryURL,
-			CommitHash: commitHash,
-		})
-	}
-	schema.Status.Repositories = repoStatuses
 
 	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
@@ -295,65 +272,4 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
-}
-
-func getCommitHashForRepo(ctx context.Context, c client.Client, namespace string, credentials, repoUrl string, refKind invv1alpha1.BranchTagKind, refValue string) (string, error) {
-	// If it's a ref, return it
-	if refKind == "ref" && len(refValue) >= 7 && len(refValue) <= 40 {
-		return refValue, nil
-	}
-
-	// Setup auth
-	var auth *http.BasicAuth
-	if credentials != "" {
-		secret := &corev1.Secret{}
-		if err := c.Get(ctx, client.ObjectKey{Name: credentials, Namespace: namespace}, secret); err != nil {
-			return "", fmt.Errorf("failed to get credentials secret: %w", err)
-		}
-		username := "git"
-		if u, ok := secret.Data["username"]; ok {
-			username = string(u)
-		}
-		password := ""
-		if p, ok := secret.Data["password"]; ok {
-			password = string(p)
-		} else if t, ok := secret.Data["token"]; ok {
-			password = string(t)
-		}
-		auth = &http.BasicAuth{Username: username, Password: password}
-	}
-
-	// Create repository and remote
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return "", err
-	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{repoUrl}})
-	if err != nil {
-		return "", err
-	}
-
-	// List remote refs
-	refs, err := remote.List(&git.ListOptions{Auth: auth})
-	if err != nil {
-		return "", fmt.Errorf("failed to list refs: %w", err)
-	}
-
-	// Build target reference name
-	var targetRef string
-	switch refKind {
-	case "branch":
-		targetRef = fmt.Sprintf("refs/heads/%s", refValue)
-	case "tag":
-		targetRef = fmt.Sprintf("refs/tags/%s", refValue)
-	}
-
-	// Find matching reference
-	for _, ref := range refs {
-		if ref.Name().String() == targetRef {
-			return ref.Hash().String(), nil
-		}
-	}
-
-	return "", fmt.Errorf("reference '%s' not found", refValue)
 }
