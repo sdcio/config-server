@@ -564,6 +564,9 @@ func resetToRemoteHead(ctx context.Context, repo *gogit.Repository, branch plumb
 }
 
 func (g *GoGit) CurrentReference() (string, error) {
+	if g.r == nil {
+		return "", fmt.Errorf("git repo instance is nil")
+	}
 	h, err := g.r.Head()
 	if err != nil {
 		return "", fmt.Errorf("could not get git HEAD: %w", err)
