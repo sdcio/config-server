@@ -53,19 +53,7 @@ type ConfigStatus struct {
 	// AppliedConfig defines the config applied to the target
 	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
 	// Deviations identify the configuration deviation based on the last applied config
-	Deviations []Deviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
-}
-
-type Deviation struct {
-	// Path of the config this deviation belongs to
-	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
-	// DesiredValue is the desired value of the config belonging to the path
-	DesiredValue string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
-	// CurrentValue defines the current value of the config belonging to the path
-	// that is currently configured on the target
-	CurrentValue string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
-	// Reason defines the reason of the deviation
-	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
+	//Deviations []Deviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {

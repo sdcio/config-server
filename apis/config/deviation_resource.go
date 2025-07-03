@@ -16,7 +16,6 @@ limitations under the License.
 
 package config
 
-/*
 import (
 	"context"
 	"fmt"
@@ -37,81 +36,81 @@ import (
 )
 
 const (
-	UnManagedConfigPlural   = "unmanagedconfigs"
-	UnManagedConfigSingular = "unmanagedconfig"
+	DeviationPlural   = "deviations"
+	DeviationSingular = "deviation"
 )
 
 var (
-	UnManagedConfigShortNames = []string{}
-	UnManagedConfigCategories = []string{"sdc", "knet"}
+	DeviationShortNames = []string{}
+	DeviationCategories = []string{"sdc", "knet"}
 )
 
 // +k8s:deepcopy-gen=false
-var _ resource.InternalObject = &UnManagedConfig{}
-var _ resource.ObjectList = &UnManagedConfigList{}
-var _ resource.ObjectWithStatusSubResource = &UnManagedConfig{}
-var _ resource.StatusSubResource = &UnManagedConfigStatus{}
+var _ resource.InternalObject = &Deviation{}
+var _ resource.ObjectList = &DeviationList{}
+var _ resource.ObjectWithStatusSubResource = &Deviation{}
+var _ resource.StatusSubResource = &DeviationStatus{}
 
-func (UnManagedConfig) GetGroupVersionResource() schema.GroupVersionResource {
+func (Deviation) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: UnManagedConfigPlural,
+		Resource: DeviationPlural,
 	}
 }
 
-// IsStorageVersion returns true -- UnManagedConfig is used as the internal version.
+// IsStorageVersion returns true -- Deviation is used as the internal version.
 // IsStorageVersion implements resource.Object
-func (UnManagedConfig) IsStorageVersion() bool {
+func (Deviation) IsStorageVersion() bool {
 	return true
 }
 
-// NamespaceScoped returns if UnManagedConfig is a namespaced resource.
+// NamespaceScoped returns if Deviation is a namespaced resource.
 // NamespaceScoped implements resource.Object
-func (UnManagedConfig) NamespaceScoped() bool {
+func (Deviation) NamespaceScoped() bool {
 	return true
 }
 
 // GetObjectMeta implements resource.Object
 // GetObjectMeta implements resource.Object
-func (r *UnManagedConfig) GetObjectMeta() *metav1.ObjectMeta {
+func (r *Deviation) GetObjectMeta() *metav1.ObjectMeta {
 	return &r.ObjectMeta
 }
 
 // GetSingularName returns the singular name of the resource
 // GetSingularName implements resource.Object
-func (UnManagedConfig) GetSingularName() string {
-	return UnManagedConfigSingular
+func (Deviation) GetSingularName() string {
+	return DeviationSingular
 }
 
 // GetShortNames returns the shortnames for the resource
 // GetShortNames implements resource.Object
-func (UnManagedConfig) GetShortNames() []string {
-	return UnManagedConfigShortNames
+func (Deviation) GetShortNames() []string {
+	return DeviationShortNames
 }
 
 // GetCategories return the categories of the resource
 // GetCategories implements resource.Object
-func (UnManagedConfig) GetCategories() []string {
-	return UnManagedConfigCategories
+func (Deviation) GetCategories() []string {
+	return DeviationCategories
 }
 
 // New return an empty resource
 // New implements resource.Object
-func (UnManagedConfig) New() runtime.Object {
-	return &UnManagedConfig{}
+func (Deviation) New() runtime.Object {
+	return &Deviation{}
 }
 
 // NewList return an empty resourceList
 // NewList implements resource.Object
-func (UnManagedConfig) NewList() runtime.Object {
-	return &UnManagedConfigList{}
+func (Deviation) NewList() runtime.Object {
+	return &DeviationList{}
 }
 
 // IsEqual returns a bool indicating if the desired state of both resources is equal or not
-func (r *UnManagedConfig) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
-	newobj := obj.(*UnManagedConfig)
-	oldobj := old.(*UnManagedConfig)
+func (r *Deviation) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*Deviation)
+	oldobj := old.(*Deviation)
 	if !apiequality.Semantic.DeepEqual(oldobj.ObjectMeta, newobj.ObjectMeta) {
 		return false
 	}
@@ -119,21 +118,21 @@ func (r *UnManagedConfig) IsEqual(ctx context.Context, obj, old runtime.Object) 
 }
 
 // GetStatus return the resource.StatusSubResource interface
-func (r *UnManagedConfig) GetStatus() resource.StatusSubResource {
+func (r *Deviation) GetStatus() resource.StatusSubResource {
 	return r.Status
 }
 
 // IsStatusEqual returns a bool indicating if the status of both resources is equal or not
-func (r *UnManagedConfig) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
-	newobj := obj.(*UnManagedConfig)
-	oldobj := old.(*UnManagedConfig)
+func (r *Deviation) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
+	newobj := obj.(*Deviation)
+	oldobj := old.(*Deviation)
 	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
 }
 
 // PrepareForStatusUpdate prepares the status update
-func (r *UnManagedConfig) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
-	newObj := obj.(*UnManagedConfig)
-	oldObj := old.(*UnManagedConfig)
+func (r *Deviation) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
+	newObj := obj.(*Deviation)
+	oldObj := old.(*Deviation)
 	newObj.Spec = oldObj.Spec
 
 	// Status updates are for only for updating status, not objectmeta.
@@ -141,21 +140,21 @@ func (r *UnManagedConfig) PrepareForStatusUpdate(ctx context.Context, obj, old r
 }
 
 // ValidateStatusUpdate validates status updates
-func (r *UnManagedConfig) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (r *Deviation) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 	return allErrs
 }
 
 // SubResourceName resturns the name of the subresource
 // SubResourceName implements the resource.StatusSubResource
-func (UnManagedConfigStatus) SubResourceName() string {
-	return fmt.Sprintf("%s/%s", UnManagedConfigPlural, "status")
+func (DeviationStatus) SubResourceName() string {
+	return fmt.Sprintf("%s/%s", DeviationPlural, "status")
 }
 
 // CopyTo copies the content of the status subresource to a parent resource.
 // CopyTo implements the resource.StatusSubResource
-func (r UnManagedConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
-	cfg, ok := obj.(*UnManagedConfig)
+func (r DeviationStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
+	cfg, ok := obj.(*Deviation)
 	if ok {
 		cfg.Status = r
 	}
@@ -163,23 +162,23 @@ func (r UnManagedConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) 
 
 // GetListMeta returns the ListMeta
 // GetListMeta implements the resource.ObjectList
-func (r *UnManagedConfigList) GetListMeta() *metav1.ListMeta {
+func (r *DeviationList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
 
 // TableConvertor return the table format of the resource
-func (r *UnManagedConfig) TableConvertor() func(gr schema.GroupResource) rest.TableConvertor {
+func (r *Deviation) TableConvertor() func(gr schema.GroupResource) rest.TableConvertor {
 	return func(gr schema.GroupResource) rest.TableConvertor {
 		return registry.NewTableConverter(
 			gr,
 			func(obj runtime.Object) []interface{} {
-				UnManagedConfig, ok := obj.(*UnManagedConfig)
+				Deviation, ok := obj.(*Deviation)
 				if !ok {
 					return nil
 				}
 				return []interface{}{
-					fmt.Sprintf("%s.%s/%s", strings.ToLower(UnManagedConfigKind), GroupName, UnManagedConfig.Name),
-					len(UnManagedConfig.Status.Deviations),
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(DeviationKind), GroupName, Deviation.Name),
+					len(Deviation.Status.Deviations),
 				}
 			},
 			[]metav1.TableColumnDefinition{
@@ -191,7 +190,7 @@ func (r *UnManagedConfig) TableConvertor() func(gr schema.GroupResource) rest.Ta
 }
 
 // FieldLabelConversion is the schema conversion function for normalizing the FieldSelector for the resource
-func (r *UnManagedConfig) FieldLabelConversion() runtime.FieldLabelConversionFunc {
+func (r *Deviation) FieldLabelConversion() runtime.FieldLabelConversionFunc {
 	return func(label, value string) (internalLabel, internalValue string, err error) {
 		switch label {
 		case "metadata.name":
@@ -204,9 +203,9 @@ func (r *UnManagedConfig) FieldLabelConversion() runtime.FieldLabelConversionFun
 	}
 }
 
-func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
+func (r *Deviation) FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
 	return func(ctx context.Context, fieldSelector fields.Selector) (resource.Filter, error) {
-		filter := &UnManagedConfigFilter{}
+		filter := &DeviationFilter{}
 
 		if fieldSelector != nil {
 			for _, requirement := range fieldSelector.Requirements() {
@@ -244,7 +243,7 @@ func (r *UnManagedConfig) FieldSelector() func(ctx context.Context, fieldSelecto
 	}
 }
 
-type UnManagedConfigFilter struct {
+type DeviationFilter struct {
 	// Name filters by the name of the objects
 	Name string `protobuf:"bytes,1,opt,name=name"`
 
@@ -252,9 +251,9 @@ type UnManagedConfigFilter struct {
 	Namespace string `protobuf:"bytes,2,opt,name=namespace"`
 }
 
-func (r *UnManagedConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
+func (r *DeviationFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 	f := false // result of the previous filter
-	o, ok := obj.(*UnManagedConfig)
+	o, ok := obj.(*Deviation)
 	if !ok {
 		return f
 	}
@@ -275,27 +274,26 @@ func (r *UnManagedConfigFilter) Filter(ctx context.Context, obj runtime.Object) 
 	return f
 }
 
-func (r *UnManagedConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+func (r *Deviation) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	// status cannot be set upon create -> reset it
-	newobj := obj.(*UnManagedConfig)
-	newobj.Status = UnManagedConfigStatus{}
+	newobj := obj.(*Deviation)
+	newobj.Status = DeviationStatus{}
 }
 
 // ValidateCreate statically validates
-func (r *UnManagedConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
+func (r *Deviation) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 	return allErrs
 }
 
-func (r *UnManagedConfig) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (r *Deviation) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 	// ensure the sttaus dont get updated
-	newobj := obj.(*UnManagedConfig)
-	oldObj := old.(*UnManagedConfig)
+	newobj := obj.(*Deviation)
+	oldObj := old.(*Deviation)
 	newobj.Status = oldObj.Status
 }
 
-func (r *UnManagedConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (r *Deviation) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 	return allErrs
 }
-*/

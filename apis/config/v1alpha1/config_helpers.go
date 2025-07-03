@@ -179,7 +179,7 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 	// Calculate SHA-1 hash
 	return sha1.Sum(jsonData), nil
 }
-
+/*
 func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
 	deviations := make([]Deviation, 0, len(devs))
 	for _, dev := range devs {
@@ -208,7 +208,7 @@ var _ ConfigDeviations = &Config{}
 func (r *Config) SetDeviations(d []Deviation) {
 	r.Status.Deviations = d
 }
-
+*/
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }

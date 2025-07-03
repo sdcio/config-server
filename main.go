@@ -214,7 +214,7 @@ func main() {
 
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Config{}, &configregistryOptions)
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.ConfigSet{}, registryOptions)
-	unmanagedConfigStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.UnManagedConfig{}, registryOptions)
+	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Deviation{}, registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &sdcconfig.RunningConfig{}, &options.Options{
 		Client:      mgr.GetClient(),
@@ -234,8 +234,8 @@ func main() {
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
-			WithResourceAndHandler(&sdcconfig.UnManagedConfig{}, unmanagedConfigStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.UnManagedConfig{}, unmanagedConfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Deviation{}, deviationStorageProvider).
 			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
 			WithResourceAndHandler(&sdcconfig.ConfigBlame{}, configBlameStorageProvider).

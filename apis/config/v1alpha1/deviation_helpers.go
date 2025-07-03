@@ -15,18 +15,18 @@ limitations under the License.
 */
 
 package v1alpha1
-/*
+
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// BuildUnManagedConfig returns a reource from a client Object a Spec/Status
-func BuildUnManagedConfig(meta metav1.ObjectMeta, spec UnManagedConfigSpec, status UnManagedConfigStatus) *UnManagedConfig {
-	return &UnManagedConfig{
+// BuildDeviation returns a reource from a client Object a Spec/Status
+func BuildDeviation(meta metav1.ObjectMeta, spec DeviationSpec, status DeviationStatus) *Deviation {
+	return &Deviation{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind:       UnManagedConfigKind,
+			Kind:       DeviationKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,
@@ -35,13 +35,12 @@ func BuildUnManagedConfig(meta metav1.ObjectMeta, spec UnManagedConfigSpec, stat
 }
 
 // +k8s:deepcopy-gen=false
-var _ ConfigDeviations = &UnManagedConfig{}
+var _ ConfigDeviations = &Deviation{}
 
-func (r *UnManagedConfig) SetDeviations(deviations []Deviation) {
+func (r *Deviation) SetDeviations(deviations []Deviation) {
 	r.Status.Deviations = deviations
 }
 
-func (r *UnManagedConfig) DeepObjectCopy() client.Object {
+func (r *Deviation) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
-*/
