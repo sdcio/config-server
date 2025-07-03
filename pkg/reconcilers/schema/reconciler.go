@@ -130,6 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	schemaOrig := schema.DeepCopy()
 	spec := &schema.Spec
+	status := &schema.Status
 
 	if !schema.GetDeletionTimestamp().IsZero() {
 		// check if the schema exists; this is == nil check; in case of err it does not exist
@@ -182,9 +183,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		r.recorder.Eventf(schema, corev1.EventTypeNormal,
 			"schema", "loading")
-		if err := r.schemaLoader.Load(ctx, spec.GetKey()); err != nil {
+		repoStatuses, err := r.schemaLoader.Load(ctx, spec.GetKey())
+		if err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
 		}
+		status.Repositories = repoStatuses
 	}
 	// check if the schema exists
 	rsp, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
@@ -200,7 +203,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
 		}
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 	if rsp == nil || rsp.Schema == nil {
 		return r.handleError(ctx, schemaOrig, "get schema detail response w/o a response or schems", nil)
@@ -216,20 +219,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
 		}
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
 		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
 	default: // OK case
-		return r.handleSuccess(ctx, schemaOrig)
+		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema) (ctrl.Result, error) {
+func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
 	// take a snapshot of the current object
 	patch := client.MergeFrom(schema.DeepCopy())
 	// update status
+	schema.Status = *updatedStatus
 	//schema.ObjectMeta.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")

@@ -42,12 +42,12 @@ func newGitDownloader(destDir, namespace string, schemaRepo *invv1alpha1.SchemaS
 	}
 }
 
-func (l *gitDownloader) Download(ctx context.Context) error {
+func (l *gitDownloader) Download(ctx context.Context) (string, error) {
 	log := log.FromContext(ctx)
 
 	repo, err := git.NewRepo(l.schemaRepo.RepositoryURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	repoPath := path.Join(l.destDir, repo.GetCloneURL().Path)
@@ -76,12 +76,20 @@ func (l *gitDownloader) Download(ctx context.Context) error {
 	if l.schemaRepo.Proxy != nil && l.schemaRepo.Proxy.URL != "" {
 		err = goGit.SetProxy(l.schemaRepo.Proxy.URL)
 		if err != nil {
-			return err
+			return "", err
 		}
 		log.Debug("SetProxy", "proxy", l.schemaRepo.Proxy.URL)
 	}
 
-	return goGit.Clone(ctx)
+	err = goGit.Clone(ctx)
+	if err != nil {
+		return "", err
+	}
+	ref, err := goGit.CurrentReference()
+	if err != nil {
+		return "", err
+	}
+	return ref, nil
 }
 
 func (l *gitDownloader) LocalPath(urlPath string) (string, error) {
