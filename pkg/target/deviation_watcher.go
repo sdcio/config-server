@@ -31,7 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
+	//"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -220,7 +220,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 	
 	if err := r.client.Patch(ctx, dev, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
-			Force: ptr.To(true),
+			//Force: ptr.To(true),
 			FieldManager: "DeviationWatcher",
 		},
 	}); err != nil {
