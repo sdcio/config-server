@@ -215,6 +215,8 @@ func (r *DeviationWatcher) processConfigDeviations(
 		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
 		return
 	}
+
+	log.Info("patch deviations", "nsn", nsn, "devs", len(deviations))
 	
 	patch := client.MergeFrom(deviation.DeepObjectCopy())
 
