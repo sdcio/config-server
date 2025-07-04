@@ -346,21 +346,27 @@ func processMessageWithWarning(msg, warnings string) string {
 
 
 func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
+	key := types.NamespacedName{
+		Name:      config.Name,
+		Namespace: config.Namespace,
+	}
+
 	deviation := &configv1alpha1.Deviation{}
-	if err := r.Client.Get(ctx, types.NamespacedName{}, deviation); err != nil {
+	if err := r.Client.Get(ctx, key, deviation); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
-		deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
-			Name: config.Name, 
-			Namespace: config.Namespace,
-			OwnerReferences: []metav1.OwnerReference {
-				config.GetOwnerReference(),
-			},
+		// Not found: create new deviation
+		newDeviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
+			Name:            config.Name,
+			Namespace:       config.Namespace,
+			OwnerReferences: []metav1.OwnerReference{config.GetOwnerReference()},
 		}, nil, nil)
-		if err := r.Client.Create(ctx,deviation); err != nil {
+
+		if err := r.Client.Create(ctx, newDeviation); err != nil {
 			return nil, err
 		}
+		return newDeviation, nil
 	}
 	return deviation, nil
 }
