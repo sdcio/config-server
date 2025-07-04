@@ -38,11 +38,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"k8s.io/utils/ptr"
 )
 
 func init() {
@@ -138,14 +139,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		}
 
-		// delete the deviation
-		deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{Name: cfg.Name, Namespace: cfg.Namespace}, nil, nil)
-		if err = r.Client.Delete(ctx, deviation); err != nil {
-			if resource.IgnoreNotFound(err) != nil {
-				return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
-			}
-		}
+		// delete the deviation -> should happen using owner references
 
 		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 			return ctrl.Result{Requeue: true},
@@ -159,19 +153,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot add finalizer", err, true), errUpdateStatus)
 	}
 
+	deviation, err := r.applyDeviation(ctx, cfg)
+	if err != nil {
+		log.Info("applying deviation failed")
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot apply deviation", err, true), errUpdateStatus)
+	}
+
 	if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
 		log.Info("applying config -> target not ready")
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "target not ready", err, true), errUpdateStatus)
 	}
 
 	log.Info("applying config -> target ready")
-
-	deviation, err := r.getDeviation(ctx, cfg)
-	if err != nil {
-		log.Info("getting deviation failed")
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot get deviation", err, true), errUpdateStatus)
-	}
-
 
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
@@ -182,6 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		cfg.Status.AppliedConfig != nil &&
 		cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx) &&
 		cfg.HashDeviationGenerationChanged(deviation) {
+		log.Info("not reapplying the config since nothing changed")
 		return ctrl.Result{}, nil
 	}
 
@@ -220,7 +214,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// in the revertive case we can delete the deviation
 	if cfg.IsRevertive() {
-		if err := r.deleteDeviation(ctx, cfg); err != nil {
+		if err := r.clearDeviation(ctx, deviation); err != nil {
 			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot delete deviation", warnings), err, true), errUpdateStatus)
 		}
 	}
@@ -350,25 +344,40 @@ func processMessageWithWarning(msg, warnings string) string {
 	return msg
 }
 
-// if no deviation is found we return nil
-func (r *reconciler) getDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
+
+func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
 	deviation := &configv1alpha1.Deviation{}
-	if err := r.Client.Get(ctx, config.GetNamespacedName(), deviation); err != nil {
-		if resource.IgnoreNotFound(err) == nil {
-			return nil, nil
+	if err := r.Client.Get(ctx, types.NamespacedName{}, deviation); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			return nil, err
 		}
-		return nil, err
+		deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
+			Name: config.Name, 
+			Namespace: config.Namespace,
+			OwnerReferences: []metav1.OwnerReference {
+				config.GetOwnerReference(),
+			},
+		}, nil, nil)
+		if err := r.Client.Create(ctx,deviation); err != nil {
+			return nil, err
+		}
 	}
 	return deviation, nil
 }
 
 
-func (r *reconciler) deleteDeviation(ctx context.Context, config *configv1alpha1.Config) error {
-	deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{Name: config.Name, Namespace: config.Namespace}, nil, nil)
-	if err := r.Client.Delete(ctx, deviation); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return err
-		}
+func (r *reconciler) clearDeviation(ctx context.Context, deviation *configv1alpha1.Deviation) error {
+	log := log.FromContext(ctx)
+	patch := client.MergeFrom(deviation.DeepObjectCopy())
+
+	deviation.Spec.Deviations = []configv1alpha1.ConfigDeviation{}
+
+	if err := r.Client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: reconcilerName,
+		},
+	}); err != nil {
+		log.Error("cannot clear deviation", "deviation", deviation.GetNamespacedName())
 	}
 	return nil
 }

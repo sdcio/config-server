@@ -26,12 +26,10 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	//"k8s.io/utils/ptr"
@@ -197,7 +195,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 				Name:      parts[1],
 			}
 			if len(parts) != 2 {
-				log.Info("unexpected configName", "got", configName)
+				log.Error("unexpected configName", "got", configName)
 				return
 			}
 			log.Info("config deviations", "devs", len(configDevs))
@@ -212,27 +210,21 @@ func (r *DeviationWatcher) processConfigDeviations(
 	deviations []configv1alpha1.ConfigDeviation,
 ) {
 	log := log.FromContext(ctx)
-	deviationCR := &configv1alpha1.Deviation{}
-	if err := r.client.Get(ctx, nsn, deviationCR); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			log.Error("cannot get deviation", "name", deviationCR.Name, "error", err)
-			return
-		}
-		deviationCR := configv1alpha1.BuildDeviation(
-			v1.ObjectMeta{Name: nsn.Name, Namespace: nsn.Namespace},
-			&configv1alpha1.DeviationSpec{
-				Deviations: deviations,
-			},
-			nil,
-		)
-		if err := r.client.Create(ctx, deviationCR); err != nil {
-			log.Error("cannot create deviation", "name", deviationCR.Name, "error", err)
-		}
+	deviation := &configv1alpha1.Deviation{}
+	if err := r.client.Get(ctx, nsn, deviation); err != nil {
+		log.Error("cannot get intent for recieved deviation", "config", nsn)
 		return
 	}
 	
-	deviationCR.Spec.Deviations = deviations
-	if err := r.client.Update(ctx, deviationCR); err != nil {
-		log.Error("cannot update deviation", "name", deviationCR.Name, "error", err)
+	patch := client.MergeFrom(deviation.DeepObjectCopy())
+
+	deviation.Spec.Deviations = deviations
+	
+	if err := r.client.Status().Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: "ConfigController",
+		},
+	}); err != nil {
+		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}
 }

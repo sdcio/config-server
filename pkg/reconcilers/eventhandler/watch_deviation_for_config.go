@@ -63,11 +63,16 @@ func (r *DeviationForConfigEventHandler) add(ctx context.Context, obj runtime.Ob
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "deviation-event", Name: deviation.GetName()})
 	log := log.FromContext(ctx)
-	
-	key := types.NamespacedName{
-		Namespace: deviation.Namespace,
-		Name:      deviation.Name}
-	log.Info("event requeue config from deviation", "key", key.String())
-	queue.Add(reconcile.Request{NamespacedName: key})
-	
+
+
+	for _, owner := range deviation.OwnerReferences {
+		if owner.APIVersion == configv1alpha1.SchemeGroupVersion.String() && owner.Kind == configv1alpha1.ConfigKind {
+			key := types.NamespacedName{
+				Namespace: deviation.Namespace,
+				Name:      deviation.Name,
+			}	
+			log.Info("event requeue config from deviation", "key", key.String())
+			queue.Add(reconcile.Request{NamespacedName: key})
+		}
+	}
 }

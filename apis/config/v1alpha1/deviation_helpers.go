@@ -20,27 +20,12 @@ import (
 	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// BuildDeviation returns a reource from a client Object a Spec/Status
-func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *DeviationStatus) *Deviation {
-	if spec == nil {
-		spec = &DeviationSpec{}
-	}
-	if status == nil {
-		status = &DeviationStatus{}
-	}
-
-	return &Deviation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind:       DeviationKind,
-		},
-		ObjectMeta: meta,
-		Spec:       *spec,
-		Status:     *status,
-	}
+func (r *Deviation) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
 func (r *Deviation) DeepObjectCopy() client.Object {
@@ -67,4 +52,25 @@ func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationRespons
 		})
 	}
 	return deviations
+}
+
+
+// BuildDeviation returns a reource from a client Object a Spec/Status
+func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *DeviationStatus) *Deviation {
+	if spec == nil {
+		spec = &DeviationSpec{}
+	}
+	if status == nil {
+		status = &DeviationStatus{}
+	}
+
+	return &Deviation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       DeviationKind,
+		},
+		ObjectMeta: meta,
+		Spec:       *spec,
+		Status:     *status,
+	}
 }

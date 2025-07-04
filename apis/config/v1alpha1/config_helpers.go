@@ -33,6 +33,7 @@ import (
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -49,6 +50,16 @@ func (r *Config) SetConditions(c ...condv1alpha1.Condition) {
 
 func (r *Config) IsConditionReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
+}
+
+func (r *Config) GetOwnerReference() metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: r.TypeMeta.APIVersion,
+		Kind: r.TypeMeta.Kind,
+		Name: r.Name,
+		UID: r.UID,
+		Controller: ptr.To(true),
+	}
 }
 
 func (r *Config) IsRevertive() bool {
