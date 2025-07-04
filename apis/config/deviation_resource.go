@@ -172,17 +172,19 @@ func (r *Deviation) TableConvertor() func(gr schema.GroupResource) rest.TableCon
 		return registry.NewTableConverter(
 			gr,
 			func(obj runtime.Object) []interface{} {
-				Deviation, ok := obj.(*Deviation)
+				deviation, ok := obj.(*Deviation)
 				if !ok {
 					return nil
 				}
 				return []interface{}{
-					fmt.Sprintf("%s.%s/%s", strings.ToLower(DeviationKind), GroupName, Deviation.Name),
-					len(Deviation.Spec.Deviations),
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(DeviationKind), GroupName, deviation.Name),
+					deviation.GetTarget(),
+					len(deviation.Spec.Deviations),
 				}
 			},
 			[]metav1.TableColumnDefinition{
 				{Name: "Name", Type: "string"},
+				{Name: "Target", Type: "string"},
 				{Name: "Deviations", Type: "integer"},
 			},
 		)

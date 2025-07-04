@@ -185,7 +185,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-
 	internalDeviation := &config.Deviation{}
 	if deviation != nil {
 		if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
@@ -193,7 +192,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 		}
 	}
-	
 
 	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, internalDeviation, false)
 	if err != nil {
@@ -253,7 +251,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 
 	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
 		equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
-		deviationChange&&
+		deviationChange &&
 		equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> no change")
 		return nil
@@ -295,7 +293,7 @@ func equalAppliedConfig(a, b *configv1alpha1.ConfigSpec) bool {
 	return equality.Semantic.DeepEqual(*a, *b)
 }
 
-func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema ) bool {
+func equalSchema(a, b *configv1alpha1.ConfigStatusLastKnownGoodSchema) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -345,7 +343,6 @@ func processMessageWithWarning(msg, warnings string) string {
 	return msg
 }
 
-
 func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
 	key := types.NamespacedName{
 		Name:      config.Name,
@@ -362,6 +359,7 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 			Name:            config.Name,
 			Namespace:       config.Namespace,
 			OwnerReferences: []metav1.OwnerReference{config.GetOwnerReference()},
+			Labels:          config.Labels,
 		}, nil, nil)
 
 		if err := r.Client.Create(ctx, newDeviation); err != nil {
@@ -371,7 +369,6 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 	}
 	return deviation, nil
 }
-
 
 func (r *reconciler) clearDeviation(ctx context.Context, deviation *configv1alpha1.Deviation) error {
 	log := log.FromContext(ctx)
