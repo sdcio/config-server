@@ -198,7 +198,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 				log.Error("unexpected configName", "got", configName)
 				return
 			}
-			log.Info("config deviations", "devs", len(configDevs))
+			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
 		}
 		r.processConfigDeviations(ctx, nsn, configDevs)
 	}
