@@ -212,7 +212,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 	log := log.FromContext(ctx)
 	deviation := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, nsn, deviation); err != nil {
-		log.Error("cannot get intent for recieved deviation", "config", nsn)
+		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
 		return
 	}
 	
