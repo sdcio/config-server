@@ -26,11 +26,14 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
 	//"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -209,21 +212,27 @@ func (r *DeviationWatcher) processConfigDeviations(
 	deviations []configv1alpha1.ConfigDeviation,
 ) {
 	log := log.FromContext(ctx)
-	dev := &configv1alpha1.Deviation{}
-	if err := r.client.Get(ctx, nsn, dev); err != nil {
-		log.Error("cannot get intent for recieved deviation", "config", nsn)
+	deviationCR := &configv1alpha1.Deviation{}
+	if err := r.client.Get(ctx, nsn, deviationCR); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			log.Error("cannot get deviation", "name", deviationCR.Name, "error", err)
+			return
+		}
+		deviationCR := configv1alpha1.BuildDeviation(
+			v1.ObjectMeta{Name: nsn.Name, Namespace: nsn.Namespace},
+			&configv1alpha1.DeviationSpec{
+				Deviations: deviations,
+			},
+			nil,
+		)
+		if err := r.client.Create(ctx, deviationCR); err != nil {
+			log.Error("cannot create deviation", "name", deviationCR.Name, "error", err)
+		}
 		return
 	}
-	patch := client.MergeFrom(dev.DeepObjectCopy())
-
-	dev.Spec.Deviations = deviations
 	
-	if err := r.client.Patch(ctx, dev, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			//Force: ptr.To(true),
-			FieldManager: "DeviationWatcher",
-		},
-	}); err != nil {
-		log.Error("cannot update intent for recieved deviation", "config", nsn)
+	deviationCR.Spec.Deviations = deviations
+	if err := r.client.Update(ctx, deviationCR); err != nil {
+		log.Error("cannot update deviation", "name", deviationCR.Name, "error", err)
 	}
 }

@@ -23,15 +23,16 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+
 	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"k8s.io/apimachinery/pkg/api/equality"
 )
 
 const (
@@ -64,10 +65,11 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 		return err
 	}
 
-
+	
 	if err := r.applyTargetDeviationCR(ctx, target); err != nil {
 		return err
 	}
+	
 	return nil
 }
 
@@ -142,15 +144,15 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 
 		// we get the target again to get the latest update
 		/*
-		target = &invv1alpha1.Target{}
-		if err := r.client.Get(ctx, types.NamespacedName{
-			Namespace: targetNew.Namespace,
-			Name:      targetNew.Name,
-		}, target); err != nil {
-			// the resource should always exist
-			return err
-		}
-			*/
+			target = &invv1alpha1.Target{}
+			if err := r.client.Get(ctx, types.NamespacedName{
+				Namespace: targetNew.Namespace,
+				Name:      targetNew.Name,
+			}, target); err != nil {
+				// the resource should always exist
+				return err
+			}
+		*/
 	}
 
 	// set old condition to avoid updating the new status if not changed
@@ -160,11 +162,11 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
 		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
-		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo){
-			log.Info("handleSuccess -> no change")
+		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo) {
+		log.Info("handleSuccess -> no change")
 		return nil
 	}
-	log.Info("handleSuccess", 
+	log.Info("handleSuccess",
 		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)),
 		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
 		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
@@ -182,28 +184,28 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 		return err
 	}
 	/*
-	//targetPatch := targetCurrent.DeepCopy()
-	//targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
-	//targetPatch.Status.DiscoveryInfo = di
+		//targetPatch := targetCurrent.DeepCopy()
+		//targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
+		//targetPatch.Status.DiscoveryInfo = di
 
-	log.Info("discovery target apply",
-		"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
-		"DSReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-		"ConfigReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
-		"DiscoveryInfo", targetPatch.Status.DiscoveryInfo,
-	)
+		log.Info("discovery target apply",
+			"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
+			"DSReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
+			"ConfigReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
+			"DiscoveryInfo", targetPatch.Status.DiscoveryInfo,
+		)
 
-	// Apply the patch
-	err := r.client.Status().Patch(ctx, targetPatch, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	})
-	if err != nil {
-		log.Error("failed to patch target status", "err", err)
-		return err
-	}
-		*/
+		// Apply the patch
+		err := r.client.Status().Patch(ctx, targetPatch, client.Apply, &client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{
+				FieldManager: reconcilerName,
+			},
+		})
+		if err != nil {
+			log.Error("failed to patch target status", "err", err)
+			return err
+		}
+	*/
 
 	return nil
 }
