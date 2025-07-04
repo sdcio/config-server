@@ -60,7 +60,7 @@ func (r *dr) newDeviationCR(_ context.Context, target *invv1alpha1.Target) (*con
 		return nil, err
 	}
 	labels[config.TargetNamespaceKey] = target.Namespace
-	labels[config.TargetNameKey] = target.Namespace
+	labels[config.TargetNameKey] = target.Name
 	anno, err := r.cfg.CR.GetDiscoveryParameters().GetTargetAnnotations(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
