@@ -153,6 +153,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot add finalizer", err, true), errUpdateStatus)
 	}
 
+	// apply an empty deviation or fetch the deviation from the apiserver if it exists
 	deviation, err := r.applyDeviation(ctx, cfg)
 	if err != nil {
 		log.Info("applying deviation failed")
@@ -174,7 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if cfg.IsConditionReady() &&
 		cfg.Status.AppliedConfig != nil &&
 		cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx) &&
-		cfg.HashDeviationGenerationChanged(deviation) {
+		!cfg.HashDeviationGenerationChanged(deviation) {
 		log.Info("not reapplying the config since nothing changed")
 		return ctrl.Result{}, nil
 	}
