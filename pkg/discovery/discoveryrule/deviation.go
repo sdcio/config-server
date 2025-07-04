@@ -21,6 +21,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -58,6 +59,8 @@ func (r *dr) newDeviationCR(_ context.Context, target *invv1alpha1.Target) (*con
 	if err != nil {
 		return nil, err
 	}
+	labels[config.TargetNamespaceKey] = target.Namespace
+	labels[config.TargetNameKey] = target.Namespace
 	anno, err := r.cfg.CR.GetDiscoveryParameters().GetTargetAnnotations(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
