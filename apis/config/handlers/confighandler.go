@@ -26,7 +26,7 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, dryrun)
+	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, nil, dryrun)
 	if err != nil {
 		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
 		cfg.SetConditions(condition.Failed(msg))
@@ -47,7 +47,7 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, dryrun)
+	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, nil, dryrun)
 	if err != nil {
 		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
 		cfg.SetConditions(condition.Failed(msg))

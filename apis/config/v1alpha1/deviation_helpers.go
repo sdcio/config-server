@@ -17,10 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/sdcio/data-server/pkg/utils"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"github.com/sdcio/data-server/pkg/utils"
 )
 
 // BuildDeviation returns a reource from a client Object a Spec/Status

@@ -67,6 +67,10 @@ spec:
                 description: Priority defines the priority of this config
                 format: int64
                 type: integer
+              revertive:
+                description: Revertive defines if this CR is enabled for revertive
+                  or non revertve operation
+                type: boolean
             required:
             - config
             type: object
@@ -107,6 +111,10 @@ spec:
                     description: Priority defines the priority of this config
                     format: int64
                     type: integer
+                  revertive:
+                    description: Revertive defines if this CR is enabled for revertive
+                      or non revertve operation
+                    type: boolean
                 required:
                 - config
                 type: object
@@ -173,6 +181,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              deviationGeneration:
+                description: Deviations generation used for the latest config apply
+                format: int64
+                type: integer
               lastKnownGoodSchema:
                 description: LastKnownGoodSchema identifies the last known good schema
                   used to apply the config successfully
@@ -248,6 +260,10 @@ spec:
                 description: Priority defines the priority of this config
                 format: int64
                 type: integer
+              revertive:
+                description: Revertive defines if this CR is enabled for revertive
+                  or non revertve operation
+                type: boolean
             required:
             - config
             type: object
@@ -292,6 +308,10 @@ spec:
                     description: Priority defines the priority of this config
                     format: int64
                     type: integer
+                  revertive:
+                    description: Revertive defines if this CR is enabled for revertive
+                      or non revertve operation
+                    type: boolean
                 required:
                 - config
                 type: object
@@ -358,6 +378,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              deviationGeneration:
+                description: Deviations generation used for the latest config apply
+                format: int64
+                type: integer
               lastKnownGoodSchema:
                 description: LastKnownGoodSchema identifies the last known good schema
                   used to apply the config successfully

@@ -144,9 +144,12 @@ message ConfigSpec {
   // Priority defines the priority of this config
   optional int64 priority = 2;
 
+  // Revertive defines if this CR is enabled for revertive or non revertve operation
+  optional bool revertive = 3;
+
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
-  repeated ConfigBlob config = 3;
+  repeated ConfigBlob config = 4;
 }
 
 // ConfigStatus defines the observed state of Config
@@ -160,6 +163,9 @@ message ConfigStatus {
 
   // AppliedConfig defines the config applied to the target
   optional ConfigSpec appliedConfig = 3;
+
+  // Deviations generation used for the latest config apply
+  optional int64 deviationGeneration = 4;
 }
 
 message ConfigStatusLastKnownGoodSchema {

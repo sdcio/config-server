@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
-	"os"
 
 	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -144,8 +144,6 @@ func (r *Config) Validate() error {
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }
-
-
 
 // BuildConfig returns a reource from a client Object a Spec/Status
 func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *Config {

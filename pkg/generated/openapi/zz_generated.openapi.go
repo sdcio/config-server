@@ -801,6 +801,13 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"revertive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revertive defines if this CR is enabled for revertive or non revertve operation",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config defines the configuration to be applied to a target device",
@@ -863,6 +870,13 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 						SchemaProps: spec.SchemaProps{
 							Description: "AppliedConfig defines the config applied to the target",
 							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec"),
+						},
+					},
+					"deviationGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Deviations generation used for the latest config apply",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 				},
