@@ -185,11 +185,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	internalDeviation := &config.Deviation{}
-	if deviation != nil {
-		if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
-			r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
-			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+	// in non revertive mode we dont include the deviation in the set intent
+	// in revertive mode we include it is it exists.
+	var internalDeviation *config.Deviation
+	if !cfg.IsRevertive() {
+		if deviation != nil {
+			if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
+				r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
+				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+			}
 		}
 	}
 

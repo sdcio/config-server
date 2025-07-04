@@ -285,6 +285,29 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
+func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+	//log := log.FromContext(ctx)
+	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
+
+	for _, deviation := range deviation.Spec.Deviations {
+		if deviation.Reason == "NOT_APPLIED" {
+			path, err := utils.ParsePath(deviation.Path)
+			if err != nil {
+				return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), deviation.Path)
+			}
+			update = append(update, &sdcpb.Update{
+				Path: path,
+				Value: &sdcpb.TypedValue{
+					Value: &sdcpb.TypedValue_JsonVal{
+						JsonVal: []byte(deviation.DesiredValue),
+					},
+				},
+			})
+		}
+	}
+	return update, nil
+}
+
 func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
 	rsp, err := r.dsclient.TransactionSet(ctx, req)
 	msg, err := r.processTransactionResponse(ctx, rsp, err)
@@ -309,10 +332,35 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		return "", fmt.Errorf("target context not ready")
 	}
 
+	intents := []*sdcpb.TransactionIntent{}
 	update, err := r.getIntentUpdate(ctx, key, config, true)
 	if err != nil {
 		return "", err
 	}
+	intents = append(intents, &sdcpb.TransactionIntent{
+		Intent:   getGVKNSN(config),
+		Priority: int32(config.Spec.Priority),
+		Update:   update,
+	})
+
+	if deviation != nil {
+		update, err := r.getDeviationUpdate(ctx, key, deviation)
+		if err != nil {
+			return "", err
+		}
+		newPriority := config.Spec.Priority
+		if newPriority > 0 {
+			newPriority--
+		}
+		
+		intents = append(intents, &sdcpb.TransactionIntent{
+			// TODO add deviation
+			Intent:   getGVKNSN(config),
+			Priority: int32(newPriority),
+			Update:   update,
+		})
+	}
+
 	log.Debug("SetIntent", "update", update)
 
 	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
@@ -320,13 +368,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
-		Intents: []*sdcpb.TransactionIntent{
-			{
-				Intent:   getGVKNSN(config),
-				Priority: int32(config.Spec.Priority),
-				Update:   update,
-			},
-		},
+		Intents: intents,
 	})
 }
 
