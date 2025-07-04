@@ -44,7 +44,10 @@ func (r *Deviation) GetNamespacedName() types.NamespacedName {
 }
 
 func (r *Deviation) GetDeviationType() string {
-	return r.Spec.DeviationType.String()
+	if r.Spec.DeviationType != nil {
+		return r.Spec.DeviationType.String()
+	}
+	return DeviationType_TARGET.String()
 }
 
 func (r *Deviation) GetTarget() string {
