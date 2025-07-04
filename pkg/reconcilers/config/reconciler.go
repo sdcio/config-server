@@ -190,11 +190,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+
 	internalDeviation := &config.Deviation{}
-	if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
-		r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+	if deviation != nil {
+		if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
+			r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+		}
 	}
+	
 
 	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, internalDeviation, false)
 	if err != nil {
