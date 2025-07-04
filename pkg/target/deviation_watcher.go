@@ -222,7 +222,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	deviation.Spec.Deviations = deviations
 	
-	if err := r.client.Status().Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: "ConfigController",
 		},
