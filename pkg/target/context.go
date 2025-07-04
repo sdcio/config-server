@@ -354,7 +354,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		}
 		
 		intents = append(intents, &sdcpb.TransactionIntent{
-			// TODO add deviation
+			DoNotStore: true,
 			Intent:   getGVKNSN(config),
 			Priority: int32(newPriority),
 			Update:   update,
