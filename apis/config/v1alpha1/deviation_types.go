@@ -19,8 +19,8 @@ package v1alpha1
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeviationSpec defines the desired state of Deviation

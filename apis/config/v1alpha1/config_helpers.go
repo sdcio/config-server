@@ -25,13 +25,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"os"
 
 	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
-	"github.com/sdcio/data-server/pkg/utils"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +51,18 @@ func (r *Config) IsConditionReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
+func (r *Config) IsRevertive() bool {
+	if r.Spec.Revertive != nil {
+		return *r.Spec.Revertive
+	}
+	if revertive, found := os.LookupEnv("REVERTIVE"); found {
+		if strings.ToLower(revertive) == "true" {
+			return true
+		}
+	}
+	return true
+}
+
 func (r *Config) IsRecoverable() bool {
 	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
 	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
@@ -65,6 +76,20 @@ func (r *Config) IsRecoverable() bool {
 		return false
 	}
 	return true
+}
+
+func (r *Config) HashDeviationGenerationChanged(deviation *Deviation) bool {
+	if r.Status.DeviationGeneration == nil {
+		// if there was no old deviation, but now we have a deviation wwe return true
+		return deviation != nil
+	} else {
+		// a deviation existed on the config (only non revertive mode since the deviation is cleared in revertove case)
+		if deviation == nil {
+			// the new deviation cleared
+			return false // nothing to be done
+		}
+		return *r.Status.DeviationGeneration == deviation.GetGeneration()
+	}
 }
 
 func (r *Config) GetNamespacedName() types.NamespacedName {
@@ -119,6 +144,8 @@ func (r *Config) Validate() error {
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
 }
+
+
 
 // BuildConfig returns a reource from a client Object a Spec/Status
 func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *Config {
@@ -179,35 +206,36 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 	// Calculate SHA-1 hash
 	return sha1.Sum(jsonData), nil
 }
-/*
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
-	deviations := make([]Deviation, 0, len(devs))
-	for _, dev := range devs {
-		deviations = append(deviations, Deviation{
-			Path:         utils.ToXPath(dev.GetPath(), false),
-			DesiredValue: dev.GetExpectedValue().String(),
-			CurrentValue: dev.GetCurrentValue().String(),
-			Reason:       dev.GetReason().String(),
-		})
-	}
-	return deviations
-}
 
-func (r ConfigStatus) HasNotAppliedDeviation() bool {
-	for _, dev := range r.Deviations {
-		if dev.Reason == "NOT_APPLIED" {
-			return true
+/*
+	func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
+		deviations := make([]Deviation, 0, len(devs))
+		for _, dev := range devs {
+			deviations = append(deviations, Deviation{
+				Path:         utils.ToXPath(dev.GetPath(), false),
+				DesiredValue: dev.GetExpectedValue().String(),
+				CurrentValue: dev.GetCurrentValue().String(),
+				Reason:       dev.GetReason().String(),
+			})
 		}
+		return deviations
 	}
-	return false
-}
+
+	func (r ConfigStatus) HasNotAppliedDeviation() bool {
+		for _, dev := range r.Deviations {
+			if dev.Reason == "NOT_APPLIED" {
+				return true
+			}
+		}
+		return false
+	}
 
 // +k8s:deepcopy-gen=false
 var _ ConfigDeviations = &Config{}
 
-func (r *Config) SetDeviations(d []Deviation) {
-	r.Status.Deviations = d
-}
+	func (r *Config) SetDeviations(d []Deviation) {
+		r.Status.Deviations = d
+	}
 */
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()

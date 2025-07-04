@@ -98,6 +98,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*ConfigDeviation)(nil), (*config.ConfigDeviation)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(a.(*ConfigDeviation), b.(*config.ConfigDeviation), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.ConfigDeviation)(nil), (*ConfigDeviation)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(a.(*config.ConfigDeviation), b.(*ConfigDeviation), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*ConfigList)(nil), (*config.ConfigList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ConfigList_To_config_ConfigList(a.(*ConfigList), b.(*config.ConfigList), scope)
 	}); err != nil {
@@ -188,6 +198,36 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*DeviationList)(nil), (*config.DeviationList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_DeviationList_To_config_DeviationList(a.(*DeviationList), b.(*config.DeviationList), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.DeviationList)(nil), (*DeviationList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_DeviationList_To_v1alpha1_DeviationList(a.(*config.DeviationList), b.(*DeviationList), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*DeviationSpec)(nil), (*config.DeviationSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec(a.(*DeviationSpec), b.(*config.DeviationSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.DeviationSpec)(nil), (*DeviationSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_DeviationSpec_To_v1alpha1_DeviationSpec(a.(*config.DeviationSpec), b.(*DeviationSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*DeviationStatus)(nil), (*config.DeviationStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_DeviationStatus_To_config_DeviationStatus(a.(*DeviationStatus), b.(*config.DeviationStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.DeviationStatus)(nil), (*DeviationStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus(a.(*config.DeviationStatus), b.(*DeviationStatus), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*Lifecycle)(nil), (*config.Lifecycle)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_Lifecycle_To_config_Lifecycle(a.(*Lifecycle), b.(*config.Lifecycle), scope)
 	}); err != nil {
@@ -255,46 +295,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*config.TargetStatus)(nil), (*TargetStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_config_TargetStatus_To_v1alpha1_TargetStatus(a.(*config.TargetStatus), b.(*TargetStatus), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*UnManagedConfig)(nil), (*config.UnManagedConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_UnManagedConfig_To_config_UnManagedConfig(a.(*UnManagedConfig), b.(*config.UnManagedConfig), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*config.UnManagedConfig)(nil), (*UnManagedConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_config_UnManagedConfig_To_v1alpha1_UnManagedConfig(a.(*config.UnManagedConfig), b.(*UnManagedConfig), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*UnManagedConfigList)(nil), (*config.UnManagedConfigList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_UnManagedConfigList_To_config_UnManagedConfigList(a.(*UnManagedConfigList), b.(*config.UnManagedConfigList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*config.UnManagedConfigList)(nil), (*UnManagedConfigList)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_config_UnManagedConfigList_To_v1alpha1_UnManagedConfigList(a.(*config.UnManagedConfigList), b.(*UnManagedConfigList), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*UnManagedConfigSpec)(nil), (*config.UnManagedConfigSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec(a.(*UnManagedConfigSpec), b.(*config.UnManagedConfigSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*config.UnManagedConfigSpec)(nil), (*UnManagedConfigSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec(a.(*config.UnManagedConfigSpec), b.(*UnManagedConfigSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*UnManagedConfigStatus)(nil), (*config.UnManagedConfigStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus(a.(*UnManagedConfigStatus), b.(*config.UnManagedConfigStatus), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*config.UnManagedConfigStatus)(nil), (*UnManagedConfigStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus(a.(*config.UnManagedConfigStatus), b.(*UnManagedConfigStatus), scope)
 	}); err != nil {
 		return err
 	}
@@ -465,6 +465,32 @@ func autoConvert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in *config.ConfigBlob,
 // Convert_config_ConfigBlob_To_v1alpha1_ConfigBlob is an autogenerated conversion function.
 func Convert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in *config.ConfigBlob, out *ConfigBlob, s conversion.Scope) error {
 	return autoConvert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in, out, s)
+}
+
+func autoConvert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviation, out *config.ConfigDeviation, s conversion.Scope) error {
+	out.Path = in.Path
+	out.DesiredValue = in.DesiredValue
+	out.CurrentValue = in.CurrentValue
+	out.Reason = in.Reason
+	return nil
+}
+
+// Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation is an autogenerated conversion function.
+func Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviation, out *config.ConfigDeviation, s conversion.Scope) error {
+	return autoConvert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in, out, s)
+}
+
+func autoConvert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in *config.ConfigDeviation, out *ConfigDeviation, s conversion.Scope) error {
+	out.Path = in.Path
+	out.DesiredValue = in.DesiredValue
+	out.CurrentValue = in.CurrentValue
+	out.Reason = in.Reason
+	return nil
+}
+
+// Convert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation is an autogenerated conversion function.
+func Convert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in *config.ConfigDeviation, out *ConfigDeviation, s conversion.Scope) error {
+	return autoConvert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in, out, s)
 }
 
 func autoConvert_v1alpha1_ConfigList_To_config_ConfigList(in *ConfigList, out *config.ConfigList, s conversion.Scope) error {
@@ -689,7 +715,6 @@ func autoConvert_v1alpha1_ConfigStatus_To_config_ConfigStatus(in *ConfigStatus, 
 	}
 	out.LastKnownGoodSchema = (*config.ConfigStatusLastKnownGoodSchema)(unsafe.Pointer(in.LastKnownGoodSchema))
 	out.AppliedConfig = (*config.ConfigSpec)(unsafe.Pointer(in.AppliedConfig))
-	out.Deviations = *(*[]config.Deviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }
 
@@ -704,7 +729,6 @@ func autoConvert_config_ConfigStatus_To_v1alpha1_ConfigStatus(in *config.ConfigS
 	}
 	out.LastKnownGoodSchema = (*ConfigStatusLastKnownGoodSchema)(unsafe.Pointer(in.LastKnownGoodSchema))
 	out.AppliedConfig = (*ConfigSpec)(unsafe.Pointer(in.AppliedConfig))
-	out.Deviations = *(*[]Deviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }
 
@@ -738,10 +762,13 @@ func Convert_config_ConfigStatusLastKnownGoodSchema_To_v1alpha1_ConfigStatusLast
 }
 
 func autoConvert_v1alpha1_Deviation_To_config_Deviation(in *Deviation, out *config.Deviation, s conversion.Scope) error {
-	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	out.CurrentValue = in.CurrentValue
-	out.Reason = in.Reason
+	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := Convert_v1alpha1_DeviationStatus_To_config_DeviationStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -751,16 +778,105 @@ func Convert_v1alpha1_Deviation_To_config_Deviation(in *Deviation, out *config.D
 }
 
 func autoConvert_config_Deviation_To_v1alpha1_Deviation(in *config.Deviation, out *Deviation, s conversion.Scope) error {
-	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	out.CurrentValue = in.CurrentValue
-	out.Reason = in.Reason
+	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_config_DeviationSpec_To_v1alpha1_DeviationSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Convert_config_Deviation_To_v1alpha1_Deviation is an autogenerated conversion function.
 func Convert_config_Deviation_To_v1alpha1_Deviation(in *config.Deviation, out *Deviation, s conversion.Scope) error {
 	return autoConvert_config_Deviation_To_v1alpha1_Deviation(in, out, s)
+}
+
+func autoConvert_v1alpha1_DeviationList_To_config_DeviationList(in *DeviationList, out *config.DeviationList, s conversion.Scope) error {
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]config.Deviation, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_Deviation_To_config_Deviation(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+// Convert_v1alpha1_DeviationList_To_config_DeviationList is an autogenerated conversion function.
+func Convert_v1alpha1_DeviationList_To_config_DeviationList(in *DeviationList, out *config.DeviationList, s conversion.Scope) error {
+	return autoConvert_v1alpha1_DeviationList_To_config_DeviationList(in, out, s)
+}
+
+func autoConvert_config_DeviationList_To_v1alpha1_DeviationList(in *config.DeviationList, out *DeviationList, s conversion.Scope) error {
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Deviation, len(*in))
+		for i := range *in {
+			if err := Convert_config_Deviation_To_v1alpha1_Deviation(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+// Convert_config_DeviationList_To_v1alpha1_DeviationList is an autogenerated conversion function.
+func Convert_config_DeviationList_To_v1alpha1_DeviationList(in *config.DeviationList, out *DeviationList, s conversion.Scope) error {
+	return autoConvert_config_DeviationList_To_v1alpha1_DeviationList(in, out, s)
+}
+
+func autoConvert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, out *config.DeviationSpec, s conversion.Scope) error {
+	out.Deviations = *(*[]config.ConfigDeviation)(unsafe.Pointer(&in.Deviations))
+	return nil
+}
+
+// Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec is an autogenerated conversion function.
+func Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, out *config.DeviationSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in, out, s)
+}
+
+func autoConvert_config_DeviationSpec_To_v1alpha1_DeviationSpec(in *config.DeviationSpec, out *DeviationSpec, s conversion.Scope) error {
+	out.Deviations = *(*[]ConfigDeviation)(unsafe.Pointer(&in.Deviations))
+	return nil
+}
+
+// Convert_config_DeviationSpec_To_v1alpha1_DeviationSpec is an autogenerated conversion function.
+func Convert_config_DeviationSpec_To_v1alpha1_DeviationSpec(in *config.DeviationSpec, out *DeviationSpec, s conversion.Scope) error {
+	return autoConvert_config_DeviationSpec_To_v1alpha1_DeviationSpec(in, out, s)
+}
+
+func autoConvert_v1alpha1_DeviationStatus_To_config_DeviationStatus(in *DeviationStatus, out *config.DeviationStatus, s conversion.Scope) error {
+	if err := Convert_v1alpha1_ConditionedStatus_To_condition_ConditionedStatus(&in.ConditionedStatus, &out.ConditionedStatus, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Convert_v1alpha1_DeviationStatus_To_config_DeviationStatus is an autogenerated conversion function.
+func Convert_v1alpha1_DeviationStatus_To_config_DeviationStatus(in *DeviationStatus, out *config.DeviationStatus, s conversion.Scope) error {
+	return autoConvert_v1alpha1_DeviationStatus_To_config_DeviationStatus(in, out, s)
+}
+
+func autoConvert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in *config.DeviationStatus, out *DeviationStatus, s conversion.Scope) error {
+	if err := Convert_condition_ConditionedStatus_To_v1alpha1_ConditionedStatus(&in.ConditionedStatus, &out.ConditionedStatus, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus is an autogenerated conversion function.
+func Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in *config.DeviationStatus, out *DeviationStatus, s conversion.Scope) error {
+	return autoConvert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in, out, s)
 }
 
 func autoConvert_v1alpha1_Lifecycle_To_config_Lifecycle(in *Lifecycle, out *config.Lifecycle, s conversion.Scope) error {
@@ -919,96 +1035,4 @@ func autoConvert_config_TargetStatus_To_v1alpha1_TargetStatus(in *config.TargetS
 // Convert_config_TargetStatus_To_v1alpha1_TargetStatus is an autogenerated conversion function.
 func Convert_config_TargetStatus_To_v1alpha1_TargetStatus(in *config.TargetStatus, out *TargetStatus, s conversion.Scope) error {
 	return autoConvert_config_TargetStatus_To_v1alpha1_TargetStatus(in, out, s)
-}
-
-func autoConvert_v1alpha1_UnManagedConfig_To_config_UnManagedConfig(in *UnManagedConfig, out *config.UnManagedConfig, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec(&in.Spec, &out.Spec, s); err != nil {
-		return err
-	}
-	if err := Convert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus(&in.Status, &out.Status, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_v1alpha1_UnManagedConfig_To_config_UnManagedConfig is an autogenerated conversion function.
-func Convert_v1alpha1_UnManagedConfig_To_config_UnManagedConfig(in *UnManagedConfig, out *config.UnManagedConfig, s conversion.Scope) error {
-	return autoConvert_v1alpha1_UnManagedConfig_To_config_UnManagedConfig(in, out, s)
-}
-
-func autoConvert_config_UnManagedConfig_To_v1alpha1_UnManagedConfig(in *config.UnManagedConfig, out *UnManagedConfig, s conversion.Scope) error {
-	out.ObjectMeta = in.ObjectMeta
-	if err := Convert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec(&in.Spec, &out.Spec, s); err != nil {
-		return err
-	}
-	if err := Convert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus(&in.Status, &out.Status, s); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Convert_config_UnManagedConfig_To_v1alpha1_UnManagedConfig is an autogenerated conversion function.
-func Convert_config_UnManagedConfig_To_v1alpha1_UnManagedConfig(in *config.UnManagedConfig, out *UnManagedConfig, s conversion.Scope) error {
-	return autoConvert_config_UnManagedConfig_To_v1alpha1_UnManagedConfig(in, out, s)
-}
-
-func autoConvert_v1alpha1_UnManagedConfigList_To_config_UnManagedConfigList(in *UnManagedConfigList, out *config.UnManagedConfigList, s conversion.Scope) error {
-	out.ListMeta = in.ListMeta
-	out.Items = *(*[]config.UnManagedConfig)(unsafe.Pointer(&in.Items))
-	return nil
-}
-
-// Convert_v1alpha1_UnManagedConfigList_To_config_UnManagedConfigList is an autogenerated conversion function.
-func Convert_v1alpha1_UnManagedConfigList_To_config_UnManagedConfigList(in *UnManagedConfigList, out *config.UnManagedConfigList, s conversion.Scope) error {
-	return autoConvert_v1alpha1_UnManagedConfigList_To_config_UnManagedConfigList(in, out, s)
-}
-
-func autoConvert_config_UnManagedConfigList_To_v1alpha1_UnManagedConfigList(in *config.UnManagedConfigList, out *UnManagedConfigList, s conversion.Scope) error {
-	out.ListMeta = in.ListMeta
-	out.Items = *(*[]UnManagedConfig)(unsafe.Pointer(&in.Items))
-	return nil
-}
-
-// Convert_config_UnManagedConfigList_To_v1alpha1_UnManagedConfigList is an autogenerated conversion function.
-func Convert_config_UnManagedConfigList_To_v1alpha1_UnManagedConfigList(in *config.UnManagedConfigList, out *UnManagedConfigList, s conversion.Scope) error {
-	return autoConvert_config_UnManagedConfigList_To_v1alpha1_UnManagedConfigList(in, out, s)
-}
-
-func autoConvert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec(in *UnManagedConfigSpec, out *config.UnManagedConfigSpec, s conversion.Scope) error {
-	return nil
-}
-
-// Convert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec is an autogenerated conversion function.
-func Convert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec(in *UnManagedConfigSpec, out *config.UnManagedConfigSpec, s conversion.Scope) error {
-	return autoConvert_v1alpha1_UnManagedConfigSpec_To_config_UnManagedConfigSpec(in, out, s)
-}
-
-func autoConvert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec(in *config.UnManagedConfigSpec, out *UnManagedConfigSpec, s conversion.Scope) error {
-	return nil
-}
-
-// Convert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec is an autogenerated conversion function.
-func Convert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec(in *config.UnManagedConfigSpec, out *UnManagedConfigSpec, s conversion.Scope) error {
-	return autoConvert_config_UnManagedConfigSpec_To_v1alpha1_UnManagedConfigSpec(in, out, s)
-}
-
-func autoConvert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus(in *UnManagedConfigStatus, out *config.UnManagedConfigStatus, s conversion.Scope) error {
-	out.Deviations = *(*[]config.Deviation)(unsafe.Pointer(&in.Deviations))
-	return nil
-}
-
-// Convert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus is an autogenerated conversion function.
-func Convert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus(in *UnManagedConfigStatus, out *config.UnManagedConfigStatus, s conversion.Scope) error {
-	return autoConvert_v1alpha1_UnManagedConfigStatus_To_config_UnManagedConfigStatus(in, out, s)
-}
-
-func autoConvert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus(in *config.UnManagedConfigStatus, out *UnManagedConfigStatus, s conversion.Scope) error {
-	out.Deviations = *(*[]Deviation)(unsafe.Pointer(&in.Deviations))
-	return nil
-}
-
-// Convert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus is an autogenerated conversion function.
-func Convert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus(in *config.UnManagedConfigStatus, out *UnManagedConfigStatus, s conversion.Scope) error {
-	return autoConvert_config_UnManagedConfigStatus_To_v1alpha1_UnManagedConfigStatus(in, out, s)
 }

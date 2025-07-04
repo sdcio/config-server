@@ -59,10 +59,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigBlames().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("configsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("deviations"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().Deviations().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("runningconfigs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().RunningConfigs().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("unmanagedconfigs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().UnManagedConfigs().Informer()}, nil
 
 		// Group=inv.sdcio.dev, Version=v1alpha1
 	case invv1alpha1.SchemeGroupVersion.WithResource("discoveryrules"):

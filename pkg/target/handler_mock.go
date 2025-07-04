@@ -79,7 +79,7 @@ func (r *mockTargetHandler) GetTargetContext(ctx context.Context, targetKey type
 	return nil, nil, nil
 }
 
-func (r *mockTargetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *configapi.Config, dryRun bool) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *mockTargetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *configapi.Config, deviation *configapi.Deviation, dryRun bool) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String(), "intent", getGVKNSN(config))
 	log.Info("SetIntent")
 	mctx, err := r.getMockContext(ctx, targetKey)

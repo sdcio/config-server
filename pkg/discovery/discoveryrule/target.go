@@ -65,7 +65,7 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	}
 
 
-	if err := r.applyUnManagedConfigCR(ctx, target); err != nil {
+	if err := r.applyTargetDeviationCR(ctx, target); err != nil {
 		return err
 	}
 	return nil

@@ -31,7 +31,7 @@ func (r *dr) deleteUnWantedChildren(ctx context.Context) {
 	if err := r.deleteUnWantedTargets(ctx); err != nil {
 		log.Error("cannot delete unwanted target children", "err", err.Error())
 	}
-	if err := r.deleteUnWantedUnManagedConfigs(ctx); err != nil {
+	if err := r.deleteUnwantedDeviations(ctx); err != nil {
 		log.Error("cannot delete unwanted unmanagedConfig children", "err", err.Error())
 	}
 }
@@ -69,7 +69,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 	return nil
 }
 
-func (r *dr) deleteUnWantedUnManagedConfigs(ctx context.Context) error {
+func (r *dr) deleteUnwantedDeviations(ctx context.Context) error {
 	log := log.FromContext(ctx)
 	// list all targets belonging to this discovery rule
 	opts := []client.ListOption{
@@ -77,21 +77,21 @@ func (r *dr) deleteUnWantedUnManagedConfigs(ctx context.Context) error {
 		client.MatchingLabels{invv1alpha1.LabelKeyDiscoveryRule: r.cfg.CR.GetName()},
 	}
 
-	unmanagedConfigList := &configv1alpha1.UnManagedConfigList{}
-	if err := r.client.List(ctx, unmanagedConfigList, opts...); err != nil {
+	deviationList := &configv1alpha1.DeviationList{}
+	if err := r.client.List(ctx, deviationList, opts...); err != nil {
 		return err
 	}
 
-	for _, unmanagedConfig := range unmanagedConfigList.Items {
+	for _, deviation := range deviationList.Items {
 		found := false
 		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
-			if key.Name == unmanagedConfig.Name {
+			if key.Name == deviation.Name {
 				found = true
 			}
 		})
 		if !found {
-			if err := r.client.Delete(ctx, &unmanagedConfig); err != nil {
-				log.Error("cannot delete unmanagedConfig")
+			if err := r.client.Delete(ctx, &deviation); err != nil {
+				log.Error("cannot delete deviation")
 			}
 		}
 	}

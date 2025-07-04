@@ -303,7 +303,7 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	return msg, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, deviation *config.Deviation, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")

@@ -75,6 +75,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Named(reconcilerName).
 		For(&configv1alpha1.Config{}).
 		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Deviation{}, &eventhandler.DeviationForConfigEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
@@ -136,6 +137,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "delete intent failed", err, false), errUpdateStatus)
 
 		}
+
+		// delete the deviation
+		deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{Name: cfg.Name, Namespace: cfg.Namespace}, nil, nil)
+		if err = r.Client.Delete(ctx, deviation); err != nil {
+			if resource.IgnoreNotFound(err) != nil {
+				return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
+			}
+		}
+
 		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot delete finalizer", err, true), errUpdateStatus)
@@ -155,6 +166,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	log.Info("applying config -> target ready")
 
+	deviation, err := r.getDeviation(ctx, cfg)
+	if err != nil {
+		log.Info("getting deviation failed")
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "cannot get deviation", err, true), errUpdateStatus)
+	}
+
+
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
 	// if the applied Config is not set -> reapply the config
@@ -163,7 +181,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if cfg.IsConditionReady() &&
 		cfg.Status.AppliedConfig != nil &&
 		cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx) &&
-		!cfg.Status.HasNotAppliedDeviation() {
+		cfg.HashDeviationGenerationChanged(deviation) {
 		return ctrl.Result{}, nil
 	}
 
@@ -172,7 +190,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, false)
+	internalDeviation := &config.Deviation{}
+	if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
+		r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
+		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+	}
+
+	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, internalDeviation, false)
 	if err != nil {
 		// TODO distinguish between recoeverable and non recoverable
 		var txErr *target.TransactionError
@@ -190,10 +214,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot convert schema", warnings), err, true), errUpdateStatus)
 	}
 
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, warnings), errUpdateStatus)
+	// in the revertive case we can delete the deviation
+	if cfg.IsRevertive() {
+		if err := r.deleteDeviation(ctx, cfg); err != nil {
+			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot delete deviation", warnings), err, true), errUpdateStatus)
+		}
+	}
+
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, deviation, warnings), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, msg string) error {
+func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, deviation *configv1alpha1.Deviation, msg string) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
@@ -211,12 +242,19 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	newConfig.SetConditions(cfg.GetCondition(condv1alpha1.ConditionTypeReady))
 	newConfig.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	newConfig.Status.LastKnownGoodSchema = schema
-	newConfig.Status.Deviations = []configv1alpha1.Deviation{} // reset deviations
 	newConfig.Status.AppliedConfig = &cfg.Spec
+
+	if cfg.IsRevertive() || deviation == nil {
+		newConfig.Status.DeviationGeneration = nil
+	} else {
+		newConfig.Status.DeviationGeneration = ptr.To(deviation.GetGeneration())
+	}
+
+	deviationChange := cfg.HashDeviationGenerationChanged(deviation)
 
 	if newConfig.GetCondition(condv1alpha1.ConditionTypeReady).Equal(cfg.GetCondition(condv1alpha1.ConditionTypeReady)) &&
 		equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) &&
-		equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) &&
+		deviationChange&&
 		equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> no change")
 		return nil
@@ -229,8 +267,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	if !equalSchema(newConfig.Status.LastKnownGoodSchema, cfg.Status.LastKnownGoodSchema) {
 		log.Info("handleSuccess -> LastKnownGoodSchema changed", "schema-a", newConfig.Status.LastKnownGoodSchema, "schema-b", cfg.Status.LastKnownGoodSchema)
 	}
-	if !equality.Semantic.DeepEqual(newConfig.Status.Deviations, cfg.Status.Deviations) {
-		log.Info("handleSuccess -> Deviations changed", "dev-a", newConfig.Status.Deviations, "dev-b", cfg.Status.Deviations)
+	if deviationChange {
+		log.Info("handleSuccess -> Deviations changed", "dev-a", newConfig.Status.DeviationGeneration, "dev-b", cfg.Status.DeviationGeneration)
 	}
 	if !equalAppliedConfig(newConfig.Status.AppliedConfig, cfg.Status.AppliedConfig) {
 		log.Info("handleSuccess -> AppliedConfig changed")
@@ -307,3 +345,37 @@ func processMessageWithWarning(msg, warnings string) string {
 	}
 	return msg
 }
+
+// if no deviation is found we return nil
+func (r *reconciler) getDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
+	deviation := &configv1alpha1.Deviation{}
+	if err := r.Client.Get(ctx, config.GetNamespacedName(), deviation); err != nil {
+		if resource.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return deviation, nil
+}
+
+
+func (r *reconciler) deleteDeviation(ctx context.Context, config *configv1alpha1.Config) error {
+	deviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{Name: config.Name, Namespace: config.Namespace}, nil, nil)
+	if err := r.Client.Delete(ctx, deviation); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/*
+- revertive mode
+-> fetch the deviation and see if something needs to happen -> detemrine yes or no
+-> if all good delete the deviation
+
+- non revretive mode
+-> fecth the deviation and apply it to the device with higher priority
+no action on the deviaiton
+
+*/

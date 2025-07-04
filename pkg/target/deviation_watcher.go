@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -184,12 +185,9 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
 
 		nsn := r.targetKey.NamespacedName
-		var cfg configv1alpha1.ConfigDeviations
 		if configName == unManagedConfigDeviation {
-			cfg = &configv1alpha1.UnManagedConfig{}
-			log.Info("unmanaged deviations", "devs", len(configDevs))
+			log.Info("target device deviations", "devs", len(configDevs))
 		} else {
-			cfg = &configv1alpha1.Config{}
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
 				Namespace: parts[0],
@@ -199,30 +197,31 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 				log.Info("unexpected configName", "got", configName)
 				return
 			}
-			log.Info("managed deviations", "devs", len(configDevs))
+			log.Info("config deviations", "devs", len(configDevs))
 		}
-		r.processConfigDeviations(ctx, nsn, cfg, configDevs)
+		r.processConfigDeviations(ctx, nsn, configDevs)
 	}
 }
 
 func (r *DeviationWatcher) processConfigDeviations(
 	ctx context.Context, 
 	nsn types.NamespacedName, 
-	cfg configv1alpha1.ConfigDeviations, 
-	deviations []configv1alpha1.Deviation,
+	deviations []configv1alpha1.ConfigDeviation,
 ) {
 	log := log.FromContext(ctx)
-	if err := r.client.Get(ctx, nsn, cfg); err != nil {
+	dev := &configv1alpha1.Deviation{}
+	if err := r.client.Get(ctx, nsn, dev); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn)
 		return
 	}
-	patch := client.MergeFrom(cfg.DeepObjectCopy())
+	patch := client.MergeFrom(dev.DeepObjectCopy())
 
-	cfg.SetDeviations(deviations)
+	dev.Spec.Deviations = deviations
 	
-	if err := r.client.Status().Patch(ctx, cfg, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Patch(ctx, dev, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
-			FieldManager: "ConfigController",
+			Force: ptr.To(true),
+			FieldManager: "DeviationWatcher",
 		},
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)

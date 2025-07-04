@@ -31,6 +31,8 @@ type ConfigSpec struct {
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,1,opt,name=lifecycle"`
 	// Priority defines the priority of this config
 	Priority int64 `json:"priority,omitempty" protobuf:"bytes,2,opt,name=priority"`
+	// Revertive defines if this CR is enabled for revertive or non revertve operation
+	Revertive *bool `json:"revertive,omitempty" protobuf:"bytes,3,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Config []ConfigBlob `json:"config" protobuf:"bytes,3,rep,name=config"`

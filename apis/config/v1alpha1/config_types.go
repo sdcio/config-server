@@ -31,9 +31,11 @@ type ConfigSpec struct {
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,1,opt,name=lifecycle"`
 	// Priority defines the priority of this config
 	Priority int64 `json:"priority,omitempty" protobuf:"bytes,2,opt,name=priority"`
+	// Revertive defines if this CR is enabled for revertive or non revertve operation
+	Revertive *bool `json:"revertive,omitempty" protobuf:"bytes,3,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
-	Config []ConfigBlob `json:"config" protobuf:"bytes,3,rep,name=config"`
+	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
 }
 
 type ConfigBlob struct {
@@ -52,11 +54,9 @@ type ConfigStatus struct {
 	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
 	// AppliedConfig defines the config applied to the target
 	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
-	// Deviations identify the configuration deviation based on the last applied config
-	//Deviations []Deviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
+	// Deviations generation used for the latest config apply
+	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
 }
-
-
 
 type ConfigStatusLastKnownGoodSchema struct {
 	// Schema Type
