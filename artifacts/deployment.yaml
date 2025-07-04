@@ -62,6 +62,8 @@ spec:
               fieldPath: status.hostIP
         - name: PPROF_PORT
           value: "8081"
+        - name: REVERTIVE
+          value: "true"
         - name: ENABLE_SUBSCRIPTION
           value: "true"
         - name: ENABLE_TARGET

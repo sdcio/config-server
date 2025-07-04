@@ -31,71 +31,71 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// UnManagedConfigInformer provides access to a shared informer and lister for
-// UnManagedConfigs.
-type UnManagedConfigInformer interface {
+// DeviationInformer provides access to a shared informer and lister for
+// Deviations.
+type DeviationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() configv1alpha1.UnManagedConfigLister
+	Lister() configv1alpha1.DeviationLister
 }
 
-type unManagedConfigInformer struct {
+type deviationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewUnManagedConfigInformer constructs a new informer for UnManagedConfig type.
+// NewDeviationInformer constructs a new informer for Deviation type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewUnManagedConfigInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredUnManagedConfigInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewDeviationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredDeviationInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredUnManagedConfigInformer constructs a new informer for UnManagedConfig type.
+// NewFilteredDeviationInformer constructs a new informer for Deviation type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredUnManagedConfigInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredDeviationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().UnManagedConfigs(namespace).List(context.Background(), options)
+				return client.ConfigV1alpha1().Deviations(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().UnManagedConfigs(namespace).Watch(context.Background(), options)
+				return client.ConfigV1alpha1().Deviations(namespace).Watch(context.Background(), options)
 			},
 			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().UnManagedConfigs(namespace).List(ctx, options)
+				return client.ConfigV1alpha1().Deviations(namespace).List(ctx, options)
 			},
 			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ConfigV1alpha1().UnManagedConfigs(namespace).Watch(ctx, options)
+				return client.ConfigV1alpha1().Deviations(namespace).Watch(ctx, options)
 			},
 		},
-		&apisconfigv1alpha1.UnManagedConfig{},
+		&apisconfigv1alpha1.Deviation{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *unManagedConfigInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredUnManagedConfigInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *deviationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredDeviationInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *unManagedConfigInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisconfigv1alpha1.UnManagedConfig{}, f.defaultInformer)
+func (f *deviationInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&apisconfigv1alpha1.Deviation{}, f.defaultInformer)
 }
 
-func (f *unManagedConfigInformer) Lister() configv1alpha1.UnManagedConfigLister {
-	return configv1alpha1.NewUnManagedConfigLister(f.Informer().GetIndexer())
+func (f *deviationInformer) Lister() configv1alpha1.DeviationLister {
+	return configv1alpha1.NewDeviationLister(f.Informer().GetIndexer())
 }

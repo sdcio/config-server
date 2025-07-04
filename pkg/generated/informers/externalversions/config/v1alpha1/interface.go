@@ -29,10 +29,10 @@ type Interface interface {
 	ConfigBlames() ConfigBlameInformer
 	// ConfigSets returns a ConfigSetInformer.
 	ConfigSets() ConfigSetInformer
+	// Deviations returns a DeviationInformer.
+	Deviations() DeviationInformer
 	// RunningConfigs returns a RunningConfigInformer.
 	RunningConfigs() RunningConfigInformer
-	// UnManagedConfigs returns a UnManagedConfigInformer.
-	UnManagedConfigs() UnManagedConfigInformer
 }
 
 type version struct {
@@ -61,12 +61,12 @@ func (v *version) ConfigSets() ConfigSetInformer {
 	return &configSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// Deviations returns a DeviationInformer.
+func (v *version) Deviations() DeviationInformer {
+	return &deviationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // RunningConfigs returns a RunningConfigInformer.
 func (v *version) RunningConfigs() RunningConfigInformer {
 	return &runningConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// UnManagedConfigs returns a UnManagedConfigInformer.
-func (v *version) UnManagedConfigs() UnManagedConfigInformer {
-	return &unManagedConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

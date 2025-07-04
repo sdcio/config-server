@@ -278,7 +278,10 @@ func (in *DiscoveryRuleSpec) DeepCopy() *DiscoveryRuleSpec {
 func (in *DiscoveryRuleStatus) DeepCopyInto(out *DiscoveryRuleStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
-	in.StartTime.DeepCopyInto(&out.StartTime)
+	if in.StartTime != nil {
+		in, out := &in.StartTime, &out.StartTime
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

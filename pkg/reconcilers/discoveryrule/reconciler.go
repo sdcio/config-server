@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -262,7 +263,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 	discoveryRule.ObjectMeta.ManagedFields = nil
 	discoveryRule.SetConditions(condv1alpha1.Ready())
 	if changed {
-		discoveryRule.Status.StartTime = metav1.Now()
+		discoveryRule.Status.StartTime = ptr.To(metav1.Now())
 		r.recorder.Eventf(discoveryRule, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready")
 	}
 
@@ -284,7 +285,7 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 	discoveryRule.ObjectMeta.ManagedFields = nil
-	discoveryRule.Status.StartTime = metav1.Time{}
+	discoveryRule.Status.StartTime = ptr.To(metav1.Now())
 	discoveryRule.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)

@@ -48,8 +48,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ConfigSetList{},
 		&RunningConfig{},
 		&RunningConfigList{},
-		&UnManagedConfig{},
-		&UnManagedConfigList{},
+		&Deviation{},
+		&DeviationList{},
 		&ConfigBlame{},
 		&ConfigBlameList{},
 	)

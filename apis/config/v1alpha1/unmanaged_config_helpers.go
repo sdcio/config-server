@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,3 +45,4 @@ func (r *UnManagedConfig) SetDeviations(deviations []Deviation) {
 func (r *UnManagedConfig) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
+*/

@@ -30,8 +30,8 @@ type ConfigV1alpha1Interface interface {
 	ConfigsGetter
 	ConfigBlamesGetter
 	ConfigSetsGetter
+	DeviationsGetter
 	RunningConfigsGetter
-	UnManagedConfigsGetter
 }
 
 // ConfigV1alpha1Client is used to interact with features provided by the config.sdcio.dev group.
@@ -51,12 +51,12 @@ func (c *ConfigV1alpha1Client) ConfigSets(namespace string) ConfigSetInterface {
 	return newConfigSets(c, namespace)
 }
 
-func (c *ConfigV1alpha1Client) RunningConfigs(namespace string) RunningConfigInterface {
-	return newRunningConfigs(c, namespace)
+func (c *ConfigV1alpha1Client) Deviations(namespace string) DeviationInterface {
+	return newDeviations(c, namespace)
 }
 
-func (c *ConfigV1alpha1Client) UnManagedConfigs(namespace string) UnManagedConfigInterface {
-	return newUnManagedConfigs(c, namespace)
+func (c *ConfigV1alpha1Client) RunningConfigs(namespace string) RunningConfigInterface {
+	return newRunningConfigs(c, namespace)
 }
 
 // NewForConfig creates a new ConfigV1alpha1Client for the given config.

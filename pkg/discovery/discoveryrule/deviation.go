@@ -21,6 +21,7 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,23 +30,23 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
-func (r *dr) applyUnManagedConfigCR(ctx context.Context, target *invv1alpha1.Target) error {
-	newUnManagedConfigCR, err := r.newUnManagedConfigCR(ctx, target)
+func (r *dr) applyTargetDeviationCR(ctx context.Context, target *invv1alpha1.Target) error {
+	newUnManagedConfigCR, err := r.newDeviationCR(ctx, target)
 	if err != nil {
 		return err
 	}
 	log := log.FromContext(ctx).With("targetName", newUnManagedConfigCR.Name)
 	// check if the target already exists
-	curUnManagedConfigCR := &configv1alpha1.UnManagedConfig{}
+	curDeviationCR := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: newUnManagedConfigCR.Namespace,
 		Name:      newUnManagedConfigCR.Name,
-	}, curUnManagedConfigCR); err != nil {
+	}, curDeviationCR); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
 		if err := r.client.Create(ctx, newUnManagedConfigCR); err != nil {
-			log.Error("cannot create unmanaged config", "name", newUnManagedConfigCR.Name, "error", err)
+			log.Error("cannot create target deviation", "name", newUnManagedConfigCR.Name, "error", err)
 			return err
 		}
 		return nil
@@ -53,17 +54,19 @@ func (r *dr) applyUnManagedConfigCR(ctx context.Context, target *invv1alpha1.Tar
 	return nil
 }
 
-func (r *dr) newUnManagedConfigCR(_ context.Context, target *invv1alpha1.Target) (*configv1alpha1.UnManagedConfig, error) {
+func (r *dr) newDeviationCR(_ context.Context, target *invv1alpha1.Target) (*configv1alpha1.Deviation, error) {
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
 	}
+	labels[config.TargetNamespaceKey] = target.Namespace
+	labels[config.TargetNameKey] = target.Name
 	anno, err := r.cfg.CR.GetDiscoveryParameters().GetTargetAnnotations(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err
 	}
 
-	return &configv1alpha1.UnManagedConfig{
+	return &configv1alpha1.Deviation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        target.Name,
 			Namespace:   target.Namespace,
@@ -81,9 +84,10 @@ func (r *dr) newUnManagedConfigCR(_ context.Context, target *invv1alpha1.Target)
 					Controller: ptr.To[bool](true),
 				}},
 		},
-		Spec: configv1alpha1.UnManagedConfigSpec{},
-		Status: configv1alpha1.UnManagedConfigStatus{
-			Deviations: []configv1alpha1.Deviation{},
+		Spec: configv1alpha1.DeviationSpec{
+			DeviationType: ptr.To(configv1alpha1.DeviationType_TARGET),
+			Deviations: []configv1alpha1.ConfigDeviation{},
 		},
+		Status: configv1alpha1.DeviationStatus{},
 	}, nil
 }

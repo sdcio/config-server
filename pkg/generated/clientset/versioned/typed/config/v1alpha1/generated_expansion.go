@@ -23,6 +23,6 @@ type ConfigBlameExpansion interface{}
 
 type ConfigSetExpansion interface{}
 
-type RunningConfigExpansion interface{}
+type DeviationExpansion interface{}
 
-type UnManagedConfigExpansion interface{}
+type RunningConfigExpansion interface{}

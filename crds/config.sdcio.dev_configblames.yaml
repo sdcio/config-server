@@ -38,7 +38,13 @@ spec:
             type: object
           status:
             description: ConfigBlameStatus defines the observed state of ConfigBlame
-            type: string
+            properties:
+              value:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - value
+            type: object
         type: object
     served: true
     storage: true
@@ -66,7 +72,13 @@ spec:
             type: object
           status:
             description: ConfigBlameStatus defines the observed state of ConfigBlame
-            type: string
+            properties:
+              value:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - value
+            type: object
         type: object
     served: true
     storage: false

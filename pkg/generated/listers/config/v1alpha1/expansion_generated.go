@@ -41,6 +41,14 @@ type ConfigSetListerExpansion interface{}
 // ConfigSetNamespaceLister.
 type ConfigSetNamespaceListerExpansion interface{}
 
+// DeviationListerExpansion allows custom methods to be added to
+// DeviationLister.
+type DeviationListerExpansion interface{}
+
+// DeviationNamespaceListerExpansion allows custom methods to be added to
+// DeviationNamespaceLister.
+type DeviationNamespaceListerExpansion interface{}
+
 // RunningConfigListerExpansion allows custom methods to be added to
 // RunningConfigLister.
 type RunningConfigListerExpansion interface{}
@@ -48,11 +56,3 @@ type RunningConfigListerExpansion interface{}
 // RunningConfigNamespaceListerExpansion allows custom methods to be added to
 // RunningConfigNamespaceLister.
 type RunningConfigNamespaceListerExpansion interface{}
-
-// UnManagedConfigListerExpansion allows custom methods to be added to
-// UnManagedConfigLister.
-type UnManagedConfigListerExpansion interface{}
-
-// UnManagedConfigNamespaceListerExpansion allows custom methods to be added to
-// UnManagedConfigNamespaceLister.
-type UnManagedConfigNamespaceListerExpansion interface{}

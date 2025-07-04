@@ -16,8 +16,6 @@ limitations under the License.
 
 package v1alpha1
 
-/*
-
 import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/sdcio/config-server/apis/config"
@@ -27,56 +25,55 @@ import (
 )
 
 // +k8s:deepcopy-gen=false
-var _ resource.Object = &UnManagedConfig{}
-var _ resource.ObjectList = &UnManagedConfigList{}
-var _ resource.MultiVersionObject = &UnManagedConfig{}
+var _ resource.Object = &Deviation{}
+var _ resource.ObjectList = &DeviationList{}
+var _ resource.MultiVersionObject = &Deviation{}
 
-func (UnManagedConfig) GetGroupVersionResource() schema.GroupVersionResource {
+func (Deviation) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: config.UnManagedConfigPlural,
+		Resource: config.DeviationPlural,
 	}
 }
 
 // IsStorageVersion returns true -- Config is used as the internal version.
 // IsStorageVersion implements resource.Object
-func (UnManagedConfig) IsStorageVersion() bool {
+func (Deviation) IsStorageVersion() bool {
 	return false
 }
 
 // NamespaceScoped returns true to indicate Fortune is a namespaced resource.
 // NamespaceScoped implements resource.Object
-func (UnManagedConfig) NamespaceScoped() bool {
+func (Deviation) NamespaceScoped() bool {
 	return true
 }
 
 // GetObjectMeta implements resource.Object
 // GetObjectMeta implements resource.Object
-func (r *UnManagedConfig) GetObjectMeta() *metav1.ObjectMeta {
+func (r *Deviation) GetObjectMeta() *metav1.ObjectMeta {
 	return &r.ObjectMeta
 }
 
 // New return an empty resource
 // New implements resource.Object
-func (UnManagedConfig) New() runtime.Object {
-	return &UnManagedConfig{}
+func (Deviation) New() runtime.Object {
+	return &Deviation{}
 }
 
 // NewList return an empty resourceList
 // NewList implements resource.Object
-func (UnManagedConfig) NewList() runtime.Object {
-	return &UnManagedConfigList{}
+func (Deviation) NewList() runtime.Object {
+	return &DeviationList{}
 }
 
 // GetListMeta returns the ListMeta
-func (r *UnManagedConfigList) GetListMeta() *metav1.ListMeta {
+func (r *DeviationList) GetListMeta() *metav1.ListMeta {
 	return &r.ListMeta
 }
 
 // RegisterConversions registers the conversions.
 // RegisterConversions implements resource.MultiVersionObject
-func (UnManagedConfig) RegisterConversions() func(s *runtime.Scheme) error {
+func (Deviation) RegisterConversions() func(s *runtime.Scheme) error {
 	return RegisterConversions
 }
-*/

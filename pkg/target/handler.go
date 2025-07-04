@@ -31,7 +31,7 @@ import (
 
 type TargetHandler interface {
 	GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error)
-	SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, deviation *config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
 	DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error)
 	GetData(ctx context.Context, targetKey types.NamespacedName) (*config.RunningConfig, error)
 	RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error)
@@ -80,13 +80,13 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	return target, tctx, nil
 }
 
-func (r *targetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, deviation *config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	msg, err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun)
+	msg, err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, deviation, dryRun)
 	return schema, msg, err
 }
 
