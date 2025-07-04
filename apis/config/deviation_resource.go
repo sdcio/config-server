@@ -178,12 +178,14 @@ func (r *Deviation) TableConvertor() func(gr schema.GroupResource) rest.TableCon
 				}
 				return []interface{}{
 					fmt.Sprintf("%s.%s/%s", strings.ToLower(DeviationKind), GroupName, deviation.Name),
+					deviation.GetDeviationType(),
 					deviation.GetTarget(),
 					len(deviation.Spec.Deviations),
 				}
 			},
 			[]metav1.TableColumnDefinition{
 				{Name: "Name", Type: "string"},
+				{Name: "Type", Type: "string"},
 				{Name: "Target", Type: "string"},
 				{Name: "Deviations", Type: "integer"},
 			},

@@ -197,8 +197,10 @@ message DeviationList {
 
 // DeviationSpec defines the desired state of Deviation
 message DeviationSpec {
+  optional string deviationType = 1;
+
   // Deviations identify the configuration deviation based on the last applied config CR
-  repeated ConfigDeviation deviations = 4;
+  repeated ConfigDeviation deviations = 2;
 }
 
 // DeviationStatus defines the observed state of Deviation

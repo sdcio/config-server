@@ -36,6 +36,8 @@ spec:
           spec:
             description: DeviationSpec defines the desired state of Deviation
             properties:
+              deviationType:
+                type: string
               deviations:
                 description: Deviations identify the configuration deviation based
                   on the last applied config CR
@@ -151,6 +153,8 @@ spec:
           spec:
             description: DeviationSpec defines the desired state of Deviation
             properties:
+              deviationType:
+                type: string
               deviations:
                 description: Deviations identify the configuration deviation based
                   on the last applied config CR

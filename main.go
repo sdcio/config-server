@@ -263,7 +263,7 @@ func main() {
 }
 
 func IsPProfEnabled() *string {
-	if val, found := os.LookupEnv(fmt.Sprintf("PPROF_PORT")); found {
+	if val, found := os.LookupEnv("PPROF_PORT"); found {
 		port, err := strconv.Atoi(val)
 		if err != nil {
 			return nil

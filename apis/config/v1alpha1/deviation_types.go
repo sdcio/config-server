@@ -25,8 +25,27 @@ import (
 
 // DeviationSpec defines the desired state of Deviation
 type DeviationSpec struct {
+	DeviationType *DeviationType `json:"deviationType,omitempty" protobuf:"bytes,1,opt,name=deviationType"`
 	// Deviations identify the configuration deviation based on the last applied config CR
-	Deviations []ConfigDeviation `json:"deviations,omitempty" protobuf:"bytes,4,rep,name=deviations"`
+	Deviations []ConfigDeviation `json:"deviations,omitempty" protobuf:"bytes,2,rep,name=deviations"`
+}
+
+type DeviationType string
+
+const (
+	DeviationType_TARGET DeviationType = "target"
+	DeviationType_CONFIG DeviationType = "config"
+)
+
+func (r DeviationType) String() string {
+	switch r {
+	case DeviationType_TARGET:
+		return "target"
+	case DeviationType_CONFIG:
+		return "config"
+	default:
+		return "unknown"
+	}
 }
 
 type ConfigDeviation struct {

@@ -43,6 +43,10 @@ func (r *Deviation) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Name: r.Name, Namespace: r.Namespace}
 }
 
+func (r *Deviation) GetDeviationType() string {
+	return r.Spec.DeviationType.String()
+}
+
 func (r *Deviation) GetTarget() string {
 	if len(r.GetLabels()) == 0 {
 		return ""

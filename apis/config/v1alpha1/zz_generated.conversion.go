@@ -840,6 +840,7 @@ func Convert_config_DeviationList_To_v1alpha1_DeviationList(in *config.Deviation
 }
 
 func autoConvert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, out *config.DeviationSpec, s conversion.Scope) error {
+	out.DeviationType = (*config.DeviationType)(unsafe.Pointer(in.DeviationType))
 	out.Deviations = *(*[]config.ConfigDeviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }
@@ -850,6 +851,7 @@ func Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, o
 }
 
 func autoConvert_config_DeviationSpec_To_v1alpha1_DeviationSpec(in *config.DeviationSpec, out *DeviationSpec, s conversion.Scope) error {
+	out.DeviationType = (*DeviationType)(unsafe.Pointer(in.DeviationType))
 	out.Deviations = *(*[]ConfigDeviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }

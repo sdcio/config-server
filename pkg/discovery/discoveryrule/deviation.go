@@ -85,6 +85,7 @@ func (r *dr) newDeviationCR(_ context.Context, target *invv1alpha1.Target) (*con
 				}},
 		},
 		Spec: configv1alpha1.DeviationSpec{
+			DeviationType: ptr.To(configv1alpha1.DeviationType_TARGET),
 			Deviations: []configv1alpha1.ConfigDeviation{},
 		},
 		Status: configv1alpha1.DeviationStatus{},

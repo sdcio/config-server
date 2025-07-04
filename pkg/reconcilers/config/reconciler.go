@@ -364,7 +364,9 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 			Namespace:       config.Namespace,
 			OwnerReferences: []metav1.OwnerReference{config.GetOwnerReference()},
 			Labels:          config.Labels,
-		}, nil, nil)
+		}, &configv1alpha1.DeviationSpec{
+			DeviationType: ptr.To(configv1alpha1.DeviationType_CONFIG),
+		}, nil)
 
 		if err := r.Client.Create(ctx, newDeviation); err != nil {
 			return nil, err
@@ -389,14 +391,3 @@ func (r *reconciler) clearDeviation(ctx context.Context, deviation *configv1alph
 	}
 	return nil
 }
-
-/*
-- revertive mode
--> fetch the deviation and see if something needs to happen -> detemrine yes or no
--> if all good delete the deviation
-
-- non revretive mode
--> fecth the deviation and apply it to the device with higher priority
-no action on the deviaiton
-
-*/

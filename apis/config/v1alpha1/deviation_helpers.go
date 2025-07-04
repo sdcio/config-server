@@ -54,7 +54,6 @@ func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationRespons
 	return deviations
 }
 
-
 // BuildDeviation returns a reource from a client Object a Spec/Status
 func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *DeviationStatus) *Deviation {
 	if spec == nil {

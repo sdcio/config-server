@@ -55,9 +55,9 @@ func (r *Config) IsConditionReady() bool {
 func (r *Config) GetOwnerReference() metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: r.TypeMeta.APIVersion,
-		Kind: r.TypeMeta.Kind,
-		Name: r.Name,
-		UID: r.UID,
+		Kind:       r.TypeMeta.Kind,
+		Name:       r.Name,
+		UID:        r.UID,
 		Controller: ptr.To(true),
 	}
 }

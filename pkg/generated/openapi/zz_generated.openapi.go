@@ -1023,6 +1023,12 @@ func schema_config_server_apis_config_v1alpha1_DeviationSpec(ref common.Referenc
 				Description: "DeviationSpec defines the desired state of Deviation",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"deviationType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"deviations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Deviations identify the configuration deviation based on the last applied config CR",
