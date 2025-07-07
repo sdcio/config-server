@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"regexp"
 	"strconv"
 )
 
@@ -312,9 +311,6 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 	return update, nil
 }
 
-
-var identityRefRegex = regexp.MustCompile(`value:"([^"]+)"\s+prefix:"([^"]+)"\s+module:"([^"]+)"`)
-
 func parse_value(value string) (*sdcpb.TypedValue, error) {
 	// Remove any outer quotes or trimming whitespace
 	value = strings.TrimSpace(value)
@@ -367,24 +363,8 @@ func parse_value(value string) (*sdcpb.TypedValue, error) {
 				BoolVal: b,
 			},
 		}, nil
-
-	case "identityref_val":
-		// Parse something like: {value:"local"  prefix:"srl-aaa-types"  module:"srl_nokia-aaa-types"}
-		matches := identityRefRegex.FindStringSubmatch(val)
-		if len(matches) != 4 {
-			return nil, fmt.Errorf("failed to parse identityref_val: %s", val)
-		}
-		return &sdcpb.TypedValue{
-			Value: &sdcpb.TypedValue_IdentityrefVal{
-				IdentityrefVal: &sdcpb.IdentityRef{
-					Value:  matches[1],
-					Prefix: matches[2],
-					Module: matches[3],
-				},
-			},
-		}, nil
-
-	// Optional: Add ascii_val, float_val, json_val etc. as needed
+    
+	// Optional: Add ascii_val, float_val, json_val, identityref etc. as needed
 
 	default:
 		return nil, fmt.Errorf("unsupported value type: %s", key)
@@ -441,7 +421,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		
 		intents = append(intents, &sdcpb.TransactionIntent{
 			DoNotStore: true,
-			Intent:   getGVKNSN(config),
+			Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
 			Priority: int32(newPriority),
 			Update:   update,
 		})
