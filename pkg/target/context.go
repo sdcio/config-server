@@ -290,6 +290,8 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 	//log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
+	
+
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
@@ -297,10 +299,15 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 				return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), deviation.Path)
 			}
 
-			val, err := parse_value((deviation.CurrentValue))
-			if err != nil {
+			val := &sdcpb.TypedValue{}
+			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
 				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			}
+
+			//val, err := parse_value((deviation.CurrentValue))
+			//if err != nil {
+			//	return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
+			//}
 
 			update = append(update, &sdcpb.Update{
 				Path: path,
