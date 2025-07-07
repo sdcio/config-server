@@ -42,6 +42,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"regexp"
+	"strconv"
 )
 
 type Context struct {
@@ -295,17 +297,99 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 			if err != nil {
 				return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), deviation.Path)
 			}
+
+			val, err := parse_value((deviation.DesiredValue))
+			if err != nil {
+				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.DesiredValue)
+			}
+
 			update = append(update, &sdcpb.Update{
 				Path: path,
-				Value: &sdcpb.TypedValue{
-					Value: &sdcpb.TypedValue_JsonVal{
-						JsonVal: []byte(deviation.DesiredValue),
-					},
-				},
+				Value: val,
 			})
 		}
 	}
 	return update, nil
+}
+
+
+var identityRefRegex = regexp.MustCompile(`value:"([^"]+)"\s+prefix:"([^"]+)"\s+module:"([^"]+)"`)
+
+func parse_value(value string) (*sdcpb.TypedValue, error) {
+	// Remove any outer quotes or trimming whitespace
+	value = strings.TrimSpace(value)
+
+	// Split on first `:` only to separate type and value
+	parts := strings.SplitN(value, ":", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid format: %s", value)
+	}
+	key := strings.TrimSpace(parts[0])
+	val := strings.TrimSpace(parts[1])
+
+	switch key {
+	case "string_val":
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_StringVal{
+				StringVal: strings.Trim(val, `"`),
+			},
+		}, nil
+
+	case "uint_val":
+		num, err := strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uint_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_UintVal{
+				UintVal: num,
+			},
+		}, nil
+
+	case "int_val":
+		num, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid int_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_IntVal{
+				IntVal: num,
+			},
+		}, nil
+
+	case "bool_val":
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bool_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_BoolVal{
+				BoolVal: b,
+			},
+		}, nil
+
+	case "identityref_val":
+		// Parse something like: {value:"local"  prefix:"srl-aaa-types"  module:"srl_nokia-aaa-types"}
+		matches := identityRefRegex.FindStringSubmatch(val)
+		if len(matches) != 4 {
+			return nil, fmt.Errorf("failed to parse identityref_val: %s", val)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_IdentityrefVal{
+				IdentityrefVal: &sdcpb.IdentityRef{
+					Value:  matches[1],
+					Prefix: matches[2],
+					Module: matches[3],
+				},
+			},
+		}, nil
+
+	// Optional: Add ascii_val, float_val, json_val etc. as needed
+
+	default:
+		return nil, fmt.Errorf("unsupported value type: %s", key)
+	}
+
 }
 
 func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
