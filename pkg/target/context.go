@@ -297,9 +297,9 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 				return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), deviation.Path)
 			}
 
-			val, err := parse_value((deviation.DesiredValue))
+			val, err := parse_value((deviation.CurrentValue))
 			if err != nil {
-				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.DesiredValue)
+				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			}
 
 			update = append(update, &sdcpb.Update{
