@@ -121,7 +121,7 @@ func (r *mockTargetHandler) GetBlameConfig(ctx context.Context, targetKey types.
 	}
 }
 
-func (r *mockTargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*configapi.Config) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *mockTargetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*configapi.Config, deviations []*configapi.Deviation) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String())
 	log.Info("RecoverIntents")
 	mctx, err := r.getMockContext(ctx, targetKey)

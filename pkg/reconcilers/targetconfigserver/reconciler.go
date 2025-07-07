@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -34,14 +35,15 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -130,12 +132,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// we split the config in config that were successfully applied and config that was not yet
-	recoveryConfigs, err := r.getRecoveryConfigs(ctx, target)
+	recoveryConfigs, deviations, err := r.getRecoveryConfigsAndDeviations(ctx, target)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
 	}
 
-	if len(recoveryConfigs) == 0 {
+	if len(recoveryConfigs) == 0  && len(deviations) == 0 {
 		tctx.SetRecoveredConfigs(ctx)
 		log.Info("config recovery done -> no configs to recover")
 		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
@@ -144,7 +146,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("config recovery new ....")
 
 	// We need to restore the config on the target
-	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs)
+	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs, deviations)
 	if err != nil {
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
@@ -253,6 +255,23 @@ func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.
 	return configList, nil
 }
 
+func (r *reconciler) getDeviation(ctx context.Context, key types.NamespacedName, priority int64) (*config.Deviation, error) {
+	
+	v1alpha1deviation := &configv1alpha1.Deviation{}
+	if err := r.Client.Get(ctx, key, v1alpha1deviation); err != nil {
+		return nil, err
+	}
+	labels := v1alpha1deviation.GetLabels()
+	if labels != nil {
+		labels = map[string]string{}
+	}
+	labels["priority"] = strconv.Itoa(int(priority))
+	deviation := &config.Deviation{}
+	configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(v1alpha1deviation, deviation, nil)
+
+	return deviation, nil
+}
+
 func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*target.Context, error) {
 	log := log.FromContext(ctx)
 	// we do not find the target Context -> target is not ready
@@ -267,23 +286,32 @@ func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebacken
 	return tctx, nil 
 }
 
-func (r *reconciler) getRecoveryConfigs(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, error) {
+func (r *reconciler) getRecoveryConfigsAndDeviations(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, []*config.Deviation, error) {
 	configs := []*config.Config{}
+	deviations := []*config.Deviation{}
+	
 	configList, err := r.listTargetConfigs(ctx, target)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, config := range configList.Items {
 		if config.Status.AppliedConfig == nil || !config.IsRecoverable() {
 			continue // skip
 		}
-
 		configs = append(configs, &config)
+
+		if !config.IsRevertive() {
+			deviation, err := r.getDeviation(ctx, config.GetNamespacedName(), config.Spec.Priority)
+			if err != nil {
+				return nil, nil, err
+			}
+			deviations = append(deviations, deviation)
+		}
 	}
 
 	sort.Slice(configs, func(i, j int) bool {
 		return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
 	})
 
-	return configs, err
+	return configs, deviations, err
 }

@@ -467,7 +467,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	})
 }
 
-func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) (string, error) {
+func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config, deviations []*config.Deviation) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
@@ -477,7 +477,28 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 		return "", nil
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
+	intents := make([]*sdcpb.TransactionIntent, 0, len(configs) | len(deviations))
+	for _, deviation := range deviations {
+		update, err := r.getDeviationUpdate(ctx, key, deviation)
+		if err != nil {
+			return "", err
+		}
+
+		newPriority, err := strconv.Atoi(deviation.GetLabels()["priority"])
+		if err != nil {
+			return "", fmt.Errorf("cannot convert priroity to int %s", err)
+		}
+		if newPriority > 0 {
+			newPriority--
+		}
+
+		intents = append(intents, &sdcpb.TransactionIntent{
+			DoNotStore: true,
+			Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
+			Priority: int32(newPriority),
+			Update:   update,
+		})
+	}
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, false)
 		if err != nil {

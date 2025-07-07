@@ -19,6 +19,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -40,6 +41,18 @@ func (r *Config) SetConditions(c ...condition.Condition) {
 
 func (r *Config) IsConditionReady() bool {
 	return r.GetCondition(condition.ConditionTypeReady).Status == metav1.ConditionTrue
+}
+
+func (r *Config) IsRevertive() bool {
+	if r.Spec.Revertive != nil {
+		return *r.Spec.Revertive
+	}
+	if revertive, found := os.LookupEnv("REVERTIVE"); found {
+		if strings.ToLower(revertive) == "false" {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Config) IsRecoverable() bool {
