@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/sdcio/data-server/pkg/utils"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,19 +37,6 @@ func (r Deviation) HasNotAppliedDeviation() bool {
 		}
 	}
 	return false
-}
-
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []ConfigDeviation {
-	deviations := make([]ConfigDeviation, 0, len(devs))
-	for _, dev := range devs {
-		deviations = append(deviations, ConfigDeviation{
-			Path:         utils.ToXPath(dev.GetPath(), false),
-			DesiredValue: dev.GetExpectedValue().String(),
-			CurrentValue: dev.GetCurrentValue().String(),
-			Reason:       dev.GetReason().String(),
-		})
-	}
-	return deviations
 }
 
 // BuildDeviation returns a reource from a client Object a Spec/Status

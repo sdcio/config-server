@@ -31,9 +31,11 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
 
 	//"k8s.io/utils/ptr"
+	"github.com/sdcio/data-server/pkg/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -184,7 +186,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		if configName == "default" {
 			continue
 		}
-		configDevs := configv1alpha1.ConvertSdcpbDeviations2ConfigDeviations(devs)
+		configDevs := ConvertSdcpbDeviations2ConfigDeviations(devs)
 
 		nsn := r.targetKey.NamespacedName
 		if configName == unManagedConfigDeviation {
@@ -235,4 +237,18 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}
+}
+
+
+func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
+	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
+	for _, dev := range devs {
+		deviations = append(deviations, configv1alpha1.ConfigDeviation{
+			Path:         utils.ToXPath(dev.GetPath(), false),
+			DesiredValue: prototext.Format(dev.GetExpectedValue()),
+			CurrentValue: prototext.Format(dev.GetCurrentValue()),
+			Reason:       dev.GetReason().String(),
+		})
+	}
+	return deviations
 }
