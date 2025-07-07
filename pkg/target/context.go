@@ -352,6 +352,8 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		if newPriority > 0 {
 			newPriority--
 		}
+
+		log.Debug("SetIntent", "priority",  newPriority, "deviation update", update)
 		
 		intents = append(intents, &sdcpb.TransactionIntent{
 			DoNotStore: true,
@@ -359,6 +361,8 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			Priority: int32(newPriority),
 			Update:   update,
 		})
+
+		
 	}
 
 	log.Debug("SetIntent", "update", update)

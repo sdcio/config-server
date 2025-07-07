@@ -165,7 +165,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, cfgOrig, cfg, "target not ready", err, true), errUpdateStatus)
 	}
 
-	log.Info("applying config -> target ready")
+	log.Info("applying config -> target ready", "revertive", cfg.IsRevertive(), "changed deviation", cfg.HashDeviationGenerationChanged(deviation))
 
 	// check if we have to reapply the config
 	// if condition is false -> reapply the config
