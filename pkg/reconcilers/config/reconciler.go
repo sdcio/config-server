@@ -190,6 +190,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	var internalDeviation *config.Deviation
 	if !cfg.IsRevertive() {
 		if deviation != nil {
+			internalDeviation = &config.Deviation{}
 			if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
 				r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
 				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
