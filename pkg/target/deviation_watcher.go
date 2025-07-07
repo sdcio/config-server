@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -205,11 +206,16 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 }
 
 func (r *DeviationWatcher) processConfigDeviations(
-	ctx context.Context, 
-	nsn types.NamespacedName, 
+	ctx context.Context,
+	nsn types.NamespacedName,
 	deviations []configv1alpha1.ConfigDeviation,
 ) {
 	log := log.FromContext(ctx)
+
+	sort.Slice(deviations, func(i, j int) bool {
+		return deviations[i].Path < deviations[j].Path
+	})
+
 	deviation := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, nsn, deviation); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
@@ -217,11 +223,11 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 
 	log.Info("patch deviations", "nsn", nsn, "devs", len(deviations))
-	
+
 	patch := client.MergeFrom(deviation.DeepObjectCopy())
 
 	deviation.Spec.Deviations = deviations
-	
+
 	if err := r.client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: "ConfigController",
