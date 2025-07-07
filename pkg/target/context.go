@@ -37,13 +37,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/prototext"
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
-
 )
 
 type Context struct {
@@ -301,7 +300,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 			}
 
 			val := &sdcpb.TypedValue{}
-			if err := proto.UnmarshalText(deviation.CurrentValue, val); err != nil {
+			if err := proto.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
 				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			}
 
