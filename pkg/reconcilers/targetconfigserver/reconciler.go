@@ -266,6 +266,7 @@ func (r *reconciler) getDeviation(ctx context.Context, key types.NamespacedName,
 		labels = map[string]string{}
 	}
 	labels["priority"] = strconv.Itoa(int(priority))
+	v1alpha1deviation.SetLabels(labels)
 	deviation := &config.Deviation{}
 	configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(v1alpha1deviation, deviation, nil)
 
