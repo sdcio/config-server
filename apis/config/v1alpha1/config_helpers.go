@@ -67,8 +67,8 @@ func (r *Config) IsRevertive() bool {
 		return *r.Spec.Revertive
 	}
 	if revertive, found := os.LookupEnv("REVERTIVE"); found {
-		if strings.ToLower(revertive) == "true" {
-			return true
+		if strings.ToLower(revertive) == "false" {
+			return false
 		}
 	}
 	return true
