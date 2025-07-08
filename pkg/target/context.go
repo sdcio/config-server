@@ -300,7 +300,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 			}
 
 			val := &sdcpb.TypedValue{}
-			if err := proto.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
+			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
 				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			}
 

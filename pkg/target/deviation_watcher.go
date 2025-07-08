@@ -31,7 +31,6 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
 
 	//"k8s.io/utils/ptr"
@@ -245,8 +244,8 @@ func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationRespons
 	for _, dev := range devs {
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
 			Path:         utils.ToXPath(dev.GetPath(), false),
-			DesiredValue: prototext.Format(dev.GetExpectedValue()),
-			CurrentValue: prototext.Format(dev.GetCurrentValue()),
+			DesiredValue: dev.GetExpectedValue().String(),
+			CurrentValue: dev.GetCurrentValue().String(),
 			Reason:       dev.GetReason().String(),
 		})
 	}
