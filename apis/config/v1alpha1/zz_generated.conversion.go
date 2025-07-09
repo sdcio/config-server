@@ -615,6 +615,7 @@ func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpe
 	}
 	out.Lifecycle = (*config.Lifecycle)(unsafe.Pointer(in.Lifecycle))
 	out.Priority = in.Priority
+	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.ConfigBlob)(unsafe.Pointer(&in.Config))
 	return nil
 }
@@ -630,6 +631,7 @@ func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.Confi
 	}
 	out.Lifecycle = (*Lifecycle)(unsafe.Pointer(in.Lifecycle))
 	out.Priority = in.Priority
+	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]ConfigBlob)(unsafe.Pointer(&in.Config))
 	return nil
 }

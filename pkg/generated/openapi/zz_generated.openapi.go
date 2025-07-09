@@ -707,6 +707,13 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 							Format:      "int64",
 						},
 					},
+					"revertive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revertive defines if this CR is enabled for revertive or non revertve operation",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config defines the configuration to be applied to a target device",

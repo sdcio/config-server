@@ -120,9 +120,12 @@ message ConfigSetSpec {
   // Priority defines the priority of this config
   optional int64 priority = 3;
 
+  // Revertive defines if this CR is enabled for revertive or non revertve operation
+  optional bool revertive = 4;
+
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
-  repeated ConfigBlob config = 4;
+  repeated ConfigBlob config = 5;
 }
 
 // ConfigSetStatus defines the observed state of Config

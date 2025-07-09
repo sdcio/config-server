@@ -283,6 +283,11 @@ func (in *ConfigSetSpec) DeepCopyInto(out *ConfigSetSpec) {
 		*out = new(Lifecycle)
 		**out = **in
 	}
+	if in.Revertive != nil {
+		in, out := &in.Revertive, &out.Revertive
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
 		*out = make([]ConfigBlob, len(*in))
