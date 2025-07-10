@@ -290,8 +290,6 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 	//log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
-	
-
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
@@ -393,7 +391,6 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	}); err != nil {
 		return msg, err
 	}
-
 	return msg, nil
 }
 
@@ -425,15 +422,23 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		}
 
 		log.Debug("SetIntent", "priority",  newPriority, "deviation update", update)
-		
-		intents = append(intents, &sdcpb.TransactionIntent{
-			DoNotStore: true,
-			Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
-			Priority: int32(newPriority),
-			Update:   update,
-		})
 
-		
+		if len(update) == 0 {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
+				Priority: int32(newPriority),
+				Update:   update,
+				Delete:    true,
+			})
+		} else {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
+				Priority: int32(newPriority),
+				Update:   update,
+			})
+		}
 	}
 
 	log.Debug("SetIntent", "update", update)
@@ -499,12 +504,22 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 			newPriority--
 		}
 
-		intents = append(intents, &sdcpb.TransactionIntent{
-			DoNotStore: true,
-			Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
-			Priority: int32(newPriority),
-			Update:   update,
-		})
+		if len(update) == 0 {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
+				Priority: int32(newPriority),
+				Update:   update,
+				Delete:    true,
+			})
+		} else {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
+				Priority: int32(newPriority),
+				Update:   update,
+			})
+		}
 	}
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, false)
