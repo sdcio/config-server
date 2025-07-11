@@ -425,7 +425,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		
 		if len(deviation.Spec.Deviations) == 0 {
 			// delete
-			intent_summary[getGVKNSN(config)] = true
+			intent_summary[fmt.Sprintf("deviation:%s", getGVKNSN(config))] = true
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
@@ -436,7 +436,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			})	
 		} else {
 			// update
-			intent_summary[getGVKNSN(config)] = false
+			intent_summary[fmt.Sprintf("deviation:%s", getGVKNSN(config))] = false
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
