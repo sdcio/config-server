@@ -296,10 +296,9 @@ func (r *reconciler) getRecoveryConfigsAndDeviations(ctx context.Context, target
 		return nil, nil, err
 	}
 	for _, config := range configList.Items {
-		if config.Status.AppliedConfig == nil || !config.IsRecoverable() {
-			continue // skip
+		if config.Status.AppliedConfig != nil && config.IsRecoverable() {
+			configs = append(configs, &config)
 		}
-		configs = append(configs, &config)
 
 		if !config.IsRevertive() {
 			deviation, err := r.getDeviation(ctx, config.GetNamespacedName(), config.Spec.Priority)
@@ -309,7 +308,6 @@ func (r *reconciler) getRecoveryConfigsAndDeviations(ctx context.Context, target
 			deviations = append(deviations, deviation)
 		}
 	}
-
 	sort.Slice(configs, func(i, j int) bool {
 		return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
 	})

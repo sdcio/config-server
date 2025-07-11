@@ -189,16 +189,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// in revertive mode we include it is it exists.
 	var internalDeviation *config.Deviation
 	if !cfg.IsRevertive() {
-		if deviation != nil {
-			internalDeviation = &config.Deviation{}
-			if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(deviation, internalDeviation, nil); err != nil {
-				r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
-				return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
-			}
+		internalDeviation = &config.Deviation{}
+		if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(&deviation, internalDeviation, nil); err != nil {
+			r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
+			return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 		}
 	}
 
-	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, internalDeviation, false)
+	internalSchema, warnings, err := r.targetHandler.SetIntent(ctx, targetKey, internalcfg, *internalDeviation, false)
 	if err != nil {
 		// TODO distinguish between recoeverable and non recoverable
 		var txErr *target.TransactionError
@@ -218,7 +216,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// in the revertive case we can delete the deviation
 	if cfg.IsRevertive() {
-		if err := r.clearDeviation(ctx, deviation); err != nil {
+		if err := r.clearDeviation(ctx, &deviation); err != nil {
 			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot delete deviation", warnings), err, true), errUpdateStatus)
 		}
 	}
@@ -226,7 +224,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig, schema, deviation, warnings), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, deviation *configv1alpha1.Deviation, msg string) error {
+func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Config, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, deviation configv1alpha1.Deviation, msg string) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", cfg.GetNamespacedName(), "status old", cfg.DeepCopy().Status)
 	// take a snapshot of the current object
@@ -246,7 +244,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 	newConfig.Status.LastKnownGoodSchema = schema
 	newConfig.Status.AppliedConfig = &cfg.Spec
 
-	if cfg.IsRevertive() || deviation == nil {
+	if cfg.IsRevertive() {
 		newConfig.Status.DeviationGeneration = nil
 	} else {
 		newConfig.Status.DeviationGeneration = ptr.To(deviation.GetGeneration())
@@ -348,7 +346,7 @@ func processMessageWithWarning(msg, warnings string) string {
 	return msg
 }
 
-func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.Config) (*configv1alpha1.Deviation, error) {
+func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.Config) (configv1alpha1.Deviation, error) {
 	key := types.NamespacedName{
 		Name:      config.Name,
 		Namespace: config.Namespace,
@@ -357,7 +355,7 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 	deviation := &configv1alpha1.Deviation{}
 	if err := r.Client.Get(ctx, key, deviation); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
-			return nil, err
+			return configv1alpha1.Deviation{}, err
 		}
 		// Not found: create new deviation
 		newDeviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
@@ -370,11 +368,11 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 		}, nil)
 
 		if err := r.Client.Create(ctx, newDeviation); err != nil {
-			return nil, err
+			return configv1alpha1.Deviation{}, err
 		}
-		return newDeviation, nil
+		return *newDeviation, nil
 	}
-	return deviation, nil
+	return *deviation, nil
 }
 
 func (r *reconciler) clearDeviation(ctx context.Context, deviation *configv1alpha1.Deviation) error {

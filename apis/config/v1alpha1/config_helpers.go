@@ -89,16 +89,11 @@ func (r *Config) IsRecoverable() bool {
 	return true
 }
 
-func (r *Config) HashDeviationGenerationChanged(deviation *Deviation) bool {
+func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
 	if r.Status.DeviationGeneration == nil {
 		// if there was no old deviation, but now we have a deviation wwe return true
-		return deviation != nil
+		return len(deviation.Spec.Deviations) != 0
 	} else {
-		// a deviation existed on the config (only non revertive mode since the deviation is cleared in revertove case)
-		if deviation == nil {
-			// the new deviation cleared
-			return false // nothing to be done
-		}
 		return *r.Status.DeviationGeneration == deviation.GetGeneration()
 	}
 }

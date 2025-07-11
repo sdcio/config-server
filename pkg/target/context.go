@@ -394,7 +394,7 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	return msg, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, deviation *config.Deviation, dryRun bool) (string, error) {
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, deviation config.Deviation, dryRun bool) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
@@ -411,8 +411,8 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		Update:   update,
 	})
 
-	if deviation != nil {
-		update, err := r.getDeviationUpdate(ctx, key, deviation)
+	if !config.IsRevertive() {
+		update, err := r.getDeviationUpdate(ctx, key, &deviation)
 		if err != nil {
 			return "", err
 		}
@@ -420,24 +420,29 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		if newPriority > 0 {
 			newPriority--
 		}
-
 		log.Debug("SetIntent", "priority",  newPriority, "deviation update", update)
 
-		if len(update) == 0 {
-			intents = append(intents, &sdcpb.TransactionIntent{
-				Deviation: true,
-				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
-				Priority: int32(newPriority),
-				Update:   update,
-				Delete:    true,
-			})
-		} else {
-			intents = append(intents, &sdcpb.TransactionIntent{
-				Deviation: true,
-				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
-				Priority: int32(newPriority),
-				Update:   update,
-			})
+		if config.HashDeviationGenerationChanged(deviation) {
+			if len(deviation.Spec.Deviations) == 0 {
+				if config.Status.DeviationGeneration != nil {
+					// delete
+					intents = append(intents, &sdcpb.TransactionIntent{
+						Deviation: true,
+						Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
+						Priority: int32(newPriority),
+						Update:   update,
+						Delete:    true,
+					})
+				}				
+			} else {
+				// update
+				intents = append(intents, &sdcpb.TransactionIntent{
+					Deviation: true,
+					Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
+					Priority: int32(newPriority),
+					Update:   update,
+				})
+			}
 		}
 	}
 
@@ -490,6 +495,7 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 	}
 
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs) | len(deviations))
+	// we only include deviations that have 
 	for _, deviation := range deviations {
 		update, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
@@ -503,16 +509,8 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 		if newPriority > 0 {
 			newPriority--
 		}
-
-		if len(update) == 0 {
-			intents = append(intents, &sdcpb.TransactionIntent{
-				Deviation: true,
-				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
-				Priority: int32(newPriority),
-				Update:   update,
-				Delete:    true,
-			})
-		} else {
+		// only include items for which deviations exist
+		if len(update) != 0 {
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(deviation)),
