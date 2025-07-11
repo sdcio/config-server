@@ -399,12 +399,13 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
 	}
-
+	intent_summary := map[string]bool{}
 	intents := []*sdcpb.TransactionIntent{}
 	update, err := r.getIntentUpdate(ctx, key, config, true)
 	if err != nil {
 		return "", err
 	}
+	intent_summary[getGVKNSN(config)] = false
 	intents = append(intents, &sdcpb.TransactionIntent{
 		Intent:   getGVKNSN(config),
 		Priority: int32(config.Spec.Priority),
@@ -424,6 +425,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		
 		if len(deviation.Spec.Deviations) == 0 {
 			// delete
+			intent_summary[getGVKNSN(config)] = true
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
@@ -434,6 +436,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 			})	
 		} else {
 			// update
+			intent_summary[getGVKNSN(config)] = false
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
@@ -443,7 +446,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		}
 	}
 
-	log.Debug("SetIntent", "update", update)
+	log.Info("TransactionSet", "intent summary", intent_summary);
 
 	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: getGVKNSN(config),
