@@ -422,28 +422,28 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 		}
 		log.Debug("SetIntent", "priority",  newPriority, "deviation update", update)
 
-		if config.HashDeviationGenerationChanged(deviation) {
-			if len(deviation.Spec.Deviations) == 0 {
-				if config.Status.DeviationGeneration != nil {
-					// delete
-					intents = append(intents, &sdcpb.TransactionIntent{
-						Deviation: true,
-						Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
-						Priority: int32(newPriority),
-						Update:   update,
-						Delete:    true,
-					})
-				}				
-			} else {
-				// update
+		
+		if len(deviation.Spec.Deviations) == 0 {
+			if config.HashDeviationGenerationChanged(deviation) {
+				// delete
 				intents = append(intents, &sdcpb.TransactionIntent{
 					Deviation: true,
 					Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
 					Priority: int32(newPriority),
 					Update:   update,
+					Delete:    true,
 				})
-			}
+			}				
+		} else {
+			// update
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
+				Priority: int32(newPriority),
+				Update:   update,
+			})
 		}
+		
 	}
 
 	log.Debug("SetIntent", "update", update)
