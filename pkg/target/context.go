@@ -428,8 +428,9 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 				Deviation: true,
 				Intent:   fmt.Sprintf("deviation:%s", getGVKNSN(config)),
 				Priority: int32(newPriority),
-				Update:   update,
+				//Update:   update,
 				Delete:    true,
+				DeleteIgnoreNoExist: true,
 			})	
 		} else {
 			// update
