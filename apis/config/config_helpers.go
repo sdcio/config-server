@@ -167,7 +167,7 @@ func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
 func (r *Config) GetOwnerReference() metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: "config.sdcio.dev/v1alpha1",
-		Kind:       r.TypeMeta.Kind,
+		Kind:       "Config",
 		Name:       r.Name,
 		UID:        r.UID,
 		Controller: ptr.To(true),

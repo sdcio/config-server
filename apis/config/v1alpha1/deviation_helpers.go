@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
+	"github.com/sdcio/config-server/apis/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,4 +60,22 @@ func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *Deviati
 		Spec:       *spec,
 		Status:     *status,
 	}
+}
+
+func (r *Deviation) GetTargetNamespaceName() (*types.NamespacedName, error) {
+	if len(r.GetLabels()) == 0 {
+		return nil, fmt.Errorf("no target information found in labels")
+	}
+	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	targetName, ok := r.GetLabels()[config.TargetNameKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	return &types.NamespacedName{
+		Name:      targetName,
+		Namespace: targetNamespace,
+	}, nil
 }
