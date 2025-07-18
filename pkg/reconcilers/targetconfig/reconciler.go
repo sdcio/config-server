@@ -20,25 +20,20 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sort"
-	"strconv"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
-	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/sdcio/config-server/pkg/transactor"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,9 +46,10 @@ func init() {
 }
 
 const (
-	crName         = "targetconfigserver"
-	reconcilerName = "TargetConfigServerController"
-	finalizer      = "targetconfigserver.inv.sdcio.dev/finalizer"
+	crName                = "targetconfigserver"
+	fieldmanagerfinalizer = "targetconfigfinalizerr"
+	reconcilerName        = "TargetConfigServerController"
+	finalizer             = "targetconfigserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -76,10 +72,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.transactor = transactor.New(r.Client, crName, fieldmanagerfinalizer)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		For(&invv1alpha1.Target{}).
+		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
@@ -89,6 +87,7 @@ type reconciler struct {
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*target.Context]
 	recorder        record.EventRecorder
+	transactor      *transactor.Transactor
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -122,45 +121,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// DataStore ready means: target is discovered, datastore is created and connection to the dataserver is up + target context is ready
 	tctx, err := r.IsTargetDataStoreReady(ctx, targetKey, target)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err.Error(), nil), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err), errUpdateStatus)
 	}
 
-	// if the config is recovered we can stop the reconcile loop
-	if tctx.IsConfigRecovered(ctx) {
+	// if the config is not receovered we stop the reconcile loop
+	if !tctx.IsTargetConfigRecovered(ctx) {
 		log.Info("config recovery -> already recovered")
 		return ctrl.Result{}, nil
 	}
 
-	// we split the config in config that were successfully applied and config that was not yet
-	recoveryConfigs, deviations, err := r.getRecoveryConfigsAndDeviations(ctx, target)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
-	}
-
-	if len(recoveryConfigs) == 0  && len(deviations) == 0 {
-		tctx.SetRecoveredConfigs(ctx)
-		log.Info("config recovery done -> no configs to recover")
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
-	}
-
-	log.Info("config recovery new ....")
-
-	// We need to restore the config on the target
-	msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs, deviations)
-	if err != nil {
+	if err := r.transactor.Transact(ctx, target, tctx); err != nil {
+		log.Error("config config transaction failed", "err", err)
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err), errUpdateStatus)
 	}
-	tctx.SetRecoveredConfigs(ctx)
-	log.Info("config recovery done -> configs recovered")
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
+	log.Info("config config transaction success")
+	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, msg string) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
+	return nil
+	/*
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 	// update status
@@ -176,7 +161,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.ConfigReady(msg))
-	
+
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
 	// we don't update the resource if no condition changed
@@ -185,8 +170,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
-	log.Info("handleSuccess -> change", 
-			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
+	log.Info("handleSuccess -> change",
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
 
@@ -195,16 +180,18 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 			FieldManager: reconcilerName,
 		},
 	})
+		*/
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
+func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, err error) error {
 	log := log.FromContext(ctx)
+	log.Error("config config transaction failed", "err", err)
+	return nil
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())
 
-	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
-	}
+	
+	/*
 	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
@@ -226,51 +213,15 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		log.Info("handleError -> no change")
 		return nil
 	}
-	log.Info("handleError -> change", 
-			"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
+	log.Info("handleError -> change",
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 
 	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	})
-}
-
-func (r *reconciler) listTargetConfigs(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
-	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
-
-	opts := []client.ListOption{
-		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
-			config.TargetNameKey:      target.GetName(),
-		},
-	}
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.List(ctx, v1alpha1configList, opts...); err != nil {
-		return nil, err
-	}
-	configList := &config.ConfigList{}
-	configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil)
-
-	return configList, nil
-}
-
-func (r *reconciler) getDeviation(ctx context.Context, key types.NamespacedName, priority int64) (*config.Deviation, error) {
-	
-	v1alpha1deviation := &configv1alpha1.Deviation{}
-	if err := r.Client.Get(ctx, key, v1alpha1deviation); err != nil {
-		return nil, err
-	}
-	labels := v1alpha1deviation.GetLabels()
-	if labels != nil {
-		labels = map[string]string{}
-	}
-	labels["priority"] = strconv.Itoa(int(priority))
-	v1alpha1deviation.SetLabels(labels)
-	deviation := &config.Deviation{}
-	configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(v1alpha1deviation, deviation, nil)
-
-	return deviation, nil
+		*/
 }
 
 func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*target.Context, error) {
@@ -284,33 +235,5 @@ func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebacken
 	if !target.IsDatastoreReady() || !tctx.IsReady() {
 		return tctx, fmt.Errorf("target not ready")
 	}
-	return tctx, nil 
-}
-
-func (r *reconciler) getRecoveryConfigsAndDeviations(ctx context.Context, target *invv1alpha1.Target) ([]*config.Config, []*config.Deviation, error) {
-	configs := []*config.Config{}
-	deviations := []*config.Deviation{}
-	
-	configList, err := r.listTargetConfigs(ctx, target)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil && config.IsRecoverable() {
-			configs = append(configs, &config)
-		}
-
-		if !config.IsRevertive() {
-			deviation, err := r.getDeviation(ctx, config.GetNamespacedName(), config.Spec.Priority)
-			if err != nil {
-				return nil, nil, err
-			}
-			deviations = append(deviations, deviation)
-		}
-	}
-	sort.Slice(configs, func(i, j int) bool {
-		return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
-	})
-
-	return configs, deviations, err
+	return tctx, nil
 }

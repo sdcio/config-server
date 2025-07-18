@@ -17,15 +17,19 @@ limitations under the License.
 package config
 
 import (
+	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -146,6 +150,26 @@ func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
 }
 
 type RecoveryConfig struct {
-	Config Config
+	Config    Config
 	Deviation Deviation
+}
+
+func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
+	log := log.FromContext(ctx)
+	appliedSpec, err := json.Marshal(r)
+	if err != nil {
+		log.Error("cannot marshal appliedConfig", "error", err)
+		return [20]byte{}
+	}
+	return sha1.Sum(appliedSpec)
+}
+
+func (r *Config) GetOwnerReference() metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: r.TypeMeta.APIVersion,
+		Kind:       r.TypeMeta.Kind,
+		Name:       r.Name,
+		UID:        r.UID,
+		Controller: ptr.To(true),
+	}
 }

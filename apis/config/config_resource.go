@@ -319,7 +319,6 @@ func (r *Config) ValidateCreate(ctx context.Context, obj runtime.Object) field.E
 		))
 	}
 
-
 	return allErrs
 }
 

@@ -126,6 +126,24 @@ func (r *Config) GetTarget() string {
 	return sb.String()
 }
 
+func (r *Config) GetTargetNamespaceName() (*types.NamespacedName, error) {
+	if len(r.GetLabels()) == 0 {
+		return nil, fmt.Errorf("no target information found in labels")
+	}
+	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	targetName, ok := r.GetLabels()[config.TargetNameKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	return &types.NamespacedName{
+		Name: targetName,
+		Namespace: targetNamespace,
+	}, nil
+}
+
 /*
 // IsTransacting return true if a create/update or delete is ongoing on the config object
 func (r *Config) IsTransacting() bool {
