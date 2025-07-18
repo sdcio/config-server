@@ -118,7 +118,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 
 func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, tctx *target.Context) error {
 	log := log.FromContext(ctx)
-	log.Info("RecoverConfigs")
+	log.Info("Transact")
 	// get all configs for the target
 	configList, err := r.listConfigsPerTarget(ctx, target)
 	if err != nil {
@@ -138,6 +138,8 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 
 	// determine change
 	configsToTransact, deletedConfigsToTransact := getConfigsToTransact(ctx, configList)
+
+	log.Info("Transact", "configsToTransact", len(configsToTransact), "deletedConfigsToTransact", len(deletedConfigsToTransact))
 	if len(configsToTransact) == 0 && len(deletedConfigsToTransact) == 0 {
 		return nil
 	}
