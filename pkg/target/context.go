@@ -554,6 +554,7 @@ func (r *Context) SetIntents(
 	dryRun bool,
 ) (*sdcpb.TransactionSetResponse, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+	log.Info("Transaction", "Ready", r.IsReady())
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
 	}
@@ -562,12 +563,14 @@ func (r *Context) SetIntents(
 	for _, deviation := range deviations {
 		update, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
+			log.Error("Transaction getDeviationUpdate deviation", "error", err)
 			return nil, err
 		}
 
 		newPriority, err := strconv.Atoi(deviation.GetLabels()["priority"])
 		if err != nil {
-			return nil, fmt.Errorf("cannot convert priroity to int %s", err)
+			log.Error("Transaction cannot convert priority to int", "error", err)
+			return nil, fmt.Errorf("cannot convert priority to int %s", err)
 		}
 		if newPriority > 0 {
 			newPriority--
@@ -585,6 +588,7 @@ func (r *Context) SetIntents(
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, true)
 		if err != nil {
+			log.Error("Transaction getIntentUpdate config", "error", err)
 			return nil, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
@@ -601,7 +605,7 @@ func (r *Context) SetIntents(
 		})
 	}
 
-	log.Debug("Transaction",
+	log.Info("Transaction",
 		"total update", len(configs),
 		"total delete", len(deleteConfigs),
 		"total deviations", len(deviations),
@@ -614,6 +618,9 @@ func (r *Context) SetIntents(
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
+	if rsp != nil {
+		log.Info("Transaction rsp", "rsp", prototext.Format(rsp))
+	}
 	return rsp, err
 }
 
