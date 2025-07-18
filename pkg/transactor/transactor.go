@@ -34,6 +34,7 @@ import (
 	"github.com/sdcio/config-server/pkg/target"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
@@ -166,7 +167,6 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
-	
 
 	rsp, err := tctx.SetIntents(ctx, targetKey, "dummyTransactionID", configsToTransact, deletedConfigsToTransact, deviationsToTransact, false)
 	if er, ok := status.FromError(err); ok {
@@ -189,7 +189,9 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				return err
 			}
 		}
+		return nil
 	}
+	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	if rsp != nil {
 		// global warnings -> TBD what do we do with them ?
 		if len(rsp.Warnings) != 0 {
@@ -235,8 +237,8 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 						return err
 					}
 					continue
-				}	
-				
+				}
+
 				configOrig, ok = deletedConfigsToTransact[intentName]
 				if ok {
 					config := &configv1alpha1.Config{}
@@ -250,44 +252,45 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 						return err
 					}
 					continue
-				}	
-			}
-		} else {
-			// ok case
-			for configKey, configOrig := range configsToTransact {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
-				}
-				if err := r.applyFinalizer(ctx, config); err != nil {
-					return err
-				}
-				if err := r.updateConfigWithSuccess(ctx, config, (*configv1alpha1.ConfigStatusLastKnownGoodSchema)(tctx.GetSchema()), ""); err != nil {
-					return err
-				}
-				deviation, ok := deviationMap[configKey]
-				if ok && config.IsRevertive() {
-					if err := r.clearDeviation(ctx, deviation); err != nil {
-						return err
-					}
 				}
 			}
+		}
+		return nil
+	}
 
-			for configKey, configOrig := range deletedConfigsToTransact {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
-				}
-				if err := r.deleteFinalizer(ctx, config); err != nil {
-					return err
-				}
-				deviation, ok := deviationMap[configKey]
-				if ok {
-					if err := r.clearDeviation(ctx, deviation); err != nil {
-						return err
-					}
-				}
-			} 
+	// ok case
+	for configKey, configOrig := range configsToTransact {
+		config := &configv1alpha1.Config{}
+		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+			return err
+		}
+		if err := r.applyFinalizer(ctx, config); err != nil {
+			return err
+		}
+		if err := r.updateConfigWithSuccess(ctx, config, (*configv1alpha1.ConfigStatusLastKnownGoodSchema)(tctx.GetSchema()), ""); err != nil {
+			return err
+		}
+		deviation, ok := deviationMap[configKey]
+		if ok && config.IsRevertive() {
+			if err := r.clearDeviation(ctx, deviation); err != nil {
+				return err
+			}
+		}
+	}
+
+	for configKey, configOrig := range deletedConfigsToTransact {
+		config := &configv1alpha1.Config{}
+		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+			return err
+		}
+		if err := r.deleteFinalizer(ctx, config); err != nil {
+			return err
+		}
+		deviation, ok := deviationMap[configKey]
+		if ok {
+			if err := r.clearDeviation(ctx, deviation); err != nil {
+				return err
+			}
 		}
 	}
 

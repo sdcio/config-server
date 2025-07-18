@@ -138,7 +138,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// Most likely a human intervention is needed
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err), errUpdateStatus)
 	}
-	log.Info("config config transaction success")
+	log.Info("config transaction success")
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
