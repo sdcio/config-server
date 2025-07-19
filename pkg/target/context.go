@@ -287,20 +287,26 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) getDeviationUpdate(_ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
-	//log := log.FromContext(ctx)
+func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+	log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
-				return nil, fmt.Errorf("devition path parsing failed forr target %s, path %s invalid", key.String(), deviation.Path)
+				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", key.String(), deviation.Path)
 			}
 
 			val := &sdcpb.TypedValue{}
 			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
-				return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
+				log.Error("deviation proto unmarshal failed", "key", key.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
+				continue
+				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
+			} else {
+				val = &sdcpb.TypedValue{
+
+				}
 			}
 
 			//val, err := parse_value((deviation.CurrentValue))

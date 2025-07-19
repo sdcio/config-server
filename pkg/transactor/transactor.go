@@ -161,13 +161,15 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 			if !ok {
 				continue
 			}
-			labels := deviation.GetLabels()
-			if labels != nil {
-				labels = map[string]string{}
+			if len(deviation.Spec.Deviations) != 0 {
+				labels := deviation.GetLabels()
+				if labels != nil {
+					labels = map[string]string{}
+				}
+				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+				deviation.SetLabels(labels)
+				deviationsToTransact[GetGVKNSN(deviation)] = deviation
 			}
-			labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
-			deviation.SetLabels(labels)
-			deviationsToTransact[GetGVKNSN(deviation)] = deviation
 		}
 	}
 
