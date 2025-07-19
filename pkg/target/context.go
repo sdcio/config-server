@@ -287,7 +287,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+func (r *Context) getDeviationUpdate(_ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
 	//log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
@@ -295,7 +295,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
-				return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), deviation.Path)
+				return nil, fmt.Errorf("devition path parsing failed forr target %s, path %s invalid", key.String(), deviation.Path)
 			}
 
 			val := &sdcpb.TypedValue{}
@@ -563,13 +563,13 @@ func (r *Context) SetIntents(
 	for _, deviation := range deviations {
 		update, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
-			log.Error("Transaction getDeviationUpdate deviation", "error", err)
+			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
 			return nil, err
 		}
 
 		newPriority, err := strconv.Atoi(deviation.GetLabels()["priority"])
 		if err != nil {
-			log.Error("Transaction cannot convert priority to int", "error", err)
+			log.Error("Transaction cannot convert priority to int", "error", err.Error())
 			return nil, fmt.Errorf("cannot convert priority to int %s", err)
 		}
 		if newPriority > 0 {

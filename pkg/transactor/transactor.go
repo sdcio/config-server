@@ -85,13 +85,16 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 			if !ok {
 				continue
 			}
-			labels := deviation.GetLabels()
-			if labels != nil {
-				labels = map[string]string{}
+			// dont include deviations if there are none
+			if len(deviation.Spec.Deviations) != 0 {
+				labels := deviation.GetLabels()
+				if labels != nil {
+					labels = map[string]string{}
+				}
+				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+				deviation.SetLabels(labels)
+				deviations = append(deviations, deviation)
 			}
-			labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
-			deviation.SetLabels(labels)
-			deviations = append(deviations, deviation)
 		}
 	}
 	//sort.Slice(configs, func(i, j int) bool {
