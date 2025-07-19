@@ -534,7 +534,7 @@ func (r *Transactor) listDeviationsPerTarget(ctx context.Context, target *invv1a
 		if dev.Spec.DeviationType != nil && *dev.Spec.DeviationType == config.DeviationType_TARGET {
 			continue
 		}
-		deviationMap[dev.Name] = &dev
+		deviationMap[GetGVKNSN(&dev)] = &dev
 	}
 
 	return deviationMap, nil
