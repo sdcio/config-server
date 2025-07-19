@@ -66,3 +66,12 @@ func (r *Deviation) GetTarget() string {
 	}
 	return sb.String()
 }
+
+func (r Deviation) HasNotAppliedDeviation() bool {
+	for _, dev := range r.Spec.Deviations {
+		if dev.Reason == "NOT_APPLIED" {
+			return true
+		}
+	}
+	return false
+}

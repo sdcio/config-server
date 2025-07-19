@@ -68,6 +68,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	if err != nil {
 		return nil, err
 	}
+	// get all CONFIG deviations for a given target, excludes TARGET deviations
 	deviationMap, err := r.listDeviationsPerTarget(ctx, target)
 	if err != nil {
 		return nil, err
@@ -140,37 +141,15 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	}
 
 	// determine change
-	configsToTransact, deletedConfigsToTransact := getConfigsToTransact(ctx, configList)
+	configsToTransact, deletedConfigsToTransact, deviationsToTransact := getConfigsAndDeviationsToTransact(ctx, configList, deviationMap)
 
-	log.Info("Transact", "configsToTransact", len(configsToTransact), "deletedConfigsToTransact", len(deletedConfigsToTransact))
-	if len(configsToTransact) == 0 && len(deletedConfigsToTransact) == 0 {
+	log.Info("Transact", 
+		"configsToTransact", len(configsToTransact), 
+		"deletedConfigsToTransact", len(deletedConfigsToTransact),
+		"deviationsToTransact", len(deviationsToTransact),
+	)
+	if len(configsToTransact) == 0 && len(deletedConfigsToTransact) == 0 && len(deviationsToTransact) == 0 {
 		return false, nil
-	}
-
-	deviationsToTransact := map[string]*config.Deviation{}
-	deviationsToBeDeleted := map[string]*config.Deviation{}
-	for _, config := range configsToTransact {
-		if config.IsRevertive() {
-			deviation, ok := deviationMap[config.Name]
-			if !ok {
-				continue
-			}
-			deviationsToBeDeleted[GetGVKNSN(deviation)] = deviation
-		} else {
-			deviation, ok := deviationMap[config.Name]
-			if !ok {
-				continue
-			}
-			if len(deviation.Spec.Deviations) != 0 {
-				labels := deviation.GetLabels()
-				if labels != nil {
-					labels = map[string]string{}
-				}
-				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
-				deviation.SetLabels(labels)
-				deviationsToTransact[GetGVKNSN(deviation)] = deviation
-			}
-		}
 	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
@@ -337,7 +316,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 
 	configOrig := config.DeepCopy()
 	patch := client.MergeFrom(configOrig)
-	
+
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
@@ -422,13 +401,17 @@ func (r *Transactor) updateConfigWithSuccess(
 	})
 }
 
-func getConfigsToTransact(
+func getConfigsAndDeviationsToTransact(
 	ctx context.Context,
 	configList *config.ConfigList,
-) (map[string]*config.Config, map[string]*config.Config) {
+	deviationMap map[string]*config.Deviation,
+) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation) {
 	nonrecoverableConfigs := map[string]*config.Config{}
 	changedConfigs := map[string]*config.Config{}
 	toBeDeletedConfigs := map[string]*config.Config{}
+	unchangedConfigs := map[string]*config.Config{}
+
+	// classify configs
 	for _, config := range configList.Items {
 		// this should cover the last transaction failed
 		if !config.IsRecoverable() {
@@ -437,19 +420,23 @@ func getConfigsToTransact(
 		}
 		// we first check the deletion tiemstamp if it set it should be deleted
 		if config.GetDeletionTimestamp() != nil {
-
 			toBeDeletedConfigs[GetGVKNSN(&config)] = &config
+			continue
 		}
 
 		// determine if the spec changed
 		if config.Status.AppliedConfig != nil &&
 			config.Spec.GetShaSum(ctx) == config.Status.AppliedConfig.GetShaSum(ctx) {
-			// no spec change
+			
+			unchangedConfigs[GetGVKNSN(&config)] = &config
 			continue
 		}
 		changedConfigs[GetGVKNSN(&config)] = &config
 	}
-	// if we have changes we will also retry the non recoverable configs
+
+
+	// we determine if there is a config change -> if so we incorporate the previously failed
+	// configs to retry
 	if len(changedConfigs) != 0 || len(configv1alpha1.DeletionDelete) != 0 {
 		for _, config := range nonrecoverableConfigs {
 			if config.DeletionTimestamp != nil {
@@ -459,7 +446,46 @@ func getConfigsToTransact(
 			}
 		}
 	}
-	return changedConfigs, toBeDeletedConfigs
+	
+	// determine which configs to include based on deviation config
+	deviationsToTransact := map[string]*config.Deviation{}
+	for _, config := range configList.Items {
+		if config.IsRevertive() {
+			deviation, ok := deviationMap[GetGVKNSN(&config)]
+			if !ok {
+				// strange, deviations should always be present -> during init this can happen
+				// when deviations are not yet created
+				continue
+			}
+			if deviation.HasNotAppliedDeviation() {
+				changedConfigs[GetGVKNSN(&config)] = &config
+			}
+		} else {
+			// Non revertive
+			// The deviations for the configs that changed will be included
+			// Configs in deletion will not include the deviations
+			if _, ok := changedConfigs[GetGVKNSN(&config)]; ok {
+				// lookup deviation, if exists include it
+				deviation, ok := deviationMap[GetGVKNSN(&config)]
+				if !ok {
+					// strange, deviations should always be present -> during init this can happen
+					// when deviations are not yet created
+					continue
+				}
+				if len(deviation.Spec.Deviations) != 0 {
+					labels := deviation.GetLabels()
+					if labels != nil {
+						labels = map[string]string{}
+					}
+					labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+					deviation.SetLabels(labels)
+					deviationsToTransact[GetGVKNSN(deviation)] = deviation
+				}
+			}
+		}
+	}
+
+	return changedConfigs, toBeDeletedConfigs, deviationsToTransact
 }
 
 func (r *Transactor) listConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
@@ -481,6 +507,7 @@ func (r *Transactor) listConfigsPerTarget(ctx context.Context, target *invv1alph
 	return configList, nil
 }
 
+// listDeviationsPerTarget retrieves all CONFIG deviations for a given target, excludes TARGET deviations
 func (r *Transactor) listDeviationsPerTarget(ctx context.Context, target *invv1alpha1.Target) (map[string]*config.Deviation, error) {
 	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
 
