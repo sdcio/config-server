@@ -178,6 +178,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	rsp, err := tctx.SetIntents(ctx, targetKey, "dummyTransactionID", configsToTransact, deletedConfigsToTransact, deviationsToTransact, false)
 	// we first collect the warnings and errors -> to determine error or not
 	var global_error error
+	var intent_errors error
 	var global_warnings []string
 	var recoverable bool
 	if err != nil {
@@ -192,6 +193,12 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				recoverable = false
 			}
 		}
+		for _, intent := range rsp.Intents {
+			for _, intentError := range intent.Errors {
+				intent_errors = errors.Join(intent_errors, fmt.Errorf("%s", intentError))
+				break
+			}
+		}
 	}
 	if rsp != nil {
 		// global wornings
@@ -200,7 +207,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		}
 		log.Warn("transaction", "global warnings", global_warnings)
 	}
-	if global_error != nil {
+	if global_error != nil || intent_errors != nil {
 		log.Info("transaction failed", "error", global_error)
 		if rsp == nil {
 			for _, configOrig := range configsToTransact {
@@ -229,7 +236,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				}
 				
 			}
-			return nil
+			return global_error
 		} 
 		for intentName, intent := range rsp.Intents {
 			var errs error
@@ -276,76 +283,9 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				continue
 			}
 		}
-		return nil
-	}
-	// ok case
-	
-	log.Info("transaction response", "rsp", prototext.Format(rsp))
-	if rsp != nil {
-		// global warnings -> TBD what do we do with them ?
-		if len(rsp.Warnings) != 0 {
-			log.Warn("transaction warnings", "warning", rsp.Warnings)
-		}
-
-		var errs error
-		for _, intent := range rsp.Intents {
-			for _, intentError := range intent.Errors {
-				errs = errors.Join(fmt.Errorf("%s", intentError))
-				break
-			}
-			if errs != nil {
-				break
-			}
-		}
-		if errs != nil {
-			// one or multiple intents failed
-			for intentName, intent := range rsp.Intents {
-				var errs error
-				for _, intentError := range intent.Errors {
-					errs = errors.Join(fmt.Errorf("%s", intentError))
-				}
-				collectedWarnings := []string{}
-				for _, intentWarning := range intent.Errors {
-					collectedWarnings = append(collectedWarnings, fmt.Sprintf("warning: %q", intentWarning))
-				}
-				msg := ""
-				if len(collectedWarnings) > 0 {
-					msg = strings.Join(collectedWarnings, "; ")
-				}
-
-				configOrig, ok := configsToTransact[intentName]
-				if ok {
-					config := &configv1alpha1.Config{}
-					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-						return err
-					}
-					if err := r.applyFinalizer(ctx, config); err != nil {
-						return err
-					}
-					if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
-						return err
-					}
-					continue
-				}
-
-				configOrig, ok = deletedConfigsToTransact[intentName]
-				if ok {
-					config := &configv1alpha1.Config{}
-					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-						return err
-					}
-					if err := r.applyFinalizer(ctx, config); err != nil {
-						return err
-					}
-					if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
-						return err
-					}
-					continue
-				}
-			}
-		}
 		return global_error
-	}
+	}	
+	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
 	for configKey, configOrig := range configsToTransact {
 		config := &configv1alpha1.Config{}
