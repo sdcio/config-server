@@ -82,7 +82,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 			configs = append(configs, &config)
 		}
 		if !config.IsRevertive() {
-			deviation, ok := deviationMap[config.Name]
+			deviation, ok := deviationMap[GetGVKNSN(&config)]
 			if !ok {
 				continue
 			}
