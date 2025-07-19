@@ -290,6 +290,9 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	}	
 	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
+	if err := tctx.TransactionConfirm(ctx, targetKey.String(), "dummyTransactionID"); err != nil {
+
+	}
 	for configKey, configOrig := range configsToTransact {
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {

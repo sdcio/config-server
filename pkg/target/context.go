@@ -390,13 +390,19 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	}
 	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
 	// retrieved from the individual intents
-	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
+	
+	if err := r.TransactionConfirm(ctx, req.DatastoreName, req.TransactionId); err != nil {
 		return msg, err
 	}
 	return msg, nil
+}
+
+func (r *Context) TransactionConfirm(ctx context.Context, datastoreName, transactionID string) error {
+	_, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: datastoreName,
+		TransactionId: transactionID,
+	})
+	return err
 }
 
 func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, deviation config.Deviation, dryRun bool) (string, error) {
