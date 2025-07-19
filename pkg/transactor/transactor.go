@@ -182,6 +182,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	var recoverable bool
 	if err != nil {
 		global_error = errors.Join(global_error, fmt.Errorf("error: %s", err.Error()))
+		recoverable = false
 		if er, ok := status.FromError(err); ok {
 			switch er.Code() {
 			// Aborted is the refering to a lock in the dataserver
@@ -200,6 +201,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		log.Warn("transaction", "global warnings", global_warnings)
 	}
 	if global_error != nil {
+		log.Info("transaction failed", "error", global_error)
 		if rsp == nil {
 			for _, configOrig := range configsToTransact {
 				config := &configv1alpha1.Config{}
@@ -227,59 +229,56 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				}
 				
 			}
-		} else {
-			for intentName, intent := range rsp.Intents {
-				var errs error
-				errs = errors.Join(global_error)
-				for _, intentError := range intent.Errors {
-					errs = errors.Join(fmt.Errorf("%s", intentError))
-				}
-				collectedWarnings := []string{}
-				for _, intentWarning := range intent.Errors {
-					collectedWarnings = append(collectedWarnings, fmt.Sprintf("warning: %q", intentWarning))
-				}
-				msg := ""
-				if len(collectedWarnings) > 0 {
-					msg = strings.Join(collectedWarnings, "; ")
-				}
+			return nil
+		} 
+		for intentName, intent := range rsp.Intents {
+			var errs error
+			errs = errors.Join(global_error)
+			for _, intentError := range intent.Errors {
+				errs = errors.Join(fmt.Errorf("%s", intentError))
+			}
+			collectedWarnings := []string{}
+			for _, intentWarning := range intent.Errors {
+				collectedWarnings = append(collectedWarnings, fmt.Sprintf("warning: %q", intentWarning))
+			}
+			msg := ""
+			if len(collectedWarnings) > 0 {
+				msg = strings.Join(collectedWarnings, "; ")
+			}
 
-				configOrig, ok := configsToTransact[intentName]
-				if ok {
-					config := &configv1alpha1.Config{}
-					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-						return err
-					}
-					if err := r.applyFinalizer(ctx, config); err != nil {
-						return err
-					}
-					if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
-						return err
-					}
-					continue
+			configOrig, ok := configsToTransact[intentName]
+			if ok {
+				config := &configv1alpha1.Config{}
+				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+					return err
 				}
+				if err := r.applyFinalizer(ctx, config); err != nil {
+					return err
+				}
+				if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
+					return err
+				}
+				continue
+			}
 
-				configOrig, ok = deletedConfigsToTransact[intentName]
-				if ok {
-					config := &configv1alpha1.Config{}
-					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-						return err
-					}
-					if err := r.applyFinalizer(ctx, config); err != nil {
-						return err
-					}
-					if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
-						return err
-					}
-					continue
+			configOrig, ok = deletedConfigsToTransact[intentName]
+			if ok {
+				config := &configv1alpha1.Config{}
+				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+					return err
 				}
+				if err := r.applyFinalizer(ctx, config); err != nil {
+					return err
+				}
+				if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
+					return err
+				}
+				continue
 			}
 		}
 		return nil
 	}
 	// ok case
-
-
-
 	
 	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	if rsp != nil {
@@ -345,7 +344,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				}
 			}
 		}
-		return nil
+		return global_error
 	}
 	// ok case
 	for configKey, configOrig := range configsToTransact {
@@ -387,6 +386,9 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 }
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+	log := log.FromContext(ctx)
+	log.Info("updateConfigWithError", "msg", msg, "error", err)
+
 	patch := client.MergeFrom(config)
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -415,6 +417,8 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 }
 
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
+	log := log.FromContext(ctx)
+	log.Info("applyFinalizer")
 	patch := client.MergeFrom(config)
 
 	config.SetFinalizers([]string{finalizer})
@@ -426,6 +430,8 @@ func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.
 }
 
 func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
+	log := log.FromContext(ctx)
+	log.Info("deleteFinalizer")
 	patch := client.MergeFrom(config)
 
 	config.SetFinalizers([]string{})
@@ -442,6 +448,9 @@ func (r *Transactor) updateConfigWithSuccess(
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
 	msg string,
 ) error {
+	log := log.FromContext(ctx)
+	log.Info("updateConfigWithSuccess")
+
 	patch := client.MergeFrom(config)
 
 	config.SetConditions(condv1alpha1.ReadyWithMsg(msg))
