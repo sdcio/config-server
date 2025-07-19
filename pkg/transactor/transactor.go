@@ -119,24 +119,24 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	return nil, nil
 }
 
-func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, tctx *target.Context) error {
+func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, tctx *target.Context) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Info("Transact")
 	// get all configs for the target
 	configList, err := r.listConfigsPerTarget(ctx, target)
 	if err != nil {
-		return err
+		return true, err
 	}
 	// reapply deviations for each config snippet
 	for _, config := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &config); err != nil {
-			return err
+			return true, err
 		}
 	}
 	// get all deviations for the target
 	deviationMap, err := r.listDeviationsPerTarget(ctx, target)
 	if err != nil {
-		return err
+		return true, err
 	}
 
 	// determine change
@@ -144,7 +144,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 
 	log.Info("Transact", "configsToTransact", len(configsToTransact), "deletedConfigsToTransact", len(deletedConfigsToTransact))
 	if len(configsToTransact) == 0 && len(deletedConfigsToTransact) == 0 {
-		return nil
+		return false, nil
 	}
 
 	deviationsToTransact := map[string]*config.Deviation{}
@@ -197,8 +197,8 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 			// determine errors from the response
 			for _, intent := range rsp.Intents {
 				for _, intentError := range intent.Errors {
+					recoverable = false
 					intent_errors = errors.Join(intent_errors, fmt.Errorf("%s", intentError))
-					break
 				}
 			}
 		}
@@ -211,35 +211,35 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		log.Warn("transaction", "global warnings", global_warnings)
 	}
 	if global_error != nil || intent_errors != nil {
-		log.Info("transaction failed", "error", global_error)
+		log.Info("transaction failed", "recoverable", recoverable, "error", global_error)
 		if rsp == nil {
 			for _, configOrig := range configsToTransact {
 				config := &configv1alpha1.Config{}
 				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
+					return false, err
 				}
 				if err := r.applyFinalizer(ctx, config); err != nil {
-					return err
+					return true, err
 				}
 				if err := r.updateConfigWithError(ctx, config, "", global_error, recoverable); err != nil {
-					return err
+					return true, err
 				}
 			}
 
 			for _, configOrig := range deletedConfigsToTransact {
 				config := &configv1alpha1.Config{}
 				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
+					return false, err
 				}
 				if err := r.applyFinalizer(ctx, config); err != nil {
-					return err
+					return true, err
 				}
 				if err := r.updateConfigWithError(ctx, config, "", global_error, false); err != nil {
-					return err
+					return true, err
 				}
 				
 			}
-			return global_error
+			return recoverable, global_error
 		} 
 		for intentName, intent := range rsp.Intents {
 			var errs error
@@ -260,13 +260,13 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 			if ok {
 				config := &configv1alpha1.Config{}
 				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
+					return false, err
 				}
 				if err := r.applyFinalizer(ctx, config); err != nil {
-					return err
+					return true, err
 				}
 				if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
-					return err
+					return true, err
 				}
 				continue
 			}
@@ -275,36 +275,36 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 			if ok {
 				config := &configv1alpha1.Config{}
 				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return err
+					return false, err
 				}
 				if err := r.applyFinalizer(ctx, config); err != nil {
-					return err
+					return true, err
 				}
 				if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
-					return err
+					return true, err
 				}
 				continue
 			}
 		}
-		return global_error
+		return recoverable, global_error
 	}	
 	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
 	for configKey, configOrig := range configsToTransact {
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-			return err
+			return false, err
 		}
 		if err := r.applyFinalizer(ctx, config); err != nil {
-			return err
+			return true, err
 		}
 		if err := r.updateConfigWithSuccess(ctx, config, (*configv1alpha1.ConfigStatusLastKnownGoodSchema)(tctx.GetSchema()), ""); err != nil {
-			return err
+			return true, err
 		}
 		deviation, ok := deviationMap[configKey]
 		if ok && config.IsRevertive() {
 			if err := r.clearDeviation(ctx, deviation); err != nil {
-				return err
+				return true, err
 			}
 		}
 	}
@@ -312,20 +312,20 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	for configKey, configOrig := range deletedConfigsToTransact {
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-			return err
+			return true, err
 		}
 		if err := r.deleteFinalizer(ctx, config); err != nil {
-			return err
+			return true, err
 		}
 		deviation, ok := deviationMap[configKey]
 		if ok {
 			if err := r.clearDeviation(ctx, deviation); err != nil {
-				return err
+				return true, err
 			}
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
@@ -487,9 +487,13 @@ func (r *Transactor) listDeviationsPerTarget(ctx context.Context, target *invv1a
 	deviationList := &config.DeviationList{}
 	configv1alpha1.Convert_v1alpha1_DeviationList_To_config_DeviationList(v1alpha1deviationList, deviationList, nil)
 
-	deviationMap := make(map[string]*config.Deviation, len(deviationList.Items))
+	deviationMap := map[string]*config.Deviation{}
 	for i := range deviationList.Items {
 		dev := deviationList.Items[i]
+		// dont include deviations for the device
+		if dev.Spec.DeviationType != nil && *dev.Spec.DeviationType == config.DeviationType_TARGET {
+			continue
+		}
 		deviationMap[dev.Name] = &dev
 	}
 
