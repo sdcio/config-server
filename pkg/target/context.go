@@ -303,11 +303,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 				log.Error("deviation proto unmarshal failed", "key", key.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 				continue
 				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
-			} else {
-				val = &sdcpb.TypedValue{
-
-				}
-			}
+			} 
 
 			//val, err := parse_value((deviation.CurrentValue))
 			//if err != nil {
