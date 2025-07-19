@@ -410,6 +410,7 @@ func getConfigsAndDeviationsToTransact(
 	changedConfigs := map[string]*config.Config{}
 	toBeDeletedConfigs := map[string]*config.Config{}
 	unchangedConfigs := map[string]*config.Config{}
+	log := log.FromContext(ctx)
 
 	// classify configs
 	for _, config := range configList.Items {
@@ -451,12 +452,14 @@ func getConfigsAndDeviationsToTransact(
 	deviationsToTransact := map[string]*config.Deviation{}
 	for _, config := range configList.Items {
 		if config.IsRevertive() {
+			log.Info("check deviation configs", "name", GetGVKNSN(&config), "revertive", true)
 			deviation, ok := deviationMap[GetGVKNSN(&config)]
 			if !ok {
 				// strange, deviations should always be present -> during init this can happen
 				// when deviations are not yet created
 				continue
 			}
+			log.Info("check deviation configs", "name", GetGVKNSN(&config), "revertive", true, "deviation spec", deviation.Spec)
 			if deviation.HasNotAppliedDeviation() {
 				changedConfigs[GetGVKNSN(&config)] = &config
 			}
