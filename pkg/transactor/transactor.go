@@ -193,10 +193,13 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 				recoverable = false
 			}
 		}
-		for _, intent := range rsp.Intents {
-			for _, intentError := range intent.Errors {
-				intent_errors = errors.Join(intent_errors, fmt.Errorf("%s", intentError))
-				break
+		if rsp != nil {
+			// determine errors from the response
+			for _, intent := range rsp.Intents {
+				for _, intentError := range intent.Errors {
+					intent_errors = errors.Join(intent_errors, fmt.Errorf("%s", intentError))
+					break
+				}
 			}
 		}
 	}
