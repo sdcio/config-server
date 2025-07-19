@@ -40,6 +40,7 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 const (
@@ -53,10 +54,10 @@ type Transactor struct {
 	fieldManagerFinalizer string
 }
 
-func New(client client.Client, fiedlManager, fieldManagerFinalizer string) *Transactor {
+func New(client client.Client, fieldManager, fieldManagerFinalizer string) *Transactor {
 	return &Transactor{
 		client:                client,
-		fieldManager:          fiedlManager,
+		fieldManager:          fieldManager,
 		fieldManagerFinalizer: fieldManagerFinalizer,
 	}
 }
@@ -78,18 +79,20 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	deviations := []*config.Deviation{}
 
 	for _, config := range configList.Items {
+		key := GetGVKNSN(&config)
 		if config.Status.AppliedConfig != nil {
 			configs = append(configs, &config)
 		}
 		if !config.IsRevertive() {
-			deviation, ok := deviationMap[GetGVKNSN(&config)]
+			deviation, ok := deviationMap[key]
 			if !ok {
+				log.Warn("deviation missing for config", "config", key)
 				continue
 			}
 			// dont include deviations if there are none
 			if len(deviation.Spec.Deviations) != 0 {
 				labels := deviation.GetLabels()
-				if labels != nil {
+				if labels == nil {
 					labels = map[string]string{}
 				}
 				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
@@ -103,10 +106,10 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	//})
 	if len(configs) == 0 && len(deviations) == 0 {
 		tctx.SetRecoveredConfigsState(ctx)
-		log.Info("config recovery done -> no configs to recover")
+		log.Info("recovered configs, nothing to recover", "count", len(configs), "deviations", len(deviations))
 		return nil, nil
 	}
-	log.Info("recovering target config ....")
+	log.Info("recovering target config", "count", len(configs), "deviations", len(deviations))
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 	msg, err := tctx.RecoverIntents(ctx, targetKey, configs, deviations)
 	if err != nil {
@@ -116,7 +119,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 		return &msg, err
 	}
 	tctx.SetRecoveredConfigsState(ctx)
-	log.Info("config recovery done -> configs recovered")
+	log.Info("recovered configs", "count", len(configs), "deviations", len(deviations))
 	return nil, nil
 }
 
@@ -156,125 +159,35 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 
 	rsp, err := tctx.SetIntents(ctx, targetKey, "dummyTransactionID", configsToTransact, deletedConfigsToTransact, deviationsToTransact, false)
 	// we first collect the warnings and errors -> to determine error or not
-	var global_error error
-	var intent_errors error
-	var global_warnings []string
-	var recoverable bool
-	if err != nil {
-		global_error = errors.Join(global_error, fmt.Errorf("error: %s", err.Error()))
-		recoverable = false
-		if er, ok := status.FromError(err); ok {
-			switch er.Code() {
-			// Aborted is the refering to a lock in the dataserver
-			case codes.Aborted, codes.ResourceExhausted:
-				recoverable = true
-			default:
-				recoverable = false
-			}
-		}
-		if rsp != nil {
-			// determine errors from the response
-			for _, intent := range rsp.Intents {
-				for _, intentError := range intent.Errors {
-					recoverable = false
-					intent_errors = errors.Join(intent_errors, fmt.Errorf("%s", intentError))
-				}
-			}
-		}
+	result := analyzeIntentResponse(err, rsp)
+
+	for _, w := range result.GlobalWarnings {
+		log.Warn("transaction warning", "warning", w)
 	}
-	if rsp != nil {
-		// global wornings
-		for _, warning := range rsp.Warnings {
-			global_warnings = append(global_warnings, fmt.Sprintf("global warning: %q", warning))
-		}
-		log.Warn("transaction", "global warnings", global_warnings)
-	}
-	if global_error != nil || intent_errors != nil {
-		log.Info("transaction failed", "recoverable", recoverable, "error", global_error)
-		if rsp == nil {
-			for _, configOrig := range configsToTransact {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return false, err
-				}
-				if err := r.applyFinalizer(ctx, config); err != nil {
-					return true, err
-				}
-				if err := r.updateConfigWithError(ctx, config, "", global_error, recoverable); err != nil {
-					return true, err
-				}
-			}
+	if result.GlobalError != nil || result.IntentErrors != nil {
+		log.Info("transaction failed", 
+			"recoverable", result.Recoverable, 
+			"globalError", result.GlobalError, 
+			"intentErrors", result.IntentErrors,
+		)
 
-			for _, configOrig := range deletedConfigsToTransact {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return false, err
-				}
-				if err := r.applyFinalizer(ctx, config); err != nil {
-					return true, err
-				}
-				if err := r.updateConfigWithError(ctx, config, "", global_error, false); err != nil {
-					return true, err
-				}
-				
-			}
-			return recoverable, global_error
-		} 
-		for intentName, intent := range rsp.Intents {
-			var errs error
-			errs = errors.Join(global_error)
-			for _, intentError := range intent.Errors {
-				errs = errors.Join(fmt.Errorf("%s", intentError))
-			}
-			collectedWarnings := []string{}
-			for _, intentWarning := range intent.Errors {
-				collectedWarnings = append(collectedWarnings, fmt.Sprintf("warning: %q", intentWarning))
-			}
-			msg := ""
-			if len(collectedWarnings) > 0 {
-				msg = strings.Join(collectedWarnings, "; ")
-			}
-
-			configOrig, ok := configsToTransact[intentName]
-			if ok {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return false, err
-				}
-				if err := r.applyFinalizer(ctx, config); err != nil {
-					return true, err
-				}
-				if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
-					return true, err
-				}
-				continue
-			}
-
-			configOrig, ok = deletedConfigsToTransact[intentName]
-			if ok {
-				config := &configv1alpha1.Config{}
-				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-					return false, err
-				}
-				if err := r.applyFinalizer(ctx, config); err != nil {
-					return true, err
-				}
-				if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
-					return true, err
-				}
-				continue
-			}
-		}
-		return recoverable, global_error
+		return r.handleTransactionErrors(
+			ctx, 
+			rsp, 
+			configsToTransact, 
+			deletedConfigsToTransact, 
+			result.GlobalError, 
+			result.Recoverable,
+		)		
 	}	
-	log.Info("transaction response", "rsp", prototext.Format(rsp))
+	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
 	if err := tctx.TransactionConfirm(ctx, targetKey.String(), "dummyTransactionID"); err != nil {
 
 	}
 	for configKey, configOrig := range configsToTransact {
-		config := &configv1alpha1.Config{}
-		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+		config, err :=  toV1Alpha1Config(configOrig)
+		if err != nil {
 			return false, err
 		}
 		if err := r.applyFinalizer(ctx, config); err != nil {
@@ -312,7 +225,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Info("updateConfigWithError", "msg", msg, "error", err)
+	log.Info("updateConfigWithError", "config", config.GetName(), "recoverable", recoverable, "msg", msg, "err", err)
 
 	configOrig := config.DeepCopy()
 	patch := client.MergeFrom(configOrig)
@@ -346,30 +259,18 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
 	log := log.FromContext(ctx)
 	log.Info("applyFinalizer")
-	
-	configOrig := config.DeepCopy()
-	patch := client.MergeFrom(configOrig)
 
-	config.SetFinalizers([]string{finalizer})
-	return r.client.Patch(ctx, config, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.fieldManagerFinalizer,
-		},
+	return r.patchMetadata(ctx, config, func() {
+		config.SetFinalizers([]string{finalizer})
 	})
 }
 
 func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
 	log := log.FromContext(ctx)
 	log.Info("deleteFinalizer")
-	
-	configOrig := config.DeepCopy()
-	patch := client.MergeFrom(configOrig)
 
-	config.SetFinalizers([]string{})
-	return r.client.Patch(ctx, config, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.fieldManagerFinalizer,
-		},
+	return r.patchMetadata(ctx, config, func() {
+		config.SetFinalizers([]string{})
 	})
 }
 
@@ -380,115 +281,18 @@ func (r *Transactor) updateConfigWithSuccess(
 	msg string,
 ) error {
 	log := log.FromContext(ctx)
-	log.Info("updateConfigWithSuccess")
+	log.Info("updateConfigWithSuccess", "config", config.GetName())
 
-	configOrig := config.DeepCopy()
-	patch := client.MergeFrom(configOrig)
-
-	config.SetConditions(condv1alpha1.ReadyWithMsg(msg))
-	config.Status.LastKnownGoodSchema = schema
-	config.Status.AppliedConfig = &config.Spec
-	if config.IsRevertive() {
-		config.Status.DeviationGeneration = nil
-	} else {
-		config.Status.DeviationGeneration = ptr.To(config.GetGeneration())
-	}
-
-	return r.client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.fieldManager,
-		},
-	})
-}
-
-func getConfigsAndDeviationsToTransact(
-	ctx context.Context,
-	configList *config.ConfigList,
-	deviationMap map[string]*config.Deviation,
-) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation) {
-	nonrecoverableConfigs := map[string]*config.Config{}
-	changedConfigs := map[string]*config.Config{}
-	toBeDeletedConfigs := map[string]*config.Config{}
-	unchangedConfigs := map[string]*config.Config{}
-	log := log.FromContext(ctx)
-
-	// classify configs
-	for _, config := range configList.Items {
-		// this should cover the last transaction failed
-		if !config.IsRecoverable() {
-			nonrecoverableConfigs[GetGVKNSN(&config)] = &config
-			continue
-		}
-		// we first check the deletion tiemstamp if it set it should be deleted
-		if config.GetDeletionTimestamp() != nil {
-			toBeDeletedConfigs[GetGVKNSN(&config)] = &config
-			continue
-		}
-
-		// determine if the spec changed
-		if config.Status.AppliedConfig != nil &&
-			config.Spec.GetShaSum(ctx) == config.Status.AppliedConfig.GetShaSum(ctx) {
-			
-			unchangedConfigs[GetGVKNSN(&config)] = &config
-			continue
-		}
-		changedConfigs[GetGVKNSN(&config)] = &config
-	}
-
-
-	// we determine if there is a config change -> if so we incorporate the previously failed
-	// configs to retry
-	if len(changedConfigs) != 0 || len(configv1alpha1.DeletionDelete) != 0 {
-		for _, config := range nonrecoverableConfigs {
-			if config.DeletionTimestamp != nil {
-				toBeDeletedConfigs[GetGVKNSN(config)] = config
-			} else {
-				changedConfigs[GetGVKNSN(config)] = config
-			}
-		}
-	}
-	
-	// determine which configs to include based on deviation config
-	deviationsToTransact := map[string]*config.Deviation{}
-	for _, config := range configList.Items {
+	return r.patchStatus(ctx, config, func() {
+		config.SetConditions(condv1alpha1.ReadyWithMsg(msg))
+		config.Status.LastKnownGoodSchema = schema
+		config.Status.AppliedConfig = &config.Spec
 		if config.IsRevertive() {
-			log.Info("check deviation configs", "name", GetGVKNSN(&config), "revertive", true)
-			deviation, ok := deviationMap[GetGVKNSN(&config)]
-			if !ok {
-				// strange, deviations should always be present -> during init this can happen
-				// when deviations are not yet created
-				continue
-			}
-			log.Info("check deviation configs", "name", GetGVKNSN(&config), "revertive", true, "deviation spec", deviation.Spec)
-			if deviation.HasNotAppliedDeviation() {
-				changedConfigs[GetGVKNSN(&config)] = &config
-			}
+			config.Status.DeviationGeneration = nil
 		} else {
-			// Non revertive
-			// The deviations for the configs that changed will be included
-			// Configs in deletion will not include the deviations
-			if _, ok := changedConfigs[GetGVKNSN(&config)]; ok {
-				// lookup deviation, if exists include it
-				deviation, ok := deviationMap[GetGVKNSN(&config)]
-				if !ok {
-					// strange, deviations should always be present -> during init this can happen
-					// when deviations are not yet created
-					continue
-				}
-				if len(deviation.Spec.Deviations) != 0 {
-					labels := deviation.GetLabels()
-					if labels != nil {
-						labels = map[string]string{}
-					}
-					labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
-					deviation.SetLabels(labels)
-					deviationsToTransact[GetGVKNSN(deviation)] = deviation
-				}
-			}
+			config.Status.DeviationGeneration = ptr.To(config.GetGeneration())
 		}
-	}
-
-	return changedConfigs, toBeDeletedConfigs, deviationsToTransact
+	})
 }
 
 func (r *Transactor) listConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
@@ -505,7 +309,9 @@ func (r *Transactor) listConfigsPerTarget(ctx context.Context, target *invv1alph
 		return nil, err
 	}
 	configList := &config.ConfigList{}
-	configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil)
+	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
+		return nil, err
+	}
 
 	return configList, nil
 }
@@ -525,7 +331,9 @@ func (r *Transactor) listDeviationsPerTarget(ctx context.Context, target *invv1a
 		return nil, err
 	}
 	deviationList := &config.DeviationList{}
-	configv1alpha1.Convert_v1alpha1_DeviationList_To_config_DeviationList(v1alpha1deviationList, deviationList, nil)
+	if err := configv1alpha1.Convert_v1alpha1_DeviationList_To_config_DeviationList(v1alpha1deviationList, deviationList, nil); err != nil {
+		return nil, err
+	}
 
 	deviationMap := map[string]*config.Deviation{}
 	for i := range deviationList.Items {
@@ -570,23 +378,271 @@ func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) 
 }
 
 func (r *Transactor) clearDeviation(ctx context.Context, deviation *config.Deviation) error {
-	v1alpha1deviation := &configv1alpha1.Deviation{}
-	if err := configv1alpha1.Convert_config_Deviation_To_v1alpha1_Deviation(deviation, v1alpha1deviation, nil); err != nil {
+	v1alpha1deviation, err :=  toV1Alpha1Deviation(deviation)
+	if err != nil {
 		return err
 	}
 
-	log := log.FromContext(ctx)
-	v1alpha1deviationOrig := v1alpha1deviation.DeepCopy()
-	patch := client.MergeFrom(v1alpha1deviationOrig)
+	return r.patchSpec(ctx, v1alpha1deviation, func() {
+		v1alpha1deviation.Spec.Deviations = []configv1alpha1.ConfigDeviation{}
+	})
+}
 
-	v1alpha1deviation.Spec.Deviations = []configv1alpha1.ConfigDeviation{}
-
-	if err := r.client.Patch(ctx, v1alpha1deviation, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.fieldManager,
-		},
-	}); err != nil {
-		log.Error("cannot clear deviation", "deviation", deviation.GetNamespacedName())
+func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
+	out := &configv1alpha1.Config{}
+	if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(cfg, out, nil); err != nil {
+		return nil, err
 	}
-	return nil
+	return out, nil
+}
+
+func toV1Alpha1Deviation(cfg *config.Deviation) (*configv1alpha1.Deviation, error) {
+	out := &configv1alpha1.Deviation{}
+	if err := configv1alpha1.Convert_config_Deviation_To_v1alpha1_Deviation(cfg, out, nil); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *Transactor) patchStatus(
+	ctx context.Context, 
+	obj client.Object, 
+	mutate func(),
+) error {
+	orig := obj.DeepCopyObject().(client.Object)
+	mutate()
+	return r.client.Status().Patch(ctx, obj, client.MergeFrom(orig),
+		&client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
+		},
+	)
+}
+
+func (r *Transactor) patchMetadata(
+	ctx context.Context, 
+	obj client.Object, 
+	mutate func(),
+) error {
+	orig := obj.DeepCopyObject().(client.Object)
+	mutate()
+	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
+		&client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{FieldManager: r.fieldManagerFinalizer},
+		},
+	)
+}
+
+func (r *Transactor) patchSpec(
+	ctx context.Context, 
+	obj client.Object, 
+	mutate func(),
+) error {
+	orig := obj.DeepCopyObject().(client.Object)
+	mutate()
+	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
+		&client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
+		},
+	)
+}
+
+func safeCopyLabels(src map[string]string) map[string]string {
+	if src == nil {
+		return map[string]string{}
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+
+func getConfigsAndDeviationsToTransact(
+	ctx context.Context,
+	configList *config.ConfigList,
+	deviationMap map[string]*config.Deviation,
+) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation) {
+	log := log.FromContext(ctx)
+
+	changed := make(map[string]*config.Config)
+	toDelete := make(map[string]*config.Config)
+	nonRecoverable := make(map[string]*config.Config)
+
+	for i := range configList.Items {
+		cfg := &configList.Items[i]
+		key := GetGVKNSN(cfg)
+
+		switch {
+		case !cfg.IsRecoverable():
+			nonRecoverable[key] = cfg
+
+		case cfg.GetDeletionTimestamp() != nil:
+			toDelete[key] = cfg
+
+		case cfg.Status.AppliedConfig != nil &&
+			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+			// unchanged — skip
+
+		default:
+			changed[key] = cfg
+		}
+	}
+
+	// If we have changes, retry non-recoverables
+	if len(changed) > 0 || len(toDelete) > 0 {
+		for key, cfg := range nonRecoverable {
+			if cfg.GetDeletionTimestamp() != nil {
+				toDelete[key] = cfg
+			} else {
+				changed[key] = cfg
+			}
+		}
+	}
+
+	// Collect deviations to apply
+	deviations := make(map[string]*config.Deviation)
+
+	for i := range configList.Items {
+		cfg := &configList.Items[i]
+		key := GetGVKNSN(cfg)
+
+		deviation, ok := deviationMap[key]
+		if !ok {
+			log.Warn("deviation missing for config", "config", key)
+			continue // skip missing
+		}
+
+		if cfg.IsRevertive() {
+			log.Info("check deviation configs", "key", key, "revertive", true, "deviation spec", deviation.Spec)
+			if deviation.HasNotAppliedDeviation() {
+				changed[key] = cfg
+			}
+			continue
+		}
+
+		if _, isChanged := changed[key]; isChanged && len(deviation.Spec.Deviations) > 0 {
+			// safe copy of labels
+			labels := safeCopyLabels(deviation.GetLabels())
+			labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
+			deviation.SetLabels(labels)
+			deviations[key] = deviation
+		}
+	}
+
+	return changed, toDelete, deviations
+}
+
+func (r *Transactor) handleTransactionErrors(
+	ctx context.Context,
+	rsp *sdcpb.TransactionSetResponse,
+	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
+	globalErr error,
+	recoverable bool,
+) (bool, error) {
+	log := log.FromContext(ctx)
+	log.Info("handling transaction errors", "recoverable", recoverable)
+
+	if rsp == nil {
+		for _, configOrig := range configsToTransact {
+			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, recoverable); err != nil {
+				return true, err
+			}
+		}
+		for _, configOrig := range deletedConfigsToTransact {
+			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, false); err != nil {
+				return true, err
+			}
+		}
+		return recoverable, globalErr
+	}
+
+	for intentName, intent := range rsp.Intents {
+		log.Info("intent failed", "name", intentName, "errors", intent.Errors)
+
+		var errs error = errors.Join(globalErr)
+		for _, intentError := range intent.Errors {
+			errs = errors.Join(errs, fmt.Errorf("%s", intentError))
+		}
+		warnings := collectWarnings(intent.Errors)
+
+		msg := ""
+		if len(warnings) > 0 {
+			msg = strings.Join(warnings, "; ")
+		}
+
+		if configOrig, ok := configsToTransact[intentName]; ok {
+			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
+				return true, err
+			}
+		} else if configOrig, ok := deletedConfigsToTransact[intentName]; ok {
+			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
+				return true, err
+			}
+		}
+	}
+	return recoverable, globalErr
+}
+
+func (r *Transactor) processFailedConfig(
+	ctx context.Context,
+	configOrig *config.Config,
+	msg string,
+	origErr error,
+	recoverable bool,
+) error {
+	config, err := toV1Alpha1Config(configOrig)
+	if err != nil {
+		return err
+	}
+	if err := r.applyFinalizer(ctx, config); err != nil {
+		return err
+	}
+	return r.updateConfigWithError(ctx, config, msg, origErr, recoverable)
+}
+
+func collectWarnings(errors []string) []string {
+	warnings := make([]string, 0, len(errors))
+	for _, err := range errors {
+		warnings = append(warnings, fmt.Sprintf("warning: %q", err))
+	}
+	return warnings
+}
+
+type TransactionResult struct {
+	GlobalError    error
+	IntentErrors   error
+	GlobalWarnings []string
+	Recoverable    bool
+}
+
+func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
+	result := TransactionResult{}
+	
+	if err != nil {
+		result.GlobalError = fmt.Errorf("transaction error: %w", err)
+		// gRPC status code to determine recoverability
+		if statusErr, ok := status.FromError(err); ok {
+			switch statusErr.Code() {
+			case codes.Aborted, codes.ResourceExhausted:
+				result.Recoverable = true
+			default:
+				result.Recoverable = false
+			}
+		}
+	}
+
+	if rsp != nil {
+		// Collect global warnings
+		result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
+		// Collect intent errors
+		for _, intent := range rsp.Intents {
+			for _, intentError := range intent.Errors {
+				result.IntentErrors = errors.Join(result.IntentErrors, fmt.Errorf("%s", intentError))
+				result.Recoverable = false // any intent error is non-recoverable
+			}
+		}
+	}
+
+	return result
 }
