@@ -335,7 +335,9 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 	log := log.FromContext(ctx)
 	log.Info("updateConfigWithError", "msg", msg, "error", err)
 
-	patch := client.MergeFrom(config)
+	configOrig := config.DeepCopy()
+	patch := client.MergeFrom(configOrig)
+	
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
@@ -365,7 +367,9 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
 	log := log.FromContext(ctx)
 	log.Info("applyFinalizer")
-	patch := client.MergeFrom(config)
+	
+	configOrig := config.DeepCopy()
+	patch := client.MergeFrom(configOrig)
 
 	config.SetFinalizers([]string{finalizer})
 	return r.client.Patch(ctx, config, patch, &client.SubResourcePatchOptions{
@@ -378,7 +382,9 @@ func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.
 func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
 	log := log.FromContext(ctx)
 	log.Info("deleteFinalizer")
-	patch := client.MergeFrom(config)
+	
+	configOrig := config.DeepCopy()
+	patch := client.MergeFrom(configOrig)
 
 	config.SetFinalizers([]string{})
 	return r.client.Patch(ctx, config, patch, &client.SubResourcePatchOptions{
@@ -397,7 +403,8 @@ func (r *Transactor) updateConfigWithSuccess(
 	log := log.FromContext(ctx)
 	log.Info("updateConfigWithSuccess")
 
-	patch := client.MergeFrom(config)
+	configOrig := config.DeepCopy()
+	patch := client.MergeFrom(configOrig)
 
 	config.SetConditions(condv1alpha1.ReadyWithMsg(msg))
 	config.Status.LastKnownGoodSchema = schema
