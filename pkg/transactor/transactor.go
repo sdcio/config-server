@@ -573,7 +573,8 @@ func (r *Transactor) clearDeviation(ctx context.Context, deviation *config.Devia
 	}
 
 	log := log.FromContext(ctx)
-	patch := client.MergeFrom(v1alpha1deviation.DeepObjectCopy())
+	v1alpha1deviationOrig := v1alpha1deviation.DeepCopy()
+	patch := client.MergeFrom(v1alpha1deviationOrig)
 
 	v1alpha1deviation.Spec.Deviations = []configv1alpha1.ConfigDeviation{}
 
