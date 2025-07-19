@@ -171,28 +171,111 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
 	rsp, err := tctx.SetIntents(ctx, targetKey, "dummyTransactionID", configsToTransact, deletedConfigsToTransact, deviationsToTransact, false)
-	if er, ok := status.FromError(err); ok {
-		var recoverable bool
-		switch er.Code() {
-		// Aborted is the refering to a lock in the dataserver
-		case codes.Aborted, codes.ResourceExhausted:
-			// recoverable
-			// TODO recorder
-			recoverable = true
-		default:
-			recoverable = false
-		}
-		for _, configOrig := range configsToTransact {
-			config := &configv1alpha1.Config{}
-			if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-				return err
+	// we first collect the warnings and errors -> to determine error or not
+	var global_error error
+	var global_warnings []string
+	var recoverable bool
+	if err != nil {
+		global_error = errors.Join(global_error, fmt.Errorf("error: %s", err.Error()))
+		if er, ok := status.FromError(err); ok {
+			switch er.Code() {
+			// Aborted is the refering to a lock in the dataserver
+			case codes.Aborted, codes.ResourceExhausted:
+				recoverable = true
+			default:
+				recoverable = false
 			}
-			if err := r.updateConfigWithError(ctx, config, "", err, recoverable); err != nil {
-				return err
+		}
+	}
+	if rsp != nil {
+		// global wornings
+		for _, warning := range rsp.Warnings {
+			global_warnings = append(global_warnings, fmt.Sprintf("global warning: %q", warning))
+		}
+		log.Warn("transaction", "global warnings", global_warnings)
+	}
+	if global_error != nil {
+		if rsp == nil {
+			for _, configOrig := range configsToTransact {
+				config := &configv1alpha1.Config{}
+				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+					return err
+				}
+				if err := r.applyFinalizer(ctx, config); err != nil {
+					return err
+				}
+				if err := r.updateConfigWithError(ctx, config, "", global_error, recoverable); err != nil {
+					return err
+				}
+			}
+
+			for _, configOrig := range deletedConfigsToTransact {
+				config := &configv1alpha1.Config{}
+				if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+					return err
+				}
+				if err := r.applyFinalizer(ctx, config); err != nil {
+					return err
+				}
+				if err := r.updateConfigWithError(ctx, config, "", global_error, false); err != nil {
+					return err
+				}
+				
+			}
+		} else {
+			for intentName, intent := range rsp.Intents {
+				var errs error
+				errs = errors.Join(global_error)
+				for _, intentError := range intent.Errors {
+					errs = errors.Join(fmt.Errorf("%s", intentError))
+				}
+				collectedWarnings := []string{}
+				for _, intentWarning := range intent.Errors {
+					collectedWarnings = append(collectedWarnings, fmt.Sprintf("warning: %q", intentWarning))
+				}
+				msg := ""
+				if len(collectedWarnings) > 0 {
+					msg = strings.Join(collectedWarnings, "; ")
+				}
+
+				configOrig, ok := configsToTransact[intentName]
+				if ok {
+					config := &configv1alpha1.Config{}
+					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+						return err
+					}
+					if err := r.applyFinalizer(ctx, config); err != nil {
+						return err
+					}
+					if err := r.updateConfigWithError(ctx, config, msg, errs, false); err != nil {
+						return err
+					}
+					continue
+				}
+
+				configOrig, ok = deletedConfigsToTransact[intentName]
+				if ok {
+					config := &configv1alpha1.Config{}
+					if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
+						return err
+					}
+					if err := r.applyFinalizer(ctx, config); err != nil {
+						return err
+					}
+					if err := r.updateConfigWithError(ctx, config, msg, err, false); err != nil {
+						return err
+					}
+					continue
+				}
 			}
 		}
 		return nil
 	}
+	// ok case
+
+
+
+	
 	log.Info("transaction response", "rsp", prototext.Format(rsp))
 	if rsp != nil {
 		// global warnings -> TBD what do we do with them ?
@@ -259,7 +342,6 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		}
 		return nil
 	}
-
 	// ok case
 	for configKey, configOrig := range configsToTransact {
 		config := &configv1alpha1.Config{}
