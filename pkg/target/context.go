@@ -391,6 +391,7 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
 	// retrieved from the individual intents
 
+	// For dryRun we don't have to confirm the transaction as the dataserver does not lock things.
 	if req.DryRun {
 		return msg, nil
 	}
