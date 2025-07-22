@@ -520,7 +520,7 @@ func getConfigsAndDeviationsToTransact(
 			}
 			continue
 		}
-
+		// non revertive
 		if _, isChanged := changed[key]; isChanged && len(deviation.Spec.Deviations) > 0 {
 			// safe copy of labels
 			labels := safeCopyLabels(deviation.GetLabels())

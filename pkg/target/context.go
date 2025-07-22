@@ -390,6 +390,10 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	}
 	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
 	// retrieved from the individual intents
+
+	if req.DryRun {
+		return msg, nil
+	}
 	
 	if err := r.TransactionConfirm(ctx, req.DatastoreName, req.TransactionId); err != nil {
 		return msg, err
@@ -416,7 +420,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	if err != nil {
 		return "", err
 	}
-	intent_summary[GetGVKNSN(config)] = false
+	intent_summary[GetGVKNSN(config)] = true
 	intents = append(intents, &sdcpb.TransactionIntent{
 		Intent:   GetGVKNSN(config),
 		Priority: int32(config.Spec.Priority),
