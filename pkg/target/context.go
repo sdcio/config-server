@@ -291,6 +291,11 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	if err != nil {
 		return msg, err
 	}
+	// If the transactionSetRequest is a dry run, we do not confirm the transaction
+	if req.DryRun {
+		log.FromContext(ctx).Debug("dry run transaction, not confirming", "transactionID", req.TransactionId)
+		return msg, nil
+	}
 	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
 	// retrieved from the individual intents
 	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
@@ -529,7 +534,6 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 	), nil
 }
 
-
 func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*config.ConfigBlame, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
@@ -537,8 +541,8 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 	}
 
 	rsp, err := r.dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
-		DatastoreName: key.String(),
-		IncludeDefaults:        true,
+		DatastoreName:   key.String(),
+		IncludeDefaults: true,
 	})
 	if err != nil {
 		log.Error("get blame config failed", "error", err.Error())
