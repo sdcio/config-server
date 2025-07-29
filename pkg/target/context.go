@@ -494,6 +494,7 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 				Intent:   GetGVKNSN(config),
 				Priority: int32(config.Spec.Priority),
 				Delete:   true,
+				DeleteIgnoreNoExist: true,
 				Orphan:   config.Orphan(),
 			},
 		},
@@ -615,6 +616,7 @@ func (r *Context) SetIntents(
 			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
 			Delete:   true,
+			DeleteIgnoreNoExist: true,
 		})
 	}
 
