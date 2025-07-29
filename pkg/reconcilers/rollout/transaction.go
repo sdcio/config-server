@@ -298,7 +298,7 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 	deviations := map[string]*config.Deviation{}
 
 	go func() {
-		_, _, err := r.targetHandler.SetIntents(ctx, targetKey, transactionID, configUpdates, configDeletes, deviations, false)
+		_, _, err := r.targetHandler.SetIntents(ctx, targetKey, transactionID, configUpdates, configDeletes, deviations, deviations, false)
 		done <- err
 		close(done)
 	}()
