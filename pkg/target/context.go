@@ -574,7 +574,9 @@ func (r *Context) SetIntents(
 	}
 
 	intents := make([]*sdcpb.TransactionIntent, 0)
-	for _, deviation := range deviations {
+	updateDeviationNames := make([]string, 0)
+	for name, deviation := range deviations {
+		updateDeviationNames = append(updateDeviationNames, name)
 		update, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
 			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
@@ -599,7 +601,9 @@ func (r *Context) SetIntents(
 			})
 		}
 	}
-	for _, config := range configs {
+	updateConfigNames := make([]string, 0)
+	for name, config := range configs {
+		updateConfigNames = append(updateConfigNames, name)
 		update, err := r.getIntentUpdate(ctx, key, config, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
@@ -611,7 +615,9 @@ func (r *Context) SetIntents(
 			Update:   update,
 		})
 	}
-	for _, config := range deleteConfigs {
+	deleteConfigNames := make([]string, 0)
+	for name, config := range deleteConfigs {
+		deleteConfigNames = append(deleteConfigNames, name)
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
@@ -621,9 +627,12 @@ func (r *Context) SetIntents(
 	}
 
 	log.Info("Transaction",
-		"total update", len(configs),
-		"total delete", len(deleteConfigs),
-		"total deviations", len(deviations),
+		"intent update total", len(configs),
+		"intent names", updateConfigNames,
+		"intent delete total", len(deleteConfigs),
+		"update intent names", deleteConfigNames,
+		"deviations total", len(deviations),
+		"deviations names", updateDeviationNames,
 	)
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
