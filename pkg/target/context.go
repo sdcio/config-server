@@ -563,8 +563,8 @@ func (r *Context) SetIntents(
 	ctx context.Context,
 	key storebackend.Key,
 	transactionID string,
-	configs, deleteConfigs map[string]*config.Config,
-	deviations map[string]*config.Deviation,
+	configsToUpdate, configsToDelete map[string]*config.Config,
+	deviationsToUpdate, deviationsToDelete map[string]*config.Deviation,
 	dryRun bool,
 ) (*sdcpb.TransactionSetResponse, error) {
 	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
@@ -575,7 +575,7 @@ func (r *Context) SetIntents(
 
 	intents := make([]*sdcpb.TransactionIntent, 0)
 	updateDeviationNames := make([]string, 0)
-	for name, deviation := range deviations {
+	for name, deviation := range deviationsToUpdate {
 		updateDeviationNames = append(updateDeviationNames, name)
 		update, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
@@ -601,8 +601,20 @@ func (r *Context) SetIntents(
 			})
 		}
 	}
+
+	deleteDeviationNames := make([]string, 0)
+	for name, deviation := range deviationsToDelete {
+		deleteDeviationNames = append(deleteDeviationNames, name)
+		// only include items for which deviations exist
+		intents = append(intents, &sdcpb.TransactionIntent{
+			Intent:   GetGVKNSN(deviation),
+			//Priority: int32(config.Spec.Priority),
+			Delete:   true,
+			DeleteIgnoreNoExist: true,
+		})
+	}
 	updateConfigNames := make([]string, 0)
-	for name, config := range configs {
+	for name, config := range configsToUpdate {
 		updateConfigNames = append(updateConfigNames, name)
 		update, err := r.getIntentUpdate(ctx, key, config, true)
 		if err != nil {
@@ -616,23 +628,25 @@ func (r *Context) SetIntents(
 		})
 	}
 	deleteConfigNames := make([]string, 0)
-	for name, config := range deleteConfigs {
+	for name, config := range configsToDelete {
 		deleteConfigNames = append(deleteConfigNames, name)
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
+			//Priority: int32(config.Spec.Priority),
 			Delete:   true,
 			DeleteIgnoreNoExist: true,
 		})
 	}
 
 	log.Info("Transaction",
-		"intent update total", len(configs),
-		"intent names", updateConfigNames,
-		"intent delete total", len(deleteConfigs),
-		"update intent names", deleteConfigNames,
-		"deviations total", len(deviations),
-		"deviations names", updateDeviationNames,
+		"config update total", len(configsToUpdate),
+		"config update names", updateConfigNames,
+		"config delete total", len(configsToDelete),
+		"config delete names", deleteConfigNames,
+		"deviations update total", len(deviationsToUpdate),
+		"deviations update names", updateDeviationNames,
+		"deviations delete total", len(deviationsToDelete),
+		"deviations delete names", deleteDeviationNames,
 	)
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{

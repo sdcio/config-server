@@ -144,20 +144,32 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	}
 
 	// determine change
-	configsToTransact, deletedConfigsToTransact, deviationsToTransact := getConfigsAndDeviationsToTransact(ctx, configList, deviationMap)
+	configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete := getConfigsAndDeviationsToTransact(ctx, configList, deviationMap)
 
 	log.Info("Transact", 
-		"configsToTransact", len(configsToTransact), 
-		"deletedConfigsToTransact", len(deletedConfigsToTransact),
-		"deviationsToTransact", len(deviationsToTransact),
+		"configsToUpdate", len(configsToUpdate), 
+		"configsToDelete", len(configsToDelete),
+		"deviationsToUpdate", len(deviationsToUpdate),
+		"deviationsToDelete", len(deviationsToDelete),
 	)
-	if len(configsToTransact) == 0 && len(deletedConfigsToTransact) == 0 && len(deviationsToTransact) == 0 {
+	if len(configsToUpdate) == 0 && 
+		len(configsToDelete) == 0 && 
+		len(deviationsToUpdate) == 0 &&
+		len(deviationsToDelete) == 0 {
 		return false, nil
 	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
-	rsp, err := tctx.SetIntents(ctx, targetKey, "dummyTransactionID", configsToTransact, deletedConfigsToTransact, deviationsToTransact, false)
+	rsp, err := tctx.SetIntents(
+		ctx, 
+		targetKey, 
+		"dummyTransactionID", 
+		configsToUpdate, 
+		configsToDelete,
+		deviationsToUpdate, 
+		deviationsToDelete,
+		false)
 	// we first collect the warnings and errors -> to determine error or not
 	result := analyzeIntentResponse(err, rsp)
 
@@ -174,8 +186,8 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		return r.handleTransactionErrors(
 			ctx, 
 			rsp, 
-			configsToTransact, 
-			deletedConfigsToTransact, 
+			configsToUpdate, 
+			configsToDelete, 
 			result.GlobalError, 
 			result.Recoverable,
 		)		
@@ -185,7 +197,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	if err := tctx.TransactionConfirm(ctx, targetKey.String(), "dummyTransactionID"); err != nil {
 
 	}
-	for configKey, configOrig := range configsToTransact {
+	for configKey, configOrig := range configsToUpdate {
 		config, err :=  toV1Alpha1Config(configOrig)
 		if err != nil {
 			return false, err
@@ -204,7 +216,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		}
 	}
 
-	for configKey, configOrig := range deletedConfigsToTransact {
+	for configKey, configOrig := range configsToDelete {
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
 			return true, err
@@ -462,11 +474,11 @@ func getConfigsAndDeviationsToTransact(
 	ctx context.Context,
 	configList *config.ConfigList,
 	deviationMap map[string]*config.Deviation,
-) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation) {
+) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation, map[string]*config.Deviation) {
 	log := log.FromContext(ctx)
 
-	changed := make(map[string]*config.Config)
-	toDelete := make(map[string]*config.Config)
+	configsToUpdate := make(map[string]*config.Config)
+	configsToDelete := make(map[string]*config.Config)
 	nonRecoverable := make(map[string]*config.Config)
 
 	for i := range configList.Items {
@@ -478,31 +490,35 @@ func getConfigsAndDeviationsToTransact(
 			nonRecoverable[key] = cfg
 
 		case cfg.GetDeletionTimestamp() != nil:
-			toDelete[key] = cfg
+			configsToDelete[key] = cfg
 
 		case cfg.Status.AppliedConfig != nil &&
 			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
 			// unchanged — skip
 
 		default:
-			changed[key] = cfg
-		}
-	}
-
-	// If we have changes, retry non-recoverables
-	if len(changed) > 0 || len(toDelete) > 0 {
-		for key, cfg := range nonRecoverable {
-			if cfg.GetDeletionTimestamp() != nil {
-				toDelete[key] = cfg
-			} else {
-				changed[key] = cfg
-			}
+			configsToUpdate[key] = cfg
 		}
 	}
 
 	// Collect deviations to apply
-	deviations := make(map[string]*config.Deviation)
+	deviationsToUpdate := make(map[string]*config.Deviation)
+	deviationsToDelete := make(map[string]*config.Deviation)
 
+	// If we have changes, retry non-recoverables
+	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
+		for key, cfg := range nonRecoverable {
+			if cfg.GetDeletionTimestamp() != nil {
+				configsToDelete[key] = cfg
+			} else {
+				configsToUpdate[key] = cfg
+			}
+		}
+	}
+
+	// handle deviations
+	// Non revertive -> if there are not applied deviations we include them
+	// Revertive -> if there is 
 	for i := range configList.Items {
 		cfg := &configList.Items[i]
 		key := GetGVKNSN(cfg)
@@ -516,21 +532,24 @@ func getConfigsAndDeviationsToTransact(
 		if cfg.IsRevertive() {
 			log.Info("check deviation configs", "key", key, "revertive", true, "deviation spec", deviation.Spec)
 			if deviation.HasNotAppliedDeviation() {
-				changed[key] = cfg
+				configsToUpdate[key] = cfg
 			}
 			continue
 		}
 		// non revertive
-		if _, isChanged := changed[key]; isChanged && len(deviation.Spec.Deviations) > 0 {
+		if _, isChanged := configsToUpdate[key]; isChanged && len(deviation.Spec.Deviations) > 0 {
 			// safe copy of labels
 			labels := safeCopyLabels(deviation.GetLabels())
 			labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
 			deviation.SetLabels(labels)
-			deviations[key] = deviation
+			deviationsToUpdate[key] = deviation
+		}
+		if len(deviation.Spec.Deviations) == 0 && cfg.DeletionTimestamp != nil {
+			deviationsToDelete[key] = deviation
 		}
 	}
 
-	return changed, toDelete, deviations
+	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
 }
 
 func (r *Transactor) handleTransactionErrors(

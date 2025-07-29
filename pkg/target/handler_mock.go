@@ -136,7 +136,7 @@ func (r *mockTargetHandler) RecoverIntents(ctx context.Context, targetKey types.
 	return nil, mctx.Message, mctx.RecoverIntentError
 }
 
-func (r *mockTargetHandler) SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs map[string]*configapi.Config, deviations map[string]*configapi.Deviation, dryRun bool) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *mockTargetHandler) SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configsToUpdate, configsToDelete map[string]*configapi.Config, deviationsToUpdate, deviationsToDelete map[string]*configapi.Deviation, dryRun bool) (*configapi.ConfigStatusLastKnownGoodSchema, string, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
 	log.Info("setIntents")
 	mctx, err := r.getMockContext(ctx, targetKey)
