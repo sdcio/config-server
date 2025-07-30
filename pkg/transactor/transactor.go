@@ -493,6 +493,7 @@ func getConfigsAndDeviationsToTransact(
 		case !cfg.IsRecoverable():
 			nonRecoverable[key] = cfg
 			nonRecoverableSet = append(nonRecoverableSet, key)
+			continue
 
 		case cfg.GetDeletionTimestamp() != nil:
 			configsToDelete[key] = cfg
@@ -529,7 +530,7 @@ func getConfigsAndDeviationsToTransact(
 		}
 	}
 
-	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdate, "configsToDeleteSet", configsToDeleteSet, "nonRecoverableSet", nonRecoverableSet)
+	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdateSet, "configsToDeleteSet", configsToDeleteSet, "nonRecoverableSet", nonRecoverableSet)
 
 	// handle deviations
 	// Non revertive -> if there are not applied deviations we include them
@@ -565,7 +566,7 @@ func getConfigsAndDeviationsToTransact(
 		}
 	}
 
-	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdate, "configsToDeleteSet", configsToDeleteSet)
+	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdateSet, "configsToDeleteSet", configsToDeleteSet)
 
 	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
 }
