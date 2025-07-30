@@ -119,7 +119,7 @@ func main() {
 		Scheme:  runScheme,
 		Metrics: metricsServerOptions,
 		Controller: config.Controller{
-			MaxConcurrentReconciles: 1,
+			MaxConcurrentReconciles: 16,
 		},
 	}
 	if port := IsPProfEnabled(); port != nil {

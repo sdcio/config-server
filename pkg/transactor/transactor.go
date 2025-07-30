@@ -32,6 +32,7 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/config-server/pkg/target"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -40,7 +41,6 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 const (
@@ -146,28 +146,30 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	// determine change
 	configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete := getConfigsAndDeviationsToTransact(ctx, configList, deviationMap)
 
-	log.Info("Transact", 
-		"configsToUpdate", len(configsToUpdate), 
-		"configsToDelete", len(configsToDelete),
-		"deviationsToUpdate", len(deviationsToUpdate),
-		"deviationsToDelete", len(deviationsToDelete),
-	)
-	if len(configsToUpdate) == 0 && 
-		len(configsToDelete) == 0 && 
-		len(deviationsToUpdate) == 0 &&
-		len(deviationsToDelete) == 0 {
-		return false, nil
-	}
+	/*
+		log.Info("Transact",
+			"configsToUpdate", len(configsToUpdate),
+			"configsToDelete", len(configsToDelete),
+			"deviationsToUpdate", len(deviationsToUpdate),
+			"deviationsToDelete", len(deviationsToDelete),
+		)
+		if len(configsToUpdate) == 0 &&
+			len(configsToDelete) == 0 &&
+			len(deviationsToUpdate) == 0 &&
+			len(deviationsToDelete) == 0 {
+			return false, nil
+		}
+	*/
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
 	rsp, err := tctx.SetIntents(
-		ctx, 
-		targetKey, 
-		"dummyTransactionID", 
-		configsToUpdate, 
+		ctx,
+		targetKey,
+		"dummyTransactionID",
+		configsToUpdate,
 		configsToDelete,
-		deviationsToUpdate, 
+		deviationsToUpdate,
 		deviationsToDelete,
 		false)
 	// we first collect the warnings and errors -> to determine error or not
@@ -177,28 +179,28 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		log.Warn("transaction warning", "warning", w)
 	}
 	if result.GlobalError != nil || result.IntentErrors != nil {
-		log.Info("transaction failed", 
-			"recoverable", result.Recoverable, 
-			"globalError", result.GlobalError, 
+		log.Info("transaction failed",
+			"recoverable", result.Recoverable,
+			"globalError", result.GlobalError,
 			"intentErrors", result.IntentErrors,
 		)
 
 		return r.handleTransactionErrors(
-			ctx, 
-			rsp, 
-			configsToUpdate, 
-			configsToDelete, 
-			result.GlobalError, 
+			ctx,
+			rsp,
+			configsToUpdate,
+			configsToDelete,
+			result.GlobalError,
 			result.Recoverable,
-		)		
-	}	
+		)
+	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
 	if err := tctx.TransactionConfirm(ctx, targetKey.String(), "dummyTransactionID"); err != nil {
-
+		return false, err
 	}
 	for configKey, configOrig := range configsToUpdate {
-		config, err :=  toV1Alpha1Config(configOrig)
+		config, err := toV1Alpha1Config(configOrig)
 		if err != nil {
 			return false, err
 		}
@@ -390,7 +392,7 @@ func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) 
 }
 
 func (r *Transactor) clearDeviation(ctx context.Context, deviation *config.Deviation) error {
-	v1alpha1deviation, err :=  toV1Alpha1Deviation(deviation)
+	v1alpha1deviation, err := toV1Alpha1Deviation(deviation)
 	if err != nil {
 		return err
 	}
@@ -417,8 +419,8 @@ func toV1Alpha1Deviation(cfg *config.Deviation) (*configv1alpha1.Deviation, erro
 }
 
 func (r *Transactor) patchStatus(
-	ctx context.Context, 
-	obj client.Object, 
+	ctx context.Context,
+	obj client.Object,
 	mutate func(),
 ) error {
 	orig := obj.DeepCopyObject().(client.Object)
@@ -431,8 +433,8 @@ func (r *Transactor) patchStatus(
 }
 
 func (r *Transactor) patchMetadata(
-	ctx context.Context, 
-	obj client.Object, 
+	ctx context.Context,
+	obj client.Object,
 	mutate func(),
 ) error {
 	orig := obj.DeepCopyObject().(client.Object)
@@ -445,8 +447,8 @@ func (r *Transactor) patchMetadata(
 }
 
 func (r *Transactor) patchSpec(
-	ctx context.Context, 
-	obj client.Object, 
+	ctx context.Context,
+	obj client.Object,
 	mutate func(),
 ) error {
 	orig := obj.DeepCopyObject().(client.Object)
@@ -469,7 +471,6 @@ func safeCopyLabels(src map[string]string) map[string]string {
 	return dst
 }
 
-
 func getConfigsAndDeviationsToTransact(
 	ctx context.Context,
 	configList *config.ConfigList,
@@ -480,6 +481,9 @@ func getConfigsAndDeviationsToTransact(
 	configsToUpdate := make(map[string]*config.Config)
 	configsToDelete := make(map[string]*config.Config)
 	nonRecoverable := make(map[string]*config.Config)
+	configsToUpdateSet := []string{}
+	configsToDeleteSet := []string{}
+	nonRecoverableSet := []string{}
 
 	for i := range configList.Items {
 		cfg := &configList.Items[i]
@@ -488,18 +492,25 @@ func getConfigsAndDeviationsToTransact(
 		switch {
 		case !cfg.IsRecoverable():
 			nonRecoverable[key] = cfg
+			nonRecoverableSet = append(nonRecoverableSet, key)
 
 		case cfg.GetDeletionTimestamp() != nil:
 			configsToDelete[key] = cfg
+			configsToDeleteSet = append(configsToDeleteSet, key)
 
 		case cfg.Status.AppliedConfig != nil &&
 			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+			continue
 			// unchanged — skip
 
 		default:
 			configsToUpdate[key] = cfg
+			configsToUpdateSet = append(configsToUpdateSet, key)
 		}
 	}
+
+	log.Info("getConfigsAndDeviationsToTransact classification start", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet, "nonRecoverable", nonRecoverableSet)
+
 
 	// Collect deviations to apply
 	deviationsToUpdate := make(map[string]*config.Deviation)
@@ -510,15 +521,19 @@ func getConfigsAndDeviationsToTransact(
 		for key, cfg := range nonRecoverable {
 			if cfg.GetDeletionTimestamp() != nil {
 				configsToDelete[key] = cfg
+				configsToDeleteSet = append(configsToDeleteSet, key)
 			} else {
 				configsToUpdate[key] = cfg
+				configsToUpdateSet = append(configsToUpdateSet, key)
 			}
 		}
 	}
 
+	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdate, "configsToDeleteSet", configsToDeleteSet, "nonRecoverableSet", nonRecoverableSet)
+
 	// handle deviations
 	// Non revertive -> if there are not applied deviations we include them
-	// Revertive -> if there is 
+	// Revertive -> if there is
 	for i := range configList.Items {
 		cfg := &configList.Items[i]
 		key := GetGVKNSN(cfg)
@@ -533,6 +548,7 @@ func getConfigsAndDeviationsToTransact(
 			log.Info("check deviation configs", "key", key, "revertive", true, "deviation spec", deviation.Spec)
 			if deviation.HasNotAppliedDeviation() {
 				configsToUpdate[key] = cfg
+				configsToUpdateSet = append(configsToUpdateSet, key)
 			}
 			continue
 		}
@@ -548,6 +564,8 @@ func getConfigsAndDeviationsToTransact(
 			deviationsToDelete[key] = deviation
 		}
 	}
+
+	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdate, "configsToDeleteSet", configsToDeleteSet)
 
 	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
 }
@@ -637,7 +655,7 @@ type TransactionResult struct {
 
 func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
 	result := TransactionResult{}
-	
+
 	if err != nil {
 		result.GlobalError = fmt.Errorf("transaction error: %w", err)
 		// gRPC status code to determine recoverability
