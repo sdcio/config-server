@@ -133,7 +133,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	retry, err := r.transactor.Transact(ctx, target, tctx)
 	if err != nil {
-		log.Error("config config transaction failed", "retry", retry, "err", err)
+		log.Error("config transaction failed", "retry", retry, "err", err)
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed

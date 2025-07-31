@@ -591,6 +591,7 @@ func (r *Transactor) handleTransactionErrors(
 		return recoverable, globalErr
 	}
 
+	dataServerError := false
 	for intentName, intent := range rsp.Intents {
 		log.Info("intent failed", "name", intentName, "errors", intent.Errors)
 
@@ -609,12 +610,36 @@ func (r *Transactor) handleTransactionErrors(
 			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
 				return true, err
 			}
+			continue
 		} else if configOrig, ok := deletedConfigsToTransact[intentName]; ok {
 			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
 				return true, err
 			}
+			continue
+		}
+		dataServerError =true
+		recoverable = false
+		globalErr = errors.Join(
+			errs, 
+			fmt.Errorf("dataserver reported an error in an intent %s that does not exists", intentName),
+		)
+		
+		break
+	}
+	if dataServerError {
+		log.Error("transact dataserver error", "err", globalErr)
+		for _, configOrig := range configsToTransact {
+			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, recoverable); err != nil {
+				return true, err
+			}
+		}
+		for _, configOrig := range deletedConfigsToTransact {
+			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, false); err != nil {
+				return true, err
+			}
 		}
 	}
+
 	return recoverable, globalErr
 }
 
