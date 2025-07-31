@@ -146,20 +146,13 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	// determine change
 	configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete := getConfigsAndDeviationsToTransact(ctx, configList, deviationMap)
 
-	/*
-		log.Info("Transact",
-			"configsToUpdate", len(configsToUpdate),
-			"configsToDelete", len(configsToDelete),
-			"deviationsToUpdate", len(deviationsToUpdate),
-			"deviationsToDelete", len(deviationsToDelete),
-		)
-		if len(configsToUpdate) == 0 &&
-			len(configsToDelete) == 0 &&
-			len(deviationsToUpdate) == 0 &&
-			len(deviationsToDelete) == 0 {
-			return false, nil
-		}
-	*/
+	if len(configsToUpdate) == 0 &&
+		len(configsToDelete) == 0 &&
+		len(deviationsToUpdate) == 0 &&
+		len(deviationsToDelete) == 0 {
+		log.Info("Transact skip, nothing to update")
+		return false, nil
+	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
@@ -530,7 +523,7 @@ func getConfigsAndDeviationsToTransact(
 		}
 	}
 
-	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdateSet, "configsToDeleteSet", configsToDeleteSet, "nonRecoverableSet", nonRecoverableSet)
+	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet, "nonRecoverable", nonRecoverableSet)
 
 	// handle deviations
 	// Non revertive -> if there are not applied deviations we include them
@@ -566,7 +559,7 @@ func getConfigsAndDeviationsToTransact(
 		}
 	}
 
-	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdateSet, "configsToDeleteSet", configsToDeleteSet)
+	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet)
 
 	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
 }
