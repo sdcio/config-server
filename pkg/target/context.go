@@ -607,7 +607,7 @@ func (r *Context) SetIntents(
 		deleteDeviationNames = append(deleteDeviationNames, name)
 		// only include items for which deviations exist
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(deviation),
+			Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
 			//Priority: int32(config.Spec.Priority),
 			Delete:   true,
 			DeleteIgnoreNoExist: true,
