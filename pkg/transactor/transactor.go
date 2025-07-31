@@ -41,6 +41,7 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/google/uuid"
 )
 
 const (
@@ -156,10 +157,12 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
+	uuid := uuid.New()
+
 	rsp, err := tctx.SetIntents(
 		ctx,
 		targetKey,
-		"dummyTransactionID",
+		uuid.String(),
 		configsToUpdate,
 		configsToDelete,
 		deviationsToUpdate,
