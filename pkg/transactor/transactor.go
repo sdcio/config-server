@@ -192,7 +192,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
-	if err := tctx.TransactionConfirm(ctx, targetKey.String(), "dummyTransactionID"); err != nil {
+	if err := tctx.TransactionConfirm(ctx, targetKey.String(), uuid.String()); err != nil {
 		return false, err
 	}
 	for configKey, configOrig := range configsToUpdate {
