@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -38,10 +39,10 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"github.com/google/uuid"
 )
 
 const (
@@ -203,10 +204,17 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, t
 		if err := r.applyFinalizer(ctx, config); err != nil {
 			return true, err
 		}
-		if err := r.updateConfigWithSuccess(ctx, config, (*configv1alpha1.ConfigStatusLastKnownGoodSchema)(tctx.GetSchema()), ""); err != nil {
+
+		var deviationGeneration *int64
+		deviation, ok := deviationsToUpdate[configKey]
+		if ok && !config.IsRevertive() {
+			deviationGeneration = &deviation.Generation
+		}
+
+		if err := r.updateConfigWithSuccess(ctx, config, (*configv1alpha1.ConfigStatusLastKnownGoodSchema)(tctx.GetSchema()), deviationGeneration, ""); err != nil {
 			return true, err
 		}
-		deviation, ok := deviationMap[configKey]
+
 		if ok && config.IsRevertive() {
 			if err := r.clearDeviation(ctx, deviation); err != nil {
 				return true, err
@@ -256,6 +264,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 		if err != nil {
 			return err
 		}
+		config.Status.DeviationGeneration = nil
 		config.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
 	}
 
@@ -288,6 +297,7 @@ func (r *Transactor) updateConfigWithSuccess(
 	ctx context.Context,
 	config *configv1alpha1.Config,
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
+	deviationGeneration *int64,
 	msg string,
 ) error {
 	log := log.FromContext(ctx)
@@ -300,7 +310,7 @@ func (r *Transactor) updateConfigWithSuccess(
 		if config.IsRevertive() {
 			config.Status.DeviationGeneration = nil
 		} else {
-			config.Status.DeviationGeneration = ptr.To(config.GetGeneration())
+			config.Status.DeviationGeneration = deviationGeneration
 		}
 	})
 }
@@ -477,63 +487,45 @@ func getConfigsAndDeviationsToTransact(
 	configsToUpdate := make(map[string]*config.Config)
 	configsToDelete := make(map[string]*config.Config)
 	nonRecoverable := make(map[string]*config.Config)
-	configsToUpdateSet := []string{}
-	configsToDeleteSet := []string{}
-	nonRecoverableSet := []string{}
-
-	for i := range configList.Items {
-		cfg := &configList.Items[i]
-		key := GetGVKNSN(cfg)
-
-		switch {
-		case !cfg.IsRecoverable():
-			nonRecoverable[key] = cfg
-			nonRecoverableSet = append(nonRecoverableSet, key)
-			continue
-
-		case cfg.GetDeletionTimestamp() != nil:
-			configsToDelete[key] = cfg
-			configsToDeleteSet = append(configsToDeleteSet, key)
-
-		case cfg.Status.AppliedConfig != nil &&
-			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
-			continue
-			// unchanged — skip
-
-		default:
-			configsToUpdate[key] = cfg
-			configsToUpdateSet = append(configsToUpdateSet, key)
-		}
-	}
-
-	log.Info("getConfigsAndDeviationsToTransact classification start", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet, "nonRecoverable", nonRecoverableSet)
-
-
-	// Collect deviations to apply
 	deviationsToUpdate := make(map[string]*config.Deviation)
 	deviationsToDelete := make(map[string]*config.Deviation)
 
-	// If we have changes, retry non-recoverables
-	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
-		for key, cfg := range nonRecoverable {
-			if cfg.GetDeletionTimestamp() != nil {
-				configsToDelete[key] = cfg
-				configsToDeleteSet = append(configsToDeleteSet, key)
-			} else {
-				configsToUpdate[key] = cfg
-				configsToUpdateSet = append(configsToUpdateSet, key)
-			}
+	configsToUpdateSet := sets.New[string]()
+	configsToDeleteSet := sets.New[string]()
+	nonRecoverableSet := sets.New[string]()
+	deviationsToUpdateSet := sets.New[string]()
+	deviationsToDeleteSet := sets.New[string]()
+
+	// collect configs to apply
+	for i := range configList.Items {
+		config := &configList.Items[i]
+		key := GetGVKNSN(config)
+
+		switch {
+		case !config.IsRecoverable():
+			nonRecoverable[key] = config
+			nonRecoverableSet.Insert(key)
+			continue
+
+		case config.GetDeletionTimestamp() != nil:
+			configsToDelete[key] = config
+			configsToDeleteSet.Insert(key)
+
+		case config.Status.AppliedConfig != nil &&
+			config.Spec.GetShaSum(ctx) == config.Status.AppliedConfig.GetShaSum(ctx):
+			continue
+
+		default:
+			configsToUpdate[key] = config
+			configsToUpdateSet.Insert(key)
 		}
 	}
-
-	log.Info("getConfigsAndDeviationsToTransact classification after change", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet, "nonRecoverable", nonRecoverableSet)
+	// Collect deviations to apply
 
 	// handle deviations
-	// Non revertive -> if there are not applied deviations we include them
-	// Revertive -> if there is
 	for i := range configList.Items {
-		cfg := &configList.Items[i]
-		key := GetGVKNSN(cfg)
+		config := &configList.Items[i]
+		key := GetGVKNSN(config)
 
 		deviation, ok := deviationMap[key]
 		if !ok {
@@ -541,29 +533,103 @@ func getConfigsAndDeviationsToTransact(
 			continue // skip missing
 		}
 
-		if cfg.IsRevertive() {
-			log.Info("check deviation configs", "key", key, "revertive", true, "deviation spec", deviation.Spec)
-			if deviation.HasNotAppliedDeviation() {
-				configsToUpdate[key] = cfg
-				configsToUpdateSet = append(configsToUpdateSet, key)
+		switch {
+		case !config.IsRecoverable():
+			continue
+
+		case config.GetDeletionTimestamp() != nil:
+			if !config.IsRevertive() {
+				deviationsToDelete[key] = deviation
+				deviationsToDeleteSet.Insert(key)
 			}
 			continue
+		default:
+			if config.IsRevertive() {
+				if deviation.HasNotAppliedDeviation() {
+					log.Info("config included due to non revertive deviations", "key", key, "revertive", true)
+					configsToUpdate[key] = config
+					configsToUpdateSet.Insert(key)
+				}
+			} else {
+				// check for change of deviation
+				if config.Status.DeviationGeneration != nil &&
+					*config.Status.DeviationGeneration != deviation.Generation {
+						//change
+						// safe copy of labels
+						labels := safeCopyLabels(deviation.GetLabels())
+						labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+						deviation.SetLabels(labels)
+						deviationsToUpdate[key] = deviation
+						
+						deviationsToUpdateSet.Insert(key)
+				}				
+			}
+		}	
+	}
+
+	// for every config we create and delete we will include the deviations for non revertive configs.
+	for key, config := range configsToUpdate {
+		deviation, ok := deviationMap[key]
+		if !ok {
+			log.Warn("deviation missing for config", "config", key)
+			continue // skip missing
 		}
-		// non revertive
-		if _, isChanged := configsToUpdate[key]; isChanged && len(deviation.Spec.Deviations) > 0 {
-			// safe copy of labels
-			labels := safeCopyLabels(deviation.GetLabels())
-			labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
-			deviation.SetLabels(labels)
-			deviationsToUpdate[key] = deviation
-		}
-		if len(deviation.Spec.Deviations) == 0 && cfg.DeletionTimestamp != nil {
-			deviationsToDelete[key] = deviation
+
+		if !config.IsRevertive() {
+			if len(deviation.Spec.Deviations) != 0 {
+				labels := safeCopyLabels(deviation.GetLabels())
+				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+				deviation.SetLabels(labels)
+				deviationsToUpdate[key] = deviation
+			} else {
+				deviationsToDelete[key] = deviation
+				deviationsToDeleteSet.Insert(key)		
+			}
 		}
 	}
 
-	log.Info("getConfigsAndDeviationsToTransact classification end", "configsToUpdate", configsToUpdateSet, "configsToDelete", configsToDeleteSet)
+	for key, config := range configsToDelete {
+		deviation, ok := deviationMap[key]
+		if !ok {
+			log.Warn("deviation missing for config", "config", key)
+			continue // skip missing
+		}
 
+		if !config.IsRevertive() {
+			deviationsToDelete[key] = deviation
+			deviationsToDeleteSet.Insert(key)
+		}
+	}
+
+	log.Info("getConfigsAndDeviationsToTransact classification start",
+	 	"configsToUpdate", configsToUpdateSet.UnsortedList(), 
+		"configsToDelete", configsToDeleteSet.UnsortedList(), 
+		"nonRecoverable", nonRecoverableSet.UnsortedList(),
+		"deviationsToUpdate", deviationsToUpdateSet.UnsortedList(), 
+		"deviationsToDelete", deviationsToDeleteSet.UnsortedList(), 
+	)
+
+	// If we have changes, retry non-recoverables
+	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
+		for key, cfg := range nonRecoverable {
+			if cfg.GetDeletionTimestamp() != nil {
+				configsToDelete[key] = cfg
+				configsToDeleteSet.Insert(key)
+			} else {
+				configsToUpdate[key] = cfg
+				configsToUpdateSet.Insert(key)
+			}
+		}
+	}
+
+	log.Info("getConfigsAndDeviationsToTransact classification after change",
+	 	"configsToUpdate", configsToUpdateSet.UnsortedList(), 
+		"configsToDelete", configsToDeleteSet.UnsortedList(), 
+		"nonRecoverable", nonRecoverableSet.UnsortedList(),
+		"deviationsToUpdate", deviationsToUpdateSet.UnsortedList(), 
+		"deviationsToDelete", deviationsToDeleteSet.UnsortedList(), 
+	)
+	
 	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
 }
 
