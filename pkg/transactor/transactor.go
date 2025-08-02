@@ -552,16 +552,15 @@ func getConfigsAndDeviationsToTransact(
 				}
 			} else {
 				// check for change of deviation
-				if config.Status.DeviationGeneration != nil &&
-					*config.Status.DeviationGeneration != deviation.Generation {
-						//change
-						// safe copy of labels
-						labels := safeCopyLabels(deviation.GetLabels())
-						labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
-						deviation.SetLabels(labels)
-						deviationsToUpdate[key] = deviation
-						
-						deviationsToUpdateSet.Insert(key)
+				if config.HashDeviationGenerationChanged(*deviation) {
+					//change
+					// safe copy of labels
+					labels := safeCopyLabels(deviation.GetLabels())
+					labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+					deviation.SetLabels(labels)
+					deviationsToUpdate[key] = deviation
+					
+					deviationsToUpdateSet.Insert(key)
 				}				
 			}
 		}	
@@ -581,6 +580,7 @@ func getConfigsAndDeviationsToTransact(
 				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
 				deviation.SetLabels(labels)
 				deviationsToUpdate[key] = deviation
+				deviationsToUpdateSet.Insert(key)		
 			} else {
 				deviationsToDelete[key] = deviation
 				deviationsToDeleteSet.Insert(key)		

@@ -42,6 +42,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -287,7 +288,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
 	log := log.FromContext(ctx)
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
@@ -295,12 +296,12 @@ func (r *Context) getDeviationUpdate(ctx context.Context, key storebackend.Key, 
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
-				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", key.String(), deviation.Path)
+				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}
 
 			val := &sdcpb.TypedValue{}
 			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
-				log.Error("deviation proto unmarshal failed", "key", key.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
+				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 				continue
 				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			} 
@@ -561,23 +562,27 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 
 func (r *Context) SetIntents(
 	ctx context.Context,
-	key storebackend.Key,
+	targetKey storebackend.Key,
 	transactionID string,
 	configsToUpdate, configsToDelete map[string]*config.Config,
 	deviationsToUpdate, deviationsToDelete map[string]*config.Deviation,
 	dryRun bool,
 ) (*sdcpb.TransactionSetResponse, error) {
-	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
 	log.Info("Transaction", "Ready", r.IsReady())
 	if !r.IsReady() {
 		return nil, fmt.Errorf("target context not ready")
 	}
 
+	configsToUpdateSet := sets.New[string]()
+	configsToDeleteSet := sets.New[string]()
+	deviationsToUpdateSet := sets.New[string]()
+	deviationsToDeleteSet := sets.New[string]()
+
 	intents := make([]*sdcpb.TransactionIntent, 0)
-	updateDeviationNames := make([]string, 0)
-	for name, deviation := range deviationsToUpdate {
-		updateDeviationNames = append(updateDeviationNames, name)
-		update, err := r.getDeviationUpdate(ctx, key, deviation)
+	for key, deviation := range deviationsToUpdate {
+		deviationsToUpdateSet.Insert(key)
+		update, err := r.getDeviationUpdate(ctx, targetKey, deviation)
 		if err != nil {
 			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
 			return nil, err
@@ -602,9 +607,8 @@ func (r *Context) SetIntents(
 		}
 	}
 
-	deleteDeviationNames := make([]string, 0)
-	for name, deviation := range deviationsToDelete {
-		deleteDeviationNames = append(deleteDeviationNames, name)
+	for key, deviation := range deviationsToDelete {
+		deviationsToDeleteSet.Insert(key)
 		// only include items for which deviations exist
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
@@ -613,10 +617,9 @@ func (r *Context) SetIntents(
 			DeleteIgnoreNoExist: true,
 		})
 	}
-	updateConfigNames := make([]string, 0)
-	for name, config := range configsToUpdate {
-		updateConfigNames = append(updateConfigNames, name)
-		update, err := r.getIntentUpdate(ctx, key, config, true)
+	for key, config := range configsToUpdate {
+		configsToUpdateSet.Insert(key)
+		update, err := r.getIntentUpdate(ctx, targetKey, config, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
 			return nil, err
@@ -627,9 +630,8 @@ func (r *Context) SetIntents(
 			Update:   update,
 		})
 	}
-	deleteConfigNames := make([]string, 0)
-	for name, config := range configsToDelete {
-		deleteConfigNames = append(deleteConfigNames, name)
+	for key, config := range configsToDelete {
+		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:   GetGVKNSN(config),
 			//Priority: int32(config.Spec.Priority),
@@ -639,19 +641,19 @@ func (r *Context) SetIntents(
 	}
 
 	log.Info("Transaction",
-		"config update total", len(configsToUpdate),
-		"config update names", updateConfigNames,
-		"config delete total", len(configsToDelete),
-		"config delete names", deleteConfigNames,
-		"deviations update total", len(deviationsToUpdate),
-		"deviations update names", updateDeviationNames,
-		"deviations delete total", len(deviationsToDelete),
-		"deviations delete names", deleteDeviationNames,
+		"configsToUpdate total", len(configsToUpdate),
+		"configsToUpdate names", configsToUpdateSet.UnsortedList(),
+		"configsToDelete totall", len(configsToDelete),
+		"configsToDelete names", configsToDeleteSet.UnsortedList(),
+		"deviationsToUpdate total", len(deviationsToUpdate),
+		"deviationsToUpdate names", deviationsToUpdateSet.UnsortedList(),
+		"deviationsToDelete total", len(deviationsToDelete),
+		"deviationsToDelete names", deviationsToDeleteSet.UnsortedList(),
 	)
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: transactionID,
-		DatastoreName: key.String(),
+		DatastoreName: targetKey.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
