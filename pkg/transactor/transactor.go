@@ -524,60 +524,63 @@ func getConfigsAndDeviationsToTransact(
 
 	// handle deviations
 	for i := range configList.Items {
-		config := &configList.Items[i]
-		key := GetGVKNSN(config)
+		cfg := &configList.Items[i]
+		key := GetGVKNSN(cfg)
 
 		deviation, ok := deviationMap[key]
 		if !ok {
 			log.Warn("deviation missing for config", "config", key)
-			continue // skip missing
+			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
 		}
 
 		switch {
-		case !config.IsRecoverable():
+		case !cfg.IsRecoverable():
 			continue
 
-		case config.GetDeletionTimestamp() != nil:
-			if !config.IsRevertive() {
+		case cfg.GetDeletionTimestamp() != nil:
+			if !cfg.IsRevertive() {
 				deviationsToDelete[key] = deviation
 				deviationsToDeleteSet.Insert(key)
 			}
 			continue
 		default:
-			if config.IsRevertive() {
+			if cfg.IsRevertive() {
 				if deviation.HasNotAppliedDeviation() {
 					log.Info("config included due to non revertive deviations", "key", key, "revertive", true)
-					configsToUpdate[key] = config
+					configsToUpdate[key] = cfg
 					configsToUpdateSet.Insert(key)
 				}
 			} else {
 				// check for change of deviation
-				if config.HashDeviationGenerationChanged(*deviation) {
+				if cfg.HashDeviationGenerationChanged(*deviation) {
 					//change
 					// safe copy of labels
 					labels := safeCopyLabels(deviation.GetLabels())
-					labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+					labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
 					deviation.SetLabels(labels)
 					deviationsToUpdate[key] = deviation
-					
 					deviationsToUpdateSet.Insert(key)
-				}				
+				}		
+				if len(deviation.Spec.Deviations) == 0 {
+					deviationsToDelete[key] = deviation
+					deviationsToDeleteSet.Insert(key)
+				}	
 			}
 		}	
 	}
 
 	// for every config we create and delete we will include the deviations for non revertive configs.
-	for key, config := range configsToUpdate {
+	for key, cfg := range configsToUpdate {
 		deviation, ok := deviationMap[key]
 		if !ok {
 			log.Warn("deviation missing for config", "config", key)
-			continue // skip missing
+			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
 		}
 
-		if !config.IsRevertive() {
+		if !cfg.IsRevertive() {
 			if len(deviation.Spec.Deviations) != 0 {
 				labels := safeCopyLabels(deviation.GetLabels())
-				labels["priority"] = strconv.Itoa(int(config.Spec.Priority))
+				labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
 				deviation.SetLabels(labels)
 				deviationsToUpdate[key] = deviation
 				deviationsToUpdateSet.Insert(key)		
@@ -588,14 +591,14 @@ func getConfigsAndDeviationsToTransact(
 		}
 	}
 
-	for key, config := range configsToDelete {
+	for key, cfg := range configsToDelete {
 		deviation, ok := deviationMap[key]
 		if !ok {
 			log.Warn("deviation missing for config", "config", key)
-			continue // skip missing
+			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
 		}
 
-		if !config.IsRevertive() {
+		if !cfg.IsRevertive() {
 			deviationsToDelete[key] = deviation
 			deviationsToDeleteSet.Insert(key)
 		}

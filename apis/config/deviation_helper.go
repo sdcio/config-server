@@ -75,3 +75,22 @@ func (r Deviation) HasNotAppliedDeviation() bool {
 	}
 	return false
 }
+
+func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *DeviationStatus) *Deviation {
+	if spec == nil {
+		spec = &DeviationSpec{}
+	}
+	if status == nil {
+		status = &DeviationStatus{}
+	}
+
+	return &Deviation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       DeviationKind,
+		},
+		ObjectMeta: meta,
+		Spec:       *spec,
+		Status:     *status,
+	}
+}
