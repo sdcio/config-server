@@ -70,6 +70,21 @@ message ConfigBlob {
   optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
+message ConfigDeviation {
+  // Path of the config this deviation belongs to
+  optional string path = 1;
+
+  // DesiredValue is the desired value of the config belonging to the path
+  optional string desiredValue = 2;
+
+  // CurrentValue defines the current value of the config belonging to the path
+  // that is currently configured on the target
+  optional string actualValue = 3;
+
+  // Reason defines the reason of the deviation
+  optional string reason = 4;
+}
+
 // ConfigList contains a list of Configs
 message ConfigList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
@@ -105,9 +120,12 @@ message ConfigSetSpec {
   // Priority defines the priority of this config
   optional int64 priority = 3;
 
+  // Revertive defines if this CR is enabled for revertive or non revertve operation
+  optional bool revertive = 4;
+
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
-  repeated ConfigBlob config = 4;
+  repeated ConfigBlob config = 5;
 }
 
 // ConfigSetStatus defines the observed state of Config
@@ -129,9 +147,12 @@ message ConfigSpec {
   // Priority defines the priority of this config
   optional int64 priority = 2;
 
+  // Revertive defines if this CR is enabled for revertive or non revertve operation
+  optional bool revertive = 3;
+
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
-  repeated ConfigBlob config = 3;
+  repeated ConfigBlob config = 4;
 }
 
 // ConfigStatus defines the observed state of Config
@@ -146,8 +167,8 @@ message ConfigStatus {
   // AppliedConfig defines the config applied to the target
   optional ConfigSpec appliedConfig = 3;
 
-  // Deviations identify the configuration deviation based on the last applied config
-  repeated Deviation deviations = 4;
+  // Deviations generation used for the latest config apply
+  optional int64 deviationGeneration = 4;
 }
 
 message ConfigStatusLastKnownGoodSchema {
@@ -161,19 +182,35 @@ message ConfigStatusLastKnownGoodSchema {
   optional string version = 3;
 }
 
+// Deviation is the Schema for the Deviation API
 message Deviation {
-  // Path of the config this deviation belongs to
-  optional string path = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  // DesiredValue is the desired value of the config belonging to the path
-  optional string desiredValue = 2;
+  optional DeviationSpec spec = 2;
 
-  // CurrentValue defines the current value of the config belonging to the path
-  // that is currently configured on the target
-  optional string actualValue = 3;
+  optional DeviationStatus status = 3;
+}
 
-  // Reason defines the reason of the deviation
-  optional string reason = 4;
+// DeviationList contains a list of Deviations
+message DeviationList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated Deviation items = 2;
+}
+
+// DeviationSpec defines the desired state of Deviation
+message DeviationSpec {
+  optional string deviationType = 1;
+
+  // Deviations identify the configuration deviation based on the last applied config CR
+  repeated ConfigDeviation deviations = 2;
+}
+
+// DeviationStatus defines the observed state of Deviation
+message DeviationStatus {
+  // ConditionedStatus provides the status of the Readiness using conditions
+  // if the condition is true the other attributes in the status are meaningful
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 }
 
 message Lifecycle {
@@ -223,31 +260,5 @@ message TargetStatus {
   // NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
   // Condition of the configCR status
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3;
-}
-
-// UnManagedConfig is the Schema for the UnManagedConfig API
-message UnManagedConfig {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
-
-  optional UnManagedConfigSpec spec = 2;
-
-  optional UnManagedConfigStatus status = 3;
-}
-
-// UnManagedConfigList contains a list of UnManagedConfigs
-message UnManagedConfigList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
-
-  repeated UnManagedConfig items = 2;
-}
-
-// UnManagedConfigSpec defines the desired state of UnManagedConfig
-message UnManagedConfigSpec {
-}
-
-// UnManagedConfigStatus defines the observed state of UnManagedConfig
-message UnManagedConfigStatus {
-  // Deviations identify the configuration deviation based on the last applied config
-  repeated Deviation deviations = 4;
 }
 

@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1alpha1
 
+/*
+
 import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/sdcio/config-server/apis/config"
@@ -77,3 +79,4 @@ func (r *UnManagedConfigList) GetListMeta() *metav1.ListMeta {
 func (UnManagedConfig) RegisterConversions() func(s *runtime.Scheme) error {
 	return RegisterConversions
 }
+*/

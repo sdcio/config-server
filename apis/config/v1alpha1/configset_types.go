@@ -31,10 +31,12 @@ type ConfigSetSpec struct {
 	// will follow
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int64 `json:"priority,omitempty" protobuf:"bytes,3,opt,name=priority"`
+	Priority int64 `json:"priority,omitempty" protobuf:"varint,3,opt,name=priority"`
+	// Revertive defines if this CR is enabled for revertive or non revertve operation
+	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
-	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
+	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
 }
 
 type Target struct {

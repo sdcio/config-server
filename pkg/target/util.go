@@ -19,9 +19,9 @@ package target
 import (
 	"fmt"
 
-	"github.com/sdcio/config-server/apis/config"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func getGVKNSN(obj *config.Config) string {
-	return fmt.Sprintf("%s.%s", obj.Namespace, obj.Name)
+func GetGVKNSN(obj client.Object) string {
+	return fmt.Sprintf("%s.%s", obj.GetNamespace(), obj.GetName())
 }

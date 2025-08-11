@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -30,10 +31,9 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
-	"github.com/sdcio/data-server/pkg/utils"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -52,6 +52,28 @@ func (r *Config) IsConditionReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
+func (r *Config) GetOwnerReference() metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: r.TypeMeta.APIVersion,
+		Kind:       r.TypeMeta.Kind,
+		Name:       r.Name,
+		UID:        r.UID,
+		Controller: ptr.To(true),
+	}
+}
+
+func (r *Config) IsRevertive() bool {
+	if r.Spec.Revertive != nil {
+		return *r.Spec.Revertive
+	}
+	if revertive, found := os.LookupEnv("REVERTIVE"); found {
+		if strings.ToLower(revertive) == "false" {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Config) IsRecoverable() bool {
 	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
 	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
@@ -65,6 +87,15 @@ func (r *Config) IsRecoverable() bool {
 		return false
 	}
 	return true
+}
+
+func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
+	if r.Status.DeviationGeneration == nil {
+		// if there was no old deviation, but now we have a deviation wwe return true
+		return len(deviation.Spec.Deviations) != 0
+	} else {
+		return *r.Status.DeviationGeneration == deviation.GetGeneration()
+	}
 }
 
 func (r *Config) GetNamespacedName() types.NamespacedName {
@@ -93,6 +124,24 @@ func (r *Config) GetTarget() string {
 		sb.WriteString(targetName)
 	}
 	return sb.String()
+}
+
+func (r *Config) GetTargetNamespaceName() (*types.NamespacedName, error) {
+	if len(r.GetLabels()) == 0 {
+		return nil, fmt.Errorf("no target information found in labels")
+	}
+	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	targetName, ok := r.GetLabels()[config.TargetNameKey]
+	if !ok {
+		return nil, fmt.Errorf("no target namespece information found in labels")
+	}
+	return &types.NamespacedName{
+		Name: targetName,
+		Namespace: targetNamespace,
+	}, nil
 }
 
 /*
@@ -180,35 +229,36 @@ func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
 	return sha1.Sum(jsonData), nil
 }
 
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
-	deviations := make([]Deviation, 0, len(devs))
-	for _, dev := range devs {
-		deviations = append(deviations, Deviation{
-			Path:         utils.ToXPath(dev.GetPath(), false),
-			DesiredValue: dev.GetExpectedValue().String(),
-			CurrentValue: dev.GetCurrentValue().String(),
-			Reason:       dev.GetReason().String(),
-		})
-	}
-	return deviations
-}
-
-func (r ConfigStatus) HasNotAppliedDeviation() bool {
-	for _, dev := range r.Deviations {
-		if dev.Reason == "NOT_APPLIED" {
-			return true
+/*
+	func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
+		deviations := make([]Deviation, 0, len(devs))
+		for _, dev := range devs {
+			deviations = append(deviations, Deviation{
+				Path:         utils.ToXPath(dev.GetPath(), false),
+				DesiredValue: dev.GetExpectedValue().String(),
+				CurrentValue: dev.GetCurrentValue().String(),
+				Reason:       dev.GetReason().String(),
+			})
 		}
+		return deviations
 	}
-	return false
-}
+
+	func (r ConfigStatus) HasNotAppliedDeviation() bool {
+		for _, dev := range r.Deviations {
+			if dev.Reason == "NOT_APPLIED" {
+				return true
+			}
+		}
+		return false
+	}
 
 // +k8s:deepcopy-gen=false
 var _ ConfigDeviations = &Config{}
 
-func (r *Config) SetDeviations(d []Deviation) {
-	r.Status.Deviations = d
-}
-
+	func (r *Config) SetDeviations(d []Deviation) {
+		r.Status.Deviations = d
+	}
+*/
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }

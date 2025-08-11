@@ -26,7 +26,7 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, dryrun)
+	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, config.Deviation{}, dryrun)
 	if err != nil {
 		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
 		cfg.SetConditions(condition.Failed(msg))
@@ -34,7 +34,6 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 	}
 	cfg.SetConditions(condition.ReadyWithMsg(warnings))
 	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.Deviations = []config.Deviation{} // reset deviations
 	cfg.Status.AppliedConfig = &cfg.Spec
 	return cfg, nil
 }
@@ -48,7 +47,7 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, dryrun)
+	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, config.Deviation{}, dryrun)
 	if err != nil {
 		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
 		cfg.SetConditions(condition.Failed(msg))
@@ -56,7 +55,6 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 	}
 	cfg.SetConditions(condition.ReadyWithMsg(warnings))
 	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.Deviations = []config.Deviation{} // reset deviations
 	cfg.Status.AppliedConfig = &cfg.Spec
 	return cfg, nil
 }

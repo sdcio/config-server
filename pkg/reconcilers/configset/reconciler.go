@@ -217,6 +217,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			newConfig.Spec = configv1alpha1.ConfigSpec{
 				Lifecycle: configSet.Spec.Lifecycle,
 				Priority:  configSet.Spec.Priority,
+				Revertive: configSet.Spec.Revertive,
 				Config:    configSet.Spec.Config,
 			}
 			if len(newConfig.GetLabels()) == 0 {

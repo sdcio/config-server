@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 
+	"strconv"
+
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmic/pkg/cache"
@@ -40,6 +42,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -53,10 +56,10 @@ type Context struct {
 	collector     *Collector
 	subscriptions *Subscriptions
 
-	m                sync.RWMutex
-	ready            bool
-	recoveredConfigs bool
-	datastoreReq     *sdcpb.CreateDataStoreRequest
+	m                           sync.RWMutex
+	readyState                  bool
+	recoveredTargetConfigsState bool
+	datastoreReq                *sdcpb.CreateDataStoreRequest
 }
 
 func New(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *Context {
@@ -91,28 +94,28 @@ func (r *Context) setDatastoreReq(req *sdcpb.CreateDataStoreRequest) {
 func (r *Context) getReady() bool {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	return r.ready
+	return r.readyState
 }
 
 func (r *Context) setCtxReady(b bool) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.ready = b
+	r.readyState = b
 	if !b {
-		r.recoveredConfigs = false
+		r.recoveredTargetConfigsState = false
 	}
 }
 
-func (r *Context) setRecoveredConfigs() {
+func (r *Context) setRecoveredConfigsState() {
 	r.m.Lock()
 	defer r.m.Unlock()
-	r.recoveredConfigs = true
+	r.recoveredTargetConfigsState = true
 }
 
-func (r *Context) getRecoveredConfigs() bool {
+func (r *Context) getRecoveredTargetConfigsState() bool {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	return r.recoveredConfigs
+	return r.recoveredTargetConfigsState
 }
 
 func (r *Context) GetDSClient() dsclient.Client {
@@ -179,7 +182,7 @@ func (r *Context) IsReady() bool {
 
 func (r *Context) SetNotReady(ctx context.Context) {
 	log := log.FromContext(ctx)
-	log.Info("SetNotReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
+	log.Info("SetNotReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredTargetConfigsState())
 	r.setCtxReady(false)
 	if r.deviationWatcher != nil {
 		r.deviationWatcher.Stop(ctx)
@@ -191,7 +194,7 @@ func (r *Context) SetNotReady(ctx context.Context) {
 
 func (r *Context) SetReady(ctx context.Context) {
 	log := log.FromContext(ctx)
-	log.Info("SetReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredConfigs())
+	log.Info("SetReady", "ready", r.getReady(), "recoveredConfigs", r.getRecoveredTargetConfigsState())
 
 	alreadyReady := r.getReady()
 	if !alreadyReady {
@@ -212,9 +215,9 @@ func (r *Context) SetReady(ctx context.Context) {
 	}
 }
 
-func (r *Context) SetRecoveredConfigs(ctx context.Context) {
+func (r *Context) SetRecoveredConfigsState(ctx context.Context) {
 	log := log.FromContext(ctx)
-	r.setRecoveredConfigs()
+	r.setRecoveredConfigsState()
 
 	if !r.IsReady() {
 		log.Error("setting resource version and generation w/o target being ready")
@@ -222,8 +225,8 @@ func (r *Context) SetRecoveredConfigs(ctx context.Context) {
 	}
 }
 
-func (r *Context) IsConfigRecovered(ctx context.Context) bool {
-	return r.getRecoveredConfigs()
+func (r *Context) IsTargetConfigRecovered(ctx context.Context) bool {
+	return r.getRecoveredTargetConfigsState()
 }
 
 func (r *Context) deleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
@@ -285,6 +288,101 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
+func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+	log := log.FromContext(ctx)
+	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
+
+	for _, deviation := range deviation.Spec.Deviations {
+		if deviation.Reason == "NOT_APPLIED" {
+			path, err := utils.ParsePath(deviation.Path)
+			if err != nil {
+				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
+			}
+
+			val := &sdcpb.TypedValue{}
+			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
+				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
+				continue
+				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
+			} 
+
+			//val, err := parse_value((deviation.CurrentValue))
+			//if err != nil {
+			//	return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
+			//}
+
+			update = append(update, &sdcpb.Update{
+				Path:  path,
+				Value: val,
+			})
+		}
+	}
+	return update, nil
+}
+
+/*
+func parse_value(value string) (*sdcpb.TypedValue, error) {
+	// Remove any outer quotes or trimming whitespace
+	value = strings.TrimSpace(value)
+
+	// Split on first `:` only to separate type and value
+	parts := strings.SplitN(value, ":", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid format: %s", value)
+	}
+	key := strings.TrimSpace(parts[0])
+	val := strings.TrimSpace(parts[1])
+
+	switch key {
+	case "string_val":
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_StringVal{
+				StringVal: strings.Trim(val, `"`),
+			},
+		}, nil
+
+	case "uint_val":
+		num, err := strconv.ParseUint(val, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uint_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_UintVal{
+				UintVal: num,
+			},
+		}, nil
+
+	case "int_val":
+		num, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid int_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_IntVal{
+				IntVal: num,
+			},
+		}, nil
+
+	case "bool_val":
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bool_val: %w", err)
+		}
+		return &sdcpb.TypedValue{
+			Value: &sdcpb.TypedValue_BoolVal{
+				BoolVal: b,
+			},
+		}, nil
+
+	// Optional: Add ascii_val, float_val, json_val, identityref etc. as needed
+
+	default:
+		return nil, fmt.Errorf("unsupported value type: %s", key)
+	}
+
+}
+*/
+
 func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
 	rsp, err := r.dsclient.TransactionSet(ctx, req)
 	msg, err := r.processTransactionResponse(ctx, rsp, err)
@@ -293,45 +391,91 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	}
 	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
 	// retrieved from the individual intents
-	if _, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
+
+	// For dryRun we don't have to confirm the transaction as the dataserver does not lock things.
+	if req.DryRun {
+		return msg, nil
+	}
+	
+	if err := r.TransactionConfirm(ctx, req.DatastoreName, req.TransactionId); err != nil {
 		return msg, err
 	}
-
 	return msg, nil
 }
 
-func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
+func (r *Context) TransactionConfirm(ctx context.Context, datastoreName, transactionID string) error {
+	_, err := r.dsclient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: datastoreName,
+		TransactionId: transactionID,
+	})
+	return err
+}
+
+func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *config.Config, deviation config.Deviation, dryRun bool) (string, error) {
+	log := log.FromContext(ctx).With("target", key.String(), "intent", GetGVKNSN(config))
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
 	}
-
+	intent_summary := map[string]bool{}
+	intents := []*sdcpb.TransactionIntent{}
 	update, err := r.getIntentUpdate(ctx, key, config, true)
 	if err != nil {
 		return "", err
 	}
-	log.Debug("SetIntent", "update", update)
+	intent_summary[GetGVKNSN(config)] = true
+	intents = append(intents, &sdcpb.TransactionIntent{
+		Intent:   GetGVKNSN(config),
+		Priority: int32(config.Spec.Priority),
+		Update:   update,
+	})
+
+	if !config.IsRevertive() {
+		update, err := r.getDeviationUpdate(ctx, key, &deviation)
+		if err != nil {
+			return "", err
+		}
+		newPriority := config.Spec.Priority
+		if newPriority > 0 {
+			newPriority--
+		}
+		log.Debug("SetIntent", "priority", newPriority, "deviation update", update)
+
+		if len(deviation.Spec.Deviations) == 0 {
+			// delete
+			intent_summary[fmt.Sprintf("deviation:%s", GetGVKNSN(config))] = true
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(config)),
+				Priority:  int32(newPriority),
+				//Update:   update,
+				Delete:              true,
+				DeleteIgnoreNoExist: true,
+			})
+		} else {
+			// update
+			intent_summary[fmt.Sprintf("deviation:%s", GetGVKNSN(config))] = false
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(config)),
+				Priority:  int32(newPriority),
+				Update:    update,
+			})
+		}
+	}
+
+	log.Info("TransactionSet", "intent summary", intent_summary)
 
 	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-		TransactionId: getGVKNSN(config),
+		TransactionId: GetGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
-		Intents: []*sdcpb.TransactionIntent{
-			{
-				Intent:   getGVKNSN(config),
-				Priority: int32(config.Spec.Priority),
-				Update:   update,
-			},
-		},
+		Intents:       intents,
 	})
 }
 
 func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config *config.Config, dryRun bool) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String(), "intent", getGVKNSN(config))
+	log := log.FromContext(ctx).With("target", key.String(), "intent", GetGVKNSN(config))
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
 	}
@@ -342,22 +486,23 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 	}
 
 	return r.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-		TransactionId: getGVKNSN(config),
+		TransactionId: GetGVKNSN(config),
 		DatastoreName: key.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
 		Intents: []*sdcpb.TransactionIntent{
 			{
-				Intent:   getGVKNSN(config),
+				Intent:   GetGVKNSN(config),
 				Priority: int32(config.Spec.Priority),
 				Delete:   true,
+				DeleteIgnoreNoExist: true,
 				Orphan:   config.Orphan(),
 			},
 		},
 	})
 }
 
-func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config) (string, error) {
+func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, configs []*config.Config, deviations []*config.Deviation) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
@@ -367,14 +512,38 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 		return "", nil
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
+	intents := make([]*sdcpb.TransactionIntent, 0, len(configs)+len(deviations))
+	// we only include deviations that have
+	for _, deviation := range deviations {
+		update, err := r.getDeviationUpdate(ctx, key, deviation)
+		if err != nil {
+			return "", err
+		}
+
+		newPriority, err := strconv.Atoi(deviation.GetLabels()["priority"])
+		if err != nil {
+			return "", fmt.Errorf("cannot convert priroity to int %s", err)
+		}
+		if newPriority > 0 {
+			newPriority--
+		}
+		// only include items for which deviations exist
+		if len(update) != 0 {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
+				Priority:  int32(newPriority),
+				Update:    update,
+			})
+		}
+	}
 	for _, config := range configs {
 		update, err := r.getIntentUpdate(ctx, key, config, false)
 		if err != nil {
 			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   getGVKNSN(config),
+			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
 			Update:   update,
 		})
@@ -391,42 +560,108 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 	})
 }
 
-func (r *Context) SetIntents(ctx context.Context, key storebackend.Key, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String(), "transactionID", transactionID)
+func (r *Context) SetIntents(
+	ctx context.Context,
+	targetKey storebackend.Key,
+	transactionID string,
+	configsToUpdate, configsToDelete map[string]*config.Config,
+	deviationsToUpdate, deviationsToDelete map[string]*config.Deviation,
+	dryRun bool,
+) (*sdcpb.TransactionSetResponse, error) {
+	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
+	log.Info("Transaction", "Ready", r.IsReady())
 	if !r.IsReady() {
-		return "", fmt.Errorf("target context not ready")
+		return nil, fmt.Errorf("target context not ready")
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, len(configs)+len(deleteConfigs))
-	for i, config := range configs {
-		update, err := r.getIntentUpdate(ctx, key, config, true)
+	configsToUpdateSet := sets.New[string]()
+	configsToDeleteSet := sets.New[string]()
+	deviationsToUpdateSet := sets.New[string]()
+	deviationsToDeleteSet := sets.New[string]()
+
+	intents := make([]*sdcpb.TransactionIntent, 0)
+	for key, deviation := range deviationsToUpdate {
+		deviationsToUpdateSet.Insert(key)
+		update, err := r.getDeviationUpdate(ctx, targetKey, deviation)
 		if err != nil {
-			return "", err
+			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
+			return nil, err
 		}
-		intents[i] = &sdcpb.TransactionIntent{
-			Intent:   getGVKNSN(config),
+
+		newPriority, err := strconv.Atoi(deviation.GetLabels()["priority"])
+		if err != nil {
+			log.Error("Transaction cannot convert priority to int", "error", err.Error())
+			return nil, fmt.Errorf("cannot convert priority to int %s", err)
+		}
+		if newPriority > 0 {
+			newPriority--
+		}
+		// only include items for which deviations exist
+		if len(update) != 0 {
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Deviation: true,
+				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
+				Priority:  int32(newPriority),
+				Update:    update,
+			})
+		}
+	}
+
+	for key, deviation := range deviationsToDelete {
+		deviationsToDeleteSet.Insert(key)
+		// only include items for which deviations exist
+		intents = append(intents, &sdcpb.TransactionIntent{
+			Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
+			//Priority: int32(config.Spec.Priority),
+			Delete:   true,
+			DeleteIgnoreNoExist: true,
+		})
+	}
+	for key, config := range configsToUpdate {
+		configsToUpdateSet.Insert(key)
+		update, err := r.getIntentUpdate(ctx, targetKey, config, true)
+		if err != nil {
+			log.Error("Transaction getIntentUpdate config", "error", err)
+			return nil, err
+		}
+		intents = append(intents, &sdcpb.TransactionIntent{
+			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
 			Update:   update,
-		}
+		})
 	}
-	for i, config := range deleteConfigs {
-		intents[len(configs)+i] = &sdcpb.TransactionIntent{
-			Intent:   getGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
+	for key, config := range configsToDelete {
+		configsToDeleteSet.Insert(key)
+		intents = append(intents, &sdcpb.TransactionIntent{
+			Intent:   GetGVKNSN(config),
+			//Priority: int32(config.Spec.Priority),
 			Delete:   true,
-		}
+			DeleteIgnoreNoExist: true,
+		})
 	}
 
-	log.Debug("delete intents", "total update", len(configs), "total delete", len(deleteConfigs))
+	log.Info("Transaction",
+		"configsToUpdate total", len(configsToUpdate),
+		"configsToUpdate names", configsToUpdateSet.UnsortedList(),
+		"configsToDelete totall", len(configsToDelete),
+		"configsToDelete names", configsToDeleteSet.UnsortedList(),
+		"deviationsToUpdate total", len(deviationsToUpdate),
+		"deviationsToUpdate names", deviationsToUpdateSet.UnsortedList(),
+		"deviationsToDelete total", len(deviationsToDelete),
+		"deviationsToDelete names", deviationsToDeleteSet.UnsortedList(),
+	)
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
 		TransactionId: transactionID,
-		DatastoreName: key.String(),
+		DatastoreName: targetKey.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
-	return r.processTransactionResponse(ctx, rsp, err)
+	if rsp != nil {
+		log.Info("Transaction rsp", "rsp", prototext.Format(rsp))
+	}
+	return rsp, err
 }
 
 func (r *Context) Confirm(ctx context.Context, key storebackend.Key, transactionID string) error {
@@ -529,7 +764,6 @@ func (r *Context) GetData(ctx context.Context, key storebackend.Key) (*config.Ru
 	), nil
 }
 
-
 func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*config.ConfigBlame, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
@@ -537,8 +771,8 @@ func (r *Context) GetBlameConfig(ctx context.Context, key storebackend.Key) (*co
 	}
 
 	rsp, err := r.dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
-		DatastoreName: key.String(),
-		IncludeDefaults:        true,
+		DatastoreName:   key.String(),
+		IncludeDefaults: true,
 	})
 	if err != nil {
 		log.Error("get blame config failed", "error", err.Error())

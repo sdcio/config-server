@@ -132,7 +132,7 @@ type DiscoveryRuleStatus struct {
 	// if both are true the other attributes in the status are meaningful
 	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// StartTime identifies when the dr got started
-	StartTime metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty" protobuf:"bytes,2,opt,name=startTime"`
+	StartTime *metav1.Time `json:"startTime,omitempty" yaml:"startTime,omitempty" protobuf:"bytes,2,opt,name=startTime"`
 }
 
 // +kubebuilder:object:root=true

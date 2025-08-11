@@ -309,6 +309,16 @@ func (r *Config) ValidateCreate(ctx context.Context, obj runtime.Object) field.E
 			err.Error(),
 		))
 	}
+
+	newobj := obj.(*Config)
+	if newobj.Spec.Priority < 2 {
+		allErrs = append(allErrs, field.Invalid(
+			field.NewPath("spec.priority"),
+			obj,
+			"priority should be bigger 2",
+		))
+	}
+
 	return allErrs
 }
 

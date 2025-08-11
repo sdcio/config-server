@@ -67,6 +67,10 @@ spec:
                 description: Priority defines the priority of this config
                 format: int64
                 type: integer
+              revertive:
+                description: Revertive defines if this CR is enabled for revertive
+                  or non revertve operation
+                type: boolean
             required:
             - config
             type: object
@@ -107,6 +111,10 @@ spec:
                     description: Priority defines the priority of this config
                     format: int64
                     type: integer
+                  revertive:
+                    description: Revertive defines if this CR is enabled for revertive
+                      or non revertve operation
+                    type: boolean
                 required:
                 - config
                 type: object
@@ -173,28 +181,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              deviations:
-                description: Deviations identify the configuration deviation based
-                  on the last applied config
-                items:
-                  properties:
-                    actualValue:
-                      description: CurrentValue defines the current value of the config
-                        belonging to the path that is currently configured on the
-                        target
-                      type: string
-                    desiredValue:
-                      description: DesiredValue is the desired value of the config
-                        belonging to the path
-                      type: string
-                    path:
-                      description: Path of the config this deviation belongs to
-                      type: string
-                    reason:
-                      description: Reason defines the reason of the deviation
-                      type: string
-                  type: object
-                type: array
+              deviationGeneration:
+                description: Deviations generation used for the latest config apply
+                format: int64
+                type: integer
               lastKnownGoodSchema:
                 description: LastKnownGoodSchema identifies the last known good schema
                   used to apply the config successfully
@@ -270,6 +260,10 @@ spec:
                 description: Priority defines the priority of this config
                 format: int64
                 type: integer
+              revertive:
+                description: Revertive defines if this CR is enabled for revertive
+                  or non revertve operation
+                type: boolean
             required:
             - config
             type: object
@@ -314,6 +308,10 @@ spec:
                     description: Priority defines the priority of this config
                     format: int64
                     type: integer
+                  revertive:
+                    description: Revertive defines if this CR is enabled for revertive
+                      or non revertve operation
+                    type: boolean
                 required:
                 - config
                 type: object
@@ -380,28 +378,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              deviations:
-                description: Deviations identify the configuration deviation based
-                  on the last applied config
-                items:
-                  properties:
-                    actualValue:
-                      description: CurrentValue defines the current value of the config
-                        belonging to the path that is currently configured on the
-                        target
-                      type: string
-                    desiredValue:
-                      description: DesiredValue is the desired value of the config
-                        belonging to the path
-                      type: string
-                    path:
-                      description: Path of the config this deviation belongs to
-                      type: string
-                    reason:
-                      description: Reason defines the reason of the deviation
-                      type: string
-                  type: object
-                type: array
+              deviationGeneration:
+                description: Deviations generation used for the latest config apply
+                format: int64
+                type: integer
               lastKnownGoodSchema:
                 description: LastKnownGoodSchema identifies the last known good schema
                   used to apply the config successfully

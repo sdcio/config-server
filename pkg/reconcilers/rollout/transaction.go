@@ -275,18 +275,18 @@ func (r *transactionManager) confirm(ctx context.Context, targetKey types.Namesp
 func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
 	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
 
-	configUpdates := []*config.Config{}
-	configDeletes := []*config.Config{}
+	configUpdates := map[string]*config.Config{}
+	configDeletes := map[string]*config.Config{}
 	storeConfigUpdates, err := r.newTargetUpdateConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
 	if err == nil {
 		storeConfigUpdates.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
-			configUpdates = append(configUpdates, config)
+			configUpdates[config.GetNamespacedName().String()] = config
 		})
 	}
 	storeConfigDeletes, err := r.newTargetDeleteConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
 	if err == nil {
 		storeConfigDeletes.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
-			configDeletes = append(configDeletes, config)
+			configDeletes[config.GetNamespacedName().String()] = config
 		})
 	}
 
@@ -295,8 +295,10 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 
 	done := make(chan error, 1)
 
+	deviations := map[string]*config.Deviation{}
+
 	go func() {
-		_, _, err := r.targetHandler.SetIntents(ctx, targetKey, transactionID, configUpdates, configDeletes, false)
+		_, _, err := r.targetHandler.SetIntents(ctx, targetKey, transactionID, configUpdates, configDeletes, deviations, deviations, false)
 		done <- err
 		close(done)
 	}()

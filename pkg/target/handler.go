@@ -31,11 +31,11 @@ import (
 
 type TargetHandler interface {
 	GetTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *Context, error)
-	SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, deviation config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
 	DeleteIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (string, error)
 	GetData(ctx context.Context, targetKey types.NamespacedName) (*config.RunningConfig, error)
-	RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error)
-	SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config, deviations []*config.Deviation) (*config.ConfigStatusLastKnownGoodSchema, string, error)
+	SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs map[string]*config.Config, deviations, deleteDeviations map[string]*config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error)
 	Confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
 	Cancel(ctx context.Context, targetKey types.NamespacedName, transactionID string) error
 	GetBlameConfig(ctx context.Context, targetKey types.NamespacedName) (*config.ConfigBlame, error)
@@ -80,13 +80,13 @@ func (r *targetHandler) GetTargetContext(ctx context.Context, targetKey types.Na
 	return target, tctx, nil
 }
 
-func (r *targetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) SetIntent(ctx context.Context, targetKey types.NamespacedName, config *config.Config, deviation config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	msg, err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, dryRun)
+	msg, err := tctx.SetIntent(ctx, storebackend.Key{NamespacedName: targetKey}, config, deviation, dryRun)
 	return schema, msg, err
 }
 
@@ -115,24 +115,24 @@ func (r *targetHandler) GetBlameConfig(ctx context.Context, targetKey types.Name
 	return tctx.GetBlameConfig(ctx, storebackend.Key{NamespacedName: targetKey})
 }
 
-func (r *targetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) RecoverIntents(ctx context.Context, targetKey types.NamespacedName, configs []*config.Config, deviations []*config.Deviation) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	msg, err := tctx.RecoverIntents(ctx, storebackend.Key{NamespacedName: targetKey}, configs)
+	msg, err := tctx.RecoverIntents(ctx, storebackend.Key{NamespacedName: targetKey}, configs, deviations)
 	return schema, msg, err
 }
 
-func (r *targetHandler) SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configs, deleteConfigs []*config.Config, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
+func (r *targetHandler) SetIntents(ctx context.Context, targetKey types.NamespacedName, transactionID string, configsToUpdate, configsToDelete map[string]*config.Config, deviationsToUpdate, deviationsToDelete map[string]*config.Deviation, dryRun bool) (*config.ConfigStatusLastKnownGoodSchema, string, error) {
 	_, tctx, err := r.GetTargetContext(ctx, targetKey)
 	if err != nil {
 		return nil, "", err
 	}
 	schema := tctx.GetSchema()
-	msg, err := tctx.SetIntents(ctx, storebackend.Key{NamespacedName: targetKey}, transactionID, configs, deleteConfigs, dryRun)
-	return schema, msg, err
+	_, err = tctx.SetIntents(ctx, storebackend.Key{NamespacedName: targetKey}, transactionID, configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete, dryRun)
+	return schema, "", err
 }
 
 func (r *targetHandler) Confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {

@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"reflect"
 
@@ -61,3 +62,4 @@ type UnManagedConfigList struct {
 var (
 	UnManagedConfigKind = reflect.TypeOf(UnManagedConfig{}).Name()
 )
+*/

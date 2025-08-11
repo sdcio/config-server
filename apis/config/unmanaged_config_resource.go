@@ -16,6 +16,7 @@ limitations under the License.
 
 package config
 
+/*
 import (
 	"context"
 	"fmt"
@@ -297,3 +298,4 @@ func (r *UnManagedConfig) ValidateUpdate(ctx context.Context, obj, old runtime.O
 	var allErrs field.ErrorList
 	return allErrs
 }
+*/
