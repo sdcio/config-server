@@ -44,7 +44,7 @@ type Loader struct {
 }
 
 type downloadable interface {
-	Download(ctx context.Context) error
+	Download(ctx context.Context) (string, error)
 	LocalPath(urlPath string) (string, error)
 }
 
@@ -130,31 +130,32 @@ func (r *Loader) get(key string) (*invv1alpha1.Schema, bool) {
 	return schema, exists
 }
 
-func (r *Loader) Load(ctx context.Context, key string) error {
+func (r *Loader) Load(ctx context.Context, key string) ([]invv1alpha1.SchemaRepositoryStatus, error) {
 	schema, _, err := r.GetRef(ctx, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	repoStatuses := make([]invv1alpha1.SchemaRepositoryStatus, 0, len(schema.Spec.Repositories))
 	errs := make([]error, 0)
 
 	for _, schemaRepo := range schema.Spec.Repositories {
 		// if an error occurs we can try to download the remaining repos before returning an error
-		err := r.download(ctx, schema, schemaRepo)
+		reference, err := r.download(ctx, schema, schemaRepo)
 		if err != nil {
 			errs = append(errs, err)
 		}
+		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{RepoURL: schemaRepo.RepositoryURL, Reference: reference})
 	}
 
 	err = errors.Join(errs...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
-
+	return repoStatuses, nil
 }
 
-func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) error {
+func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) (string, error) {
 	log := log.FromContext(ctx)
 
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
@@ -165,7 +166,7 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 	}
 
 	if downloader == nil {
-		return &sdcerrors.UnrecoverableError{
+		return "", &sdcerrors.UnrecoverableError{
 			Message:      "could not detect repository type",
 			WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
 		}
@@ -174,18 +175,18 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 	sem := r.repoMgr.GetOrAdd(schemaRepo.RepositoryURL)
 	// Attempt to acquire the semaphore
 	if err := sem.Acquire(ctx, 1); err != nil {
-		return fmt.Errorf("failed to acquire semaphore for %s: %w", schemaRepo.RepositoryURL, err)
+		return "", fmt.Errorf("failed to acquire semaphore for %s: %w", schemaRepo.RepositoryURL, err)
 	}
 	defer sem.Release(1)
 
-	err := downloader.Download(ctx)
+	ref, err := downloader.Download(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 	providerVersionBasePath := schema.Spec.GetBasePath(r.schemaDir)
 
@@ -200,7 +201,7 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 		// -> prevent escaping the folder
 		err := utils.ErrNotIsSubfolder(localPath, src)
 		if err != nil {
-			return err
+			return "", err
 		}
 		// build dst path
 		dst := path.Join(providerVersionBasePath, dir.Dst)
@@ -208,14 +209,14 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 		// -> prevent escaping the folder
 		err = utils.ErrNotIsSubfolder(providerVersionBasePath, dst)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		log.Info("copying", "index", fmt.Sprintf("%d, %d", i+1, len(schemaRepo.Dirs)), "from", src, "to", dst)
 		err = copy.Copy(src, dst)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-	return nil
+	return ref, nil
 }
