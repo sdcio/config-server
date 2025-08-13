@@ -26,7 +26,6 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/otiai10/copy"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
 )
@@ -43,7 +42,7 @@ type Loader struct {
 	repoMgr *RepoMgr
 }
 
-type downloadable interface {
+type Downloadable interface {
 	Download(ctx context.Context) (string, error)
 	LocalPath(urlPath string) (string, error)
 }
@@ -159,18 +158,7 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 	log := log.FromContext(ctx)
 
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
-	var downloader downloadable
-	switch {
-	default:
-		downloader = newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
-	}
-
-	if downloader == nil {
-		return "", &sdcerrors.UnrecoverableError{
-			Message:      "could not detect repository type",
-			WrappedError: fmt.Errorf("no provider found for schema %q", schema.GetName()),
-		}
-	}
+	downloader := newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
 
 	sem := r.repoMgr.GetOrAdd(schemaRepo.RepositoryURL)
 	// Attempt to acquire the semaphore

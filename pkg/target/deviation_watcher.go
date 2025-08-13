@@ -117,7 +117,9 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				}
 			}
 			// clearing the stream will force the client to resubscribe in the next iteration
-			stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
+			if err := stream.CloseSend(); err != nil {
+				log.Error("stream closed", "error", err)
+			} // to check if this works on the client side to inform the server to stop sending
 			stream = nil
 			time.Sleep(time.Second * 1) //- resilience for server crash, retry on failure
 
@@ -126,7 +128,9 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
 			if started {
-				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
+				if err := stream.CloseSend(); err != nil {
+					log.Error("stream failed", "err", err)
+				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue
@@ -138,7 +142,9 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
 			if !started {
-				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
+				if err := stream.CloseSend(); err != nil {
+					log.Error("stream failed", "err", err)
+				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue
@@ -160,7 +166,9 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
 			if !started {
-				stream.CloseSend() // to check if this works on the client side to inform the server to stop sending
+				if err := stream.CloseSend(); err != nil {
+					log.Error("stream failed", "err", err)
+				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
 				continue

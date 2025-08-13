@@ -255,7 +255,10 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		}
 	}
 
-	r.storage.List(ctx, listFunc)
+	if err := r.storage.List(ctx, listFunc); err != nil {
+		log.Error("list failed", "err", err)
+		return nil, err
+	}
 	return newListObj, nil
 }
 

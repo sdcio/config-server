@@ -251,7 +251,7 @@ var (
 	header         string
 	module         string
 	versions       []string
-	rawVersions    []string
+	//rawVersions    []string
 	clean, install bool
 )
 

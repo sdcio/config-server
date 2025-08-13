@@ -24,6 +24,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
+	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -153,10 +154,14 @@ func TestTransactionManager(t *testing.T) {
 }
 
 func getTransctionManager(targets map[string]*target.MockContext, updates, deletes int) *transactionManager {
+	ctx := context.Background()
+	log := log.FromContext(ctx)
 	targetStore := memstore.NewStore[*target.MockContext]()
 	for name, mctx := range targets {
 		targetKey := storebackend.KeyFromNSN(types.NamespacedName{Name: name, Namespace: namespace})
-		targetStore.Create(context.Background(), targetKey, mctx)
+		if err := targetStore.Create(context.Background(), targetKey, mctx); err != nil {
+			log.Error("cannot create target", "err", err)
+		}
 	}
 	mockHandler := target.NewMockTargetHandler(targetStore)
 	updateStore := memstore.NewStore[storebackend.Storer[*config.Config]]()
@@ -168,14 +173,22 @@ func getTransctionManager(targets map[string]*target.MockContext, updates, delet
 		deleteConfigStore := memstore.NewStore[*config.Config]()
 
 		for i := 0; i < updates; i++ {
-			updateConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("update-%d", i), Namespace: namespace}), &config.Config{})
+			if err := updateConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("update-%d", i), Namespace: namespace}), &config.Config{}); err != nil {
+				log.Error("cannot update store", "err", err)
+			}
 		}
 		for i := 0; i < deletes; i++ {
-			deleteConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("delete-%d", i), Namespace: namespace}), &config.Config{})
+			if err := deleteConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("delete-%d", i), Namespace: namespace}), &config.Config{}); err != nil {
+				log.Error("cannot delete store", "err", err)
+			}
 		}
-		updateStore.Create(context.Background(), targetKey, updateConfigStore)
+		if err := updateStore.Create(context.Background(), targetKey, updateConfigStore); err != nil {
+			log.Error("cannot create store", "err", err)
+		}
 
-		deleteStore.Create(context.Background(), targetKey, deleteConfigStore)
+		if err := deleteStore.Create(context.Background(), targetKey, deleteConfigStore); err != nil {
+			log.Error("cannot delete store", "err", err)
+		}
 	}
 
 	return NewTransactionManager(updateStore, deleteStore, mockHandler, 5*time.Second, 2*time.Second, true)

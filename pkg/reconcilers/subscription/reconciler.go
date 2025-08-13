@@ -241,6 +241,6 @@ func (r *reconciler) getDownstreamTargets(ctx context.Context, state *invv1alpha
 			targets = append(targets, target.Name)
 		}
 	}
-	targets = sort.StringSlice(targets)
+	sort.Strings(targets)
 	return targets, nil
 }

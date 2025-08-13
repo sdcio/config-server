@@ -53,10 +53,12 @@ func NewREST(
 ) (*registry.Store, error) {
 	gr := obj.GetGroupVersionResource().GroupResource()
 
-	scheme.AddFieldLabelConversionFunc(
+	if err := scheme.AddFieldLabelConversionFunc(
 		obj.GetObjectKind().GroupVersionKind(),
 		obj.FieldLabelConversion(),
-	)
+	); err != nil {
+		return nil, err
+	}
 
 	singlularResource := gr
 	singlularResource.Resource = obj.GetSingularName()

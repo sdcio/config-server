@@ -53,12 +53,15 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 		target := target
 		found := false
 		keys := []string{}
-		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
+		if err := r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
 			keys = append(keys, key.Name)
 			if key.Name == target.Name {
 				found = true
 			}
-		})
+		}); err != nil {
+			log.Error("liust failed", "err", err)
+			return err
+		}
 		if !found {
 			log.Info("target delete, not available as child", "name", target.Name, "children", keys)
 			if err := r.client.Delete(ctx, &target); err != nil {
@@ -84,14 +87,17 @@ func (r *dr) deleteUnwantedDeviations(ctx context.Context) error {
 
 	for _, deviation := range deviationList.Items {
 		found := false
-		r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
+		if err := r.children.List(ctx, func(ctx context.Context, key storebackend.Key, data string) {
 			if key.Name == deviation.Name {
 				found = true
 			}
-		})
+		}); err != nil {
+			log.Error("liust failed", "err", err)
+			return err
+		}
 		if !found {
 			if err := r.client.Delete(ctx, &deviation); err != nil {
-				log.Error("cannot delete deviation")
+				log.Error("cannot delete deviation", "err", err)
 			}
 		}
 	}

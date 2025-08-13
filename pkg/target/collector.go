@@ -72,7 +72,7 @@ func (r *Collector) SetPort(port uint) {
 	r.port = port
 }
 
-func (r *Collector) getPort() uint {
+func (r *Collector) GetPort() uint {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	return r.port

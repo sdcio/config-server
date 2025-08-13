@@ -15,11 +15,13 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 CONTROLLER_TOOLS_VERSION ?= v0.15.0
 KFORM ?= $(LOCALBIN)/kform
 KFORM_VERSION ?= v0.0.2
+GOLANGCILINT_VERSION ?= v1.64.8
+GOLANGCILINT ?= $(LOCALBIN)/golangci-lint
 
 GOBIN := $(shell go env GOPATH)/bin
 
 .PHONY: all
-all: codegen fmt vet lint test tidy
+all: fmt vet lint test tidy
 
 .PHONY: docker
 docker:
@@ -50,7 +52,6 @@ apiserver-logs:
 
 .PHONY: codegen
 codegen:
-	(which apiserver-runtime-gen || go get sigs.k8s.io/apiserver-runtime/tools/apiserver-runtime-gen)
 	go generate
 
 .PHONY: genclients
@@ -103,8 +104,7 @@ tidy:
 
 .PHONY: lint
 lint:
-	(which golangci-lint || go get github.com/golangci/golangci-lint/cmd/golangci-lint)
-	$(GOBIN)/golangci-lint run ./...
+	$(GOLANGCILINT) run ./...
 
 .PHONY: test
 test:
@@ -132,6 +132,11 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 kform: $(KFORM) ## Download kform locally if necessary.
 $(KFORM): $(LOCALBIN)
 	test -s $(LOCALBIN)/kform || GOBIN=$(LOCALBIN) go install github.com/kform-dev/kform/cmd/kform@$(KFORM_VERSION)
+
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCILINT) ## Download kform locally if necessary.
+$(GOLANGCILINT): $(LOCALBIN)
+	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
 
 .PHONY: goreleaser-nightly
 goreleaser-nightly:

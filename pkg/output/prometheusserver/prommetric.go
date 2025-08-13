@@ -155,7 +155,7 @@ func (p *PromMetric) Write(out *dto.Metric) error {
 	return nil
 }
 
-func (r *PrometheusServer) metricName(name, valueName string) string {
+func (r *PrometheusServer) MetricName(name, valueName string) string {
 	valueName = fmt.Sprintf("%s_%s", name, filepath.Base(valueName))
 	return strings.TrimLeft(r.regex.ReplaceAllString(valueName, "_"), "_")
 }
@@ -205,10 +205,6 @@ func getValue(updValue *gnmi.TypedValue) (interface{}, error) {
 		value = updValue.GetBoolVal()
 	case *gnmi.TypedValue_BytesVal:
 		value = updValue.GetBytesVal()
-	case *gnmi.TypedValue_DecimalVal:
-		value = updValue.GetDecimalVal()
-	case *gnmi.TypedValue_FloatVal:
-		value = updValue.GetFloatVal()
 	case *gnmi.TypedValue_IntVal:
 		value = updValue.GetIntVal()
 	case *gnmi.TypedValue_StringVal:
@@ -272,7 +268,6 @@ func toFloat(v interface{}) (float64, error) {
 			return math.NaN(), err
 		}
 		return f, err
-		//lint:ignore SA1019 still need DecimalVal for backward compatibility
 	default:
 		return math.NaN(), fmt.Errorf("toFloat: unknown value is of incompatible type %s", reflect.TypeOf(i).Name())
 	}

@@ -41,7 +41,9 @@ const (
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
 	log := log.FromContext(ctx)
-	r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), "") // this should be done here
+	if err := r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), ""); err != nil {
+		return err
+	}
 
 	newTarget, err := r.newTarget(
 		ctx,

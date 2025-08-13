@@ -165,7 +165,7 @@ def transform(value):
 
 // Test invalid regex patterns separately
 func TestApplyRegex_InvalidRegex(t *testing.T) {
-	_, err := regexp.Compile("[invalid(regex")
+	_, err := regexp.Compile("[invalid(regex") //nolint:staticcheck // intentional invalid regex for test
 	if err == nil {
 		t.Fatal("Expected regex compilation error but got none")
 	}

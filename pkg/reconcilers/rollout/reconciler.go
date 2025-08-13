@@ -271,40 +271,52 @@ func getToBeDeletedconfigs(
 		}
 	}
 
-	newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, deleteConfigStore storebackend.Storer[*configapi.Config]) {
+	if err := newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, deleteConfigStore storebackend.Storer[*configapi.Config]) {
 		configCount := 0
-		deleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, cfg *configapi.Config) {
+		if err := deleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, cfg *configapi.Config) {
 			configCount++
-		})
+		}); err != nil {
+			log.Error("list failed", "err", err)
+		}
 		if configCount == 0 {
 			_ = newTargetDeleteConfigStore.Delete(ctx, k)
 		}
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 
 	return newTargetDeleteConfigStore, nil
 }
 
 func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore, deleteStore storebackend.Storer[storebackend.Storer[*configapi.Config]]) error {
-
+	log := log.FromContext(ctx)
 	var errs error
-	updateStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
-		s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
+	if err := updateStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
+		if err := s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
 			if err := r.Client.Create(ctx, c, &client.CreateOptions{
 				FieldManager: reconcilerName,
 			}); err != nil {
 				errs = errors.Join(errs, err)
 			}
-		})
-	})
+		}); err != nil {
+			log.Error("list failed", "err", err)
+		}
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 
-	deleteStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
-		s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
+	if err := deleteStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
+		if err := s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
 			if err := r.Client.Delete(ctx, c); err != nil {
 				errs = errors.Join(errs, err)
 			}
-		})
+		}); err != nil {
+			log.Error("list failed", "err", err)
+		}
 
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 	return errs
 }
 
@@ -341,15 +353,18 @@ func (r *reconciler) handleStatus(
 
 // getTargetStatus is a convenience fn to reflect the target status in the Status field of the CR
 func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) []invv1alpha1.RolloutTargetStatus {
+	log := log.FromContext(ctx)
 	targetStatus := []invv1alpha1.RolloutTargetStatus{}
 
 	if storeTargetStatus == nil {
 		return targetStatus
 	}
 
-	storeTargetStatus.List(ctx, func(ctx context.Context, k storebackend.Key, rts invv1alpha1.RolloutTargetStatus) {
+	if err := storeTargetStatus.List(ctx, func(ctx context.Context, k storebackend.Key, rts invv1alpha1.RolloutTargetStatus) {
 		targetStatus = append(targetStatus, rts)
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 
 	sort.SliceStable(targetStatus, func(i, j int) bool {
 		return targetStatus[i].Name < targetStatus[j].Name
