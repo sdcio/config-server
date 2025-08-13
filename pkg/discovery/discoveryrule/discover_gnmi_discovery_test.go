@@ -29,14 +29,14 @@ func TestParseDiscoveryInformation(t *testing.T) {
 	cases := map[string]struct {
 		capabilityFile string
 		provider       string
-		getResponse func() *gnmi.GetResponse
+		getResponse    func() *gnmi.GetResponse
 		expectedResult *invv1alpha1.DiscoveryInfo
 		expectError    bool
 	}{
 		"NokiaSRL": {
 			capabilityFile: "data/nokia-srl-capabilities.json",
 			provider:       "srl.nokia.sdcio.dev",
-			getResponse: getSRLResponse,
+			getResponse:    getSRLResponse,
 			expectedResult: &invv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "srl.nokia.sdcio.dev",
@@ -51,7 +51,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 		"Arista": {
 			capabilityFile: "data/arista-capabilities.json",
 			provider:       "eos.arista.sdcio.dev",
-			getResponse: getAristaResponse,
+			getResponse:    getAristaResponse,
 			expectedResult: &invv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "eos.arista.sdcio.dev",
@@ -61,6 +61,21 @@ func TestParseDiscoveryInformation(t *testing.T) {
 				MacAddress:         "00:1c:73:6f:e4:7c",
 				SerialNumber:       "864D1228500892CEF934F5C6DF8784B2",
 				SupportedEncodings: []string{"JSON", "JSON_IETF", "ASCII"},
+			},
+		},
+		"Cisco": {
+			capabilityFile: "data/cisco-capabilities.json",
+			provider:       "iosxr.cisco.sdcio.dev",
+			getResponse:    getCiscoResponse,
+			expectedResult: &invv1alpha1.DiscoveryInfo{
+				Protocol:           "gnmi",
+				Provider:           "iosxr.cisco.sdcio.dev",
+				Version:            "24.4.1.26I",
+				HostName:           "edge02",
+				Platform:           "Cisco IOS-XRv 9000 Centralized Virtual Router",
+				MacAddress:         "02:42:0a:0a:14:65",
+				SerialNumber:       "VSN-NPP2G7K",
+				SupportedEncodings: []string{"JSON_IETF", "ASCII", "PROTO"},
 			},
 		},
 	}
@@ -81,7 +96,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 
 			getRsp := tc.getResponse()
 
-			// Convert paths into a map for quick lookup			
+			// Convert paths into a map for quick lookup
 			pathMap, err := getPathMap(&gnmi.GetRequest{}, profiles[tc.provider].Paths)
 			if err != nil {
 				t.Fatalf("Expected error: %v, got: %v", tc.expectError, err)
@@ -208,7 +223,6 @@ func getSRLResponse() *gnmi.GetResponse {
 	}
 }
 
-
 func getAristaResponse() *gnmi.GetResponse {
 	return &gnmi.GetResponse{
 		Notification: []*gnmi.Notification{
@@ -281,6 +295,92 @@ func getAristaResponse() *gnmi.GetResponse {
 						}},
 						Val: &gnmi.TypedValue{
 							Value: &gnmi.TypedValue_StringVal{StringVal: "00:1c:73:6f:e4:7c"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getCiscoResponse() *gnmi.GetResponse {
+	return &gnmi.GetResponse{
+		Notification: []*gnmi.Notification{
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Origin: "openconfig-system",
+							Elem: []*gnmi.PathElem{
+								{Name: "system"},
+								{Name: "state"},
+								{Name: "software-version"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "24.4.1.26I"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Origin: "openconfig-platform", 
+							Elem: []*gnmi.PathElem{
+								{Name: "components"},
+								{Name: "component", Key: map[string]string{"name": "Rack 0"}},
+								{Name: "state"},
+								{Name: "part-no"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "Cisco IOS-XRv 9000 Centralized Virtual Router"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Origin: "openconfig-system", 
+							Elem: []*gnmi.PathElem{
+								{Name: "system"},
+								{Name: "state"},
+								{Name: "hostname"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "edge02"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Origin: "openconfig-platform",
+							Elem: []*gnmi.PathElem{
+								{Name: "components"},
+								{Name: "component", Key: map[string]string{"name": "Rack 0"}},
+								{Name: "state"},
+								{Name: "serial-no"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "VSN-NPP2G7K"},
+						},
+					},
+				},
+			},
+			{
+				Update: []*gnmi.Update{
+					{
+						Path: &gnmi.Path{Origin: "openconfig-interfaces", 
+							Elem: []*gnmi.PathElem{
+								{Name: "interfaces"},
+								{Name: "interface", Key: map[string]string{"name": "MgmtEth0/RP0/CPU0/0"}},
+								{Name: "openconfig-if-ethernet:ethernet"},
+								{Name: "state"},
+								{Name: "mac-address"},
+						}},
+						Val: &gnmi.TypedValue{
+							Value: &gnmi.TypedValue_StringVal{StringVal: "02:42:0a:0a:14:65"},
 						},
 					},
 				},

@@ -87,7 +87,7 @@ func createGNMITarget(_ context.Context, address string, secret *corev1.Secret, 
 		api.Password(string(secret.Data["password"])),
 		api.Timeout(5 * time.Second),
 	}
-	
+
 	if connProfile.Spec.Insecure != nil && *connProfile.Spec.Insecure {
 		tOpts = append(tOpts, api.Insecure(true))
 	} else {
@@ -155,7 +155,7 @@ func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alph
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Ensure req.Path is initialized
 	req.Path = make([]*gnmi.Path, 0, len(r.DiscoveryParameters.Paths))
 
@@ -222,7 +222,15 @@ func (r *Discoverer) parseDiscoveryInformation(
 		for _, upd := range notif.GetUpdate() {
 			gnmiPath := GnmiPathToXPath(upd.GetPath(), true)
 
-			log.Info("discovery", "path", gnmiPath)
+			// If preserveNamespace is false and the path returned from the device
+			// contains a leading namespace then we strip it
+			preserveNamespace := r.DiscoveryParameters.GetPreserveNamespace()
+
+			if !preserveNamespace && len(strings.Split(gnmiPath, ":")) > 1 {
+				gnmiPath = strings.Join(strings.Split(gnmiPath, ":")[1:], ":")
+			}
+
+			log.Info("discovery", "path", preserveNamespace)
 
 			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
 			// for which the first key was found

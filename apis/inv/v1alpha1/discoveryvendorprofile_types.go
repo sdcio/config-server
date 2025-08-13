@@ -36,7 +36,10 @@ type GnmiDiscoveryVendorProfileParameters struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
 	// +kubebuilder:default:=JSON_IETF
-	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,5,opt,name=encoding,casttype=Encoding"`
+	Encoding *Encoding `json:"encoding,omitempty" yaml:"encoding,omitempty" protobuf:"bytes,4,opt,name=encoding,casttype=Encoding"`
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preserveNamespace is immutable"
+	// +kubebuilder:default:=true
+	PreserveNamespace *bool `json:"preserveNamespace,omitempty" yaml:"preserveNamespace,omitempty" protobuf:"varint,5,opt,name=preserveNamespace"`
 }
 
 type DiscoveryPathDefinition struct {

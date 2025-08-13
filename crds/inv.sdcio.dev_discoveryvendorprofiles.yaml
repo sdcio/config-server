@@ -83,6 +83,12 @@ spec:
                       - path
                       type: object
                     type: array
+                  preserveNamespace:
+                    default: true
+                    type: boolean
+                    x-kubernetes-validations:
+                    - message: preserveNamespace is immutable
+                      rule: self == oldSelf
                 required:
                 - organization
                 - paths

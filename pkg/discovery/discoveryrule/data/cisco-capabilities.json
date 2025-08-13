@@ -1,0 +1,4875 @@
+{
+    "supportedModels": [
+        {
+            "name": "openconfig-isis-lsdb-types",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-event-manager-policy-map-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-mobileip-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ma-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-25"
+        },
+        {
+            "name": "openconfig-procmon",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-ifib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-ifib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-ospfv3-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-ip-ea-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-ip-ea-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-qos-mibs-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-isis",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "openconfig-isis-routing",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "openconfig-isis-lsp",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-mdrv-lib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-30"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-static-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rip-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-media-eth-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-client-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-lib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iep-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pre-ifib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pre-ifib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-authenticated-variable-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ma-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-pim-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-acl-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-lmp-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-cepki-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-igmp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-object-tracking-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-syslog-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rsi-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rsi-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rsi-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-lldp-clear-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-policymgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-nve-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-nve-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-accounting-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-accounting-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-notification-log-mib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-type6-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-type6-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-daps-mib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-ssrp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-lib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-syslog-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-serg-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-isis-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-infra-locale-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-extensions",
+            "organization": "OpenConfig working group",
+            "version": "2018-10-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-ifmib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-ifmib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-gbl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-ipv4-access-list-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-vrf-policy-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-autorp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-autorp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-autorp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-vrf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-linux-os-reboot-history-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-linux-os-reboot-history-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-cli-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ha-eem-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rsvp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-raw-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-platform-inventory-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-platform-inventory-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-tacacs-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-tacacs-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-l2tun-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-agent-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-agent-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-agent-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-agent-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-oam-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-oam-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-oam-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rmf-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rmf-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-traceroute-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-procmem-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-procmem-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysdb-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-13"
+        },
+        {
+            "name": "openconfig-bgp-policy",
+            "organization": "OpenConfig working group",
+            "version": "4.0.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-fsm-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-flashmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-acl-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-infra-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-bfd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-bfd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2rib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2rib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-22"
+        },
+        {
+            "name": "cisco-semver",
+            "organization": "Cisco Systems\n170 West Tasman Drive\nSan Jose, CA 95134-1706\nUSA",
+            "version": "2019-03-13"
+        },
+        {
+            "name": "ietf-netconf-acm",
+            "organization": "IETF NETCONF (Network Configuration) Working Group",
+            "version": "2018-02-14"
+        },
+        {
+            "name": "openconfig-telemetry",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-lmp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lmp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-statsd-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "openconfig-yang-types",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-srv6-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-srv6-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-domain-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-domain-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-system-logging",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-accounting-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-script-mgmt-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-script-mgmt-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-syslog-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-syslog-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-session-mon-mibs-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-mpls-l3vpn-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-mirror-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mirror-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-io-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-io-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-ifib-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-otu-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-23"
+        },
+        {
+            "name": "openconfig-platform-fan",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-sbfd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-sbfd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ospfv3-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-arp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-Subscriber-infra-subdb-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-Subscriber-infra-subdb-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-Subscriber-infra-subdb-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-mpls-te-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-cli-diff-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-perfmgmt-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-diameter-base-mib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-nacm-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-pmengine-clear-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-igmp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-igmp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-upgrade-fpd-ng-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-telnet-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-remote-attestation-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-tc-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dhcpd-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-objmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-objmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mediasvr-linux-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mediasvr-linux-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-netconf-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-netconf-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-igp-topodb-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-igp-topodb-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-vpn-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-vpn-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-attestation-agent-ima-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-attestation-agent-ima-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-object-group-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-ifmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-srv6-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-io-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-io-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-io-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-cfg-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "ietf-syslog-types",
+            "organization": "IETF NETMOD (NETCONF Data Modeling Language) Working\nGroup",
+            "version": "2015-11-09"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-amt-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-20"
+        },
+        {
+            "name": "openconfig-alarms",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-platform-port",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-daps-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-daps-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-xml-ttyagent-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-xml-ttyagent-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pmengine-gl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-event-manager-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-08-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-perfmgmt-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-perfmgmt-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-diameter-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-diameter-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-ssm-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-policymap-classmap-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-netconf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2rib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-09"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ospfv3-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-29"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ospfv3-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-29"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-policymgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-19"
+        },
+        {
+            "name": "openconfig-vlan",
+            "organization": "OpenConfig working group",
+            "version": "1.0.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-qos-ma-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ethernet-lldp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ethernet-lldp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ethernet-lldp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-grpc-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ems-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ems-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-30"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-nd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-nd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-bfd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-interface-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-cdp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-fpmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-fpmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-lacp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-alarm-logger-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-io-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-clns-isis-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-clns-isis-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-clns-isis-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-bundle-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-21"
+        },
+        {
+            "name": "openconfig-network-instance-types",
+            "organization": "OpenConfig working group",
+            "version": "0.5.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-attestation-agent-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-pim-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-ipcpiw-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-syslog-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-bundlemgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-bundlemgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-bundlemgr-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "openconfig-platform-transceiver",
+            "organization": "OpenConfig working group",
+            "version": "0.7.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-pppoe-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-pppoe-ma-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-alarmgr-server-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-alarmgr-server-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ems-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub8",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub5",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub7",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub6",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-nacm-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-nacm-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-oam-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sdr-invmgr-diag-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sdr-invmgr-diag-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-l2-ethernet-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-01"
+        },
+        {
+            "name": "openconfig-local-routing",
+            "organization": "OpenConfig working group",
+            "version": "1.0.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-ciscopkimib-traps-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-if-ip",
+            "organization": "OpenConfig working group",
+            "version": "3.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-ltrace-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-mpls-rsvp",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-keychain-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-keychain-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-hsrp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ea-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ea-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cdp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cdp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-xrv9k-lpts-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-xrv9k-lpts-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-if-tunnel",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-access-group-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-smiap-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mvpn-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-mvpn-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "openconfig-if-aggregate",
+            "organization": "OpenConfig working group",
+            "version": "1.0.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-srg-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-srg-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-statsd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-flowspec-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-nto-misc-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-nto-misc-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-mibs-ipsecflowmon-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-parser-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-service-policy-qos-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-object-tracking-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-mpls-lsd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-28"
+        },
+        {
+            "name": "openconfig-transport-types",
+            "organization": "OpenConfig working group",
+            "version": "0.9.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-ntp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-ntp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "openconfig-rib-bgp",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-msdp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-ethernet-services-access-list-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "openconfig-network-instance-l3",
+            "organization": "OpenConfig working group",
+            "version": "0.6.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-install-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-acl-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-acl-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ma-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-ipv6-prefix-list-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-bgp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pre-ifib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-26"
+        },
+        {
+            "name": "openconfig-inet-types",
+            "organization": "OpenConfig working group",
+            "version": "0.3.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-spirit-install-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-kim-tpa-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-arp-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-autorp-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-filesystems-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-hwmod-mpa-reload-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-ciscosensormib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-if-ethernet",
+            "organization": "OpenConfig working group",
+            "version": "2.8.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper-sub5",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-server-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-mpls-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "openconfig-rib-bgp-types",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-io-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dhcpd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dhcpd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dhcpd-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-bridgemib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-alarm-logger-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-aft",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-pf",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-ipv4",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-ipv6",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-mpls",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-ethernet",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "openconfig-aft-common",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-eigrp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-eigrp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-media-eth-gl-pfc-wd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-pppoe-ea-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pppoe-ea-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-vrf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mfwd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mfwd-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mfwd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-copy-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-static-ipv6-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-static-ipv6-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-v6-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-v6-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-type6-server-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-type6-server-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-aaacore-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-tc-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-tc-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ma-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-vpn-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-infra-tmplmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-vservice-ea-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-vservice-ea-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cfgmgr-cfs-check-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-opendns-deviceid-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-adt-config-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-fpmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-mda-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-gre-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-perfmgmt-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-rsi-agent-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-rsi-agent-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-entitymib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-correlator-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-12"
+        },
+        {
+            "name": "openconfig-policy-types",
+            "organization": "OpenConfig working group",
+            "version": "3.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-bng-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-appmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-nd-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-lldp",
+            "organization": "OpenConfig working group",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-pim-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-pim-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-pim-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-cfgmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-pmengine-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-pmengine-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-locald-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-ssh-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-ssh-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-ssh-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-io-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-io-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-traps-mpls-ldp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-lmp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-segment-routing",
+            "organization": "OpenConfig working group",
+            "version": "0.0.3"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-test-trap-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-oc-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-oc-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-pfi-im-cmd-ctrlr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pfi-im-cmd-ctrlr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-system-terminal",
+            "organization": "OpenConfig working group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-vpdn-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-rsvp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-appmgr-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-01"
+        },
+        {
+            "name": "openconfig-network-instance",
+            "organization": "OpenConfig working group",
+            "version": "0.6.0"
+        },
+        {
+            "name": "openconfig-network-instance-l2",
+            "organization": "OpenConfig working group",
+            "version": "0.6.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-filesystem-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-filesystem-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-22"
+        },
+        {
+            "name": "openconfig-bgp-types",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-multicast-routing-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-call-home-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-clear-counters-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-li-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-cmd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-cmd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pmengine-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-17"
+        },
+        {
+            "name": "openconfig-mpls-types",
+            "organization": "OpenConfig working group",
+            "version": "2.4.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-ains-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-ipsub-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-odu-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-odu-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-install-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-install-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-23"
+        },
+        {
+            "name": "openconfig-system",
+            "organization": "OpenConfig working group",
+            "version": "0.6.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-object-tracking-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-manageability-object-tracking-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-conflict-policy-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-ethernet-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-accounting-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-acl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ace-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-dwdm-ui-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-common-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-ipv4-prefix-list-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-static-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "openconfig-packet-match-types",
+            "organization": "OpenConfig working group",
+            "version": "1.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-ipv4-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-ipv4-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-static-ipv4-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-static-ipv4-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-sam-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-sam-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-lacp",
+            "organization": "OpenConfig working group",
+            "version": "1.1.0"
+        },
+        {
+            "name": "openconfig-if-ethernet-ext",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-igmp-dyn-tmpl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-opticalmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-entityextmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-cinetd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-es-acl-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "notifications",
+            "organization": "IETF NETCONF WG",
+            "version": "2008-07-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-perf-meas-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-oper-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-static-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-ip-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-ip-ma-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-cfgmgr-exec-augmented-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-syslogmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-filesysinv-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-bfd",
+            "organization": "OpenConfig working group",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-common-acl-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-rsvp-sr-ext",
+            "organization": "OpenConfig working group",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-wdsysmon-fd-proc-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-wdsysmon-fd-proc-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-ipv4-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-script-mgmt-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-statsd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-statsd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-es-acl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-es-ace-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-mobileip-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-mobileip-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub7",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub6",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub5",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-10"
+        },
+        {
+            "name": "openconfig-platform-psu",
+            "organization": "OpenConfig working group",
+            "version": "0.2.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-isis-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-te-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-ssh-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-vlan-types",
+            "organization": "OpenConfig working group",
+            "version": "1.0.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-mldp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-mldp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-mpp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-pfilter-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-protocol-radius-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-lsd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-lsd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-es-acl-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-es-acl-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-dwdm-ui-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-dwdm-ui-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-locald-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-locald-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-ceredundancymib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-eigrp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-platform-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-platform-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-07"
+        },
+        {
+            "name": "openconfig-isis-types",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "openconfig-mpls-ldp",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-telemetry-model-driven-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-script-mgmt-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-12-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-tamsvcs-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-tamsvcs-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-cepki-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-bundlemgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-ifmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-platform-cpu",
+            "organization": "OpenConfig working group",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-odu-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-vpdn-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-vpdn-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-ipv6-access-list-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-rgmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-lldp-types",
+            "organization": "OpenConfig working group",
+            "version": "0.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-wanphy-ui-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-types",
+            "organization": "OpenConfig working group",
+            "version": "0.6.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-l2tun-proto-mibs-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-pppoe-ma-gbl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rcmd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rcmd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-iedge4710-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-gre-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2-eth-infra-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-aft-types",
+            "organization": "OpenConfig Working Group",
+            "version": "0.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rip-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rip-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rsi-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-l2transport-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-session-mon-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-session-mon-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-alarm-logger-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-alarm-logger-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-protocol-radius-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-protocol-radius-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-protocol-radius-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-aaa",
+            "organization": "OpenConfig working group",
+            "version": "0.4.0"
+        },
+        {
+            "name": "openconfig-aaa-radius",
+            "organization": "OpenConfig working group",
+            "version": "0.4.0"
+        },
+        {
+            "name": "openconfig-aaa-tacacs",
+            "organization": "OpenConfig working group",
+            "version": "0.4.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-evpn-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-evpn-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-wanphy-ui-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-wanphy-ui-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-wd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-wd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-lib-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-mld-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-flowspec-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-flowspec-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ifmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ifmgr-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ifmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-01"
+        },
+        {
+            "name": "openconfig-platform-linecard",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-li-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-sensormib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-sensormib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-sensormib-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-igmp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-igmp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-srg-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-mfwd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-plat-chas-invmgr-ng-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-plat-chas-invmgr-ng-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-plat-chas-invmgr-ng-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-clns-isis-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-07"
+        },
+        {
+            "name": "openconfig-packet-match",
+            "organization": "OpenConfig working group",
+            "version": "1.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ma-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "ietf-yang-types",
+            "organization": "IETF NETMOD (NETCONF Data Modeling Language) Working Group",
+            "version": "2013-07-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-hsrp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-hsrp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-spirit-install-instmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-spirit-install-instmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-spirit-install-instmgr-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-crypto-sam-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-vrrp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-29"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iep-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iep-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pre-ifib-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-20"
+        },
+        {
+            "name": "openconfig-if-types",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-entitymib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-entitymib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-bgp",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-neighbor",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-global",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-common",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-peer-group",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-common-structure",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-bgp-common-multiprotocol",
+            "organization": "OpenConfig working group",
+            "version": "3.0.1"
+        },
+        {
+            "name": "openconfig-platform-ext",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-telemetry-model-driven-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-telemetry-model-driven-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-telemetry-model-driven-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-09-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ospfv3-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-invmgr-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-ntp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-tunnel-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-acl-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ace-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ipsla-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ipsla-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ipsla-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ipsla-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-ipsla-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-diameter-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-io-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ma-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-03"
+        },
+        {
+            "name": "openconfig-aaa-types",
+            "organization": "OpenConfig working group",
+            "version": "0.4.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-ipv6-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-ipv6-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rib-ipv6-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ldp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-mib-rfmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-mpp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-mpp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cfgmgr-clear-inconsistency-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-mpls-ldp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-01-29"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-lsd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-29"
+        },
+        {
+            "name": "openconfig-aft-network-instance",
+            "organization": "OpenConfig working group",
+            "version": "0.2.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-invproxy-hwmodule-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-opticalotsmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-platform",
+            "organization": "OpenConfig working group",
+            "version": "0.12.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-perf-meas-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-perf-meas-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-perf-meas-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-static-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-static-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-ping-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-vrf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-keychain-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lib-keychain-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-igmp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-systemmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-statistics-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-management-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-nd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-smiap-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-clns-isis-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-policy-repository-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-policy-repository-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-routing-policy",
+            "organization": "OpenConfig working group",
+            "version": "3.1.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-arp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-ip-address-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-mrib-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mrib-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-rib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper-sub5",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-tcp-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-correlator-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-correlator-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-interfaces",
+            "organization": "OpenConfig working group",
+            "version": "2.4.3"
+        },
+        {
+            "name": "Cisco-IOS-XR-traffmon-netflow-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-odu-clear-prbs-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-l2vpn-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-09"
+        },
+        {
+            "name": "openconfig-acl",
+            "organization": "OpenConfig working group",
+            "version": "1.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dhcpd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-acl-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-acl-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-11-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-adt-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-adt-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-adt-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-delete-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-ms-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-19"
+        },
+        {
+            "name": "openconfig-mpls-sr",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-client-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-client-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-ntp-admin-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-ntp-admin-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysmgr-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-01-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-aaa-tacacs-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-xml-ttyagent-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-alarm-types",
+            "organization": "OpenConfig working group",
+            "version": "0.2.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-cfgmgr-rollback-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-udp-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-qos-ma-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-flow-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ospf-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-vrrp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-vrrp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-mpls-over-udp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-router-ospf-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-cfgmgr-exec-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-cfgmgr-exec-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-frucontrolmib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-telnet-mgmt-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-infra-clock-linux-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-spirit-corehelper-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-ipcp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ascii-ltrace-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ascii-ltrace-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub3",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub4",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub5",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub6",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-agent-oper-sub7",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-mirror-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sdr-invmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-sdr-invmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-bgp-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-hw-module-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-wdsysmon-fd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-wdsysmon-fd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-07-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tty-vty-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pa-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pa-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rsvp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-rsvp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-cfgmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-xtc-agent-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-shellutil-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-nve-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-system-management",
+            "organization": "OpenConfig working group",
+            "version": "0.1.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-v4-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-iarm-v4-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cmproxy-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-cmproxy-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-ipsub-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-ipsub-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-config-mibs-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-sbfd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-dc-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-new-dhcpv6d-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-vservice-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-msdp-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-msdp-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-icpe-ethernet-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rt-check-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-21"
+        },
+        {
+            "name": "Cisco-IOS-XR-rgmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-rgmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-domain-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-serg-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-serg-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-serg-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-types",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-policy-repository-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-telemetry-model-driven-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-12-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-l2tun-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-tunnel-l2tun-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-cnbng-nal-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-mld-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-mld-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-vservice-mgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pbr-vservice-mgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-iedge4710-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-iedge4710-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-iedge4710-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-confcopymib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-pim-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-pim-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-pim-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-11"
+        },
+        {
+            "name": "openconfig-isis-policy",
+            "organization": "OpenConfig working group",
+            "version": "0.4.2"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-msdp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-subscriber-pppoe-ma-cmd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-snmp-entstatemib-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "ietf-inet-types",
+            "organization": "IETF NETMOD (NETCONF Data Modeling Language) Working Group",
+            "version": "2013-07-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-procthreadname-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-procthreadname-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-appmgr-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-appmgr-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-05-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-punt-flowtrap-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-if-ip-ext",
+            "organization": "OpenConfig working group",
+            "version": "2.3.1"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-placed-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-22"
+        },
+        {
+            "name": "nc-notifications",
+            "organization": "IETF NETCONF WG",
+            "version": "2008-07-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-traceroute-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-traceroute-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-traceroute-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-linux-os-heap-summary-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-linux-os-heap-summary-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-04-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-fib-common-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-07-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-objmgr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-daps-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-access-list-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-17"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-nsr-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-procfind-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-procfind-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-02-28"
+        },
+        {
+            "name": "Cisco-IOS-XR-watchd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "openconfig-mpls",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "openconfig-mpls-static",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "openconfig-mpls-igp",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "openconfig-mpls-te",
+            "organization": "OpenConfig working group",
+            "version": "2.3.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-pfilter-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-pfilter-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rcmd-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-ping-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv4-ping-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "Cisco-IOS-XR-ipv6-ping-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-25"
+        },
+        {
+            "name": "openconfig-platform-types",
+            "organization": "OpenConfig working group",
+            "version": "1.0.0"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-mpa-infra-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-media-eth-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-media-eth-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-07-19"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-if-ipv6-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-10-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-snmp-server-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-ppp-ma-lcp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-infra-rsi-subscriber-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-drivers-media-eth-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-03"
+        },
+        {
+            "name": "Cisco-IOS-XR-ethernet-lldp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-lpts-pa-act",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-um-netconf-yang-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-segment-routing-srv6-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-pfi-im-cmd-oper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-pfi-im-cmd-oper-sub1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-pfi-im-cmd-oper-sub2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-06-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-ip-icmp-cfg",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-controller-odu-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-09"
+        },
+        {
+            "name": "Cisco-IOS-XR-eigrp-datatypes",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-vm-mgr",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-xrv9k-envmon-ui",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace-vmm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace-instmgr",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-local-routing-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-06-28"
+        },
+        {
+            "name": "cisco-xr-openconfig-platform-cpu-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-12-10"
+        },
+        {
+            "name": "IPV6-TC",
+            "organization": "Cisco Systems, Inc.",
+            "version": "1998-12-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-entity-mib",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-man-xml-ttyagent-cfg-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-01-13"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-obfl",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-if-ip-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-02-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-xrv9k-envmon-types",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "SNMP-USER-BASED-SM-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-16"
+        },
+        {
+            "name": "vplatform",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2015-08-30"
+        },
+        {
+            "name": "tailf-confd-monitoring",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2013-06-14"
+        },
+        {
+            "name": "cisco-xr-openconfig-platform-transceiver-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-05"
+        },
+        {
+            "name": "SNMP-MPD-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-alarmgr-server-oper-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-29"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-fpd-infra-cli-shhwfpd",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-sdr-mgr",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-20"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-tacacs-tacacs-server",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-nto-misc-set-hostname",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-ship",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-pm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-13"
+        },
+        {
+            "name": "cisco-xr-openconfig-telemetry-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-03-09"
+        },
+        {
+            "name": "tailf-common-query",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-12-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-types",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-12-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-alarm-mgr",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-02"
+        },
+        {
+            "name": "tailf-xsd-types",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-11-20"
+        },
+        {
+            "name": "SNMPv2-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-16"
+        },
+        {
+            "name": "tailf-common",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-09-11"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-dumper",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "opertest1",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2016-10-12"
+        },
+        {
+            "name": "cisco-xr-openconfig-alarms-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-time-of-day-timezone",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "tailf-netconf-query",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-01-06"
+        },
+        {
+            "name": "tailf-aaa",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-04"
+        },
+        {
+            "name": "cisco-xr-openconfig-isis-policy-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-10"
+        },
+        {
+            "name": "cisco-xr-ietf-netconf-monitoring-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-04-09"
+        },
+        {
+            "name": "cisco-xr-openconfig-if-tunnel-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-03-20"
+        },
+        {
+            "name": "ietf-netconf",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2011-06-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-fm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-hw-module-cfg-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-05-27"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-sm-hw-mod",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-08-12"
+        },
+        {
+            "name": "ietf-yang-smiv2",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2012-06-22"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-hw-module-xrv9k",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "iana-crypt-hash",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2014-08-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-aaa-aaa-show",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "INET-ADDRESS-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-05-09"
+        },
+        {
+            "name": "cisco-xr-openconfig-if-ip-ext-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-13"
+        },
+        {
+            "name": "cisco-xr-openconfig-system-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-12-12"
+        },
+        {
+            "name": "cisco-xr-openconfig-platform-port-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-12-10"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-cm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-aaa-disaster-recovery",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-issu",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-12"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-sm-system-cluster",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-ds",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-31"
+        },
+        {
+            "name": "iana-if-type",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2014-05-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-tacacs-show-tacacs",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-interfaces-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2016-05-16"
+        },
+        {
+            "name": "cisco-xr-openconfig-bfd-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-06"
+        },
+        {
+            "name": "ietf-interfaces",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2014-05-08"
+        },
+        {
+            "name": "tailf-meta-extensions",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-03-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-fpd-infra-cli-fpdserv-ctrace",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-entity-state-mib",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "tailf-common-monitoring",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2013-06-14"
+        },
+        {
+            "name": "cisco-xr-openconfig-bgp-policy-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-08-31"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-inv",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-entity-sensor-mib",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace-debug-agent",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-vlan-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-18"
+        },
+        {
+            "name": "cisco-xr-openconfig-acl-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-02-07"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace-cm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "SNMPv2-SMI",
+            "organization": "Cisco Systems, Inc.",
+            "version": "1998-09-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-tacacs-test-tacacs",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-02-26"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-syslog",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-routing-policy-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-02-06"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace-instagt",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-sm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-09-01"
+        },
+        {
+            "name": "cisco-xr-openconfig-lacp-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-09-10"
+        },
+        {
+            "name": "cisco-xr-ietf-yang-library-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-21"
+        },
+        {
+            "name": "SNMP-FRAMEWORK-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-entity-state-tc-mib",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-platform-psu-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-12-10"
+        },
+        {
+            "name": "ietf-yang-library",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-01-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-obfl-conf",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-rvm-mgr",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-04-09"
+        },
+        {
+            "name": "fit",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-06-16"
+        },
+        {
+            "name": "cisco-xr-openconfig-network-instance-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-10-23"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-debug-trace",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-06-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-trace",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-fpd-infra-cli-fpd",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "SNMP-NOTIFICATION-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2021-03-15"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-fpd-infra-cli-fpd-service",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-rsvp-sr-ext-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-05-30"
+        },
+        {
+            "name": "cisco-xr-openconfig-lldp-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-03-08"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-wdmon",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "SNMP-TARGET-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-14"
+        },
+        {
+            "name": "SNMP-VIEW-BASED-ACM-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2002-10-16"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-services",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "ietf-netconf-monitoring",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2010-10-04"
+        },
+        {
+            "name": "valtest",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2012-08-20"
+        },
+        {
+            "name": "cisco-xr-openconfig-if-ethernet-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2016-05-16"
+        },
+        {
+            "name": "SNMP-COMMUNITY-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2003-08-06"
+        },
+        {
+            "name": "tailf-actions",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-02-28"
+        },
+        {
+            "name": "CISCO-ENTITY-FRU-CONTROL-MIB",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2003-11-24"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-media",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2020-06-04"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-obfl",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-rib-bgp-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2016-10-16"
+        },
+        {
+            "name": "ietf-datastores",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-02-14"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-show-diag",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "SNMPv2-TC",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2016-08-18"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-aaa-command-accounting",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-11-15"
+        },
+        {
+            "name": "tailf-cli-extensions",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-09-11"
+        },
+        {
+            "name": "cisco-xr-ietf-netconf-acm-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2017-08-02"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-system",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        },
+        {
+            "name": "cisco-xr-openconfig-platform-deviations",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2018-12-05"
+        },
+        {
+            "name": "Cisco-IOS-XR-sysadmin-vm",
+            "organization": "Cisco Systems, Inc.",
+            "version": "2019-04-15"
+        }
+    ],
+    "supportedEncodings": [
+        "JSON_IETF",
+        "ASCII",
+        "PROTO"
+    ],
+    "gNMIVersion": "0.10.0"
+}
