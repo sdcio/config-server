@@ -23,3 +23,10 @@ func (r *GnmiDiscoveryVendorProfileParameters) GetEncoding() Encoding {
 	}
 	return *r.Encoding
 }
+
+func (r *GnmiDiscoveryVendorProfileParameters) GetPreserveNamespace() bool {
+	if r.PreserveNamespace == nil {
+		return false
+	}
+	return *r.PreserveNamespace
+}

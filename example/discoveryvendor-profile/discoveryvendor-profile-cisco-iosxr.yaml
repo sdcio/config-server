@@ -6,21 +6,21 @@
 apiVersion: inv.sdcio.dev/v1alpha1
 kind: DiscoveryVendorProfile
 metadata:
-  name: eos.arista.sdcio.dev
+  name: iosxr.cisco.sdcio.dev
   namespace: default
 spec:
   gnmi:
-    organization: "Arista Networks, Inc."
+    organization: "Cisco Systems, Inc."
+    preserveNamespace: false
     paths:
     - key: version
-      path: components/component/state/software-version
-      regex: ^v?(\d+\.\d+\.\d+[A-Za-z]?)
+      path: system/state/software-version
+      regex: ^(\d+\.\d+\.\d+(?:\.\d+[\.\w]*)?)$
     - key: platform
-      path: components/component/state/part-no
+      path: components/component[name=Rack 0]/state/part-no
     - key: hostname
       path: system/state/hostname
     - key: serialNumber
-      path: components/component/state/serial-no
+      path: components/component[name=Rack 0]/state/serial-no
     - key: macAddress
-      path: lldp/state/chassis-id
-
+      path: interfaces/interface[name=MgmtEth0/RP0/CPU0/0]/openconfig-if-ethernet:ethernet/state/mac-address
