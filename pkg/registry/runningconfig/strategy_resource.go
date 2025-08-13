@@ -254,7 +254,9 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		}
 	}
 
-	r.targetStore.List(ctx, runningConfigListFunc)
+	if err := r.targetStore.List(ctx, runningConfigListFunc); err != nil {
+		log.Error("list failed", "err", err)
+	}
 	return newListObj, nil
 }
 

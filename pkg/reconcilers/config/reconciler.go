@@ -104,7 +104,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	cfgOrig := cfg.DeepCopy()
 	internalcfg := &config.Config{}
 	if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(cfg, internalcfg, nil); err != nil {
-		r.handleError(ctx, cfgOrig, cfg, "cannot convert config", err, true)
+		if err := r.handleError(ctx, cfgOrig, cfg, "cannot convert config", err, true); err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 
@@ -189,7 +191,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// in revertive mode we include it is it exists.
 	internalDeviation := &config.Deviation{}
 	if err := configv1alpha1.Convert_v1alpha1_Deviation_To_config_Deviation(&deviation, internalDeviation, nil); err != nil {
-		r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true)
+		if err := r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true); err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 	
@@ -215,7 +219,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// in the revertive case we can delete the deviation
 	if cfg.IsRevertive() {
 		if err := r.clearDeviation(ctx, &deviation); err != nil {
-			errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot delete deviation", warnings), err, true), errUpdateStatus)
+			return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, cfgOrig, cfg, processMessageWithWarning("cannot delete deviation", warnings), err, true), errUpdateStatus)
 		}
 	}
 

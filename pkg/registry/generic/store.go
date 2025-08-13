@@ -62,10 +62,12 @@ func NewREST(
 ) (*registry.Store, error) {
 	gr := obj.GetGroupVersionResource().GroupResource()
 
-	scheme.AddFieldLabelConversionFunc(
+	if err := scheme.AddFieldLabelConversionFunc(
 		obj.GetObjectKind().GroupVersionKind(),
 		obj.FieldLabelConversion(),
-	)
+	); err != nil {
+		return nil, err
+	}
 
 	var storage storebackend.Storer[runtime.Object]
 	var err error

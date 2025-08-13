@@ -150,7 +150,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// delete the target from the target store
-		r.targetStore.Delete(ctx, targetKey)
+		if err := r.targetStore.Delete(ctx, targetKey); err != nil {
+			log.Error("delete failed", "err", err)
+		}
 		// remove the finalizer
 		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
 			return ctrl.Result{Requeue: true},
@@ -394,11 +396,13 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 func (r *reconciler) deleteTargetFromDataServer(ctx context.Context, targetKey storebackend.Key) {
 	log := log.FromContext(ctx)
 	dsKeys := []storebackend.Key{}
-	r.dataServerStore.List(ctx, func(ctx context.Context, dsKey storebackend.Key, dsctx sdcctx.DSContext) {
+	if err := r.dataServerStore.List(ctx, func(ctx context.Context, dsKey storebackend.Key, dsctx sdcctx.DSContext) {
 		if dsctx.Targets.Has(targetKey.String()) {
 			dsKeys = append(dsKeys, dsKey)
 		}
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 	for _, dsKey := range dsKeys {
 		dsctx, err := r.dataServerStore.Get(ctx, dsKey)
 		if err != nil {
@@ -434,12 +438,14 @@ func (r *reconciler) selectDataServerContext(ctx context.Context) (*sdcctx.DSCon
 	var err error
 	selectedDSctx := &sdcctx.DSContext{}
 	minTargets := 9999
-	r.dataServerStore.List(ctx, func(ctx context.Context, k storebackend.Key, dsctx sdcctx.DSContext) {
+	if err := r.dataServerStore.List(ctx, func(ctx context.Context, k storebackend.Key, dsctx sdcctx.DSContext) {
 		if dsctx.Targets.Len() == 0 || dsctx.Targets.Len() < minTargets {
 			selectedDSctx = &dsctx
 			minTargets = dsctx.Targets.Len()
 		}
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 	// create and start client if it does not exist
 	if selectedDSctx.DSClient == nil {
 		log.Debug("selectedDSctx", "selectedDSctx", selectedDSctx)

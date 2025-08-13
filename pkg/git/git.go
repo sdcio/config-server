@@ -233,7 +233,7 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 	return nil
 }
 
-func (g *GoGit) fetchNonExistingBranch(ctx context.Context, branch string) error {
+func (g *GoGit) FetchNonExistingBranch(ctx context.Context, branch string) error {
 	// init the remote
 	remote, err := g.r.Remote("origin")
 	if err != nil {
@@ -399,7 +399,7 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 
 	err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 		return g.r.FetchContext(ctx, &gogit.FetchOptions{
-			RefSpecs: []config.RefSpec{config.RefSpec(fmt.Sprintf("+refs/*:refs/*"))}, // Fetch all refs
+			RefSpecs: []config.RefSpec{config.RefSpec("+refs/*:refs/*")}, // Fetch all refs
 			Depth:    0,
 			Auth:     auth,
 			Force:    true,
@@ -476,6 +476,9 @@ func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (strin
 		}
 		return nil
 	})
+	if err != nil {
+		log.Error("error", "err", err)
+	}
 
 	if featureBranch != "" {
 		return fmt.Sprintf("pending merge in %s", featureBranch), nil

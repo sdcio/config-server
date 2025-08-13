@@ -60,11 +60,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
-const (
-	localDataServerAddress = "localhost:56000"
-	defaultEtcdPathPrefix  = "/registry/config.sdcio.dev"
-)
-
 var (
 	schemaBaseDir = "/schemas"
 	configDir     = "/config"

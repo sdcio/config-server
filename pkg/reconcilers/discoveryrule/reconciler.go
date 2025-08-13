@@ -182,7 +182,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot get normalized discoveryRule", err), errUpdateStatus)
 	}
 
-	go dr.Run(ctx)
+	go func() {
+		if err := dr.Run(ctx); err != nil {
+			log.Error("run error", "err", err)
+		}
+	}()
 
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, discoveryRuleOrig, true), errUpdateStatus)
 }

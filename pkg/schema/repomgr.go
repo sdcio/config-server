@@ -51,7 +51,7 @@ func (r *RepoMgr) GetOrAdd(url string) *semaphore.Weighted {
 }
 
 // get retrieves the semaphore for a repository
-func (r *RepoMgr) get(url string) *semaphore.Weighted {
+func (r *RepoMgr) Get(url string) *semaphore.Weighted {
 	r.m.RLock()
 	defer r.m.RUnlock()
 	return r.repos[url]

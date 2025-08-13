@@ -31,7 +31,7 @@ type DSContext struct {
 	Config   *dsclient.Config
 	Targets  sets.Set[string]
 	DSClient dsclient.Client // dataserver client
-	client   client.Client
+	//client   client.Client
 }
 
 func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.Storer[DSContext], client client.Client) error {

@@ -19,7 +19,7 @@ package lease
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	rand "math/rand/v2"
 	"time"
 
 	"github.com/henderiw/logger/log"
@@ -38,11 +38,8 @@ const (
 )
 
 func GetRandaomRequeueTimout() time.Duration {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
-
-	randomSeconds := minInterval + rand.Intn(maxInterval-minInterval+1)
-	return time.Duration(randomSeconds) * time.Second
+	sec := minInterval + rand.IntN(maxInterval-minInterval+1)
+	return time.Duration(sec) * time.Second
 }
 
 type Lease interface {

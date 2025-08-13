@@ -20,39 +20,53 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
+	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func createFakeClient(secret, targetConnProfile, targetSyncProfile string) client.Client {
 	ctx := context.Background()
+	log := log.FromContext(ctx)
 	runScheme := runtime.NewScheme()
-	scheme.AddToScheme(runScheme)         // ignoring errors
-	clientgoscheme.AddToScheme(runScheme) // ignoring errors
-	invv1alpha1.AddToScheme(runScheme)    // ignoring errors
+	if err := scheme.AddToScheme(runScheme); err != nil {
+		log.Error("cannot add scheme", "err", err)
+	}
+	if err := clientgoscheme.AddToScheme(runScheme); err != nil {
+		log.Error("cannot add scheme", "err", err)
+	}
+	if err := invv1alpha1.AddToScheme(runScheme) ; err != nil {
+		log.Error("cannot add scheme", "err", err)
+	}
 	client := fake.NewClientBuilder().WithScheme(runScheme).Build()
-	client.Create(ctx, &v1.Secret{
+	if err := client.Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secret,
 		},
-	})
-	client.Create(ctx, &invv1alpha1.TargetConnectionProfile{
+	}); err != nil {
+		log.Error("cannot create client", "err", err)
+	}
+	if err := client.Create(ctx, &invv1alpha1.TargetConnectionProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: targetConnProfile,
 		},
-	})
-	client.Create(ctx, &invv1alpha1.TargetSyncProfile{
+	}); err != nil {
+		log.Error("cannot create client", "err", err)
+	}
+	if err := client.Create(ctx, &invv1alpha1.TargetSyncProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: targetSyncProfile,
 		},
-	})
+	}); err != nil {
+		log.Error("cannot create client", "err", err)
+	}
 	return client
 }
 
@@ -81,7 +95,7 @@ func TestGetDRConfig(t *testing.T) {
 							{
 								Credentials:       secretName,
 								ConnectionProfile: targetConnProfileName,
-								SyncProfile:       pointer.String(targetSyncProfileName),
+								SyncProfile:       ptr.To(targetSyncProfileName),
 							},
 						},
 					},
@@ -104,7 +118,7 @@ func TestGetDRConfig(t *testing.T) {
 							{
 								Credentials:       secretName,
 								ConnectionProfile: targetConnProfileName,
-								SyncProfile:       pointer.String(targetSyncProfileName),
+								SyncProfile:       ptr.To(targetSyncProfileName),
 							},
 						},
 					},

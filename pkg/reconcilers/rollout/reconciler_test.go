@@ -23,6 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
+	"github.com/henderiw/logger/log"
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -77,6 +78,7 @@ func TestGetToBeDeletedConfigsNew(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
+			log := log.FromContext(ctx)
 			existingConfigs := getExistingConfigs(tc.existingConfigs)
 			newTargetUpdateConfigStore := getnewConfigStore(tc.newConfigs)
 
@@ -84,14 +86,18 @@ func TestGetToBeDeletedConfigsNew(t *testing.T) {
 			assert.NoError(t, err, "Function should not return an error")
 
 			actualDeletions := make(map[string][]string)
-			deleteStore.List(ctx, func(ctx context.Context, targetKey storebackend.Key, configStore storebackend.Storer[*configapi.Config]) {
+			if err := deleteStore.List(ctx, func(ctx context.Context, targetKey storebackend.Key, configStore storebackend.Storer[*configapi.Config]) {
 				configNames := []string{}
-				configStore.List(ctx, func(ctx context.Context, configKey storebackend.Key, config *configapi.Config) {
+				if err := configStore.List(ctx, func(ctx context.Context, configKey storebackend.Key, config *configapi.Config) {
 					configNames = append(configNames, config.Name)
-				})
+				}); err != nil {
+					log.Error("list failed", "err", err)
+				}
 				sort.Strings(configNames)
 				actualDeletions[targetKey.Name] = configNames
-			})
+			}); err != nil {
+				log.Error("list failed", "err", err)
+			}
 			// 🔍 Ensure the deletions match expectations
 			assert.Equal(t, tc.expectedDeletions, actualDeletions, "Deleted configs should match expected deletions")
 		})
@@ -120,6 +126,7 @@ func getExistingConfigs(existingConfigs map[string][]string) *configv1alpha1.Con
 
 func getnewConfigStore(newConfigs map[string][]string) storebackend.Storer[storebackend.Storer[*configapi.Config]] {
 	ctx := context.Background()
+	log := log.FromContext(ctx)
 	newTargetConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]()
 	for target, configNames := range newConfigs {
 		for _, configName := range configNames {
@@ -140,7 +147,9 @@ func getnewConfigStore(newConfigs map[string][]string) storebackend.Storer[store
 			configKey := storebackend.KeyFromNSN(types.NamespacedName{Name: configName, Namespace: namespace})
 			_ = target1ConfigStore.Create(ctx, configKey, config)
 
-			newTargetConfigStore.Update(ctx, targetKey, target1ConfigStore)
+			if err := newTargetConfigStore.Update(ctx, targetKey, target1ConfigStore); err != nil {
+				log.Error("target update store failed", "err", err)
+			}
 		}
 
 	}

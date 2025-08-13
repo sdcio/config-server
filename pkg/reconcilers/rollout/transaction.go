@@ -68,12 +68,18 @@ func NewTransactionManager(
 }
 
 func (r *transactionManager) calculateTargets(ctx context.Context) {
-	r.newTargetUpdateConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
+	log := log.FromContext(ctx)
+
+	if err := r.newTargetUpdateConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
 		r.targets.Insert(k.NamespacedName)
-	})
-	r.newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
+	if err := r.newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
 		r.targets.Insert(k.NamespacedName)
-	})
+	}); err != nil {
+		log.Error("list failed", "err", err)
+	}
 }
 
 func (r *transactionManager) TransactToAllTargets(ctx context.Context, transactionID string) (storebackend.Storer[invv1alpha1.RolloutTargetStatus], error) {
@@ -154,13 +160,16 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 
 func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID string) {
 	var wg sync.WaitGroup
+	log := log.FromContext(ctx)
 
 	for _, targetKey := range r.targets.UnsortedList() {
 		targetStatus, err := r.targetStatus.Get(ctx, storebackend.KeyFromNSN(targetKey))
 		if err != nil {
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
-			r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
+				log.Error("target status update failed", "err", err)
+			}
 			continue
 		}
 		if targetStatus.GetCondition(invv1alpha1.ConditionTypeConfigApply).Reason != string(invv1alpha1.ConditionReasonUnavailable) &&
@@ -173,7 +182,9 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 				} else {
 					targetStatus.SetConditions(invv1alpha1.ConfigCancelReady())
 				}
-				r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				if err :=  r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
+					log.Error("target status update failed", "err", err)
+				}
 			}(targetKey)
 		}
 	}
@@ -184,6 +195,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs error
+	log := log.FromContext(ctx)
 
 	for _, targetKey := range r.targets.UnsortedList() {
 		// We dont check the skip flag here since this is covered when we enter the loop
@@ -191,7 +203,9 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 		if err != nil {
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
-			r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
+				log.Error("target status update failed", "err", err)
+			}
 			continue
 		}
 		if targetStatus.GetCondition(invv1alpha1.ConditionTypeConfigApply).Reason != string(invv1alpha1.ConditionReasonUnavailable) &&
@@ -207,7 +221,9 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 				} else {
 					targetStatus.SetConditions(invv1alpha1.ConfigConfirmReady())
 				}
-				r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+				if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
+					log.Error("target status update failed", "err", err)
+				}
 			}(targetKey)
 		}
 	}
@@ -279,15 +295,19 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 	configDeletes := map[string]*config.Config{}
 	storeConfigUpdates, err := r.newTargetUpdateConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
 	if err == nil {
-		storeConfigUpdates.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
+		if err := storeConfigUpdates.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
 			configUpdates[config.GetNamespacedName().String()] = config
-		})
+		}); err != nil {
+			log.Error("cannot list config", "err", err)
+		}
 	}
 	storeConfigDeletes, err := r.newTargetDeleteConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
 	if err == nil {
-		storeConfigDeletes.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
+		if err := storeConfigDeletes.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
 			configDeletes[config.GetNamespacedName().String()] = config
-		})
+		}); err != nil {
+			log.Error("cannot list config", "err", err)
+		}
 	}
 
 	cancelCtx, cancel := context.WithTimeout(ctx, r.targetTimeout)

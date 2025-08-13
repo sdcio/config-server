@@ -72,17 +72,11 @@ type client struct {
 }
 
 func (r *client) IsConnectionReady() bool {
-	if r.conn == nil {
-		return false
-	}
-	return r.conn.GetState() == connectivity.Ready
+	return r.conn != nil && r.conn.GetState() == connectivity.Ready
 }
 
 func (r *client) IsConnected() bool {
-	if r.conn == nil {
-		return false
-	}
-	return true
+	return r.conn != nil && r.conn.GetState() != connectivity.Shutdown
 }
 
 func (r *client) Stop(ctx context.Context) {
@@ -96,31 +90,43 @@ func (r *client) Start(ctx context.Context) error {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("starting...")
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	var err error
-	r.conn, err = grpc.DialContext(ctx, r.cfg.Address,
-		grpc.WithBlock(),
-		grpc.WithTransportCredentials(
-			insecure.NewCredentials(),
-		),
-	)
-	if err != nil {
-		return err
-	}
 
-	//defer conn.Close()
+	// Create the ClientConn
+    conn, err := grpc.NewClient(
+        r.cfg.Address,
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+    )
+    if err != nil {
+        return err
+    }
+
+	// Proactively start connecting and wait for Ready (or timeout/cancel)
+    conn.Connect()
+    for {
+        s := conn.GetState()
+        if s == connectivity.Ready {
+            break
+        }
+        if !conn.WaitForStateChange(dialCtx, s) {
+            // context expired or canceled
+            _ = conn.Close()
+            return fmt.Errorf("gRPC connect timeout; last state: %s", s.String())
+        }
+    }
+
+	r.conn = conn
 	r.schemaclient = sdcpb.NewSchemaServerClient(r.conn)
-	log.Info("started...")
+
+	// Create a long-lived cancel just for Stop()
+    runCtx, stop := context.WithCancel(context.Background())
+    r.cancel = stop
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				log.Info("stopped...")
-				return
-			}
-		}
+		<-runCtx.Done()
+    	log.Info("stopped...")
 	}()
+	log.Info("started...")
 	return nil
 }
 
