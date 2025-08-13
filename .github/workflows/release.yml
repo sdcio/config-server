@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       # Make sure the @v0.8.0 matches the current version of the action
-      - uses: webfactory/ssh-agent@v0.9.1
+      - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.IPTECHARCH_SSH_KEY }}
       - name: Setup Git config
