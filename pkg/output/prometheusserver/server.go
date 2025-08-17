@@ -84,7 +84,11 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 		log.Error("prometheusserver cannot listen on address", "error", err)
 		return err
 	}
-	defer listener.Close()
+	defer func() {
+		if err:= listener.Close(); err != nil {
+			log.Error("closing listener failed", "err", err)
+		}
+	}()
 
 	go func() {
 		if err := r.server.Serve(listener); err != nil {

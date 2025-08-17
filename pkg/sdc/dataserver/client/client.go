@@ -87,7 +87,9 @@ func (r *client) IsConnected() bool {
 func (r *client) Stop(ctx context.Context) {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("stopping...")
-	r.conn.Close()
+	if err := r.conn.Close(); err != nil {
+		log.Error("close error", "err", err)
+	}
 	r.cancel()
 }
 
