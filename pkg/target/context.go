@@ -293,7 +293,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
 
 	for _, deviation := range deviation.Spec.Deviations {
-		if deviation.Reason == "NOT_APPLIED" {
+		if deviation.Reason == "NOT_APPLIED" && deviation.CurrentValue != "<nil>"{
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
 				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
@@ -303,18 +303,14 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
 				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 				continue
-				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
 			} 
-
-			//val, err := parse_value((deviation.CurrentValue))
-			//if err != nil {
-			//	return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
-			//}
 
 			update = append(update, &sdcpb.Update{
 				Path:  path,
 				Value: val,
 			})
+		} else {
+			// delete case to be updated with the new protos
 		}
 	}
 	return update, nil
@@ -582,6 +578,7 @@ func (r *Context) SetIntents(
 	intents := make([]*sdcpb.TransactionIntent, 0)
 	for key, deviation := range deviationsToUpdate {
 		deviationsToUpdateSet.Insert(key)
+
 		update, err := r.getDeviationUpdate(ctx, targetKey, deviation)
 		if err != nil {
 			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
