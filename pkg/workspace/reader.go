@@ -27,7 +27,6 @@ import (
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
-	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
@@ -88,7 +87,7 @@ func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.
 		}
 
 		// Process only YAML files
-		if info.IsDir() || (!(filepath.Ext(path) == ".yaml") && !(filepath.Ext(path) == ".yml")) {
+		if info.IsDir() || (filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml") {
 			return nil
 		}
 
@@ -105,11 +104,11 @@ func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.
 
 		// Check if it matches expected apiVersion and kind
 		if cfg.APIVersion == config.SchemeGroupVersion.Identifier() && cfg.Kind == config.ConfigKind {
-			targetName, ok := cfg.Labels[configapi.TargetNameKey]
+			targetName, ok := cfg.Labels[config.TargetNameKey]
 			if !ok {
 				return nil // Ignore files without a targetName
 			}
-			targetNamespace, ok := cfg.Labels[configapi.TargetNamespaceKey]
+			targetNamespace, ok := cfg.Labels[config.TargetNamespaceKey]
 			if !ok {
 				return nil // Ignore files without a targetName
 			}

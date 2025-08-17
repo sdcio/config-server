@@ -64,7 +64,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	// initializes the directory
 	r.workspaceLoader, err = workspaceloader.NewLoader(
@@ -87,7 +87,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer *resource.APIFinalizer
 
 	workspaceLoader *workspaceloader.Loader
@@ -100,7 +100,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	workspace := &invv1alpha1.Workspace{}
-	if err := r.Get(ctx, req.NamespacedName, workspace); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, workspace); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
@@ -112,7 +112,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !workspace.GetDeletionTimestamp().IsZero() {
 		rollout := &invv1alpha1.Rollout{}
-		if err := r.Client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
+		if err := r.client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
 			if !k8serrors.IsNotFound(err) {
 				return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot get rollout"), true, err)
 			}
@@ -124,7 +124,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 
-		if err := r.Client.Delete(ctx, rollout); err != nil {
+		if err := r.client.Delete(ctx, rollout); err != nil {
 			return r.handleStatus(ctx, workspaceOrig, condv1alpha1.Failed("cannot delete rollout"), true, err)
 		}
 		// done deleting
@@ -195,7 +195,7 @@ func (r *reconciler) handleStatus(
 	}
 
 	result := ctrl.Result{Requeue: requeue}
-	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, client.Apply, &client.SubResourcePatchOptions{
+	return result, errors.Wrap(r.client.Status().Patch(ctx, workspace, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
