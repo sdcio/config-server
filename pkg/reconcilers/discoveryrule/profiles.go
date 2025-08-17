@@ -129,7 +129,7 @@ func (r *reconciler) getTargetConnectionProfile(ctx context.Context, cr *invv1al
 
 func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*corev1.Secret, error) {
 	obj := &corev1.Secret{}
-	if err := r.Get(ctx, key, obj); err != nil {
+	if err := r.client.Get(ctx, key, obj); err != nil {
 		return nil, err
 	}
 	return obj, nil
@@ -137,7 +137,7 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 
 func (r *reconciler) getConnProfile(ctx context.Context, key types.NamespacedName) (*invv1alpha1.TargetConnectionProfile, error) {
 	obj := &invv1alpha1.TargetConnectionProfile{}
-	if err := r.Get(ctx, key, obj); err != nil {
+	if err := r.client.Get(ctx, key, obj); err != nil {
 		return nil, err
 	}
 	return obj, nil
@@ -145,7 +145,7 @@ func (r *reconciler) getConnProfile(ctx context.Context, key types.NamespacedNam
 
 func (r *reconciler) getSyncProfile(ctx context.Context, key types.NamespacedName) (*invv1alpha1.TargetSyncProfile, error) {
 	obj := &invv1alpha1.TargetSyncProfile{}
-	if err := r.Get(ctx, key, obj); err != nil {
+	if err := r.client.Get(ctx, key, obj); err != nil {
 		return nil, err
 	}
 	return obj, nil
