@@ -32,8 +32,8 @@ func (r *ConfigSet) SetConditions(c ...condition.Condition) {
 	r.Status.SetConditions(c...)
 }
 
-func BuildEmptyConfigSet() *Config {
-	return &Config{
+func BuildEmptyConfigSet() *ConfigSet {
+	return &ConfigSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       ConfigSetKind,

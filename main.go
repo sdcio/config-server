@@ -225,16 +225,16 @@ func main() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(sdcconfig.BuildEmptyConfig(), configStorageProvider).
-			WithResourceAndHandler(configv1alpha1.BuildEmptyConfig(), configStorageProvider).
-			WithResourceAndHandler(sdcconfig.BuildEmptyConfigSet(), configSetStorageProvider).
-			WithResourceAndHandler(configv1alpha1.BuildEmptyConfigSet(), configSetStorageProvider).
-			WithResourceAndHandler(sdcconfig.BuildEmptyDeviation(), deviationStorageProvider).
-			WithResourceAndHandler(configv1alpha1.BuildEmptyDeviation(), deviationStorageProvider).
-			WithResourceAndHandler(sdcconfig.BuildEmptyRunningConfig(), runningConfigStorageProvider).
-			WithResourceAndHandler(configv1alpha1.BuildEmptyRunningConfig(), runningConfigStorageProvider).
-			WithResourceAndHandler(sdcconfig.BuildEmptyConfigBlame(), configBlameStorageProvider).
-			WithResourceAndHandler(configv1alpha1.BuildEmptyConfigBlame(), configBlameStorageProvider).
+			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
+			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
+			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Deviation{}, deviationStorageProvider).
+			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.ConfigBlame{}, configBlameStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.ConfigBlame{}, configBlameStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")

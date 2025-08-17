@@ -34,8 +34,8 @@ func BuildConfigBlame(meta metav1.ObjectMeta, spec ConfigBlameSpec, status Confi
 }
 
 // BuildEmptyConfigBlame returns an empty configblame
-func BuildEmptyConfigBlame() *Config {
-	return &Config{
+func BuildEmptyConfigBlame() *ConfigBlame {
+	return &ConfigBlame{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       ConfigBlameKind,

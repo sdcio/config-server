@@ -72,8 +72,8 @@ func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSet
 }
 
 // BuildEmptyConfigSet returns an empty configset
-func BuildEmptyConfigSet() *Config {
-	return &Config{
+func BuildEmptyConfigSet() *ConfigSet {
+	return &ConfigSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       ConfigSetKind,
