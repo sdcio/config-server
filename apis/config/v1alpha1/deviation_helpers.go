@@ -62,6 +62,16 @@ func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *Deviati
 	}
 }
 
+// BuildEmptyDeviation returns an empty deviation
+func BuildEmptyDeviation() *Config {
+	return &Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       DeviationKind,
+		},
+	}
+}
+
 func (r *Deviation) GetTargetNamespaceName() (*types.NamespacedName, error) {
 	if len(r.GetLabels()) == 0 {
 		return nil, fmt.Errorf("no target information found in labels")

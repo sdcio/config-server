@@ -30,3 +30,12 @@ func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status R
 		Status:     status,
 	}
 }
+
+func BuildEmptyRunningConfig() *Config {
+	return &Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       RunningConfigKind,
+		},
+	}
+}

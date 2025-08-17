@@ -207,16 +207,16 @@ func main() {
 	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
-	configStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Config{}, &configregistryOptions)
-	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.ConfigSet{}, registryOptions)
-	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Deviation{}, registryOptions)
+	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
+	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
+	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &sdcconfig.RunningConfig{}, &options.Options{
+	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, &sdcconfig.ConfigBlame{}, &options.Options{
+	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
@@ -225,16 +225,16 @@ func main() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
-			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
-			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
-			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.Deviation{}, deviationStorageProvider).
-			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
-			WithResourceAndHandler(&sdcconfig.ConfigBlame{}, configBlameStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.ConfigBlame{}, configBlameStorageProvider).
+			WithResourceAndHandler(sdcconfig.BuildEmptyConfig(), configStorageProvider).
+			WithResourceAndHandler(configv1alpha1.BuildEmptyConfig(), configStorageProvider).
+			WithResourceAndHandler(sdcconfig.BuildEmptyConfigSet(), configSetStorageProvider).
+			WithResourceAndHandler(configv1alpha1.BuildEmptyConfigSet(), configSetStorageProvider).
+			WithResourceAndHandler(sdcconfig.BuildEmptyDeviation(), deviationStorageProvider).
+			WithResourceAndHandler(configv1alpha1.BuildEmptyDeviation(), deviationStorageProvider).
+			WithResourceAndHandler(sdcconfig.BuildEmptyRunningConfig(), runningConfigStorageProvider).
+			WithResourceAndHandler(configv1alpha1.BuildEmptyRunningConfig(), runningConfigStorageProvider).
+			WithResourceAndHandler(sdcconfig.BuildEmptyConfigBlame(), configBlameStorageProvider).
+			WithResourceAndHandler(configv1alpha1.BuildEmptyConfigBlame(), configBlameStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")
