@@ -160,7 +160,7 @@ func (r *DiscoveryRule) Validate() error {
 		}
 	}
 
-	if err := r.Spec.DiscoveryParameters.Validate(); err != nil {
+	if err := r.Spec.Validate(); err != nil {
 		errm = errors.Join(errm, err)
 	}
 	return errm

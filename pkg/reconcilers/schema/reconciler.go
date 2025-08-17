@@ -234,7 +234,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	patch := client.MergeFrom(schema.DeepCopy())
 	// update status
 	schema.Status = *updatedStatus
-	//schema.ObjectMeta.ManagedFields = nil
+	//schema.ManagedFields = nil
 	schema.SetConditions(condv1alpha1.Ready())
 	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 

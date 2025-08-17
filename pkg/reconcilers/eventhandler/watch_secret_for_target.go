@@ -76,7 +76,7 @@ func (r *SecretForTargetEventHandler) add(ctx context.Context, obj runtime.Objec
 		return
 	}
 	for _, target := range targets.Items {
-		if target.Spec.TargetProfile.Credentials == cr.GetName() {
+		if target.Spec.Credentials == cr.GetName() {
 			key := types.NamespacedName{
 				Namespace: target.Namespace,
 				Name:      target.Name}

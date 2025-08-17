@@ -207,7 +207,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	state.ObjectMeta.ManagedFields = nil
+	state.ManagedFields = nil
 	state.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
 	r.recorder.Eventf(state, corev1.EventTypeWarning, crName, msg)

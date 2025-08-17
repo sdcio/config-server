@@ -50,7 +50,7 @@ func (r *SubscriptionParameters) GetIntervalSeconds() int {
 		// default os 15 sec
 		return 15
 	}
-	return int(r.Interval.Duration.Seconds())
+	return int(r.Interval.Seconds())
 }
 
 func (r *Subscription) GetExistingTargets() sets.Set[string] {
