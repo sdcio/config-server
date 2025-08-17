@@ -63,7 +63,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
 	r.targetStore = cfg.TargetStore
@@ -79,7 +79,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
@@ -95,7 +95,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	key := storebackend.KeyFromNSN(req.NamespacedName)
 
 	discoveryRule := &invv1alpha1.DiscoveryRule{}
-	if err := r.Get(ctx, req.NamespacedName, discoveryRule); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, discoveryRule); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -174,7 +174,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 	// create a new discoveryRule with the latest parameters
-	dr = discoveryrule.New(r.Client, newDRConfig, r.targetStore)
+	dr = discoveryrule.New(r.client, newDRConfig, r.targetStore)
 	// new discovery initialization -> create or update (we deleted the DRConfig before)
 	if err := r.discoveryStore.Create(ctx, key, dr); err != nil {
 		// given this is a ummutable field this means the CR will have to be deleted/recreated
@@ -273,7 +273,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status new", discoveryRule.Status)
 
-	return r.Client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -294,7 +294,7 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 	log.Error(msg)
 	r.recorder.Eventf(discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
 
-	return r.Client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

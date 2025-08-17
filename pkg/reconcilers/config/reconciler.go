@@ -67,7 +67,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetHandler = cfg.TargetHandler
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
@@ -81,7 +81,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer     *resource.APIFinalizer
 	targetHandler target.TargetHandler
 	recorder      record.EventRecorder
@@ -93,7 +93,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	cfg := &configv1alpha1.Config{}
-	if err := r.Get(ctx, req.NamespacedName, cfg); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, cfg); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -107,7 +107,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.handleError(ctx, cfgOrig, cfg, "cannot convert config", err, true); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.client.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 
 	targetKey, err := config.GetTargetKey(cfg.GetLabels())
@@ -194,7 +194,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.handleError(ctx, cfgOrig, cfg, "cannot convert deviation", err, true); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, errors.Wrap(r.Status().Update(ctx, cfg), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.client.Status().Update(ctx, cfg), errUpdateStatus)
 	}
 	
 
@@ -281,7 +281,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, cfg *configv1alpha1.Conf
 
 	r.recorder.Eventf(newConfig, corev1.EventTypeNormal, configv1alpha1.ConfigKind, "ready")
 
-	return r.Client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newConfig, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 			Force:        ptr.To(true),
@@ -335,7 +335,7 @@ func (r *reconciler) handleError(ctx context.Context, configOrig, config *config
 	log.Error(msg)
 	r.recorder.Eventf(config, corev1.EventTypeWarning, configv1alpha1.ConfigKind, msg)
 
-	return r.Client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -356,7 +356,7 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 	}
 
 	deviation := &configv1alpha1.Deviation{}
-	if err := r.Client.Get(ctx, key, deviation); err != nil {
+	if err := r.client.Get(ctx, key, deviation); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return configv1alpha1.Deviation{}, err
 		}
@@ -370,7 +370,7 @@ func (r *reconciler) applyDeviation(ctx context.Context, config *configv1alpha1.
 			DeviationType: ptr.To(configv1alpha1.DeviationType_CONFIG),
 		}, nil)
 
-		if err := r.Client.Create(ctx, newDeviation); err != nil {
+		if err := r.client.Create(ctx, newDeviation); err != nil {
 			return configv1alpha1.Deviation{}, err
 		}
 		return *newDeviation, nil
@@ -384,7 +384,7 @@ func (r *reconciler) clearDeviation(ctx context.Context, deviation *configv1alph
 
 	deviation.Spec.Deviations = []configv1alpha1.ConfigDeviation{}
 
-	if err := r.Client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
+	if err := r.client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

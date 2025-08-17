@@ -64,7 +64,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
@@ -77,7 +77,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
 	//dataServerStore storebackend.Storer[sdcctx.DSContext]
@@ -90,7 +90,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	subscription := &invv1alpha1.Subscription{}
-	if err := r.Get(ctx, req.NamespacedName, subscription); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, subscription); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -191,7 +191,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status new", state.Status)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, state, client.Apply, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -212,7 +212,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 	log.Error(msg)
 	r.recorder.Eventf(state, corev1.EventTypeWarning, crName, msg)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -231,7 +231,7 @@ func (r *reconciler) getDownstreamTargets(ctx context.Context, state *invv1alpha
 	}
 
 	targetList := &invv1alpha1.TargetList{}
-	if err := r.List(ctx, targetList, opts...); err != nil {
+	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, err
 	}
 	targets := make([]string, 0, len(targetList.Items))

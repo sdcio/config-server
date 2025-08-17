@@ -81,7 +81,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot get schema client")
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
@@ -105,7 +105,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer *resource.APIFinalizer
 
 	schemaLoader   *schemaloader.Loader
@@ -120,7 +120,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	schema := &invv1alpha1.Schema{}
-	if err := r.Get(ctx, req.NamespacedName, schema); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, schema); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
@@ -177,7 +177,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !dirExists {
 		// we set the loading condition to know loading started
 		schema.SetConditions(invv1alpha1.Loading())
-		if err := r.Status().Update(ctx, schema); err != nil {
+		if err := r.client.Status().Update(ctx, schema); err != nil {
 			// we always retry when status fails -> optimistic concurrency
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
@@ -240,7 +240,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status new", schema.Status)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.Client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -267,7 +267,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 		result = ctrl.Result{Requeue: false} // unrecoverable error - setting an error here would result in ignoring a request to not requeue
 	}
 
-	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
