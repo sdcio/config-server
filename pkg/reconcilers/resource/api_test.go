@@ -34,8 +34,9 @@ type object struct {
 	metav1.ObjectMeta
 }
 
-func (o *object) DeepCopyObject() runtime.Object {
-	return &object{ObjectMeta: *o.DeepCopy()}
+func (in *object) DeepCopyInto(out *object) {
+	*out = *in
+	out.ObjectMeta = *in.ObjectMeta.DeepCopy()
 }
 
 func TestAPIPatchingApplicator(t *testing.T) {
