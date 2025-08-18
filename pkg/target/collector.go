@@ -96,7 +96,9 @@ func (r *Collector) Stop(ctx context.Context) {
 	}
 	if r.target != nil {
 		r.target.StopSubscriptions()
-		r.target.Close() // ignore error
+		if err := r.target.Close(); err != nil {
+			log.Error("close error", "err", err)
+		} 
 		r.target = nil
 	}
 }

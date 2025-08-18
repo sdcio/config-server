@@ -72,7 +72,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetHandler = cfg.TargetHandler
 	// initializes the directory
@@ -94,7 +94,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer       *resource.APIFinalizer
 	targetHandler   target.TargetHandler
 	workspaceReader *workspacereader.Reader
@@ -107,7 +107,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	rollout := &invv1alpha1.Rollout{}
-	if err := r.Get(ctx, req.NamespacedName, rollout); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, rollout); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
@@ -120,7 +120,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !rollout.GetDeletionTimestamp().IsZero() {
 		// Remove all configs from the system
 		existingConfigList := &configv1alpha1.ConfigList{}
-		if err := r.Client.List(ctx, existingConfigList); err != nil {
+		if err := r.client.List(ctx, existingConfigList); err != nil {
 			return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot get existing configs from apiserver"), true, err)
 		}
 
@@ -168,7 +168,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	configList := &configv1alpha1.ConfigList{}
-	if err := r.Client.List(ctx, configList); err != nil {
+	if err := r.client.List(ctx, configList); err != nil {
 		// we always retry when status fails -> optimistic concurrency
 		return r.handleStatus(ctx, rolloutOrig, nil, condv1alpha1.Rollout("cannot get existing configs from apiserver"), true, err)
 	}
@@ -293,7 +293,7 @@ func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore,
 	var errs error
 	if err := updateStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
 		if err := s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
-			if err := r.Client.Create(ctx, c, &client.CreateOptions{
+			if err := r.client.Create(ctx, c, &client.CreateOptions{
 				FieldManager: reconcilerName,
 			}); err != nil {
 				errs = errors.Join(errs, err)
@@ -307,7 +307,7 @@ func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore,
 
 	if err := deleteStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
 		if err := s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
-			if err := r.Client.Delete(ctx, c); err != nil {
+			if err := r.client.Delete(ctx, c); err != nil {
 				errs = errors.Join(errs, err)
 			}
 		}); err != nil {
@@ -344,7 +344,7 @@ func (r *reconciler) handleStatus(
 		r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, condition.Message)
 	}
 	result := ctrl.Result{Requeue: requeue}
-	return result, pkgerrors.Wrap(r.Client.Status().Patch(ctx, rollout, client.Apply, &client.SubResourcePatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, rollout, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

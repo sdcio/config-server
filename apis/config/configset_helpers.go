@@ -18,6 +18,7 @@ package config
 
 import (
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -29,4 +30,13 @@ func (r *ConfigSet) GetCondition(t condition.ConditionType) condition.Condition 
 // to be set at once
 func (r *ConfigSet) SetConditions(c ...condition.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+func BuildEmptyConfigSet() *ConfigSet {
+	return &ConfigSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       ConfigSetKind,
+		},
+	}
 }

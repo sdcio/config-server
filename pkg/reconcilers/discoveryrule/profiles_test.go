@@ -133,7 +133,7 @@ func TestGetDRConfig(t *testing.T) {
 			ctx := context.Background()
 
 			r := &reconciler{
-				Client: createFakeClient(secretName, targetConnProfileName, targetSyncProfileName),
+				client: createFakeClient(secretName, targetConnProfileName, targetSyncProfileName),
 			}
 			_, err := r.getDRConfig(ctx, tc.dr)
 			if err != nil {

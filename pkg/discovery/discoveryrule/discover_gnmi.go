@@ -60,7 +60,11 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	if err != nil {
 		return err
 	}
-	defer t.Close()
+	defer func() {
+        if err := t.Close(); err != nil {
+            log.Error("closing gNMI target", "err", err)
+        }
+    }()
 	capRsp, err := t.Capabilities(ctx)
 	if err != nil {
 		return err

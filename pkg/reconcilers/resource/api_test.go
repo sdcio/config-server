@@ -34,8 +34,26 @@ type object struct {
 	metav1.ObjectMeta
 }
 
-func (o *object) DeepCopyObject() runtime.Object {
-	return &object{ObjectMeta: *o.ObjectMeta.DeepCopy()}
+func (in *object) DeepCopyInto(out *object) {
+	*out = *in
+	out.ObjectMeta = *in.ObjectMeta.DeepCopy()
+	// TODO: deepcopy other pointer/map/slice fields if your struct has them
+}
+
+func (in *object) DeepCopy() *object {
+	if in == nil {
+		return nil
+	}
+	out := new(object)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *object) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
 }
 
 func TestAPIPatchingApplicator(t *testing.T) {

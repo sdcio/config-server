@@ -74,7 +74,6 @@ func (r *watcher) OnChange(eventType watch.EventType, obj runtime.Object) bool {
 func (r *watcher) listAndWatch(ctx context.Context, l rest.RESTListStrategy, options *metainternalversion.ListOptions) {
 	log := log.FromContext(ctx)
 	if err := r.innerListAndWatch(ctx, l, options); err != nil {
-		// TODO: We need to populate the object on this error
 		// Most likely happens when we cancel a context, stop a watch
 		log.Debug("sending error to watch stream", "error", err)
 		ev := watch.Event{

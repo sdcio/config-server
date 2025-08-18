@@ -677,7 +677,7 @@ func (r *Transactor) handleTransactionErrors(
 	for intentName, intent := range rsp.Intents {
 		log.Info("intent failed", "name", intentName, "errors", intent.Errors)
 
-		var errs error = errors.Join(globalErr)
+		var errs = errors.Join(globalErr)
 		for _, intentError := range intent.Errors {
 			errs = errors.Join(errs, fmt.Errorf("%s", intentError))
 		}

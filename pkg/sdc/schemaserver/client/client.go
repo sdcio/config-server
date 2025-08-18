@@ -82,7 +82,9 @@ func (r *client) IsConnected() bool {
 func (r *client) Stop(ctx context.Context) {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("stopping...")
-	r.conn.Close()
+	if err := r.conn.Close(); err != nil {
+		log.Error("close error", "err", err)
+	}
 	r.cancel()
 }
 
@@ -111,7 +113,9 @@ func (r *client) Start(ctx context.Context) error {
         }
         if !conn.WaitForStateChange(dialCtx, s) {
             // context expired or canceled
-            _ = conn.Close()
+            if err := r.conn.Close(); err != nil {
+				log.Error("close error", "err", err)
+			}
             return fmt.Errorf("gRPC connect timeout; last state: %s", s.String())
         }
     }

@@ -94,3 +94,12 @@ func BuildDeviation(meta metav1.ObjectMeta, spec *DeviationSpec, status *Deviati
 		Status:     *status,
 	}
 }
+
+func BuildEmptyDeviation() *Deviation {
+	return &Deviation{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       DeviationKind,
+		},
+	}
+}
