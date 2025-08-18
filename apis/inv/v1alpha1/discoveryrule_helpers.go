@@ -83,11 +83,11 @@ func (r *DiscoveryRule) GetNamespacedName() types.NamespacedName {
 }
 
 func (r *DiscoveryRule) Discovery() bool {
-	return r.Spec.DiscoveryParameters.DefaultSchema == nil
+	return r.Spec.DefaultSchema == nil
 }
 
 func (r *DiscoveryRule) GetDefaultSchema() *SchemaKey {
-	return r.Spec.DiscoveryParameters.DefaultSchema
+	return r.Spec.DefaultSchema
 }
 
 // Returns the generic discovery rule
@@ -145,7 +145,7 @@ func (r *DiscoveryRule) Validate() error {
 		return err
 	}
 	var errm error
-	if r.Spec.DiscoveryParameters.DefaultSchema != nil {
+	if r.Spec.DefaultSchema != nil {
 		// discovery disabled -> prefix based discovery cannot be supported
 		if kind == DiscoveryRuleSpecKindPrefix {
 			errm = errors.Join(errm, fmt.Errorf("prefix based discovery cannot have discovery disabled, remove the default schema for prefix based discovery"))
@@ -160,7 +160,7 @@ func (r *DiscoveryRule) Validate() error {
 		}
 	}
 
-	if err := r.Spec.DiscoveryParameters.Validate(); err != nil {
+	if err := r.Spec.Validate(); err != nil {
 		errm = errors.Join(errm, err)
 	}
 	return errm

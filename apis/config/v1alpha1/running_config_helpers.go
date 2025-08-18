@@ -32,3 +32,13 @@ func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status R
 		Status:     status,
 	}
 }
+
+// BuildEmptyRunningConfig returns an empty runnign config
+func BuildEmptyRunningConfig() *RunningConfig {
+	return &RunningConfig{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       RunningConfigKind,
+		},
+	}
+}

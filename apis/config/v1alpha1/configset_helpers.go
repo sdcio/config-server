@@ -71,6 +71,16 @@ func BuildConfigSet(meta metav1.ObjectMeta, spec ConfigSetSpec, status ConfigSet
 	}
 }
 
+// BuildEmptyConfigSet returns an empty configset
+func BuildEmptyConfigSet() *ConfigSet {
+	return &ConfigSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       ConfigSetKind,
+		},
+	}
+}
+
 // GetConfigSetFromFile is a helper for tests to use the
 // examples and validate them in unit tests
 func GetConfigSetFromFile(path string) (*ConfigSet, error) {

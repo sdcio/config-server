@@ -30,7 +30,7 @@ import (
 func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha1.Workspace) (*invv1alpha1.Rollout, condv1alpha1.Condition) {
 	log := log.FromContext(ctx)
 	rollout := &invv1alpha1.Rollout{}
-	if err := r.Client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
+	if err := r.client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
 			return nil, RolloutGetFailed(err.Error())
@@ -74,7 +74,7 @@ func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Wo
 				SkipUnavailableTarget: ptr.To(true),
 			},
 		)
-		if err := r.Client.Create(ctx, rollout); err != nil {
+		if err := r.client.Create(ctx, rollout); err != nil {
 			return err
 		}
 		return nil
@@ -84,7 +84,7 @@ func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Wo
 	rollout.Spec.Repository = workspace.Spec.Repository
 	rollout.Spec.Strategy = invv1alpha1.RolloutStrategy_NetworkWideTransaction
 
-	if err := r.Client.Update(ctx, rollout); err != nil {
+	if err := r.client.Update(ctx, rollout); err != nil {
 		return err
 	}
 	return nil

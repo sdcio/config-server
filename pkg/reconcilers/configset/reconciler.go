@@ -61,7 +61,7 @@ const (
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
@@ -74,7 +74,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer *resource.APIFinalizer
 	recorder  record.EventRecorder
 }
@@ -85,7 +85,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log.Info("reconcile")
 
 	configSet := &configv1alpha1.ConfigSet{}
-	if err := r.Get(ctx, req.NamespacedName, configSet); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, configSet); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -101,7 +101,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		var errs error
 		for nsn, existingChildConfig := range existingChildConfigs {
-			if err := r.Delete(ctx, existingChildConfig); err != nil {
+			if err := r.client.Delete(ctx, existingChildConfig); err != nil {
 				errs = merrors.Join(errs, fmt.Errorf("cannot delete child config %s, err: %v", nsn, err))
 			}
 		}
@@ -160,7 +160,7 @@ func (r *reconciler) unrollDownstreamTargets(ctx context.Context, configSet *con
 	}
 
 	targetList := &invv1alpha1.TargetList{}
-	if err := r.List(ctx, targetList, opts...); err != nil {
+	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, err
 	}
 	targets := make([]types.NamespacedName, 0, len(targetList.Items))
@@ -203,7 +203,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		if !ok { // config does not exist -> create it
 			//log.Info("config does not exist", "nsn", nsnKey.String())
 
-			if err := r.Create(ctx, newConfig); err != nil {
+			if err := r.client.Create(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
 				continue
@@ -253,7 +253,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				}
 				continue
 			}
-			if err := r.Update(ctx, newConfig); err != nil {
+			if err := r.client.Update(ctx, newConfig); err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 				continue
@@ -265,7 +265,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	// These configs no longer match a target
 	for _, existingConfig := range existingConfigs {
 		log.Info("existing config delete", "existingConfig", existingConfig.Name)
-		if err := r.Delete(ctx, existingConfig); err != nil {
+		if err := r.client.Delete(ctx, existingConfig); err != nil {
 			log.Error("delete existing intent failed", "error", err)
 		}
 	}
@@ -280,7 +280,7 @@ func (r *reconciler) getOrphanConfigsFromConfigSet(ctx context.Context, configSe
 	existingConfigs := map[types.NamespacedName]*configv1alpha1.Config{}
 	// get existing configs
 	configList := &configv1alpha1.ConfigList{}
-	if err := r.List(ctx, configList); err != nil {
+	if err := r.client.List(ctx, configList); err != nil {
 		log.Error("unexpected object in store")
 		return existingConfigs
 	}
@@ -343,7 +343,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet
 
 	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status new", configSet.Status)
 
-	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -362,7 +362,7 @@ func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *
 	log.Error(msg)
 	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
-	return r.Client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -372,8 +372,8 @@ func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *
 func (r *reconciler) determineOverallStatus(_ context.Context, configSet *configv1alpha1.ConfigSet) string {
 	var sb strings.Builder
 	for _, targetStatus := range configSet.Status.Targets {
-		if targetStatus.Condition.Status == metav1.ConditionFalse {
-			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Condition.Message))
+		if targetStatus.Status == metav1.ConditionFalse {
+			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Message))
 		}
 	}
 	return sb.String()

@@ -140,6 +140,15 @@ func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec) *Config {
 	}
 }
 
+func BuildEmptyConfig() *Config {
+	return &Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       ConfigKind,
+		},
+	}
+}
+
 func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
 	if r.Status.DeviationGeneration == nil {
 		// if there was no old deviation, but now we have a deviation wwe return true

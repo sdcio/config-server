@@ -63,7 +63,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
@@ -75,7 +75,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*sdctarget.Context]
 	recorder        record.EventRecorder
@@ -89,7 +89,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	target := &invv1alpha1.Target{}
-	if err := r.Get(ctx, req.NamespacedName, target); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
@@ -203,7 +203,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
 
-	return result, r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	return result, r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -247,7 +247,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	log.Error(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	return r.Client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

@@ -113,7 +113,7 @@ func LoadDiscoveryProfiles(path string) (map[string]invv1alpha1.GnmiDiscoveryVen
 		}
 
 		// Process only YAML files
-		if d.IsDir() || !(filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml") {
+		if d.IsDir() || (filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml") {
 			return nil
 		}
 

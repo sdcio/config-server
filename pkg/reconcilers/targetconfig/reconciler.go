@@ -68,11 +68,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot get discoveryClient from manager")
 	}
 
-	r.Client = mgr.GetClient()
+	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
-	r.transactor = transactor.New(r.Client, crName, fieldmanagerfinalizer)
+	r.transactor = transactor.New(r.client, crName, fieldmanagerfinalizer)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -83,7 +83,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client.Client
+	client client.Client
 	discoveryClient *discovery.DiscoveryClient
 	finalizer       *resource.APIFinalizer
 	targetStore     storebackend.Storer[*target.Context]
@@ -104,7 +104,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
 	target := &invv1alpha1.Target{}
-	if err := r.Get(ctx, req.NamespacedName, target); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)

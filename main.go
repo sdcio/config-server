@@ -207,16 +207,16 @@ func main() {
 	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
-	configStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Config{}, &configregistryOptions)
-	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.ConfigSet{}, registryOptions)
-	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, &sdcconfig.Deviation{}, registryOptions)
+	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
+	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
+	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, &sdcconfig.RunningConfig{}, &options.Options{
+	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})
 	// no storage required since the targetStore is acting as the storage for the running config resource
-	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, &sdcconfig.ConfigBlame{}, &options.Options{
+	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
 		Client:      mgr.GetClient(),
 		TargetStore: targetStore,
 	})

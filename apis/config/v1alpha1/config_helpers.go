@@ -54,8 +54,8 @@ func (r *Config) IsConditionReady() bool {
 
 func (r *Config) GetOwnerReference() metav1.OwnerReference {
 	return metav1.OwnerReference{
-		APIVersion: r.TypeMeta.APIVersion,
-		Kind:       r.TypeMeta.Kind,
+		APIVersion: r.APIVersion,
+		Kind:       r.Kind,
 		Name:       r.Name,
 		UID:        r.UID,
 		Controller: ptr.To(true),
@@ -179,6 +179,16 @@ func BuildConfig(meta metav1.ObjectMeta, spec ConfigSpec, status ConfigStatus) *
 		ObjectMeta: meta,
 		Spec:       spec,
 		Status:     status,
+	}
+}
+
+// BuildEmptyConfig returns an empty config
+func BuildEmptyConfig() *Config {
+	return &Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.Identifier(),
+			Kind:       ConfigKind,
+		},
 	}
 }
 
