@@ -294,29 +294,24 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 	deletes := make([]*sdcpb.Path, 0)
 
 	for _, deviation := range deviation.Spec.Deviations {
-		if deviation.Reason == "NOT_APPLIED" && deviation.CurrentValue != "<nil>" {
-			path, err := utils.ParsePath(deviation.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
-			}
-
-			val := &sdcpb.TypedValue{}
+		if deviation.Reason == "NOT_APPLIED" {
+			val := &sdcpb.TypedValue{} 
 			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
 				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 				continue
 			}
-
-			updates = append(updates, &sdcpb.Update{
-				Path:  path,
-				Value: val,
-			})
-		} else {
-			// delete case to be updated with the new protos
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
 				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}
-			deletes = append(deletes, path)
+			if val.Value != nil {
+				updates = append(updates, &sdcpb.Update{
+					Path:  path,
+					Value: val,
+				})
+			} else {
+				deletes = append(deletes, path)
+			}
 		}
 	}
 	return updates, deletes, nil
