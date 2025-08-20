@@ -553,13 +553,19 @@ func getConfigsAndDeviationsToTransact(
 			} else {
 				// check for change of deviation
 				if cfg.HashDeviationGenerationChanged(*deviation) {
-					//change
-					// safe copy of labels
-					labels := safeCopyLabels(deviation.GetLabels())
-					labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
-					deviation.SetLabels(labels)
-					deviationsToUpdate[key] = deviation
-					deviationsToUpdateSet.Insert(key)
+					if deviation.HasNotAppliedDeviation() {
+						//change
+						// safe copy of labels
+						labels := safeCopyLabels(deviation.GetLabels())
+						labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
+						deviation.SetLabels(labels)
+						deviationsToUpdate[key] = deviation
+						deviationsToUpdateSet.Insert(key)
+					} else {
+						deviationsToDelete[key] = deviation
+						deviationsToDeleteSet.Insert(key)
+					}
+					
 				}		
 				if len(deviation.Spec.Deviations) == 0 {
 					deviationsToDelete[key] = deviation
@@ -579,11 +585,18 @@ func getConfigsAndDeviationsToTransact(
 
 		if !cfg.IsRevertive() {
 			if len(deviation.Spec.Deviations) != 0 {
-				labels := safeCopyLabels(deviation.GetLabels())
-				labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
-				deviation.SetLabels(labels)
-				deviationsToUpdate[key] = deviation
-				deviationsToUpdateSet.Insert(key)		
+				if deviation.HasNotAppliedDeviation() {
+					//change
+					// safe copy of labels
+					labels := safeCopyLabels(deviation.GetLabels())
+					labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
+					deviation.SetLabels(labels)
+					deviationsToUpdate[key] = deviation
+					deviationsToUpdateSet.Insert(key)
+				} else {
+					deviationsToDelete[key] = deviation
+					deviationsToDeleteSet.Insert(key)
+				}		
 			} else {
 				deviationsToDelete[key] = deviation
 				deviationsToDeleteSet.Insert(key)		
