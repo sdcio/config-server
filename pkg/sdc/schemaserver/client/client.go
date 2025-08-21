@@ -113,7 +113,7 @@ func (r *client) Start(ctx context.Context) error {
         }
         if !conn.WaitForStateChange(dialCtx, s) {
             // context expired or canceled
-            if err := r.conn.Close(); err != nil {
+            if err := conn.Close(); err != nil {
 				log.Error("close error", "err", err)
 			}
             return fmt.Errorf("gRPC connect timeout; last state: %s", s.String())
