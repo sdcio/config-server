@@ -82,6 +82,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.Schema":                               schema_config_server_apis_inv_v1alpha1_Schema(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaKey":                            schema_config_server_apis_inv_v1alpha1_SchemaKey(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaList":                           schema_config_server_apis_inv_v1alpha1_SchemaList(ref),
+		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaRepositoryStatus":               schema_config_server_apis_inv_v1alpha1_SchemaRepositoryStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpec":                           schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecRepository":                 schema_config_server_apis_inv_v1alpha1_SchemaSpecRepository(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaSpecSchema":                     schema_config_server_apis_inv_v1alpha1_SchemaSpecSchema(ref),
@@ -2013,6 +2014,12 @@ func schema_config_server_apis_inv_v1alpha1_GnmiDiscoveryVendorProfileParameters
 							Format: "",
 						},
 					},
+					"preserveNamespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"organization", "paths"},
 			},
@@ -2485,6 +2492,33 @@ func schema_config_server_apis_inv_v1alpha1_SchemaList(ref common.ReferenceCallb
 	}
 }
 
+func schema_config_server_apis_inv_v1alpha1_SchemaRepositoryStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SchemaRepositoryStatus provides the observed hash of a repository",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repoURL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RepoURL defines URL of the repository",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"reference": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reference indicating version of loaded repository",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_inv_v1alpha1_SchemaSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2689,11 +2723,25 @@ func schema_config_server_apis_inv_v1alpha1_SchemaStatus(ref common.ReferenceCal
 							},
 						},
 					},
+					"repositories": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchemaRepositoryStatus provides the array of repositories",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaRepositoryStatus"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"},
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/inv/v1alpha1.SchemaRepositoryStatus"},
 	}
 }
 

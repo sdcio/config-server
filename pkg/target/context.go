@@ -295,22 +295,22 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
-			val := &sdcpb.TypedValue{} 
-			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
-				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
-				continue
-			}
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
 				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}
-			if val.Value != nil {
+			if deviation.CurrentValue == nil {
+				deletes = append(deletes, path)
+			} else {
+				val := &sdcpb.TypedValue{} 
+				if err := prototext.Unmarshal([]byte(*deviation.CurrentValue), val); err != nil {
+					log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
+					continue
+				}
 				updates = append(updates, &sdcpb.Update{
 					Path:  path,
 					Value: val,
 				})
-			} else {
-				deletes = append(deletes, path)
 			}
 		}
 	}

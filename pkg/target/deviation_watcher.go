@@ -250,12 +250,22 @@ func (r *DeviationWatcher) processConfigDeviations(
 func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
-		deviations = append(deviations, configv1alpha1.ConfigDeviation{
+
+		if dev.CurrentValue == nil {
+			deviations = append(deviations, configv1alpha1.ConfigDeviation{
+			Path:         utils.ToXPath(dev.GetPath(), false),
+			DesiredValue: dev.GetExpectedValue().String(),
+			Reason:       dev.GetReason().String(),
+		})
+		} else {
+			deviations = append(deviations, configv1alpha1.ConfigDeviation{
 			Path:         utils.ToXPath(dev.GetPath(), false),
 			DesiredValue: dev.GetExpectedValue().String(),
 			CurrentValue: dev.GetCurrentValue().String(),
 			Reason:       dev.GetReason().String(),
 		})
+		}
+		
 	}
 	return deviations
 }
