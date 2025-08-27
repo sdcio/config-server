@@ -254,12 +254,12 @@ func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
 		
-		desiredValue, err := getDeviationValue(dev.GetExpectedValue())
+		desiredValue, err := getDeviationString(dev.GetExpectedValue())
 		if err != nil {
 			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
 		}
 
-		currentValue, err := getDeviationValue(dev.GetCurrentValue())
+		currentValue, err := getDeviationString(dev.GetCurrentValue())
 		if err != nil {
 			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
 		}
@@ -276,7 +276,7 @@ func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.
 	return deviations
 }
 
-func getDeviationValue(val *sdcpb.TypedValue) (*string, error) {
+func getDeviationString(val *sdcpb.TypedValue) (*string, error) {
 	var v *string
 	if val != nil {
 		b, err := prototext.Marshal(val)
