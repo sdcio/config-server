@@ -469,10 +469,8 @@ func Convert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in *config.ConfigBlob, out
 
 func autoConvert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviation, out *config.ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	if err := v1.Convert_string_To_Pointer_string(&in.CurrentValue, &out.CurrentValue, s); err != nil {
-		return err
-	}
+	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
+	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
 	out.Reason = in.Reason
 	return nil
 }
@@ -484,10 +482,8 @@ func Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviat
 
 func autoConvert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in *config.ConfigDeviation, out *ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	if err := v1.Convert_Pointer_string_To_string(&in.CurrentValue, &out.CurrentValue, s); err != nil {
-		return err
-	}
+	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
+	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
 	out.Reason = in.Reason
 	return nil
 }
@@ -847,17 +843,7 @@ func Convert_config_DeviationList_To_v1alpha1_DeviationList(in *config.Deviation
 
 func autoConvert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, out *config.DeviationSpec, s conversion.Scope) error {
 	out.DeviationType = (*config.DeviationType)(unsafe.Pointer(in.DeviationType))
-	if in.Deviations != nil {
-		in, out := &in.Deviations, &out.Deviations
-		*out = make([]config.ConfigDeviation, len(*in))
-		for i := range *in {
-			if err := Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(&(*in)[i], &(*out)[i], s); err != nil {
-				return err
-			}
-		}
-	} else {
-		out.Deviations = nil
-	}
+	out.Deviations = *(*[]config.ConfigDeviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }
 
@@ -868,17 +854,7 @@ func Convert_v1alpha1_DeviationSpec_To_config_DeviationSpec(in *DeviationSpec, o
 
 func autoConvert_config_DeviationSpec_To_v1alpha1_DeviationSpec(in *config.DeviationSpec, out *DeviationSpec, s conversion.Scope) error {
 	out.DeviationType = (*DeviationType)(unsafe.Pointer(in.DeviationType))
-	if in.Deviations != nil {
-		in, out := &in.Deviations, &out.Deviations
-		*out = make([]ConfigDeviation, len(*in))
-		for i := range *in {
-			if err := Convert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(&(*in)[i], &(*out)[i], s); err != nil {
-				return err
-			}
-		}
-	} else {
-		out.Deviations = nil
-	}
+	out.Deviations = *(*[]ConfigDeviation)(unsafe.Pointer(&in.Deviations))
 	return nil
 }
 
