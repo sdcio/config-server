@@ -539,6 +539,9 @@ func getConfigsAndDeviationsToTransact(
 
 		case cfg.GetDeletionTimestamp() != nil:
 			if !cfg.IsRevertive() {
+				labels := safeCopyLabels(deviation.GetLabels())
+				labels["orphan"] = strconv.FormatBool(cfg.Orphan())
+				deviation.SetLabels(labels)
 				deviationsToDelete[key] = deviation
 				deviationsToDeleteSet.Insert(key)
 			}
@@ -562,12 +565,17 @@ func getConfigsAndDeviationsToTransact(
 						deviationsToUpdate[key] = deviation
 						deviationsToUpdateSet.Insert(key)
 					} else {
+						labels := safeCopyLabels(deviation.GetLabels())
+						labels["orphan"] = strconv.FormatBool(cfg.Orphan())
+						deviation.SetLabels(labels)
 						deviationsToDelete[key] = deviation
 						deviationsToDeleteSet.Insert(key)
 					}
 					
 				}		
 				if len(deviation.Spec.Deviations) == 0 {
+					labels := safeCopyLabels(deviation.GetLabels())
+					labels["orphan"] = strconv.FormatBool(cfg.Orphan())
 					deviationsToDelete[key] = deviation
 					deviationsToDeleteSet.Insert(key)
 				}	
@@ -594,10 +602,16 @@ func getConfigsAndDeviationsToTransact(
 					deviationsToUpdate[key] = deviation
 					deviationsToUpdateSet.Insert(key)
 				} else {
+					labels := safeCopyLabels(deviation.GetLabels())
+					labels["orphan"] = strconv.FormatBool(cfg.Orphan())
+					deviation.SetLabels(labels)
 					deviationsToDelete[key] = deviation
 					deviationsToDeleteSet.Insert(key)
 				}		
 			} else {
+				labels := safeCopyLabels(deviation.GetLabels())
+				labels["orphan"] = strconv.FormatBool(cfg.Orphan())
+				deviation.SetLabels(labels)
 				deviationsToDelete[key] = deviation
 				deviationsToDeleteSet.Insert(key)		
 			}
@@ -612,6 +626,9 @@ func getConfigsAndDeviationsToTransact(
 		}
 
 		if !cfg.IsRevertive() {
+			labels := safeCopyLabels(deviation.GetLabels())
+			labels["orphan"] = strconv.FormatBool(cfg.Orphan())
+			deviation.SetLabels(labels)
 			deviationsToDelete[key] = deviation
 			deviationsToDeleteSet.Insert(key)
 		}
