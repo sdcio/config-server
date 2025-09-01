@@ -302,7 +302,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 			if deviation.CurrentValue == nil {
 				deletes = append(deletes, path)
 			} else {
-				val := &sdcpb.TypedValue{} 
+				val := &sdcpb.TypedValue{}
 				if err := prototext.Unmarshal([]byte(*deviation.CurrentValue), val); err != nil {
 					log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 					continue
@@ -638,6 +638,7 @@ func (r *Context) SetIntents(
 			//Priority: int32(config.Spec.Priority),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
+			Orphan:              config.Orphan(),
 		})
 	}
 
