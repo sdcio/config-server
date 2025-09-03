@@ -139,7 +139,7 @@ func (r *Config) GetTargetNamespaceName() (*types.NamespacedName, error) {
 		return nil, fmt.Errorf("no target namespece information found in labels")
 	}
 	return &types.NamespacedName{
-		Name: targetName,
+		Name:      targetName,
 		Namespace: targetNamespace,
 	}, nil
 }

@@ -469,8 +469,8 @@ func Convert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in *config.ConfigBlob, out
 
 func autoConvert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviation, out *config.ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	out.CurrentValue = in.CurrentValue
+	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
+	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
 	out.Reason = in.Reason
 	return nil
 }
@@ -482,8 +482,8 @@ func Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviat
 
 func autoConvert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in *config.ConfigDeviation, out *ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
-	out.DesiredValue = in.DesiredValue
-	out.CurrentValue = in.CurrentValue
+	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
+	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
 	out.Reason = in.Reason
 	return nil
 }
