@@ -32,7 +32,6 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -271,7 +270,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	}
 
 	for _, config := range configSpec {
-		path, err := utils.ParsePath(config.Path)
+		path, err := sdcpb.ParsePath(config.Path)
 		if err != nil {
 			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
@@ -295,7 +294,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
-			path, err := utils.ParsePath(deviation.Path)
+			path, err := sdcpb.ParsePath(deviation.Path)
 			if err != nil {
 				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}

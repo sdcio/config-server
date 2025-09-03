@@ -36,7 +36,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	//"k8s.io/utils/ptr"
-	"github.com/sdcio/data-server/pkg/utils"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -248,12 +248,11 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 }
 
-
 func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
 	log := log.FromContext(ctx)
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
-		
+
 		desiredValue, err := getDeviationString(dev.GetExpectedValue())
 		if err != nil {
 			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
@@ -265,13 +264,12 @@ func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.
 		}
 
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
-			Path:         utils.ToXPath(dev.GetPath(), false),
+			Path:         dev.GetPath().ToXPath(false),
 			DesiredValue: desiredValue,
 			CurrentValue: currentValue,
 			Reason:       dev.GetReason().String(),
 		})
-		
-		
+
 	}
 	return deviations
 }
