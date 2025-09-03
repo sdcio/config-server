@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	//"k8s.io/utils/ptr"
-	"github.com/sdcio/data-server/pkg/utils"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -246,12 +246,11 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 }
 
-
 func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
-			Path:         utils.ToXPath(dev.GetPath(), false),
+			Path:         dev.GetPath().ToXPath(false),
 			DesiredValue: dev.GetExpectedValue().String(),
 			CurrentValue: dev.GetCurrentValue().String(),
 			Reason:       dev.GetReason().String(),

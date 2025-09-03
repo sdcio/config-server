@@ -32,7 +32,6 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/data-server/pkg/utils"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -271,7 +270,7 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	}
 
 	for _, config := range configSpec {
-		path, err := utils.ParsePath(config.Path)
+		path, err := sdcpb.ParsePath(config.Path)
 		if err != nil {
 			return nil, fmt.Errorf("create data failed for target %s, path %s invalid", key.String(), config.Path)
 		}
@@ -294,7 +293,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
-			path, err := utils.ParsePath(deviation.Path)
+			path, err := sdcpb.ParsePath(deviation.Path)
 			if err != nil {
 				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}
@@ -304,7 +303,7 @@ func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend
 				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
 				continue
 				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
-			} 
+			}
 
 			//val, err := parse_value((deviation.CurrentValue))
 			//if err != nil {
@@ -396,7 +395,7 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	if req.DryRun {
 		return msg, nil
 	}
-	
+
 	if err := r.TransactionConfirm(ctx, req.DatastoreName, req.TransactionId); err != nil {
 		return msg, err
 	}
@@ -492,11 +491,11 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 		Timeout:       ptr.To(int32(60)),
 		Intents: []*sdcpb.TransactionIntent{
 			{
-				Intent:   GetGVKNSN(config),
-				Priority: int32(config.Spec.Priority),
-				Delete:   true,
+				Intent:              GetGVKNSN(config),
+				Priority:            int32(config.Spec.Priority),
+				Delete:              true,
 				DeleteIgnoreNoExist: true,
-				Orphan:   config.Orphan(),
+				Orphan:              config.Orphan(),
 			},
 		},
 	})
@@ -611,9 +610,9 @@ func (r *Context) SetIntents(
 		deviationsToDeleteSet.Insert(key)
 		// only include items for which deviations exist
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
+			Intent: fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
 			//Priority: int32(config.Spec.Priority),
-			Delete:   true,
+			Delete:              true,
 			DeleteIgnoreNoExist: true,
 		})
 	}
@@ -633,9 +632,9 @@ func (r *Context) SetIntents(
 	for key, config := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
+			Intent: GetGVKNSN(config),
 			//Priority: int32(config.Spec.Priority),
-			Delete:   true,
+			Delete:              true,
 			DeleteIgnoreNoExist: true,
 		})
 	}
