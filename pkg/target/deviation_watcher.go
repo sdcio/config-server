@@ -31,7 +31,9 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
 	//"k8s.io/utils/ptr"
 	"github.com/sdcio/data-server/pkg/utils"
@@ -193,7 +195,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		if configName == "default" {
 			continue
 		}
-		configDevs := ConvertSdcpbDeviations2ConfigDeviations(devs)
+		configDevs := ConvertSdcpbDeviations2ConfigDeviations(ctx, devs)
 
 		nsn := r.targetKey.NamespacedName
 		if configName == unManagedConfigDeviation {
@@ -247,15 +249,41 @@ func (r *DeviationWatcher) processConfigDeviations(
 }
 
 
-func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
+func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
+	log := log.FromContext(ctx)
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
+		
+		desiredValue, err := getDeviationString(dev.GetExpectedValue())
+		if err != nil {
+			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
+		}
+
+		currentValue, err := getDeviationString(dev.GetCurrentValue())
+		if err != nil {
+			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
+		}
+
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
 			Path:         utils.ToXPath(dev.GetPath(), false),
-			DesiredValue: dev.GetExpectedValue().String(),
-			CurrentValue: dev.GetCurrentValue().String(),
+			DesiredValue: desiredValue,
+			CurrentValue: currentValue,
 			Reason:       dev.GetReason().String(),
 		})
+		
+		
 	}
 	return deviations
+}
+
+func getDeviationString(val *sdcpb.TypedValue) (*string, error) {
+	var v *string
+	if val != nil {
+		b, err := prototext.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		v = ptr.To(string(b))
+	}
+	return v, nil
 }

@@ -215,7 +215,11 @@ message GnmiDiscoveryVendorProfileParameters {
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
   // +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;
   // +kubebuilder:default:=JSON_IETF
-  optional string encoding = 5;
+  optional string encoding = 4;
+
+  // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="preserveNamespace is immutable"
+  // +kubebuilder:default:=true
+  optional bool preserveNamespace = 5;
 }
 
 message Proxy {
@@ -337,6 +341,15 @@ message SchemaList {
   repeated Schema items = 2;
 }
 
+// SchemaRepositoryStatus provides the observed hash of a repository
+message SchemaRepositoryStatus {
+  // RepoURL defines URL of the repository
+  optional string repoURL = 1;
+
+  // Reference indicating version of loaded repository
+  optional string reference = 2;
+}
+
 // SchemaSpec defines the desired state of Schema
 message SchemaSpec {
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provider is immutable"
@@ -384,6 +397,9 @@ message SchemaSpecSchema {
 message SchemaStatus {
   // ConditionedStatus provides the status of the Schema using conditions
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // SchemaRepositoryStatus provides the array of repositories
+  repeated SchemaRepositoryStatus repositories = 2;
 }
 
 // SrcDstPath provide a src/dst pair for the loader to download the schema from a specific src

@@ -288,36 +288,33 @@ func (r *Context) getIntentUpdate(ctx context.Context, key storebackend.Key, con
 	return update, nil
 }
 
-func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, error) {
+func (r *Context) getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, []*sdcpb.Path, error) {
 	log := log.FromContext(ctx)
-	update := make([]*sdcpb.Update, 0, len(deviation.Spec.Deviations))
+	updates := make([]*sdcpb.Update, 0)
+	deletes := make([]*sdcpb.Path, 0)
 
 	for _, deviation := range deviation.Spec.Deviations {
 		if deviation.Reason == "NOT_APPLIED" {
 			path, err := utils.ParsePath(deviation.Path)
 			if err != nil {
-				return nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
+				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
 			}
-
-			val := &sdcpb.TypedValue{}
-			if err := prototext.Unmarshal([]byte(deviation.CurrentValue), val); err != nil {
-				log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
-				continue
-				//return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
-			} 
-
-			//val, err := parse_value((deviation.CurrentValue))
-			//if err != nil {
-			//	return nil, fmt.Errorf("create data failed for target %s, val %s invalid", key.String(), deviation.CurrentValue)
-			//}
-
-			update = append(update, &sdcpb.Update{
-				Path:  path,
-				Value: val,
-			})
+			if deviation.CurrentValue == nil {
+				deletes = append(deletes, path)
+			} else {
+				val := &sdcpb.TypedValue{}
+				if err := prototext.Unmarshal([]byte(*deviation.CurrentValue), val); err != nil {
+					log.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
+					continue
+				}
+				updates = append(updates, &sdcpb.Update{
+					Path:  path,
+					Value: val,
+				})
+			}
 		}
 	}
-	return update, nil
+	return updates, deletes, nil
 }
 
 /*
@@ -396,7 +393,7 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 	if req.DryRun {
 		return msg, nil
 	}
-	
+
 	if err := r.TransactionConfirm(ctx, req.DatastoreName, req.TransactionId); err != nil {
 		return msg, err
 	}
@@ -430,7 +427,7 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 	})
 
 	if !config.IsRevertive() {
-		update, err := r.getDeviationUpdate(ctx, key, &deviation)
+		updates, deletes, err := r.getDeviationUpdate(ctx, key, &deviation)
 		if err != nil {
 			return "", err
 		}
@@ -458,7 +455,8 @@ func (r *Context) SetIntent(ctx context.Context, key storebackend.Key, config *c
 				Deviation: true,
 				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(config)),
 				Priority:  int32(newPriority),
-				Update:    update,
+				Update:    updates,
+				Deletes:   deletes,
 			})
 		}
 	}
@@ -492,11 +490,11 @@ func (r *Context) DeleteIntent(ctx context.Context, key storebackend.Key, config
 		Timeout:       ptr.To(int32(60)),
 		Intents: []*sdcpb.TransactionIntent{
 			{
-				Intent:   GetGVKNSN(config),
-				Priority: int32(config.Spec.Priority),
-				Delete:   true,
+				Intent:              GetGVKNSN(config),
+				Priority:            int32(config.Spec.Priority),
+				Delete:              true,
 				DeleteIgnoreNoExist: true,
-				Orphan:   config.Orphan(),
+				Orphan:              config.Orphan(),
 			},
 		},
 	})
@@ -515,7 +513,7 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs)+len(deviations))
 	// we only include deviations that have
 	for _, deviation := range deviations {
-		update, err := r.getDeviationUpdate(ctx, key, deviation)
+		updates, deletes, err := r.getDeviationUpdate(ctx, key, deviation)
 		if err != nil {
 			return "", err
 		}
@@ -528,12 +526,13 @@ func (r *Context) RecoverIntents(ctx context.Context, key storebackend.Key, conf
 			newPriority--
 		}
 		// only include items for which deviations exist
-		if len(update) != 0 {
+		if len(updates) != 0 || len(deletes) != 0 {
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
 				Priority:  int32(newPriority),
-				Update:    update,
+				Update:    updates,
+				Deletes:   deletes,
 			})
 		}
 	}
@@ -582,7 +581,8 @@ func (r *Context) SetIntents(
 	intents := make([]*sdcpb.TransactionIntent, 0)
 	for key, deviation := range deviationsToUpdate {
 		deviationsToUpdateSet.Insert(key)
-		update, err := r.getDeviationUpdate(ctx, targetKey, deviation)
+
+		updates, deletes, err := r.getDeviationUpdate(ctx, targetKey, deviation)
 		if err != nil {
 			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
 			return nil, err
@@ -597,12 +597,13 @@ func (r *Context) SetIntents(
 			newPriority--
 		}
 		// only include items for which deviations exist
-		if len(update) != 0 {
+		if len(updates) != 0 || len(deletes) != 0 {
 			intents = append(intents, &sdcpb.TransactionIntent{
 				Deviation: true,
 				Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
 				Priority:  int32(newPriority),
-				Update:    update,
+				Update:    updates,
+				Deletes:   deletes,
 			})
 		}
 	}
@@ -611,9 +612,9 @@ func (r *Context) SetIntents(
 		deviationsToDeleteSet.Insert(key)
 		// only include items for which deviations exist
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
+			Intent: fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
 			//Priority: int32(config.Spec.Priority),
-			Delete:   true,
+			Delete:              true,
 			DeleteIgnoreNoExist: true,
 		})
 	}
@@ -633,10 +634,11 @@ func (r *Context) SetIntents(
 	for key, config := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
+			Intent: GetGVKNSN(config),
 			//Priority: int32(config.Spec.Priority),
-			Delete:   true,
+			Delete:              true,
 			DeleteIgnoreNoExist: true,
+			Orphan:              config.Orphan(),
 		})
 	}
 
