@@ -47,6 +47,10 @@ func (c *FakeConfigV1alpha1) RunningConfigs(namespace string) v1alpha1.RunningCo
 	return newFakeRunningConfigs(c, namespace)
 }
 
+func (c *FakeConfigV1alpha1) SensitiveConfigs(namespace string) v1alpha1.SensitiveConfigInterface {
+	return newFakeSensitiveConfigs(c, namespace)
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeConfigV1alpha1) RESTClient() rest.Interface {

@@ -32,6 +32,7 @@ type ConfigV1alpha1Interface interface {
 	ConfigSetsGetter
 	DeviationsGetter
 	RunningConfigsGetter
+	SensitiveConfigsGetter
 }
 
 // ConfigV1alpha1Client is used to interact with features provided by the config.sdcio.dev group.
@@ -57,6 +58,10 @@ func (c *ConfigV1alpha1Client) Deviations(namespace string) DeviationInterface {
 
 func (c *ConfigV1alpha1Client) RunningConfigs(namespace string) RunningConfigInterface {
 	return newRunningConfigs(c, namespace)
+}
+
+func (c *ConfigV1alpha1Client) SensitiveConfigs(namespace string) SensitiveConfigInterface {
+	return newSensitiveConfigs(c, namespace)
 }
 
 // NewForConfig creates a new ConfigV1alpha1Client for the given config.

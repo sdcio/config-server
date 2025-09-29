@@ -26,3 +26,5 @@ type ConfigSetExpansion interface{}
 type DeviationExpansion interface{}
 
 type RunningConfigExpansion interface{}
+
+type SensitiveConfigExpansion interface{}

@@ -56,3 +56,11 @@ type RunningConfigListerExpansion interface{}
 // RunningConfigNamespaceListerExpansion allows custom methods to be added to
 // RunningConfigNamespaceLister.
 type RunningConfigNamespaceListerExpansion interface{}
+
+// SensitiveConfigListerExpansion allows custom methods to be added to
+// SensitiveConfigLister.
+type SensitiveConfigListerExpansion interface{}
+
+// SensitiveConfigNamespaceListerExpansion allows custom methods to be added to
+// SensitiveConfigNamespaceLister.
+type SensitiveConfigNamespaceListerExpansion interface{}
