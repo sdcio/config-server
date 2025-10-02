@@ -56,6 +56,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":                 schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec":                 schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":               schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfig":                   schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData":               schema_config_server_apis_config_v1alpha1_SensitiveConfigData(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigList":               schema_config_server_apis_config_v1alpha1_SensitiveConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec":               schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                        schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
@@ -1240,6 +1245,238 @@ func schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref common.Re
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/runtime.RawExtension"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfig defines the Schema for the SensitiveConfig API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_SensitiveConfigData(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path defines the path relative to which the value is applicable",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretKeyRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretKeyRef refers to a secret in the same namesapce as the config",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
+						},
+					},
+				},
+				Required: []string{"path", "secretKeyRef"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.SecretKeySelector"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_SensitiveConfigList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfigList contains a list of SensitiveConfigs",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfigSpec defines the desired state of SensitiveConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"lifecycle": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"),
+						},
+					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Priority defines the priority of this SensitiveConfig",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"revertive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revertive defines if this CR is enabled for revertive or non revertve operation",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SensitiveConfig defines the SensitiveConfiguration to be applied to a target device",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfigStatus defines the observed state of SensitiveConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"lastKnownGoodSchema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastKnownGoodSchema identifies the last known good schema used to apply the SensitiveConfig successfully",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
+						},
+					},
+					"appliedSensitiveConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppliedSensitiveConfig defines the SensitiveConfig applied to the target",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"),
+						},
+					},
+					"deviationGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Deviations generation used for the latest SensitiveConfig apply",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"},
 	}
 }
 

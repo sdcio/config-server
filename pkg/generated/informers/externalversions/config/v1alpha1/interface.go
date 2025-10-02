@@ -33,6 +33,8 @@ type Interface interface {
 	Deviations() DeviationInformer
 	// RunningConfigs returns a RunningConfigInformer.
 	RunningConfigs() RunningConfigInformer
+	// SensitiveConfigs returns a SensitiveConfigInformer.
+	SensitiveConfigs() SensitiveConfigInformer
 }
 
 type version struct {
@@ -69,4 +71,9 @@ func (v *version) Deviations() DeviationInformer {
 // RunningConfigs returns a RunningConfigInformer.
 func (v *version) RunningConfigs() RunningConfigInformer {
 	return &runningConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SensitiveConfigs returns a SensitiveConfigInformer.
+func (v *version) SensitiveConfigs() SensitiveConfigInformer {
+	return &sensitiveConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

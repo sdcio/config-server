@@ -1,0 +1,24 @@
+# DO NOT UPDATE THESE FILES OR CHANGE THE NAME, RATHER CREATE NEW ONCE
+# These files have 2 purposes
+# 1. they serve as unit tests
+# 2. they can be used as discovery rules examples
+####### HEADER END #######
+apiVersion: config.sdcio.dev/v1alpha1
+kind: SensitiveConfig
+metadata:
+  name: sensitiveTest
+  namespace: default
+  labels:
+    config.sdcio.dev/targetName: dev1
+    config.sdcio.dev/targetNamespace: default
+spec:
+  priority: 10
+  config:
+  - path: /a1 #xpath
+    secretKeyRef:
+      name: secretNameA
+      key: key1
+  - path: /a2 #xpath
+    secretKeyRef:
+      name: secretNameA
+      key: key2

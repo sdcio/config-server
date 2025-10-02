@@ -208,6 +208,10 @@ func main() {
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
+
+	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
+
+
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
@@ -227,6 +231,8 @@ func main() {
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
 			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
+			WithResourceAndHandler(&sdcconfig.SensitiveConfig{}, sensitiveconfigStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.SensitiveConfig{}, sensitiveconfigStorageProvider).
 			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).
