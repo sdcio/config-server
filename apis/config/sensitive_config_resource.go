@@ -82,19 +82,19 @@ func (r *SensitiveConfig) GetObjectMeta() *metav1.ObjectMeta {
 // GetSingularName returns the singular name of the resource
 // GetSingularName implements resource.Object
 func (SensitiveConfig) GetSingularName() string {
-	return ConfigSingular
+	return SensitiveConfigSingular
 }
 
 // GetShortNames returns the shortnames for the resource
 // GetShortNames implements resource.Object
 func (SensitiveConfig) GetShortNames() []string {
-	return ConfigShortNames
+	return SensitiveConfigShortNames
 }
 
 // GetCategories return the categories of the resource
 // GetCategories implements resource.Object
 func (SensitiveConfig) GetCategories() []string {
-	return ConfigCategories
+	return SensitiveConfigCategories
 }
 
 // New return an empty resource
