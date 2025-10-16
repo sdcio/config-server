@@ -57,7 +57,7 @@ func (SensitiveConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ConfigPlural,
+		Resource: SensitiveConfigPlural,
 	}
 }
 
