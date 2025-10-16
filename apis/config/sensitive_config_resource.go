@@ -57,7 +57,7 @@ func (SensitiveConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
-		Resource: ConfigPlural,
+		Resource: SensitiveConfigPlural,
 	}
 }
 
@@ -82,19 +82,19 @@ func (r *SensitiveConfig) GetObjectMeta() *metav1.ObjectMeta {
 // GetSingularName returns the singular name of the resource
 // GetSingularName implements resource.Object
 func (SensitiveConfig) GetSingularName() string {
-	return ConfigSingular
+	return SensitiveConfigSingular
 }
 
 // GetShortNames returns the shortnames for the resource
 // GetShortNames implements resource.Object
 func (SensitiveConfig) GetShortNames() []string {
-	return ConfigShortNames
+	return SensitiveConfigShortNames
 }
 
 // GetCategories return the categories of the resource
 // GetCategories implements resource.Object
 func (SensitiveConfig) GetCategories() []string {
-	return ConfigCategories
+	return SensitiveConfigCategories
 }
 
 // New return an empty resource
@@ -111,8 +111,8 @@ func (SensitiveConfig) NewList() runtime.Object {
 
 // IsEqual returns a bool indicating if the desired state of both resources is equal or not
 func (r *SensitiveConfig) IsEqual(ctx context.Context, obj, old runtime.Object) bool {
-	newobj := obj.(*Config)
-	oldobj := old.(*Config)
+	newobj := obj.(*SensitiveConfig)
+	oldobj := old.(*SensitiveConfig)
 
 	if !apiequality.Semantic.DeepEqual(oldobj.ObjectMeta, newobj.ObjectMeta) {
 		return false
@@ -128,15 +128,15 @@ func (r *SensitiveConfig) GetStatus() resource.StatusSubResource {
 
 // IsStatusEqual returns a bool indicating if the status of both resources is equal or not
 func (r *SensitiveConfig) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
-	newobj := obj.(*Config)
-	oldobj := old.(*Config)
+	newobj := obj.(*SensitiveConfig)
+	oldobj := old.(*SensitiveConfig)
 	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
 }
 
 // PrepareForStatusUpdate prepares the status update
 func (r *SensitiveConfig) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
-	newObj := obj.(*Config)
-	oldObj := old.(*Config)
+	newObj := obj.(*SensitiveConfig)
+	oldObj := old.(*SensitiveConfig)
 	newObj.Spec = oldObj.Spec
 
 	// Status updates are for only for updating status, not objectmeta.
@@ -152,7 +152,7 @@ func (r *SensitiveConfig) ValidateStatusUpdate(ctx context.Context, obj, old run
 // SubResourceName resturns the name of the subresource
 // SubResourceName implements the resource.StatusSubResource
 func (SensitiveConfigStatus) SubResourceName() string {
-	return fmt.Sprintf("%s/%s", ConfigPlural, "status")
+	return fmt.Sprintf("%s/%s", SensitiveConfigPlural, "status")
 }
 
 // CopyTo copies the content of the status subresource to a parent resource.
@@ -176,17 +176,17 @@ func (r *SensitiveConfig) TableConvertor() func(gr schema.GroupResource) rest.Ta
 		return registry.NewTableConverter(
 			gr,
 			func(obj runtime.Object) []interface{} {
-				config, ok := obj.(*SensitiveConfig)
+				sensitiveConfig, ok := obj.(*SensitiveConfig)
 				if !ok {
 					return nil
 				}
 				return []interface{}{
-					fmt.Sprintf("%s.%s/%s", strings.ToLower(ConfigKind), GroupName, config.Name),
-					config.GetCondition(condition.ConditionTypeReady).Status,
-					config.GetCondition(condition.ConditionTypeReady).Reason,
-					config.Spec.Priority,
-					config.GetTarget(),
-					config.GetLastKnownGoodSchema().FileString(),
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(SensitiveConfigKind), GroupName, sensitiveConfig.Name),
+					sensitiveConfig.GetCondition(condition.ConditionTypeReady).Status,
+					sensitiveConfig.GetCondition(condition.ConditionTypeReady).Reason,
+					sensitiveConfig.Spec.Priority,
+					sensitiveConfig.GetTarget(),
+					sensitiveConfig.GetLastKnownGoodSchema().FileString(),
 				}
 			},
 			[]metav1.TableColumnDefinition{
@@ -263,7 +263,7 @@ type SensitiveConfigFilter struct {
 
 func (r *SensitiveConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 	f := false // result of the previous filter
-	o, ok := obj.(*Config)
+	o, ok := obj.(*SensitiveConfig)
 	if !ok {
 		return f
 	}
@@ -286,8 +286,8 @@ func (r *SensitiveConfigFilter) Filter(ctx context.Context, obj runtime.Object) 
 
 func (r *SensitiveConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	// status cannot be set upon create -> reset it
-	newobj := obj.(*Config)
-	newobj.Status = ConfigStatus{}
+	newobj := obj.(*SensitiveConfig)
+	newobj.Status = SensitiveConfigStatus{}
 }
 
 // ValidateCreate statically validates
@@ -310,7 +310,7 @@ func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object
 		))
 	}
 
-	newobj := obj.(*Config)
+	newobj := obj.(*SensitiveConfig)
 	if newobj.Spec.Priority < 2 {
 		allErrs = append(allErrs, field.Invalid(
 			field.NewPath("spec.priority"),

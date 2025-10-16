@@ -108,8 +108,8 @@ func (r *SensitiveConfig) Orphan() bool {
 }
 
 // BuildSensitiveConfig returns a reource from a client Object a Spec/Status
-func BuildSensitiveConfig(meta metav1.ObjectMeta, spec ConfigSpec) *Config {
-	return &Config{
+func BuildSensitiveConfig(meta metav1.ObjectMeta, spec SensitiveConfigSpec) *SensitiveConfig {
+	return &SensitiveConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       SensitiveConfigKind,
@@ -119,8 +119,8 @@ func BuildSensitiveConfig(meta metav1.ObjectMeta, spec ConfigSpec) *Config {
 	}
 }
 
-func BuildEmptySensitiveConfig() *Config {
-	return &Config{
+func BuildEmptySensitiveConfig() *SensitiveConfig {
+	return &SensitiveConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       SensitiveConfigKind,
