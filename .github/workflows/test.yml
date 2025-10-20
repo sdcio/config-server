@@ -13,11 +13,12 @@ on:
       - "main"
       - "!releases/**"
 
-permissions: read-all
+permissions:
+  packages: write
 
 jobs:
   unittest:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       
@@ -39,7 +40,7 @@ jobs:
       #     fail_on_error: true
   pr-release:
     if: contains(github.event.pull_request.labels.*.name, 'safe to test')
-    runs-on: sdcio-action-runners
+    runs-on: ubuntu-latest
     needs: unittest
     outputs:
       configversion: ${{ steps.image.outputs.version }}
@@ -50,12 +51,16 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Login to private k8s Container Registry
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: registry.k8s.sdcio.dev
-          username: iptecharch-builder
-          password: ${{ secrets.K8S_REGISTRY_HANS }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run GoReleaser
         id: goreleaser
@@ -66,17 +71,17 @@ jobs:
           version: latest
           args: release --clean -f .goreleaser.nightlies.yml --skip=validate
         env:
-          GITHUB_TOKEN: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
 
       - name: Extract docker image build version from GoReleaser
         id: image
         run: |
-          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq '.[] | select(.type == "Published Docker Image" and (.name | contains("registry.k8s.sdcio.dev")) and (.name | contains("latest") | not)) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
+          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq '.[] | select(.type == "Published Docker Image" and (.name | contains("ghcr.io")) and (.name | contains("latest") | not)) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
 
   latest-versions:
     name: Fetch latest versions from GH API
-    runs-on: sdcio-action-runners
+    runs-on: ubuntu-latest
     outputs:
       schemaversion: ${{ steps.latest-versions.outputs.schemaversion }}
       dataversion: ${{ steps.latest-versions.outputs.dataversion }}
