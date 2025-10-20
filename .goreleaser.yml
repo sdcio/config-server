@@ -18,10 +18,6 @@ dockers:
     image_templates:
       - "ghcr.io/sdcio/{{ .ProjectName }}:v{{ .Version }}"
       - "ghcr.io/sdcio/{{ .ProjectName }}:latest"
-      #- "registry.kmrd.dev/sdcio/{{ .ProjectName }}:v{{ .Version }}"
-      #- "registry.kmrd.dev/sdcio/{{ .ProjectName }}:latest"
-      - "registry.k8s.sdcio.dev/sdcio/{{ .ProjectName }}:v{{ .Version }}"
-      - "registry.k8s.sdcio.dev/sdcio/{{ .ProjectName }}:latest"
     dockerfile: goreleaser.dockerfile
     skip_push: false
     build_flag_templates:
