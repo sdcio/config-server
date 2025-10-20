@@ -127,7 +127,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// if the config is not receovered we stop the reconcile loop
 	if !tctx.IsTargetConfigRecovered(ctx) {
-		log.Info("config recovery -> already recovered")
+		log.Info("config recovery -> target config not recovered")
 		return ctrl.Result{}, nil
 	}
 
