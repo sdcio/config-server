@@ -59,8 +59,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: iptecharch-builder
-          password: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run GoReleaser
         id: goreleaser
@@ -71,7 +71,7 @@ jobs:
           version: latest
           args: release --clean -f .goreleaser.nightlies.yml --skip=validate
         env:
-          GITHUB_TOKEN: ${{ secrets.IPTECHARCH_GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
 
       - name: Extract docker image build version from GoReleaser
