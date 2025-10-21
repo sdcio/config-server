@@ -1,5 +1,6 @@
 # Config-server
 
+
 The config-server is a Kubernetes-based Operator and comprises of several controllers:
 
 - Schema Controller: Manages the lifecycle of schemas using Schema Custom Resources (CR).
