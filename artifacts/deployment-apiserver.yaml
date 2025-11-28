@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sdc-apiserver
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-apiserver
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdc-apiserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdc-apiserver
+    spec:
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+      serviceAccountName: sdc-apiserver
+      containers:
+      - name: sdc-apiserver
+        image: input.context[0].data.sdcApiServerImage
+        imagePullPolicy: Always
+        command:
+        - /app/sdc-apiserver
+        args:
+        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
+        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
+        #- "--feature-gates=APIPriorityAndFairness=false"
+        - "--audit-log-path=-"
+        - "--audit-log-maxage=0"
+        - "--audit-log-maxbackup=0"
+        - "--secure-port=6443"
+        ports:
+        - name: api-service
+          containerPort: 6443
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: "NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: "NODE_IP"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        volumeMounts:
+        - name: apiserver-certs
+          mountPath: /apiserver.local.config/certificates
+          readOnly: true
+        - name: config-store
+          mountPath: /config
+      volumes:
+      - name: apiserver-certs
+        secret:
+          secretName: sdc-apiserver-cert
+      - name: config-store
+        persistentVolumeClaim:
+          claimName: pvc-config-store
+

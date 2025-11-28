@@ -1,45 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: config-server
-  namespace: network-system
+  name: sdc-controller
+  namespace: sdc-system
   labels:
-    app.kubernetes.io/name: config-server
+    app.kubernetes.io/name: sdc-controller
 spec:
   strategy:
     type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: config-server
+      app.kubernetes.io/name: sdc-controller
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: config-server
+        app.kubernetes.io/name: sdc-controller
         sdcio.dev/data-server: "true"
     spec:
       securityContext:
         runAsUser: 10000
         runAsGroup: 10000
         fsGroup: 10000
-      serviceAccountName: config-server
+      serviceAccountName: sdc-controller
       containers:
-      - name: config-server
-        image: input.context[0].data.configServerImage
+      - name: sdc-controller
+        image: input.context[0].data.sdcControllerImage
         imagePullPolicy: Always
         command:
-        - /app/config-server
-        args:
-        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
-        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
-        #- "--feature-gates=APIPriorityAndFairness=false"
-        - "--audit-log-path=-"
-        - "--audit-log-maxage=0"
-        - "--audit-log-maxbackup=0"
-        - "--secure-port=6443"
-        ports:
-        - name: api-service
-          containerPort: 6443
+        - /app/sdc-controller
         env:
         - name: POD_IP
           valueFrom:
@@ -87,11 +76,6 @@ spec:
         - name: ENABLE_ROLLOUT
           value: "true"
         volumeMounts:
-        - name: apiserver-certs
-          mountPath: /apiserver.local.config/certificates
-          readOnly: true
-        - name: config-store
-          mountPath: /config
         - name: schema-store
           mountPath: /schemas
         - name: workspace-store
@@ -119,15 +103,9 @@ spec:
       - name: data-server-config
         configMap:
           name: data-server
-      - name: apiserver-certs
-        secret:
-          secretName: config-server-cert
       - name: cache
         emptyDir:
           sizeLimit: 10Gi
-      - name: config-store
-        persistentVolumeClaim:
-          claimName: pvc-config-store
       - name: schema-store # yang file from git
         persistentVolumeClaim:
           claimName: pvc-schema-store

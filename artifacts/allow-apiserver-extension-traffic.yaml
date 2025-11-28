@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   labels:
-    app.kubernetes.io/name: config-server
+    app.kubernetes.io/name: sdc-apiserver
   name: allow-traffic-to-apiserver-extension
-  namespace: network-system
+  namespace: sdc-system
 spec:
   ingress:
     - from:
@@ -15,6 +15,6 @@ spec:
           protocol: TCP
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: config-server
+      app.kubernetes.io/name: sdc-apiserver
   policyTypes:
     - Ingress
