@@ -28,6 +28,91 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+/*
+Example: One-shot use
+
+	cfg := &client.Config{
+		Address:  "data-server.sdc-system.svc.cluster.local:50052",
+		Insecure: true,
+	}
+
+	err := client.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
+		resp, err := c.ListDataStore(ctx, &sdcpb.ListDataStoreRequest{})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Got %d datastores\n", len(resp.GetDatastores()))
+		return nil
+	})
+	if err != nil {
+		// handle error
+	}
+*/
+
+// OneShot runs a function with a short-lived DataServerClient.
+// It dials, runs fn, and always closes the connection.
+func OneShot(
+	ctx context.Context,
+	cfg *Config,
+	fn func(ctx context.Context, c sdcpb.DataServerClient) error,
+) error {
+	if err := validateConfig(cfg); err != nil {
+		return err
+	}
+	conn, err := dial(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	c := sdcpb.NewDataServerClient(conn)
+	return fn(ctx, c)
+}
+
+/*
+Example: Ephemeral client
+
+	cfg := &client.Config{
+		Address:  "data-server.sdc-system.svc.cluster.local:50052",
+		Insecure: true,
+	}
+
+	c, closeFn, err := client.NewEphemeral(ctx, cfg)
+	if err != nil {
+		// handle
+		return
+	}
+	defer closeFn()
+
+	resp, err := c.ListIntent(ctx, &sdcpb.ListIntentRequest{})
+	if err != nil {
+		// handle
+	}
+	_ = resp
+*/
+
+// NewEphemeral returns a short-lived client and a close function.
+// Call closeFn() when you're done.
+func NewEphemeral(
+	ctx context.Context,
+	cfg *Config,
+) (sdcpb.DataServerClient, func() error, error) {
+	if err := validateConfig(cfg); err != nil {
+		return nil, nil, err
+	}
+	conn, err := dial(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	c := sdcpb.NewDataServerClient(conn)
+	closeFn := func() error {
+		return conn.Close()
+	}
+	return c, closeFn, nil
+}
+
+// Client is a long-lived DataServer client (for controllers, daemons, etc.).
 type Client interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context)
@@ -51,17 +136,22 @@ type Config struct {
 	MaxMsgSize int
 }
 
-func New(cfg *Config) (Client, error) {
+func validateConfig(cfg *Config) error {
 	if cfg == nil {
-		return nil, fmt.Errorf("cannot create client with empty config")
+		return fmt.Errorf("cannot create client with empty config")
 	}
 	if cfg.Address == "" {
-		return nil, fmt.Errorf("cannot create client with an empty address")
+		return fmt.Errorf("cannot create client with an empty address")
 	}
+	return nil
+}
 
-	return &client{
-		cfg: cfg,
-	}, nil
+func New(cfg *Config) (Client, error) {
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
+	// default cancel is a no-op so Stop() is always safe
+	return &client{cfg: cfg, cancel: func() {}}, nil
 }
 
 type client struct {
@@ -73,42 +163,82 @@ type client struct {
 
 const DSConnectionStatusNotConnected = "DATASERVER_NOT_CONNECTED"
 
-func (r *client) IsConnectionReady() bool {
-	if r.conn == nil {
-		return false
+// dial creates a gRPC connection with a timeout and proper options,
+// using the modern grpc.NewClient API.
+func dial(ctx context.Context, cfg *Config) (*grpc.ClientConn, error) {
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
 	}
-	return r.conn.GetState() == connectivity.Ready
+
+	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// TODO: add TLS / max msg size based on cfg here.
+	}
+
+	conn, err := grpc.NewClient(cfg.Address, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create data-server client %q: %w", cfg.Address, err)
+	}
+
+	// Proactively start connecting and wait for Ready (or timeout/cancel).
+	conn.Connect()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return conn, nil
+		}
+		if !conn.WaitForStateChange(dialCtx, state) {
+			_ = conn.Close()
+			return nil, fmt.Errorf("gRPC connect timeout to %q; last state: %s", cfg.Address, state.String())
+		}
+	}
+}
+
+func (r *client) IsConnectionReady() bool {
+	return r.conn != nil && r.conn.GetState() == connectivity.Ready
 }
 
 func (r *client) IsConnected() bool {
-	return r.conn != nil 
+	return r.conn != nil && r.conn.GetState() != connectivity.Shutdown
 }
 
 func (r *client) Stop(ctx context.Context) {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("stopping...")
-	if err := r.conn.Close(); err != nil {
-		log.Error("close error", "err", err)
+
+	if r.conn != nil {
+		if err := r.conn.Close(); err != nil {
+			log.Error("close error", "err", err)
+		}
 	}
-	r.cancel()
+	if r.cancel != nil {
+		r.cancel()
+	}
 }
 
 func (r *client) Start(ctx context.Context) error {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("starting...")
 
-	_, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	var err error
-	r.conn, err = grpc.NewClient(r.cfg.Address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	conn, err := dial(ctx, r.cfg)
 	if err != nil {
 		return err
 	}
 
-	//defer conn.Close()
+	r.conn = conn
 	r.dsclient = sdcpb.NewDataServerClient(r.conn)
+
+	// Long-lived cancel for Stop()
+	runCtx, cancel := context.WithCancel(context.Background())
+	r.cancel = cancel
+	go func() {
+		<-runCtx.Done()
+		log.Info("stopped...")
+	}()
+
 	log.Info("started...")
 	return nil
 }
@@ -116,6 +246,8 @@ func (r *client) Start(ctx context.Context) error {
 func (r *client) GetAddress() string {
 	return r.cfg.Address
 }
+
+// ---------- RPC wrappers for sdcpb.DataServerClient ----------
 
 func (r *client) ListDataStore(ctx context.Context, in *sdcpb.ListDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.ListDataStoreResponse, error) {
 	return r.dsclient.ListDataStore(ctx, in, opts...)
@@ -164,56 +296,3 @@ func (r *client) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCan
 func (r *client) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
 	return r.dsclient.BlameConfig(ctx, in, opts...)
 }
-
-/*
-func (r *client) getGRPCOpts() ([]grpc.DialOption, error) {
-	var opts []grpc.DialOption
-	fmt.Printf("grpc client config: %v\n", r.cfg)
-	if r.cfg.Insecure {
-		//opts = append(opts, grpc.WithInsecure())
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	} else {
-		tlsConfig, err := r.newTLS()
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	}
-	return opts, nil
-}
-
-func (r *client) newTLS() (*tls.Config, error) {
-	tlsConfig := &tls.Config{
-		Renegotiation:      tls.RenegotiateNever,
-		InsecureSkipVerify: r.cfg.SkipVerify,
-	}
-	//err := loadCerts(tlsConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
-	return tlsConfig, nil
-}
-
-func loadCerts(tlscfg *tls.Config) error {
-	if c.TLSCert != "" && c.TLSKey != "" {
-		certificate, err := tls.LoadX509KeyPair(*c.TLSCert, *c.TLSKey)
-		if err != nil {
-			return err
-		}
-		tlscfg.Certificates = []tls.Certificate{certificate}
-		tlscfg.BuildNameToCertificate()
-	}
-	if c.TLSCA != nil && *c.TLSCA != "" {
-		certPool := x509.NewCertPool()
-		caFile, err := ioutil.ReadFile(*c.TLSCA)
-		if err != nil {
-			return err
-		}
-		if ok := certPool.AppendCertsFromPEM(caFile); !ok {
-			return errors.New("failed to append certificate")
-		}
-		tlscfg.RootCAs = certPool
-	}
-	return nil
-}
-*/

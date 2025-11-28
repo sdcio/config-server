@@ -32,7 +32,6 @@ import (
 	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,7 +41,12 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const DataServerAddress = "data-server-0.schema-server.sdc-system.svc.cluster.local:56000"
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
@@ -150,23 +154,59 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return obj, nil
 }
 
-func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
-	target, tctx, err := r.getTargetContext(ctx, key)
-	if err != nil {
+func (r *strategy) getRunningConfig(ctx context.Context, target *invv1alpha1.Target, key types.NamespacedName) (*config.RunningConfig, error) {
+	if !target.IsReady() {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 
-	rc, err := tctx.GetData(ctx, storebackend.KeyFromNSN(key))
-	if err != nil {
-		return nil, apierrors.NewInternalError(err)
+	cfg := &dsclient.Config{
+		Address:  DataServerAddress,
+		Insecure: true,
 	}
+
+	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer closeFn()
+
+
+	// check if the schema exists; this is == nil check; in case of err it does not exist
+	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
+		DatastoreName:   key.String(),
+		Intent:        "running",
+		Format:        sdcpb.Format_Intent_Format_JSON,
+	})
+	if err == nil {
+		return nil, err
+	}
+
+	rc := config.BuildRunningConfig(
+		metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		config.RunningConfigSpec{},
+		config.RunningConfigStatus{
+			Value: runtime.RawExtension{
+				Raw: rsp.GetBlob(),
+			},
+		},
+	)
+
 	rc.SetCreationTimestamp(target.CreationTimestamp)
 	rc.SetResourceVersion(target.ResourceVersion)
 	rc.SetAnnotations(target.Annotations)
 	rc.SetLabels(target.Labels)
-	obj := rc
+	return rc, nil
+}
 
-	return obj, nil
+func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, key, target); err != nil {
+		return nil, apierrors.NewNotFound(r.gr, key.Name)
+	}
+	return r.getRunningConfig(ctx, target, key)
 }
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
@@ -194,69 +234,21 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		return nil, err
 	}
 
-	runningConfigListFunc := func(ctx context.Context, key storebackend.Key, tctx *target.Context) {
-		target := &invv1alpha1.Target{}
-		if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
-			log.Error("cannot get target", "key", key.String(), "error", err.Error())
-			return
-		}
-
-		if options.LabelSelector != nil || filter != nil {
-			f := true
-			if options.LabelSelector != nil {
-				if options.LabelSelector.Matches(labels.Set(target.GetLabels())) {
-					f = false
-				}
-			} else {
-				// if not labels selector is present don't filter
-				f = false
-			}
-			// if filtered we dont have to run this section since the label requirement was not met
-			if filter != nil && !f {
-				if filter.Name != "" {
-					if target.GetName() == filter.Name {
-						f = false
-					} else {
-						f = true
-					}
-				}
-				if filter.Namespace != "" {
-					if target.GetNamespace() == filter.Namespace {
-						f = false
-					} else {
-						f = true
-					}
-				}
-			}
-			if !f {
-				obj, err := tctx.GetData(ctx, key)
-				if err != nil {
-					log.Error("cannot get running config", "key", key.String(), "error", err.Error())
-					return
-				}
-				obj.SetCreationTimestamp(target.CreationTimestamp)
-				obj.SetResourceVersion(target.ResourceVersion)
-				obj.SetAnnotations(target.Annotations)
-				obj.SetLabels(target.Labels)
-				utils.AppendItem(v, obj)
-			}
-		} else {
-			obj, err := tctx.GetData(ctx, key)
-			if err != nil {
-				log.Error("cannot get running config", "key", key.String(), "error", err.Error())
-				return
-			}
-			obj.SetCreationTimestamp(target.CreationTimestamp)
-			obj.SetResourceVersion(target.ResourceVersion)
-			obj.SetAnnotations(target.Annotations)
-			obj.SetLabels(target.Labels)
-			utils.AppendItem(v, obj)
-		}
+	targets := &invv1alpha1.TargetList{}
+	if err := r.client.List(ctx, targets); err != nil {
+		return nil, err
 	}
 
-	if err := r.targetStore.List(ctx, runningConfigListFunc); err != nil {
-		log.Error("list failed", "err", err)
+	for _, target := range targets.Items {
+		key := target.GetNamespacedName()
+		obj, err := r.getRunningConfig(ctx, &target, key)
+		if err != nil {
+			log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
+			continue
+		}
+		utils.AppendItem(v, obj)
 	}
+
 	return newListObj, nil
 }
 

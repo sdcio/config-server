@@ -32,7 +32,7 @@ docker:
 docker-build: ## Build docker image with the manager.
 	ssh-add ./keys/id_rsa 2>/dev/null; true
 	docker build --ssh default="$(SSH_AUTH_SOCK)" --build-arg USERID="$(USERID)" \
-		-f DockerfileServer -t ${IMG_SERVER} .
+		-f DockerfileAPIServer -t ${IMG_SERVER} .
 	docker build --ssh default="$(SSH_AUTH_SOCK)" --build-arg USERID="$(USERID)" \
 		-f DockerfileController -t ${IMG_CONTROLLER} .
 

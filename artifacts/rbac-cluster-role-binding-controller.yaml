@@ -8,5 +8,5 @@ roleRef:
   name: sdc-controller-clusterrole
 subjects:
 - kind: ServiceAccount
-  name: sdc-controller
+  name: controller
   namespace: sdc-system

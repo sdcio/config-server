@@ -25,7 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	//"time"
+	"time"
 
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
@@ -35,7 +35,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
-	//sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
+	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	"github.com/sdcio/config-server/pkg/target"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,19 +119,16 @@ func main() {
 
 	targetStore := memstore.NewStore[*target.Context]()
 	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
-	/*
 	time.Sleep(5 * time.Second)
-	dataServerStore := memstore.NewStore[sdcctx.DSContext]()
-	if err := sdcctx.CreateDataServerClient(ctx, dataServerStore, mgr.GetClient()); err != nil {
-		log.Error("cannot create data server", "error", err.Error())
-		os.Exit(1)
-	}
+
+	
+	/*
 	schemaServerStore := memstore.NewStore[sdcctx.SSContext]()
 	if err := sdcctx.CreateSchemaServerClient(ctx, schemaServerStore, mgr.GetClient()); err != nil {
 		log.Error("cannot create schema server", "error", err.Error())
 		os.Exit(1)
 	}
-		*/
+	*/
 
 	// SchemaServerBaseDir is overwritable via Environment var
 	if envDir, found := os.LookupEnv("SDC_SCHEMA_SERVER_BASE_DIR"); found {
@@ -147,12 +144,19 @@ func main() {
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
-		//DataServerStore:   dataServerStore,
-		//SchemaServerStore: schemaServerStore,
 		SchemaDir:         schemaBaseDir,
 		TargetHandler:     targetHandler,
 		WorkspaceDir:      workspaceDir,
 	}
+	if IsLocalDataServerEnabled() {
+		dataServerStore := memstore.NewStore[sdcctx.DSContext]()
+		if err := sdcctx.CreateDataServerClient(ctx, dataServerStore, mgr.GetClient()); err != nil {
+			log.Error("cannot create data server", "error", err.Error())
+			os.Exit(1)
+		}
+		ctrlCfg.DataServerStore = dataServerStore
+	}
+	
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
 		if IsReconcilerEnabled(name) {
@@ -207,6 +211,16 @@ func IsPProfEnabled() *string {
 func IsReconcilerEnabled(reconcilerName string) bool {
 	if val, found := os.LookupEnv(fmt.Sprintf("ENABLE_%s", strings.ToUpper(reconcilerName))); found {
 		if strings.ToLower(val) != "false" {
+			return true
+		}
+	}
+	return false
+}
+
+
+func IsLocalDataServerEnabled() bool {
+	if val, found := os.LookupEnv("LOCAL-DATASERVER"); found {
+		if strings.ToLower(val) == "true" {
 			return true
 		}
 	}

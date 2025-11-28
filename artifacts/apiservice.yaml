@@ -8,7 +8,7 @@ spec:
   groupPriorityMinimum: 1000
   versionPriority: 15
   service:
-    name: sdc-apiserver
+    name: api-server
     namespace: sdc-system
     port: 6443
   version: v1alpha1

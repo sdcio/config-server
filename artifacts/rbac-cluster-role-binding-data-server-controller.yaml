@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: sdc:system:auth-delegator
+  name: sdc-data-server-controller-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: system:auth-delegator
+  name: sdc-data-server-controller-clusterrole
 subjects:
 - kind: ServiceAccount
-  name: api-server
+  name: data-server-controller
   namespace: sdc-system

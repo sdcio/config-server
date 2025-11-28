@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sdc-controller
+  name: controller
   namespace: sdc-system
   labels:
     app.kubernetes.io/name: sdc-controller
@@ -21,13 +21,13 @@ spec:
         runAsUser: 10000
         runAsGroup: 10000
         fsGroup: 10000
-      serviceAccountName: sdc-controller
+      serviceAccountName: controller
       containers:
-      - name: sdc-controller
+      - name: controller
         image: input.context[0].data.sdcControllerImage
         imagePullPolicy: Always
         command:
-        - /app/sdc-controller
+        - /app/controller
         env:
         - name: POD_IP
           valueFrom:
@@ -50,18 +50,18 @@ spec:
               fieldPath: status.hostIP
         - name: PPROF_PORT
           value: "8081"
-        - name: REVERTIVE
-          value: "true"
-        - name: ENABLE_SUBSCRIPTION
-          value: "true"
-        - name: ENABLE_TARGET
-          value: "true"
-        - name: ENABLE_TARGETDATASTORE
-          value: "true"
-        - name: ENABLE_TARGETCONFIGSERVER
-          value: "true"
-        - name: ENABLE_TARGETRECOVERYSERVER
-          value: "true"
+        #- name: REVERTIVE
+        #  value: "true"
+        #- name: ENABLE_SUBSCRIPTION
+        #  value: "true"
+        #- name: ENABLE_TARGET
+        #  value: "true"
+        #- name: ENABLE_TARGETDATASTORE
+        #  value: "true"
+        #- name: ENABLE_TARGETCONFIGSERVER
+        #  value: "true"
+        #- name: ENABLE_TARGETRECOVERYSERVER
+        #  value: "true"
         - name: ENABLE_DISCOVERYRULE
           value: "true"
         - name: ENABLE_SCHEMA

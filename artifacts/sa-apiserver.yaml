@@ -1,5 +1,5 @@
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: sdc-apiserver
+  name: api-server
   namespace: sdc-system

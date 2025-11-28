@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: data-server
+  name: data-server-controller
   namespace: sdc-system
   labels:
-    app.kubernetes.io/name: data-server
+    app.kubernetes.io/name: sdc-data-server-controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: data-server
+      app.kubernetes.io/name: sdc-data-server-controller
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: data-server
+        app.kubernetes.io/name: sdc-data-server-controller
         sdcio.dev/data-server: "true"
         sdcio.dev/schema-server: "true"
     spec:
@@ -21,7 +21,61 @@ spec:
         runAsUser: 10000
         runAsGroup: 10000
         fsGroup: 10000
+      serviceAccountName: data-server-controller
       containers:
+      - name: controller
+        image: input.context[0].data.sdcControllerImage
+        imagePullPolicy: Always
+        command:
+        - /app/controller
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: "NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: "NODE_IP"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: LOCAL-DATASERVER
+          value: "true"
+        - name: PPROF_PORT
+          value: "8081"
+        - name: REVERTIVE
+          value: "true"
+        - name: ENABLE_SUBSCRIPTION
+          value: "true"
+        - name: ENABLE_TARGET
+          value: "true"
+        - name: ENABLE_TARGETDATASTORE
+          value: "true"
+        - name: ENABLE_TARGETCONFIGSERVER
+          value: "true"
+        - name: ENABLE_TARGETRECOVERYSERVER
+          value: "true"
+        #- name: ENABLE_DISCOVERYRULE
+        #  value: "true"
+        #- name: ENABLE_SCHEMA
+        #  value: "true"
+        #- name: ENABLE_CONFIG
+        #  value: "true"
+        #- name: ENABLE_CONFIGSET
+        #  value: "true"
+        #- name: ENABLE_WORKSPACE
+        #  value: "true"
+        #- name: ENABLE_ROLLOUT
+        #  value: "true"
       - name: data-server
         image: input.context[0].data.dataServerImage
         imagePullPolicy: Always

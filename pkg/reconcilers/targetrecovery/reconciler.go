@@ -135,34 +135,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
-
-	/*
-		// we split the config in config that were successfully applied and config that was not yet
-		recoveryConfigs, deviations, err := r.getRecoveryConfigsAndDeviations(ctx, target)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "reapply config failed", err), errUpdateStatus)
-		}
-
-		if len(recoveryConfigs) == 0  && len(deviations) == 0 {
-			tctx.SetRecoveredConfigsState(ctx)
-			log.Info("config recovery done -> no configs to recover")
-			return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, ""), errUpdateStatus)
-		}
-
-		log.Info("config recovery new ....")
-
-		// We need to restore the config on the target
-		msg, err := tctx.RecoverIntents(ctx, targetKey, recoveryConfigs, deviations)
-		if err != nil {
-			// This is bad since this means we cannot recover the applied config
-			// on a target. We set the target config status to Failed.
-			// Most likely a human intervention is needed
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
-		}
-		tctx.SetRecoveredConfigsState(ctx)
-		log.Info("config recovery done -> configs recovered")
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
-	*/
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, msg *string) error {

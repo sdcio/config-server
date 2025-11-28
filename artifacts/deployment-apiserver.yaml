@@ -1,33 +1,33 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sdc-apiserver
+  name: api-server
   namespace: sdc-system
   labels:
-    app.kubernetes.io/name: sdc-apiserver
+    app.kubernetes.io/name: sdc-api-server
 spec:
   strategy:
     type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: sdc-apiserver
+      app.kubernetes.io/name: sdc-api-server
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: sdc-apiserver
+        app.kubernetes.io/name: sdc-api-server
     spec:
       securityContext:
         runAsUser: 10000
         runAsGroup: 10000
         fsGroup: 10000
-      serviceAccountName: sdc-apiserver
+      serviceAccountName: api-server
       containers:
-      - name: sdc-apiserver
+      - name: api-server
         image: input.context[0].data.sdcApiServerImage
         imagePullPolicy: Always
         command:
-        - /app/sdc-apiserver
+        - /app/api-server
         args:
         - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
         - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
@@ -60,15 +60,15 @@ spec:
               apiVersion: v1
               fieldPath: status.hostIP
         volumeMounts:
-        - name: apiserver-certs
+        - name: api-server-certs
           mountPath: /apiserver.local.config/certificates
           readOnly: true
         - name: config-store
           mountPath: /config
       volumes:
-      - name: apiserver-certs
+      - name: api-server-certs
         secret:
-          secretName: sdc-apiserver-cert
+          secretName: api-server-cert
       - name: config-store
         persistentVolumeClaim:
           claimName: pvc-config-store

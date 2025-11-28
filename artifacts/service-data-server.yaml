@@ -4,7 +4,7 @@ metadata:
   name: data-server
   namespace: sdc-system
   labels:
-    app.kubernetes.io/name: data-server
+    app.kubernetes.io/name: sdc-data-server-controller
 spec:
   ports:
   - name: data-service
