@@ -201,7 +201,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, err error) error {
 	log := log.FromContext(ctx)
-	log.Error("config config transaction failed", "err", err)
+	log.Error("config transaction failed", "err", err)
 	return nil
 	// take a snapshot of the current object
 	//patch := client.MergeFrom(target.DeepCopy())

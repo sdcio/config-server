@@ -644,7 +644,7 @@ func (r *Context) SetIntents(
 	log.Info("Transaction",
 		"configsToUpdate total", len(configsToUpdate),
 		"configsToUpdate names", configsToUpdateSet.UnsortedList(),
-		"configsToDelete totall", len(configsToDelete),
+		"configsToDelete total", len(configsToDelete),
 		"configsToDelete names", configsToDeleteSet.UnsortedList(),
 		"deviationsToUpdate total", len(deviationsToUpdate),
 		"deviationsToUpdate names", deviationsToUpdateSet.UnsortedList(),
