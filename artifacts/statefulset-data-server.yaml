@@ -66,8 +66,8 @@ spec:
           value: "true"
         #- name: ENABLE_DISCOVERYRULE
         #  value: "true"
-        #- name: ENABLE_SCHEMA
-        #  value: "true"
+        - name: ENABLE_SCHEMA
+          value: "true"
         #- name: ENABLE_CONFIG
         #  value: "true"
         #- name: ENABLE_CONFIGSET
@@ -76,6 +76,9 @@ spec:
         #  value: "true"
         #- name: ENABLE_ROLLOUT
         #  value: "true"
+        volumeMounts:
+        - name: schema-store
+          mountPath: /schemas
       - name: data-server
         image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
@@ -93,6 +96,8 @@ spec:
           mountPath: /cached/caches
         - name: schema-db
           mountPath: /schemadb
+        - name: schema-store
+          mountPath: /schemas
       volumes:
       - name: data-server-config
         configMap:
@@ -103,4 +108,7 @@ spec:
       - name: schema-db # persistent schema obj from the parsed yang files
         persistentVolumeClaim:
           claimName: pvc-schema-db
+      - name: schema-store # yang file from git
+        persistentVolumeClaim:
+          claimName: pvc-schema-store
 

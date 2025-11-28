@@ -47,7 +47,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const DataServerAddress = "data-server-0.schema-server.sdc-system.svc.cluster.local:56000"
+const DataServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(

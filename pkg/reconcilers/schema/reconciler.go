@@ -62,7 +62,7 @@ const (
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
-	SchemaServerAddress = "data-server-0.schema-server.sdc-system.svc.cluster.local:56000"
+	SchemaServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
 )
 
 func getSchemaServerAddress() string {

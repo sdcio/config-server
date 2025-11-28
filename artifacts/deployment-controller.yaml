@@ -64,8 +64,8 @@ spec:
         #  value: "true"
         - name: ENABLE_DISCOVERYRULE
           value: "true"
-        - name: ENABLE_SCHEMA
-          value: "true"
+        #- name: ENABLE_SCHEMA
+        #  value: "true"
         #- name: ENABLE_CONFIG
         #  value: "true"
         - name: ENABLE_CONFIGSET
@@ -75,14 +75,14 @@ spec:
         - name: ENABLE_ROLLOUT
           value: "true"
         volumeMounts:
-        - name: schema-store
-          mountPath: /schemas
+        #- name: schema-store
+        #  mountPath: /schemas
         - name: workspace-store
           mountPath: /workspace
       volumes:
-      - name: schema-store # yang file from git
-        persistentVolumeClaim:
-          claimName: pvc-schema-store
+      #- name: schema-store # yang file from git
+      #  persistentVolumeClaim:
+      #    claimName: pvc-schema-store
       - name: workspace-store # git workspace
         persistentVolumeClaim:
           claimName: pvc-workspace-store

@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const DataServerAddress = "data-server-0.schema-server.sdc-system.svc.cluster.local:56000"
+const DataServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
 
 type ConfigStoreHandler struct {
 	Client      client.Client
