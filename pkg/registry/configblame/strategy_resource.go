@@ -181,6 +181,27 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 		return nil, err
 	}
 
+	if rsp == nil || rsp.ConfigTree == nil {
+		cb := config.BuildConfigBlame(
+			metav1.ObjectMeta{
+				Name:      key.Name,
+				Namespace: key.Namespace,
+			},
+			config.ConfigBlameSpec{},
+			config.ConfigBlameStatus{
+				Value: runtime.RawExtension{
+					Raw: nil,
+				},
+			},
+		)
+
+		cb.SetCreationTimestamp(target.CreationTimestamp)
+		cb.SetResourceVersion(target.ResourceVersion)
+		cb.SetAnnotations(target.Annotations)
+		cb.SetLabels(target.Labels)
+		return cb, nil
+	}
+
 	json, err := protojson.Marshal(rsp.ConfigTree)
 	if err != nil {
 		return nil, err
