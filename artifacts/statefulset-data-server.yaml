@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: data-server
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: data-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: data-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: data-server
+        sdcio.dev/data-server: "true"
+        sdcio.dev/schema-server: "true"
+    spec:
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+      containers:
+      - name: data-server
+        image: input.context[0].data.dataServerImage
+        imagePullPolicy: Always
+        command:
+        - /app/data-server
+        args:
+        - "--config=/config/data-server.yaml"
+        ports:
+        - name: data-service
+          containerPort: 56000
+        volumeMounts:
+        - name: data-server-config
+          mountPath: /config
+        - name: cache
+          mountPath: /cached/caches
+        - name: schema-db
+          mountPath: /schemadb
+      volumes:
+      - name: data-server-config
+        configMap:
+          name: data-server
+      - name: cache
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: schema-db # persistent schema obj from the parsed yang files
+        persistentVolumeClaim:
+          claimName: pvc-schema-db
+

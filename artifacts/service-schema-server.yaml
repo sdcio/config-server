@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: data-server
+  name: schema-server
   namespace: sdc-system
   labels:
     app.kubernetes.io/name: data-server
@@ -13,6 +13,6 @@ spec:
     targetPort: data-service
   clusterIP: None
   selector:
-    sdcio.dev/data-server: "true"
+    sdcio.dev/schema-server: "true"
 
 #<pod-name>.<service-name>.<namespace>.svc.cluster.local

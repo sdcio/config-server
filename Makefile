@@ -42,17 +42,12 @@ docker-push:  docker-build ## Push docker image with the manager.
 	docker push ${IMG_CONTROLLER}
 
 .PHONY: install
-install: docker
-	kustomize build install | kubectl apply -f -
+install: artifacts
+	kubectl apply -f artifacts/out
 
 .PHONY: reinstall
-reinstall: docker
-	kustomize build install | kubectl apply -f -
-	kubectl delete pods -n config-system --all
-
-.PHONY: apiserver-logs
-apiserver-logs:
-	kubectl logs -l apiserver=true --container apiserver -n config-system -f --tail 1000
+reinstall: docker-push artifacts
+	kubectl apply -f artifacts/out
 
 .PHONY: codegen
 codegen:

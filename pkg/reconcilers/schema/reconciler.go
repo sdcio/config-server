@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	//"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -35,7 +35,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
+	//sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
@@ -71,6 +71,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
+	/*
 	err = cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key storebackend.Key, dsCtx sdcctx.SSContext) {
 		r.schemaclient = dsCtx.SSClient
 	})
@@ -80,6 +81,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if r.schemaclient == nil {
 		return nil, fmt.Errorf("cannot get schema client")
 	}
+		*/
 
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
