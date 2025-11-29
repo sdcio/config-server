@@ -16,6 +16,8 @@ limitations under the License.
 
 package sdcctx
 
+/*
+
 import (
 	"context"
 	"os"
@@ -147,3 +149,4 @@ func DeleteSchemaServerClient(ctx context.Context, schemaServerStore storebacken
 	log.Info("schemaserver client deleted")
 	return nil
 }
+*/

@@ -36,7 +36,7 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	"github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -117,19 +117,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	targetStore := memstore.NewStore[*target.Context]()
-	// TODO dataServer/schemaServer -> this should be decoupled in a scaled out environment
-	time.Sleep(5 * time.Second)
-
-	
-	/*
-	schemaServerStore := memstore.NewStore[sdcctx.SSContext]()
-	if err := sdcctx.CreateSchemaServerClient(ctx, schemaServerStore, mgr.GetClient()); err != nil {
-		log.Error("cannot create schema server", "error", err.Error())
-		os.Exit(1)
-	}
-	*/
-
 	// SchemaServerBaseDir is overwritable via Environment var
 	if envDir, found := os.LookupEnv("SDC_SCHEMA_SERVER_BASE_DIR"); found {
 		schemaBaseDir = envDir
@@ -140,15 +127,15 @@ func main() {
 		workspaceDir = envDir
 	}
 
-	targetHandler := target.NewTargetHandler(mgr.GetClient(), targetStore)
+	targetStore := memstore.NewStore[*sdctarget.Context]()
 
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		TargetStore:       targetStore,
 		SchemaDir:         schemaBaseDir,
-		TargetHandler:     targetHandler,
 		WorkspaceDir:      workspaceDir,
 	}
 	if IsLocalDataServerEnabled() {
+		time.Sleep(5 * time.Second)
 		dataServerStore := memstore.NewStore[sdcctx.DSContext]()
 		if err := sdcctx.CreateDataServerClient(ctx, dataServerStore, mgr.GetClient()); err != nil {
 			log.Error("cannot create data server", "error", err.Error())
@@ -156,7 +143,7 @@ func main() {
 		}
 		ctrlCfg.DataServerStore = dataServerStore
 	}
-	
+
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
 		if IsReconcilerEnabled(name) {

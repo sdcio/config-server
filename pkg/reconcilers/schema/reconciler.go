@@ -17,14 +17,12 @@ limitations under the License.
 package schema
 
 import (
-	"os"
 	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
 
-	//"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -36,7 +34,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
-	//sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
@@ -60,21 +57,10 @@ const (
 	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
-	SchemaServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
 )
 
-func getSchemaServerAddress() string {
-	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
-		return address
-	} else {
-		if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-			return address
-		}
-	}
-	return SchemaServerAddress
-}
+
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -137,7 +123,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !schema.GetDeletionTimestamp().IsZero() {
 
 		cfg := &ssclient.Config{
-			Address:  getSchemaServerAddress(),
+			Address:  ssclient.GetSchemaServerAddress(),
 			Insecure: true,
 		}
 
@@ -206,7 +192,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	cfg := &ssclient.Config{
-		Address:  getSchemaServerAddress(),
+		Address:  ssclient.GetSchemaServerAddress(),
 		Insecure: true,
 	}
 

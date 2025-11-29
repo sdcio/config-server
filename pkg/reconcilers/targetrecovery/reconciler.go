@@ -30,8 +30,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/target"
-	"github.com/sdcio/config-server/pkg/transactor"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -73,7 +72,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetStore = cfg.TargetStore
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
-	r.transactor = transactor.New(r.client, crName, fieldmanagerfinalizer)
+	r.transactor = sdctarget.NewTransactor(r.client, crName, fieldmanagerfinalizer)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -85,9 +84,9 @@ type reconciler struct {
 	client client.Client
 	discoveryClient *discovery.DiscoveryClient
 	finalizer       *resource.APIFinalizer
-	targetStore     storebackend.Storer[*target.Context]
+	targetStore     storebackend.Storer[*sdctarget.Context]
 	recorder        record.EventRecorder
-	transactor      *transactor.Transactor
+	transactor      *sdctarget.Transactor
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -219,7 +218,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	})
 }
 
-func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*target.Context, error) {
+func (r *reconciler) IsTargetDataStoreReady(ctx context.Context, key storebackend.Key, target *invv1alpha1.Target) (*sdctarget.Context, error) {
 	log := log.FromContext(ctx)
 	// we do not find the target Context -> target is not ready
 	tctx, err := r.targetStore.Get(ctx, key)

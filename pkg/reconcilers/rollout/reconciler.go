@@ -36,7 +36,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/target"
 	workspacereader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,7 +59,6 @@ const (
 	finalizer      = "rollout.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
 )
 
@@ -74,7 +72,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
-	r.targetHandler = cfg.TargetHandler
 	// initializes the directory
 	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,
@@ -96,7 +93,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client client.Client
 	finalizer       *resource.APIFinalizer
-	targetHandler   target.TargetHandler
 	workspaceReader *workspacereader.Reader
 	recorder        record.EventRecorder
 }
@@ -134,7 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		tm := NewTransactionManager(
 			newTargetUpdateConfigStore,
 			newTargetDeleteConfigStore,
-			r.targetHandler,
+			r.client,
 			1*time.Minute,
 			30*time.Second,
 			rollout.GetSkipUnavailableTarget(),
@@ -182,7 +178,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	tm := NewTransactionManager(
 		newTargetUpdateConfigStore,
 		newTargetDeleteConfigStore,
-		r.targetHandler,
+		r.client,
 		1*time.Minute,
 		30*time.Second,
 		rollout.GetSkipUnavailableTarget(),

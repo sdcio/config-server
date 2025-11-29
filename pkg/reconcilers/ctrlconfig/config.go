@@ -22,19 +22,17 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	"github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 type ControllerConfig struct {
-	TargetStore       storebackend.Storer[*target.Context]
+	TargetStore       storebackend.Storer[*sdctarget.Context]
 	DataServerStore   storebackend.Storer[sdcctx.DSContext]
-	SchemaServerStore storebackend.Storer[sdcctx.SSContext]
 	SchemaDir         string
 	WorkspaceDir      string
-	TargetHandler     target.TargetHandler
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

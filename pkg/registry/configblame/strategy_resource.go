@@ -18,7 +18,6 @@ package configblame
 
 import (
 	"context"
-	"errors"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -29,7 +28,6 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/registry/options"
-	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,8 +44,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const DataServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
@@ -66,7 +62,6 @@ func NewStrategy(
 		storage:        storage,
 		watcherManager: watcherManager,
 		client:         opts.Client,
-		targetStore:    opts.TargetStore,
 	}
 }
 
@@ -86,7 +81,6 @@ type strategy struct {
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	client         client.Client
-	targetStore    storebackend.Storer[*target.Context]
 }
 
 func (r *strategy) NamespaceScoped() bool { return r.obj.NamespaceScoped() }
@@ -161,7 +155,7 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 	}
 
 	cfg := &dsclient.Config{
-		Address:  DataServerAddress,
+		Address:  dsclient.GetDataServerAddress(),
 		Insecure: true,
 	}
 
@@ -174,7 +168,7 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 
 	// check if the schema exists; this is == nil check; in case of err it does not exist
 	rsp, err := dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
-		DatastoreName:   key.String(),
+		DatastoreName:   storebackend.KeyFromNSN(key).String(),
 		IncludeDefaults: true,
 	})
 	if err == nil {
@@ -304,19 +298,4 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 	}
 
 	return fields
-}
-
-func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *target.Context, error) {
-	target := &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, nil, err
-	}
-	if !target.IsReady() {
-		return nil, nil, errors.New(string(config.ConditionReasonTargetNotReady))
-	}
-	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
-	if err != nil {
-		return nil, nil, errors.New(string(config.ConditionReasonTargetNotFound))
-	}
-	return target, tctx, nil
 }

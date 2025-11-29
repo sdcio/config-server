@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"os"
 
 	"github.com/henderiw/logger/log"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -27,6 +28,41 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+const schemServerAddress = "schema-server.sdc-system.svc.cluster.local:56000"
+
+func GetSchemaServerAddress() string {
+	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
+		return address
+	}
+	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
+		return address
+	}
+	return schemServerAddress
+}
+
+type Config struct {
+	Address    string
+	Username   string
+	Password   string
+	Proxy      bool
+	NoTLS      bool
+	TLSCA      string
+	TLSCert    string
+	TLSKey     string
+	SkipVerify bool
+	Insecure   bool
+	MaxMsgSize int
+}
+
+func defaultConfig(cfg *Config) {
+	if cfg == nil {
+		cfg = &Config{Address: GetSchemaServerAddress()}
+	}
+	if cfg.Address == "" {
+		cfg.Address = GetSchemaServerAddress()
+	}
+}
 
 /*
 Example: One-shot use
@@ -56,9 +92,7 @@ func OneShot(
 	cfg *Config,
 	fn func(ctx context.Context, c sdcpb.SchemaServerClient) error,
 ) error {
-	if err := validateConfig(cfg); err != nil {
-		return err
-	}
+	defaultConfig(cfg)
 	conn, err := dial(ctx, cfg)
 	if err != nil {
 		return err
@@ -97,9 +131,7 @@ func NewEphemeral(
 	ctx context.Context,
 	cfg *Config,
 ) (sdcpb.SchemaServerClient, func() error, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, nil, err
-	}
+	defaultConfig(cfg)
 	conn, err := dial(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
@@ -122,34 +154,9 @@ type Client interface {
 	sdcpb.SchemaServerClient
 }
 
-type Config struct {
-	Address    string
-	Username   string
-	Password   string
-	Proxy      bool
-	NoTLS      bool
-	TLSCA      string
-	TLSCert    string
-	TLSKey     string
-	SkipVerify bool
-	Insecure   bool
-	MaxMsgSize int
-}
-
-func validateConfig(cfg *Config) error {
-	if cfg == nil {
-		return fmt.Errorf("cannot create client with empty config")
-	}
-	if cfg.Address == "" {
-		return fmt.Errorf("cannot create client with an empty address")
-	}
-	return nil
-}
 
 func New(cfg *Config) (Client, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, err
-	}
+	defaultConfig(cfg)
 	// default cancel is a no-op so Stop() is always safe
 	return &client{cfg: cfg, cancel: func() {}}, nil
 }
@@ -166,9 +173,7 @@ const DSConnectionStatusNotConnected = "DATASERVER_NOT_CONNECTED"
 // dial creates a gRPC connection with a timeout and proper options,
 // using the modern grpc.NewClient API.
 func dial(ctx context.Context, cfg *Config) (*grpc.ClientConn, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, err
-	}
+	defaultConfig(cfg)
 
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

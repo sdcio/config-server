@@ -28,16 +28,19 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/pkg/target"
 	v1 "k8s.io/api/flowcontrol/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 type transactionManager struct {
 	newTargetUpdateConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
 	newTargetDeleteConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
-	targetHandler              target.TargetHandler
+	//targetHandler              target.TargetHandler
+	client client.Client
 	globalTimeout              time.Duration
 	targetTimeout              time.Duration
 	skipUnavailableTarget      bool
@@ -49,14 +52,14 @@ type transactionManager struct {
 func NewTransactionManager(
 	newTargetUpdateConfigStore storebackend.Storer[storebackend.Storer[*config.Config]],
 	newTargetDeleteConfigStore storebackend.Storer[storebackend.Storer[*config.Config]],
-	targetHandler target.TargetHandler,
+	client client.Client,
 	globalTimeout, targetTimeout time.Duration,
 	skipUnavailableTarget bool,
 ) *transactionManager {
 	tm := &transactionManager{
 		newTargetUpdateConfigStore: newTargetUpdateConfigStore,
 		newTargetDeleteConfigStore: newTargetDeleteConfigStore,
-		targetHandler:              targetHandler,
+		client: client,
 		globalTimeout:              globalTimeout,
 		targetTimeout:              targetTimeout,
 		targetStatus:               memstore.NewStore[invv1alpha1.RolloutTargetStatus](),
@@ -93,8 +96,11 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 	errChan := make(chan error, r.targets.Len())
 	done := make(chan struct{})
 
+
+
 	for _, targetKey := range r.targets.UnsortedList() {
-		if _, _, err := r.targetHandler.GetTargetContext(ctx, targetKey); err != nil {
+		t := &invv1alpha1.Target{}
+		if err :=  r.client.Get(ctx, targetKey, t); err != nil {
 			// target unavailable -> we continue for now
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnavailable(fmt.Sprintf("target unavailable %s", err.Error())))
@@ -105,6 +111,18 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 			}
 			continue
 		}
+		if !t.IsReady() {
+			// target unavailable -> we continue for now
+			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
+			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnavailable("target not ready"))
+			_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
+			if r.skipUnavailableTarget  {
+				globalCancel()
+				return r.targetStatus, fmt.Errorf("transaction aborted: target %s is not ready", targetKey.String())
+			}
+			continue
+		}
+
 
 		wg.Add(1)
 		go func(targetKey types.NamespacedName) {
@@ -241,7 +259,21 @@ func (r *transactionManager) cancel(ctx context.Context, targetKey types.Namespa
 	done := make(chan error, 1)
 
 	go func() {
-		done <- r.targetHandler.Cancel(ctx, targetKey, transactionID)
+		cfg := &dsclient.Config{
+			Address:  dsclient.GetDataServerAddress(),
+			Insecure: true,
+		}
+
+		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
+			_, err := c.TransactionCancel(ctx, &sdcpb.TransactionCancelRequest{
+				TransactionId: transactionID,
+				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+			})
+			if err != nil {
+				return err
+			}
+			return nil
+		})	
 		close(done)
 	}()
 
@@ -269,8 +301,21 @@ func (r *transactionManager) confirm(ctx context.Context, targetKey types.Namesp
 	done := make(chan error, 1)
 
 	go func() {
-		err := r.targetHandler.Confirm(ctx, targetKey, transactionID)
-		done <- err
+		cfg := &dsclient.Config{
+			Address:  dsclient.GetDataServerAddress(),
+			Insecure: true,
+		}
+
+		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
+			_, err := c.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+				TransactionId: transactionID,
+				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+			})
+			if err != nil {
+				return err
+			}
+			return nil
+		})	
 		close(done)
 	}()
 
@@ -315,12 +360,27 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 
 	done := make(chan error, 1)
 
-	deviations := map[string]*config.Deviation{}
+	//deviations := map[string]*config.Deviation{}
 
 	go func() {
-		_, _, err := r.targetHandler.SetIntents(ctx, targetKey, transactionID, configUpdates, configDeletes, deviations, deviations, false)
-		done <- err
+		cfg := &dsclient.Config{
+			Address:  dsclient.GetDataServerAddress(),
+			Insecure: true,
+		}
+
+		// ToBeUpdated
+		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
+			_, err := c.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+				TransactionId: transactionID,
+				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+			})
+			if err != nil {
+				return err
+			}
+			return nil
+		})	
 		close(done)
+
 	}()
 
 	select {
