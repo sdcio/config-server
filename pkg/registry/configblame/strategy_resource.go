@@ -171,7 +171,7 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 		DatastoreName:   storebackend.KeyFromNSN(key).String(),
 		IncludeDefaults: true,
 	})
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
 
