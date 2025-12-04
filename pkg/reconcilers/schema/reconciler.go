@@ -131,7 +131,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err != nil {
 			return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
 		}
-		defer closeFn()
+		defer func() {
+			if err := closeFn(); err != nil {
+				// You can use your preferred logging framework here
+				fmt.Printf("failed to close connection: %v\n", err)
+			}
+		}()
 
 
 		// check if the schema exists; this is == nil check; in case of err it does not exist
@@ -200,7 +205,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
 	}
-	defer closeFn()
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	// check if the schema exists
 	rsp, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{

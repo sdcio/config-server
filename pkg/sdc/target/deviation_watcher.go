@@ -34,9 +34,6 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-
-	//"k8s.io/utils/ptr"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

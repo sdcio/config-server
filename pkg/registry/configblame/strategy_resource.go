@@ -18,6 +18,7 @@ package configblame
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -163,7 +164,12 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 	if err != nil {
 		return nil, err
 	}
-	defer closeFn()
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 
 	// check if the schema exists; this is == nil check; in case of err it does not exist
