@@ -102,7 +102,13 @@ func OneShot(
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+
+	defer func() {
+		if err := conn.Close(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	c := sdcpb.NewDataServerClient(conn)
 	return fn(ctx, c)
