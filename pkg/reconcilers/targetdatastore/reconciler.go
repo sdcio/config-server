@@ -194,6 +194,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil || !curtctx.IsReady() {
 		if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 			// The dataserver connection exists
+			// TO BE REVERTED ONCE WE HAVE THE DATASERVER WATCH
 			return ctrl.Result{RequeueAfter: 10 * time.Second},
 				errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)
 		}
@@ -235,6 +236,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// check if the data server is down or not
 	if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 		// The dataserver connection exists
+		// TO BE REVERTED ONCE WE HAVE THE DATASERVER WATCH
 		return ctrl.Result{RequeueAfter: 10 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)
 	}

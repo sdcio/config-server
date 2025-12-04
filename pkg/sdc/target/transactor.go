@@ -498,7 +498,7 @@ func getConfigsAndDeviationsToTransact(
 		key := GetGVKNSN(cfg)
 
 		switch {
-		case !cfg.IsRecoverable():
+		case !cfg.IsRecoverable(ctx):
 			nonRecoverable[key] = cfg
 
 		case cfg.GetDeletionTimestamp() != nil:
@@ -522,7 +522,7 @@ func getConfigsAndDeviationsToTransact(
 		deviation := ensureDeviationForConfig(log, cfg, deviationMap[key])
 
 		switch {
-		case !cfg.IsRecoverable():
+		case !cfg.IsRecoverable(ctx):
 			continue
 
 		case cfg.GetDeletionTimestamp() != nil:

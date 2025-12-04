@@ -59,14 +59,18 @@ func (r *Config) IsRevertive() bool {
 	return true
 }
 
-func (r *Config) IsRecoverable() bool {
+func (r *Config) IsRecoverable(ctx context.Context) bool {
+	logger := log.FromContext(ctx)
 	c := r.GetCondition(condition.ConditionTypeReady)
 	if c.Reason == string(condition.ConditionReasonUnrecoverable) {
 		unrecoverableMessage := &condition.UnrecoverableMessage{}
 		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+			logger.Error("is recoverable json unmarchal failed", "error", err)
 			return true
 		}
 		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
+			logger.Info("is recoverable resource version changed", "old/new", 
+				fmt.Sprintf("%s/%s", unrecoverableMessage.ResourceVersion, r.GetResourceVersion()))
 			return true
 		}
 		return false
