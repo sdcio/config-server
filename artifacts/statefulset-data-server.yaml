@@ -48,8 +48,10 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
-        - name: LOCAL-DATASERVER
+        - name: LOCAL_DATASERVER
           value: "true"
+        - name: METRIC_PORT
+          value: "8443"
         - name: PPROF_PORT
           value: "8081"
         - name: REVERTIVE

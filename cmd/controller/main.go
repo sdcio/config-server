@@ -87,7 +87,7 @@ func main() {
 
 	var tlsOpts []func(*tls.Config)
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:   ":8443",
+		BindAddress:   MetricBindAddress(),
 		SecureServing: true,
 		// FilterProvider is used to protect the metrics endpoint with authn/authz.
 		// These configurations ensure that only authorized users and service accounts
@@ -206,10 +206,17 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 
 
 func IsLocalDataServerEnabled() bool {
-	if val, found := os.LookupEnv("LOCAL-DATASERVER"); found {
+	if val, found := os.LookupEnv("LOCAL_DATASERVER"); found {
 		if strings.ToLower(val) == "true" {
 			return true
 		}
 	}
 	return false
+}
+
+func MetricBindAddress() string {
+	if val, found := os.LookupEnv("METRIC_PORT"); found {
+		return fmt.Sprintf(":%s", val)
+	}
+	return ":8443"
 }

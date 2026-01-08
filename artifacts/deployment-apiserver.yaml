@@ -59,6 +59,8 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
+        - name: METRIC_PORT
+          value: "8443"
         volumeMounts:
         - name: api-server-certs
           mountPath: /apiserver.local.config/certificates

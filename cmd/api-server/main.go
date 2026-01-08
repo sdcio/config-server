@@ -87,7 +87,7 @@ func main() {
 	
 	var tlsOpts []func(*tls.Config)
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:   ":8443",
+		BindAddress:   MetricBindAddress(),
 		SecureServing: true,
 		// FilterProvider is used to protect the metrics endpoint with authn/authz.
 		// These configurations ensure that only authorized users and service accounts
@@ -205,4 +205,12 @@ func IsPProfEnabled() *string {
 		return ptr.To(fmt.Sprintf("127.0.0.1:%d", port))
 	}
 	return nil
+}
+
+
+func MetricBindAddress() string {
+	if val, found := os.LookupEnv("METRIC_PORT"); found {
+		return fmt.Sprintf(":%s", val)
+	}
+	return ":8443"
 }
