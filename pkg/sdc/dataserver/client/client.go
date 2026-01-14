@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 type Client interface {
@@ -81,7 +82,7 @@ func (r *client) IsConnectionReady() bool {
 }
 
 func (r *client) IsConnected() bool {
-	return r.conn != nil 
+	return r.conn != nil
 }
 
 func (r *client) Stop(ctx context.Context) {
@@ -102,6 +103,11 @@ func (r *client) Start(ctx context.Context) error {
 	var err error
 	r.conn, err = grpc.NewClient(r.cfg.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 	if err != nil {
 		return err
