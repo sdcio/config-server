@@ -26,10 +26,10 @@ COPY --from=builder /etc/passwd /etc/group /etc/shadow /etc/
 # add-in our ca certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-COPY --chown=$USERID:$USERID config-server /app/
+COPY --chown=$USERID:$USERID api-server /app/
 WORKDIR /app
 
 # from now on, run as the unprivileged user
 USER $USERID
 
-ENTRYPOINT [ "/app/config-server" ]
+ENTRYPOINT [ "/app/api-server" ]
