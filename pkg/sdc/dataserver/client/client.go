@@ -256,7 +256,6 @@ func (r *client) Start(ctx context.Context) error {
 		return err
 	}
 
-	r.conn = conn
 	r.dsclient = sdcpb.NewDataServerClient(r.conn)
 
 	// Long-lived cancel for Stop()
