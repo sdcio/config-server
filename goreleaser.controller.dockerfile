@@ -2,7 +2,7 @@
 # Licensed under the Apache License 2.0
 # SPDX-License-Identifier: Apache-2.0
 #
-FROM golang:1.24 AS builder
+FROM golang:1.21 AS builder
 ARG USERID=10000
 # no need to include cgo bindings
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
@@ -26,10 +26,10 @@ COPY --from=builder /etc/passwd /etc/group /etc/shadow /etc/
 # add-in our ca certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-COPY --chown=$USERID:$USERID api-server /app/
+COPY --chown=$USERID:$USERID controller /app/
 WORKDIR /app
 
 # from now on, run as the unprivileged user
 USER $USERID
 
-ENTRYPOINT [ "/app/api-server" ]
+ENTRYPOINT [ "/app/controller" ]
