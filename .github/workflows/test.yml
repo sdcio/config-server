@@ -78,7 +78,7 @@ jobs:
       - name: Extract docker image build version from GoReleaser
         id: image
         run: |
-          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq -r '.[] | select(.type == "Published Docker Image" and (.name | contains("ghcr.io")) and (.name | contains("latest") | not)) | .name | split(":") | .[1] | first' )" >> $GITHUB_OUTPUT
+          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq -r 'limit(1; .[] | select(.type == "Published Docker Image" and (.name | contains("ghcr.io")) and (.name | contains("latest") | not))) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
 
   latest-versions:
     name: Fetch latest versions from GH API
