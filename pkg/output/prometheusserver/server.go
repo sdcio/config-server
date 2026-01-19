@@ -28,13 +28,13 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	certutil "k8s.io/client-go/util/cert"
 )
 
 type Config struct {
 	Address     string
-	TargetStore storebackend.Storer[*target.Context]
+	TargetStore storebackend.Storer[*sdctarget.Context]
 }
 
 func NewServer(c *Config) *PrometheusServer {
@@ -47,7 +47,7 @@ func NewServer(c *Config) *PrometheusServer {
 
 type PrometheusServer struct {
 	address     string
-	targetStore storebackend.Storer[*target.Context]
+	targetStore storebackend.Storer[*sdctarget.Context]
 	regex       *regexp.Regexp
 	// dynamic
 	cancel func()

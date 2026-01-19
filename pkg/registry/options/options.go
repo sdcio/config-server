@@ -21,7 +21,7 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/sdcio/config-server/pkg/target"
+	"github.com/sdcio/config-server/pkg/sdc/target"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"

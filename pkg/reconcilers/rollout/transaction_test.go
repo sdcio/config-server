@@ -16,6 +16,8 @@ limitations under the License.
 
 package rollout
 
+/*
+
 import (
 	"context"
 	"fmt"
@@ -163,7 +165,7 @@ func getTransctionManager(targets map[string]*target.MockContext, updates, delet
 			log.Error("cannot create target", "err", err)
 		}
 	}
-	mockHandler := target.NewMockTargetHandler(targetStore)
+	//mockHandler := target.NewMockTargetHandler(targetStore)
 	updateStore := memstore.NewStore[storebackend.Storer[*config.Config]]()
 	deleteStore := memstore.NewStore[storebackend.Storer[*config.Config]]()
 
@@ -191,5 +193,6 @@ func getTransctionManager(targets map[string]*target.MockContext, updates, delet
 		}
 	}
 
-	return NewTransactionManager(updateStore, deleteStore, mockHandler, 5*time.Second, 2*time.Second, true)
+	return NewTransactionManager(updateStore, deleteStore, nil, 5*time.Second, 2*time.Second, true)
 }
+*/

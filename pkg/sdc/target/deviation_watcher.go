@@ -34,9 +34,6 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-
-	//"k8s.io/utils/ptr"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -130,11 +127,14 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
 			if started {
+				log.Error("protocol violation start on start")
+				/*
 				if err := stream.CloseSend(); err != nil {
 					log.Error("stream failed", "err", err)
 				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
+				*/
 				continue
 			}
 			deviations = make(map[string][]*sdcpb.WatchDeviationResponse, 0)
@@ -144,11 +144,14 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
 			if !started {
+				log.Error("protocol violation update without start")
+				/*
 				if err := stream.CloseSend(); err != nil {
 					log.Error("stream failed", "err", err)
 				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
+				*/
 				continue
 			}
 			intent := resp.GetIntent()
@@ -168,11 +171,15 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
 			if !started {
+				log.Error("protocol violation end without start")
+
+				/*
 				if err := stream.CloseSend(); err != nil {
 					log.Error("stream failed", "err", err)
 				} // to check if this works on the client side to inform the server to stop sending
 				stream = nil
 				time.Sleep(time.Second * 1) //- resilience for server crash
+				*/
 				continue
 			}
 			started = false

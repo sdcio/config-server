@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-server
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-data-server-controller
+spec:
+  ports:
+  - name: data-service
+    port: 56000
+    protocol: TCP
+    targetPort: data-service
+  clusterIP: None
+  selector:
+    sdcio.dev/schema-server: "true"
+
+#<pod-name>.<service-name>.<namespace>.svc.cluster.local

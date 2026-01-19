@@ -31,6 +31,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	namespace = "default"
+)
+
 func TestGetToBeDeletedConfigsNew(t *testing.T) {
 	cases := map[string]struct {
 		existingConfigs   map[string][]string

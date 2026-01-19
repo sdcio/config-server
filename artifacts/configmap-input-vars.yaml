@@ -2,11 +2,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: context
-  namespace: network-system
-  annotations:
-    kform.dev/block-type: input
-    kform.dev/resource-id: context ## this serves as a way to add default and manage the merge 
-    kform.dev/default: "true"
 data: 
-  configServerImage: ghcr.io/sdcio/config-server:latest
-  dataServerImage: ghcr.io/sdcio/data-server:latest
+  sdcApiServerImage: ghcr.io/sdcio/sdc-apiserver:latest
+  sdcControllerImage: ghcr.io/sdcio/sdc-controller:latest
+  dataServerImage: ghcr.io/sdcio/data-server:v0.0.66
+

@@ -18,7 +18,6 @@ package sdcctx
 
 import (
 	"context"
-	"os"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -37,15 +36,9 @@ type DSContext struct {
 func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.Storer[DSContext], client client.Client) error {
 	log := log.FromContext(ctx)
 
-	dataServerAddress := localDataServerAddress
-	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-		dataServerAddress = address
-	}
-
-	// TODO the population of the dataservers in the store should become dynamic, through a controller
-	// right now it is static since all of this happens in the same pod and we dont have scaled out dataservers
+	// This is for the local connection from the controller to the dataserver on the same local pod
 	dsConfig := &dsclient.Config{
-		Address: dataServerAddress,
+		Address: dsclient.GetLocalDataServerAddress(),
 	}
 	dsClient, err := dsclient.New(dsConfig)
 	if err != nil {
@@ -61,7 +54,7 @@ func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.St
 		Targets:  sets.New[string](),
 		DSClient: dsClient,
 	}
-	if err := dataServerStore.Create(ctx, storebackend.ToKey(dataServerAddress), dsCtx); err != nil {
+	if err := dataServerStore.Create(ctx, storebackend.ToKey(dsclient.GetLocalDataServerAddress()), dsCtx); err != nil {
 		log.Error("cannot store datastore context in dataserver", "err", err)
 		return err
 	}

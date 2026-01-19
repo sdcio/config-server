@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package transactor
+package target
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -32,14 +33,12 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +55,7 @@ type Transactor struct {
 	fieldManagerFinalizer string
 }
 
-func New(client client.Client, fieldManager, fieldManagerFinalizer string) *Transactor {
+func NewTransactor(client client.Client, fieldManager, fieldManagerFinalizer string) *Transactor {
 	return &Transactor{
 		client:                client,
 		fieldManager:          fieldManager,
@@ -64,7 +63,7 @@ func New(client client.Client, fieldManager, fieldManagerFinalizer string) *Tran
 	}
 }
 
-func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Target, tctx *target.Context) (*string, error) {
+func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Target, tctx *Context) (*string, error) {
 	log := log.FromContext(ctx)
 	log.Info("RecoverConfigs")
 	configList, err := r.listConfigsPerTarget(ctx, target)
@@ -103,9 +102,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 			}
 		}
 	}
-	//sort.Slice(configs, func(i, j int) bool {
-	//	return configs[i].CreationTimestamp.Before(&configs[j].CreationTimestamp)
-	//})
+
 	if len(configs) == 0 && len(deviations) == 0 {
 		tctx.SetRecoveredConfigsState(ctx)
 		log.Info("recovered configs, nothing to recover", "count", len(configs), "deviations", len(deviations))
@@ -125,7 +122,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	return nil, nil
 }
 
-func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, tctx *target.Context) (bool, error) {
+func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, tctx *Context) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Info("Transact")
 	// get all configs for the target
@@ -481,7 +478,12 @@ func getConfigsAndDeviationsToTransact(
 	ctx context.Context,
 	configList *config.ConfigList,
 	deviationMap map[string]*config.Deviation,
-) (map[string]*config.Config, map[string]*config.Config, map[string]*config.Deviation, map[string]*config.Deviation) {
+) (
+	map[string]*config.Config,
+	map[string]*config.Config,
+	map[string]*config.Deviation,
+	map[string]*config.Deviation,
+) {
 	log := log.FromContext(ctx)
 
 	configsToUpdate := make(map[string]*config.Config)
@@ -490,180 +492,176 @@ func getConfigsAndDeviationsToTransact(
 	deviationsToUpdate := make(map[string]*config.Deviation)
 	deviationsToDelete := make(map[string]*config.Deviation)
 
-	configsToUpdateSet := sets.New[string]()
-	configsToDeleteSet := sets.New[string]()
-	nonRecoverableSet := sets.New[string]()
-	deviationsToUpdateSet := sets.New[string]()
-	deviationsToDeleteSet := sets.New[string]()
-
-	// collect configs to apply
-	for i := range configList.Items {
-		config := &configList.Items[i]
-		key := GetGVKNSN(config)
-
-		switch {
-		case !config.IsRecoverable():
-			nonRecoverable[key] = config
-			nonRecoverableSet.Insert(key)
-			continue
-
-		case config.GetDeletionTimestamp() != nil:
-			configsToDelete[key] = config
-			configsToDeleteSet.Insert(key)
-
-		case config.Status.AppliedConfig != nil &&
-			config.Spec.GetShaSum(ctx) == config.Status.AppliedConfig.GetShaSum(ctx):
-			continue
-
-		default:
-			configsToUpdate[key] = config
-			configsToUpdateSet.Insert(key)
-		}
-	}
-	// Collect deviations to apply
-
-	// handle deviations
+	// Classify configs: update / delete / non-recoverable / noop
 	for i := range configList.Items {
 		cfg := &configList.Items[i]
 		key := GetGVKNSN(cfg)
 
-		deviation, ok := deviationMap[key]
-		if !ok {
-			log.Warn("deviation missing for config", "config", key)
-			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
+		switch {
+		case !cfg.IsRecoverable(ctx):
+			nonRecoverable[key] = cfg
+
+		case cfg.GetDeletionTimestamp() != nil:
+			configsToDelete[key] = cfg
+
+		case cfg.Status.AppliedConfig != nil &&
+			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+			// no change, skip
+			continue
+
+		default:
+			configsToUpdate[key] = cfg
 		}
+	}
+
+	// Initial deviation classification per config
+	for i := range configList.Items {
+		cfg := &configList.Items[i]
+		key := GetGVKNSN(cfg)
+
+		deviation := ensureDeviationForConfig(log, cfg, deviationMap[key])
 
 		switch {
-		case !cfg.IsRecoverable():
+		case !cfg.IsRecoverable(ctx):
 			continue
 
 		case cfg.GetDeletionTimestamp() != nil:
 			if !cfg.IsRevertive() {
-				labels := safeCopyLabels(deviation.GetLabels())
-				labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-				deviation.SetLabels(labels)
+				labelOrphan(deviation, cfg.Orphan())
 				deviationsToDelete[key] = deviation
-				deviationsToDeleteSet.Insert(key)
 			}
 			continue
+
 		default:
 			if cfg.IsRevertive() {
 				if deviation.HasNotAppliedDeviation() {
-					log.Info("config included due to non revertive deviations", "key", key, "revertive", true)
+					log.Info("config included due to non revertive deviations",
+						"key", key, "revertive", true,
+					)
 					configsToUpdate[key] = cfg
-					configsToUpdateSet.Insert(key)
 				}
-			} else {
-				// check for change of deviation
-				if cfg.HashDeviationGenerationChanged(*deviation) {
-					if deviation.HasNotAppliedDeviation() {
-						//change
-						// safe copy of labels
-						labels := safeCopyLabels(deviation.GetLabels())
-						labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
-						deviation.SetLabels(labels)
-						deviationsToUpdate[key] = deviation
-						deviationsToUpdateSet.Insert(key)
-					} else {
-						labels := safeCopyLabels(deviation.GetLabels())
-						labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-						deviation.SetLabels(labels)
-						deviationsToDelete[key] = deviation
-						deviationsToDeleteSet.Insert(key)
-					}
-					
-				}		
-				if len(deviation.Spec.Deviations) == 0 {
-					labels := safeCopyLabels(deviation.GetLabels())
-					labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-					deviationsToDelete[key] = deviation
-					deviationsToDeleteSet.Insert(key)
-				}	
+				continue
 			}
-		}	
-	}
 
-	// for every config we create and delete we will include the deviations for non revertive configs.
-	for key, cfg := range configsToUpdate {
-		deviation, ok := deviationMap[key]
-		if !ok {
-			log.Warn("deviation missing for config", "config", key)
-			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
-		}
-
-		if !cfg.IsRevertive() {
-			if len(deviation.Spec.Deviations) != 0 {
+			// Non-revertive: check deviation generation changes & applied state
+			if cfg.HashDeviationGenerationChanged(*deviation) {
 				if deviation.HasNotAppliedDeviation() {
-					//change
-					// safe copy of labels
-					labels := safeCopyLabels(deviation.GetLabels())
-					labels["priority"] = strconv.Itoa(int(cfg.Spec.Priority))
-					deviation.SetLabels(labels)
+					labelPriority(deviation, int(cfg.Spec.Priority))
 					deviationsToUpdate[key] = deviation
-					deviationsToUpdateSet.Insert(key)
 				} else {
-					labels := safeCopyLabels(deviation.GetLabels())
-					labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-					deviation.SetLabels(labels)
+					labelOrphan(deviation, cfg.Orphan())
 					deviationsToDelete[key] = deviation
-					deviationsToDeleteSet.Insert(key)
-				}		
-			} else {
-				labels := safeCopyLabels(deviation.GetLabels())
-				labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-				deviation.SetLabels(labels)
+				}
+			}
+
+			if len(deviation.Spec.Deviations) == 0 {
+				labelOrphan(deviation, cfg.Orphan())
 				deviationsToDelete[key] = deviation
-				deviationsToDeleteSet.Insert(key)		
 			}
 		}
 	}
 
-	for key, cfg := range configsToDelete {
-		deviation, ok := deviationMap[key]
-		if !ok {
-			log.Warn("deviation missing for config", "config", key)
-			deviation = config.BuildDeviation(metav1.ObjectMeta{Name: cfg.GetName(), Namespace: cfg.GetNamespace()}, nil, nil)
+	// For every config we create/update, ensure deviation behavior for non-revertive
+	for key, cfg := range configsToUpdate {
+		deviation := ensureDeviationForConfig(log, cfg, deviationMap[key])
+
+		if cfg.IsRevertive() {
+			continue
 		}
 
-		if !cfg.IsRevertive() {
-			labels := safeCopyLabels(deviation.GetLabels())
-			labels["orphan"] = strconv.FormatBool(cfg.Orphan())
-			deviation.SetLabels(labels)
+		if len(deviation.Spec.Deviations) != 0 {
+			if deviation.HasNotAppliedDeviation() {
+				labelPriority(deviation, int(cfg.Spec.Priority))
+				deviationsToUpdate[key] = deviation
+			} else {
+				labelOrphan(deviation, cfg.Orphan())
+				deviationsToDelete[key] = deviation
+			}
+		} else {
+			labelOrphan(deviation, cfg.Orphan())
 			deviationsToDelete[key] = deviation
-			deviationsToDeleteSet.Insert(key)
+		}
+	}
+
+	// For every config we delete, add deviations-to-delete for non-revertive
+	for key, cfg := range configsToDelete {
+		deviation := ensureDeviationForConfig(log, cfg, deviationMap[key])
+
+		if !cfg.IsRevertive() {
+			labelOrphan(deviation, cfg.Orphan())
+			deviationsToDelete[key] = deviation
 		}
 	}
 
 	log.Info("getConfigsAndDeviationsToTransact classification start",
-	 	"configsToUpdate", configsToUpdateSet.UnsortedList(), 
-		"configsToDelete", configsToDeleteSet.UnsortedList(), 
-		"nonRecoverable", nonRecoverableSet.UnsortedList(),
-		"deviationsToUpdate", deviationsToUpdateSet.UnsortedList(), 
-		"deviationsToDelete", deviationsToDeleteSet.UnsortedList(), 
+		"configsToUpdate", mapKeys(configsToUpdate),
+		"configsToDelete", mapKeys(configsToDelete),
+		"nonRecoverable", mapKeys(nonRecoverable),
+		"deviationsToUpdate", mapKeys(deviationsToUpdate),
+		"deviationsToDelete", mapKeys(deviationsToDelete),
 	)
 
-	// If we have changes, retry non-recoverables
+	// --- 5) If we have changes, retry non-recoverables
+
 	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
 		for key, cfg := range nonRecoverable {
 			if cfg.GetDeletionTimestamp() != nil {
 				configsToDelete[key] = cfg
-				configsToDeleteSet.Insert(key)
 			} else {
 				configsToUpdate[key] = cfg
-				configsToUpdateSet.Insert(key)
 			}
 		}
 	}
 
 	log.Info("getConfigsAndDeviationsToTransact classification after change",
-	 	"configsToUpdate", configsToUpdateSet.UnsortedList(), 
-		"configsToDelete", configsToDeleteSet.UnsortedList(), 
-		"nonRecoverable", nonRecoverableSet.UnsortedList(),
-		"deviationsToUpdate", deviationsToUpdateSet.UnsortedList(), 
-		"deviationsToDelete", deviationsToDeleteSet.UnsortedList(), 
+		"configsToUpdate", mapKeys(configsToUpdate),
+		"configsToDelete", mapKeys(configsToDelete),
+		"nonRecoverable", mapKeys(nonRecoverable),
+		"deviationsToUpdate", mapKeys(deviationsToUpdate),
+		"deviationsToDelete", mapKeys(deviationsToDelete),
 	)
-	
+
 	return configsToUpdate, configsToDelete, deviationsToUpdate, deviationsToDelete
+}
+
+
+func ensureDeviationForConfig(
+	log *slog.Logger,
+	cfg *config.Config,
+	dev *config.Deviation,
+) *config.Deviation {
+	if dev != nil {
+		return dev
+	}
+	log.Warn("deviation missing for config", "config", GetGVKNSN(cfg))
+	return config.BuildDeviation(
+		metav1.ObjectMeta{
+			Name:      cfg.GetName(),
+			Namespace: cfg.GetNamespace(),
+		},
+		nil,
+		nil,
+	)
+}
+
+func labelOrphan(dev *config.Deviation, orphan bool) {
+	labels := safeCopyLabels(dev.GetLabels())
+	labels["orphan"] = strconv.FormatBool(orphan)
+	dev.SetLabels(labels)
+}
+
+func labelPriority(dev *config.Deviation, priority int) {
+	labels := safeCopyLabels(dev.GetLabels())
+	labels["priority"] = strconv.Itoa(priority)
+	dev.SetLabels(labels)
+}
+
+func mapKeys[T any](m map[string]T) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
 
 func (r *Transactor) handleTransactionErrors(
@@ -676,21 +674,24 @@ func (r *Transactor) handleTransactionErrors(
 	log := log.FromContext(ctx)
 	log.Info("handling transaction errors", "recoverable", recoverable)
 
+	// If no response at all → apply same error to all configs.
 	if rsp == nil {
-		for _, configOrig := range configsToTransact {
-			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, recoverable); err != nil {
+		for _, cfg := range configsToTransact {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
 				return true, err
 			}
 		}
-		for _, configOrig := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, false); err != nil {
+		for _, cfg := range deletedConfigsToTransact {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
 				return true, err
 			}
 		}
 		return recoverable, globalErr
 	}
 
+	// Response present: handle per-intent
 	dataServerError := false
+
 	for intentName, intent := range rsp.Intents {
 		log.Info("intent failed", "name", intentName, "errors", intent.Errors)
 
@@ -705,35 +706,38 @@ func (r *Transactor) handleTransactionErrors(
 			msg = strings.Join(warnings, "; ")
 		}
 
-		if configOrig, ok := configsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
-				return true, err
-			}
-			continue
-		} else if configOrig, ok := deletedConfigsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, configOrig, msg, errs, false); err != nil {
+		if cfg, ok := configsToTransact[intentName]; ok {
+			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
 				return true, err
 			}
 			continue
 		}
-		dataServerError =true
+		if cfg, ok := deletedConfigsToTransact[intentName]; ok {
+			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
+				return true, err
+			}
+			continue
+		}
+
+		// Dataserver reported an intent we don't know → treat as global error
+		dataServerError = true
 		recoverable = false
 		globalErr = errors.Join(
-			errs, 
-			fmt.Errorf("dataserver reported an error in an intent %s that does not exists", intentName),
+			errs,
+			fmt.Errorf("dataserver reported an error in an intent %s that does not exist", intentName),
 		)
-		
 		break
 	}
+
 	if dataServerError {
 		log.Error("transact dataserver error", "err", globalErr)
-		for _, configOrig := range configsToTransact {
-			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, recoverable); err != nil {
+		for _, cfg := range configsToTransact {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
 				return true, err
 			}
 		}
-		for _, configOrig := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, configOrig, "", globalErr, false); err != nil {
+		for _, cfg := range deletedConfigsToTransact {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
 				return true, err
 			}
 		}
@@ -759,9 +763,9 @@ func (r *Transactor) processFailedConfig(
 	return r.updateConfigWithError(ctx, config, msg, origErr, recoverable)
 }
 
-func collectWarnings(errors []string) []string {
-	warnings := make([]string, 0, len(errors))
-	for _, err := range errors {
+func collectWarnings(errorsOrMsgs []string) []string {
+	warnings := make([]string, 0, len(errorsOrMsgs))
+	for _, err := range errorsOrMsgs {
 		warnings = append(warnings, fmt.Sprintf("warning: %q", err))
 	}
 	return warnings
@@ -804,3 +808,5 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 
 	return result
 }
+
+

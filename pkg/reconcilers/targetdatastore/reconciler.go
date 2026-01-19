@@ -34,7 +34,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	sdctarget "github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -194,7 +194,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil || !curtctx.IsReady() {
 		if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 			// The dataserver connection exists
-			return ctrl.Result{},
+			// TO BE REVERTED ONCE WE HAVE THE DATASERVER WATCH
+			return ctrl.Result{RequeueAfter: 10 * time.Second},
 				errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)
 		}
 
@@ -235,7 +236,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// check if the data server is down or not
 	if curtctx != nil && curtctx.GetDSClient() != nil && !curtctx.GetDSClient().IsConnectionReady() {
 		// The dataserver connection exists
-		return ctrl.Result{},
+		// TO BE REVERTED ONCE WE HAVE THE DATASERVER WATCH
+		return ctrl.Result{RequeueAfter: 10 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig, "dataserver down", nil, true), errUpdateStatus)
 	}
 

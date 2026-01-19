@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: data-server
-  namespace: network-system
+  namespace: sdc-system
 data: 
   data-server.yaml: |
     grpc-server:

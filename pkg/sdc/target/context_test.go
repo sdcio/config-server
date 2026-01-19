@@ -97,11 +97,10 @@ func TestProcessTransactionResponse(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	mockCtx := &Context{}
 	//key := storebackend.ToKey("dummy")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			warning, err := mockCtx.processTransactionResponse(ctx, tc.rsp, tc.err)
+			warning, err := processTransactionResponse(ctx, tc.rsp, tc.err)
 
 			if tc.expectErr {
 				assert.Error(t, err, "expected an error but got none")

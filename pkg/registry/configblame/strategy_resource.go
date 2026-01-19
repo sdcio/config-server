@@ -18,7 +18,7 @@ package configblame
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -29,10 +29,8 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/registry/options"
-	"github.com/sdcio/config-server/pkg/target"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,6 +40,10 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/protobuf/encoding/protojson"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewStrategy creates and returns a strategy instance
@@ -61,7 +63,6 @@ func NewStrategy(
 		storage:        storage,
 		watcherManager: watcherManager,
 		client:         opts.Client,
-		targetStore:    opts.TargetStore,
 	}
 }
 
@@ -81,7 +82,6 @@ type strategy struct {
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	client         client.Client
-	targetStore    storebackend.Storer[*target.Context]
 }
 
 func (r *strategy) NamespaceScoped() bool { return r.obj.NamespaceScoped() }
@@ -150,23 +150,89 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return obj, nil
 }
 
-func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
-	target, tctx, err := r.getTargetContext(ctx, key)
-	if err != nil {
+func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Target, key types.NamespacedName) (*config.ConfigBlame, error) {
+	if !target.IsReady() {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 
-	rc, err := tctx.GetBlameConfig(ctx, storebackend.KeyFromNSN(key))
-	if err != nil {
-		return nil, apierrors.NewInternalError(err)
+	cfg := &dsclient.Config{
+		Address:  dsclient.GetDataServerAddress(),
+		Insecure: true,
 	}
-	rc.SetCreationTimestamp(target.CreationTimestamp)
-	rc.SetResourceVersion(target.ResourceVersion)
-	rc.SetAnnotations(target.Annotations)
-	rc.SetLabels(target.Labels)
-	obj := rc
 
-	return obj, nil
+	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
+
+
+	// check if the schema exists; this is == nil check; in case of err it does not exist
+	rsp, err := dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
+		DatastoreName:   storebackend.KeyFromNSN(key).String(),
+		IncludeDefaults: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if rsp == nil || rsp.ConfigTree == nil {
+		cb := config.BuildConfigBlame(
+			metav1.ObjectMeta{
+				Name:      key.Name,
+				Namespace: key.Namespace,
+			},
+			config.ConfigBlameSpec{},
+			config.ConfigBlameStatus{
+				Value: runtime.RawExtension{
+					Raw: nil,
+				},
+			},
+		)
+
+		cb.SetCreationTimestamp(target.CreationTimestamp)
+		cb.SetResourceVersion(target.ResourceVersion)
+		cb.SetAnnotations(target.Annotations)
+		cb.SetLabels(target.Labels)
+		return cb, nil
+	}
+
+	json, err := protojson.Marshal(rsp.ConfigTree)
+	if err != nil {
+		return nil, err
+	}
+
+	cb := config.BuildConfigBlame(
+		metav1.ObjectMeta{
+			Name:      key.Name,
+			Namespace: key.Namespace,
+		},
+		config.ConfigBlameSpec{},
+		config.ConfigBlameStatus{
+			Value: runtime.RawExtension{
+				Raw: json,
+			},
+		},
+	)
+
+	cb.SetCreationTimestamp(target.CreationTimestamp)
+	cb.SetResourceVersion(target.ResourceVersion)
+	cb.SetAnnotations(target.Annotations)
+	cb.SetLabels(target.Labels)
+	return cb, nil
+}
+
+func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, key, target); err != nil {
+		return nil, apierrors.NewNotFound(r.gr, key.Name)
+	}
+	return r.getConfigBlame(ctx, target, key)
 }
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
@@ -194,69 +260,21 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		return nil, err
 	}
 
-	configBlameListFunc := func(ctx context.Context, key storebackend.Key, tctx *target.Context) {
-		target := &invv1alpha1.Target{}
-		if err := r.client.Get(ctx, key.NamespacedName, target); err != nil {
-			log.Error("cannot get target", "key", key.String(), "error", err.Error())
-			return
-		}
-
-		if options.LabelSelector != nil || filter != nil {
-			f := true
-			if options.LabelSelector != nil {
-				if options.LabelSelector.Matches(labels.Set(target.GetLabels())) {
-					f = false
-				}
-			} else {
-				// if not labels selector is present don't filter
-				f = false
-			}
-			// if filtered we dont have to run this section since the label requirement was not met
-			if filter != nil && !f {
-				if filter.Name != "" {
-					if target.GetName() == filter.Name {
-						f = false
-					} else {
-						f = true
-					}
-				}
-				if filter.Namespace != "" {
-					if target.GetNamespace() == filter.Namespace {
-						f = false
-					} else {
-						f = true
-					}
-				}
-			}
-			if !f {
-				obj, err := tctx.GetBlameConfig(ctx, key)
-				if err != nil {
-					log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
-					return
-				}
-				obj.SetCreationTimestamp(target.CreationTimestamp)
-				obj.SetResourceVersion(target.ResourceVersion)
-				obj.SetAnnotations(target.Annotations)
-				obj.SetLabels(target.Labels)
-				utils.AppendItem(v, obj)
-			}
-		} else {
-			obj, err := tctx.GetBlameConfig(ctx, key)
-			if err != nil {
-				log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
-				return
-			}
-			obj.SetCreationTimestamp(target.CreationTimestamp)
-			obj.SetResourceVersion(target.ResourceVersion)
-			obj.SetAnnotations(target.Annotations)
-			obj.SetLabels(target.Labels)
-			utils.AppendItem(v, obj)
-		}
+	targets := &invv1alpha1.TargetList{}
+	if err := r.client.List(ctx, targets); err != nil {
+		return nil, err
 	}
 
-	if err := r.targetStore.List(ctx, configBlameListFunc); err != nil {
-		log.Error("list failed", "err", err)
+	for _, target := range targets.Items {
+		key := target.GetNamespacedName()
+		obj, err := r.getConfigBlame(ctx, &target, key)
+		if err != nil {
+			log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
+			continue
+		}
+		utils.AppendItem(v, obj)
 	}
+
 	return newListObj, nil
 }
 
@@ -286,19 +304,4 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 	}
 
 	return fields
-}
-
-func (r *strategy) getTargetContext(ctx context.Context, targetKey types.NamespacedName) (*invv1alpha1.Target, *target.Context, error) {
-	target := &invv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, nil, err
-	}
-	if !target.IsReady() {
-		return nil, nil, errors.New(string(config.ConditionReasonTargetNotReady))
-	}
-	tctx, err := r.targetStore.Get(ctx, storebackend.Key{NamespacedName: targetKey})
-	if err != nil {
-		return nil, nil, errors.New(string(config.ConditionReasonTargetNotFound))
-	}
-	return target, tctx, nil
 }

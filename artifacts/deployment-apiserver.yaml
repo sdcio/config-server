@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-api-server
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdc-api-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdc-api-server
+    spec:
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+      serviceAccountName: api-server
+      containers:
+      - name: api-server
+        image: input.context[0].data.sdcApiServerImage
+        imagePullPolicy: Always
+        command:
+        - /app/api-server
+        args:
+        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
+        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
+        #- "--feature-gates=APIPriorityAndFairness=false"
+        - "--audit-log-path=-"
+        - "--audit-log-maxage=0"
+        - "--audit-log-maxbackup=0"
+        - "--secure-port=6443"
+        ports:
+        - name: api-service
+          containerPort: 6443
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: "NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: "NODE_IP"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: METRIC_PORT
+          value: "8443"
+        volumeMounts:
+        - name: api-server-certs
+          mountPath: /apiserver.local.config/certificates
+          readOnly: true
+        - name: config-store
+          mountPath: /config
+      volumes:
+      - name: api-server-certs
+        secret:
+          secretName: api-server-cert
+      - name: config-store
+        persistentVolumeClaim:
+          claimName: pvc-config-store
+

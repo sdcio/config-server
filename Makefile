@@ -4,8 +4,8 @@
 
 VERSION ?= latest
 REGISTRY ?= europe-docker.pkg.dev/srlinux/eu.gcr.io
-PROJECT ?= config-server
-IMG ?= $(REGISTRY)/${PROJECT}:$(VERSION)
+IMG_SERVER ?= $(REGISTRY)/sdc-apiserver:$(VERSION)
+IMG_CONTROLLER ?= $(REGISTRY)/sdc-controller:$(VERSION)
 
 REPO = github.com/sdcio/config-server
 USERID := 10000
@@ -31,24 +31,23 @@ docker:
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	ssh-add ./keys/id_rsa 2>/dev/null; true
-	docker build --build-arg USERID="$(USERID)" . -t ${IMG} --ssh default="$(SSH_AUTH_SOCK)"
+	docker build --ssh default="$(SSH_AUTH_SOCK)" --build-arg USERID="$(USERID)" \
+		-f DockerfileAPIServer -t ${IMG_SERVER} .
+	docker build --ssh default="$(SSH_AUTH_SOCK)" --build-arg USERID="$(USERID)" \
+		-f DockerfileController -t ${IMG_CONTROLLER} .
 
 .PHONY: docker-push
 docker-push:  docker-build ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push ${IMG_SERVER}
+	docker push ${IMG_CONTROLLER}
 
 .PHONY: install
-install: docker
-	kustomize build install | kubectl apply -f -
+install: artifacts
+	kubectl apply -f artifacts/out
 
 .PHONY: reinstall
-reinstall: docker
-	kustomize build install | kubectl apply -f -
-	kubectl delete pods -n config-system --all
-
-.PHONY: apiserver-logs
-apiserver-logs:
-	kubectl logs -l apiserver=true --container apiserver -n config-system -f --tail 1000
+reinstall: docker-push artifacts
+	kubectl apply -f artifacts/out
 
 .PHONY: codegen
 codegen:

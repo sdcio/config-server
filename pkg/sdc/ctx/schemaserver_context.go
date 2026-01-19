@@ -16,6 +16,8 @@ limitations under the License.
 
 package sdcctx
 
+/*
+
 import (
 	"context"
 	"os"
@@ -37,6 +39,7 @@ type SSContext struct {
 
 const (
 	localDataServerAddress = "localhost:56000"
+	SchemaServerAddress = "data-server-0.schema-server.sdc-system.svc.cluster.local:56000"
 )
 
 func CreateSchemaServerClient(ctx context.Context, schemaServerStore storebackend.Storer[SSContext], client client.Client) error {
@@ -44,7 +47,7 @@ func CreateSchemaServerClient(ctx context.Context, schemaServerStore storebacken
 
 	// For the schema server we first check if the SDC_SCHEMA_SERVER was et if not we could also use
 	// the SDC_DATA_SERVER as fallback. If none are set it is the default address (localhost)
-	schemaServerAddress := localDataServerAddress
+	schemaServerAddress := SchemaServerAddress
 	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
 		schemaServerAddress = address
 	} else {
@@ -146,3 +149,4 @@ func DeleteSchemaServerClient(ctx context.Context, schemaServerStore storebacken
 	log.Info("schemaserver client deleted")
 	return nil
 }
+*/

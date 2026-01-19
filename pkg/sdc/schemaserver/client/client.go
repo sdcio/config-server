@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2025 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,21 +20,25 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"os"
 
 	"github.com/henderiw/logger/log"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Client interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context)
-	GetAddress() string
-	IsConnectionReady() bool
-	IsConnected() bool
-	sdcpb.SchemaServerClient
+const schemServerAddress = "schema-server.sdc-system.svc.cluster.local:56000"
+
+func GetSchemaServerAddress() string {
+	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
+		return address
+	}
+	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
+		return address
+	}
+	return schemServerAddress
 }
 
 type Config struct {
@@ -51,17 +55,115 @@ type Config struct {
 	MaxMsgSize int
 }
 
-func New(cfg *Config) (Client, error) {
+func defaultConfig(cfg *Config) {
 	if cfg == nil {
-		return nil, fmt.Errorf("cannot create client with empty config")
+		cfg = &Config{Address: GetSchemaServerAddress()}
 	}
 	if cfg.Address == "" {
-		return nil, fmt.Errorf("cannot create client with an empty address")
+		cfg.Address = GetSchemaServerAddress()
+	}
+}
+
+/*
+Example: One-shot use
+
+	cfg := &client.Config{
+		Address:  "schema-server.sdc-system.svc.cluster.local:50051",
+		Insecure: true,
 	}
 
-	return &client{
-		cfg: cfg,
-	}, nil
+	err := client.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.SchemaServerClient) error {
+		resp, err := c.ListSchema(ctx, &sdcpb.ListSchemaRequest{})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Got %d schemas\n", len(resp.GetSchemas()))
+		return nil
+	})
+	if err != nil {
+		// handle error
+	}
+*/
+
+// OneShot runs a function with a short-lived SchemaServerClient.
+// It dials, runs fn, and always closes the connection.
+func OneShot(
+	ctx context.Context,
+	cfg *Config,
+	fn func(ctx context.Context, c sdcpb.SchemaServerClient) error,
+) error {
+	defaultConfig(cfg)
+	conn, err := dial(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
+
+	c := sdcpb.NewSchemaServerClient(conn)
+	return fn(ctx, c)
+}
+
+/*
+Example: Ephemeral client
+
+	cfg := &client.Config{
+		Address:  "schema-server.sdc-system.svc.cluster.local:50051",
+		Insecure: true,
+	}
+
+	c, closeFn, err := client.NewEphemeral(ctx, cfg)
+	if err != nil {
+		// handle
+		return
+	}
+	defer closeFn()
+
+	resp, err := c.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{  })
+	if err != nil {
+		// handle
+	}
+	_ = resp
+*/
+
+// NewEphemeral returns a short-lived client and a close function.
+// Call closeFn() when you're done.
+func NewEphemeral(
+	ctx context.Context,
+	cfg *Config,
+) (sdcpb.SchemaServerClient, func() error, error) {
+	defaultConfig(cfg)
+	conn, err := dial(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	c := sdcpb.NewSchemaServerClient(conn)
+	closeFn := func() error {
+		return conn.Close()
+	}
+	return c, closeFn, nil
+}
+
+// Client is a long-lived SchemaServer client (for controllers, daemons, etc.).
+type Client interface {
+	Start(ctx context.Context) error
+	Stop(ctx context.Context)
+	GetAddress() string
+	IsConnectionReady() bool
+	IsConnected() bool
+	sdcpb.SchemaServerClient
+}
+
+
+func New(cfg *Config) (Client, error) {
+	defaultConfig(cfg)
+	// default cancel is a no-op so Stop() is always safe
+	return &client{cfg: cfg, cancel: func() {}}, nil
 }
 
 type client struct {
@@ -69,6 +171,41 @@ type client struct {
 	cancel       context.CancelFunc
 	conn         *grpc.ClientConn
 	schemaclient sdcpb.SchemaServerClient
+}
+
+const DSConnectionStatusNotConnected = "DATASERVER_NOT_CONNECTED"
+
+// dial creates a gRPC connection with a timeout and proper options,
+// using the modern grpc.NewClient API.
+func dial(ctx context.Context, cfg *Config) (*grpc.ClientConn, error) {
+	defaultConfig(cfg)
+
+	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// TODO: add TLS / max msg size based on cfg here.
+	}
+
+	conn, err := grpc.NewClient(cfg.Address, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create schema-server client %q: %w", cfg.Address, err)
+	}
+
+	// Proactively start connecting and wait for Ready (or timeout/cancel).
+	conn.Connect()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return conn, nil
+		}
+		if !conn.WaitForStateChange(dialCtx, state) {
+			// context expired or canceled
+			_ = conn.Close()
+			return nil, fmt.Errorf("gRPC connect timeout to %q; last state: %s", cfg.Address, state.String())
+		}
+	}
 }
 
 func (r *client) IsConnectionReady() bool {
@@ -82,54 +219,37 @@ func (r *client) IsConnected() bool {
 func (r *client) Stop(ctx context.Context) {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("stopping...")
-	if err := r.conn.Close(); err != nil {
-		log.Error("close error", "err", err)
+
+	if r.conn != nil {
+		if err := r.conn.Close(); err != nil {
+			log.Error("close error", "err", err)
+		}
 	}
-	r.cancel()
+	if r.cancel != nil {
+		r.cancel()
+	}
 }
 
 func (r *client) Start(ctx context.Context) error {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("starting...")
 
-	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	// Create the ClientConn
-    conn, err := grpc.NewClient(
-        r.cfg.Address,
-        grpc.WithTransportCredentials(insecure.NewCredentials()),
-    )
-    if err != nil {
-        return err
-    }
-
-	// Proactively start connecting and wait for Ready (or timeout/cancel)
-    conn.Connect()
-    for {
-        s := conn.GetState()
-        if s == connectivity.Ready {
-            break
-        }
-        if !conn.WaitForStateChange(dialCtx, s) {
-            // context expired or canceled
-            if err := r.conn.Close(); err != nil {
-				log.Error("close error", "err", err)
-			}
-            return fmt.Errorf("gRPC connect timeout; last state: %s", s.String())
-        }
-    }
+	conn, err := dial(ctx, r.cfg)
+	if err != nil {
+		return err
+	}
 
 	r.conn = conn
 	r.schemaclient = sdcpb.NewSchemaServerClient(r.conn)
 
-	// Create a long-lived cancel just for Stop()
-    runCtx, stop := context.WithCancel(context.Background())
-    r.cancel = stop
+	// Long-lived cancel for Stop()
+	runCtx, cancel := context.WithCancel(context.Background())
+	r.cancel = cancel
 	go func() {
 		<-runCtx.Done()
-    	log.Info("stopped...")
+		log.Info("stopped...")
 	}()
+
 	log.Info("started...")
 	return nil
 }
@@ -137,6 +257,8 @@ func (r *client) Start(ctx context.Context) error {
 func (r *client) GetAddress() string {
 	return r.cfg.Address
 }
+
+// ---------- RPC wrappers for sdcpb.SchemaServerClient ----------
 
 // returns schema name, vendor, version, and files path(s)
 func (r *client) GetSchemaDetails(ctx context.Context, in *sdcpb.GetSchemaDetailsRequest, opts ...grpc.CallOption) (*sdcpb.GetSchemaDetailsResponse, error) {
@@ -190,56 +312,3 @@ func (r *client) ExpandPath(ctx context.Context, in *sdcpb.ExpandPathRequest, op
 func (r *client) GetSchemaElements(ctx context.Context, in *sdcpb.GetSchemaRequest, opts ...grpc.CallOption) (sdcpb.SchemaServer_GetSchemaElementsClient, error) {
 	return r.schemaclient.GetSchemaElements(ctx, in, opts...)
 }
-
-/*
-func (r *client) getGRPCOpts() ([]grpc.DialOption, error) {
-	var opts []grpc.DialOption
-	fmt.Printf("grpc client config: %v\n", r.cfg)
-	if r.cfg.Insecure {
-		//opts = append(opts, grpc.WithInsecure())
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	} else {
-		tlsConfig, err := r.newTLS()
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	}
-	return opts, nil
-}
-
-func (r *client) newTLS() (*tls.Config, error) {
-	tlsConfig := &tls.Config{
-		Renegotiation:      tls.RenegotiateNever,
-		InsecureSkipVerify: r.cfg.SkipVerify,
-	}
-	//err := loadCerts(tlsConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
-	return tlsConfig, nil
-}
-
-func loadCerts(tlscfg *tls.Config) error {
-	if c.TLSCert != "" && c.TLSKey != "" {
-		certificate, err := tls.LoadX509KeyPair(*c.TLSCert, *c.TLSKey)
-		if err != nil {
-			return err
-		}
-		tlscfg.Certificates = []tls.Certificate{certificate}
-		tlscfg.BuildNameToCertificate()
-	}
-	if c.TLSCA != nil && *c.TLSCA != "" {
-		certPool := x509.NewCertPool()
-		caFile, err := ioutil.ReadFile(*c.TLSCA)
-		if err != nil {
-			return err
-		}
-		if ok := certPool.AppendCertsFromPEM(caFile); !ok {
-			return errors.New("failed to append certificate")
-		}
-		tlscfg.RootCAs = certPool
-	}
-	return nil
-}
-*/

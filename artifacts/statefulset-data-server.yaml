@@ -1,45 +1,33 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: config-server
-  namespace: network-system
+  name: data-server-controller
+  namespace: sdc-system
   labels:
-    app.kubernetes.io/name: config-server
+    app.kubernetes.io/name: sdc-data-server-controller
 spec:
-  strategy:
-    type: Recreate
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: config-server
+      app.kubernetes.io/name: sdc-data-server-controller
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: config-server
+        app.kubernetes.io/name: sdc-data-server-controller
         sdcio.dev/data-server: "true"
+        sdcio.dev/schema-server: "true"
     spec:
       securityContext:
         runAsUser: 10000
         runAsGroup: 10000
         fsGroup: 10000
-      serviceAccountName: config-server
+      serviceAccountName: data-server-controller
       containers:
-      - name: config-server
-        image: input.context[0].data.configServerImage
+      - name: controller
+        image: input.context[0].data.sdcControllerImage
         imagePullPolicy: Always
         command:
-        - /app/config-server
-        args:
-        - "--tls-cert-file=/apiserver.local.config/certificates/tls.crt"
-        - "--tls-private-key-file=/apiserver.local.config/certificates/tls.key"
-        #- "--feature-gates=APIPriorityAndFairness=false"
-        - "--audit-log-path=-"
-        - "--audit-log-maxage=0"
-        - "--audit-log-maxbackup=0"
-        - "--secure-port=6443"
-        ports:
-        - name: api-service
-          containerPort: 6443
+        - /app/controller
         env:
         - name: POD_IP
           valueFrom:
@@ -60,6 +48,10 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
+        - name: LOCAL_DATASERVER
+          value: "true"
+        - name: METRIC_PORT
+          value: "8443"
         - name: PPROF_PORT
           value: "8081"
         - name: REVERTIVE
@@ -74,28 +66,21 @@ spec:
           value: "true"
         - name: ENABLE_TARGETRECOVERYSERVER
           value: "true"
-        - name: ENABLE_DISCOVERYRULE
-          value: "true"
+        #- name: ENABLE_DISCOVERYRULE
+        #  value: "true"
         - name: ENABLE_SCHEMA
           value: "true"
         #- name: ENABLE_CONFIG
         #  value: "true"
-        - name: ENABLE_CONFIGSET
-          value: "true"
-        - name: ENABLE_WORKSPACE
-          value: "true"
-        - name: ENABLE_ROLLOUT
-          value: "true"
+        #- name: ENABLE_CONFIGSET
+        #  value: "true"
+        #- name: ENABLE_WORKSPACE
+        #  value: "true"
+        #- name: ENABLE_ROLLOUT
+        #  value: "true"
         volumeMounts:
-        - name: apiserver-certs
-          mountPath: /apiserver.local.config/certificates
-          readOnly: true
-        - name: config-store
-          mountPath: /config
         - name: schema-store
           mountPath: /schemas
-        - name: workspace-store
-          mountPath: /workspace
       - name: data-server
         image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
@@ -111,29 +96,21 @@ spec:
           mountPath: /config
         - name: cache
           mountPath: /cached/caches
-        - name: schema-store
-          mountPath: /schemas
         - name: schema-db
           mountPath: /schemadb
+        - name: schema-store
+          mountPath: /schemas
       volumes:
       - name: data-server-config
         configMap:
           name: data-server
-      - name: apiserver-certs
-        secret:
-          secretName: config-server-cert
       - name: cache
         emptyDir:
           sizeLimit: 10Gi
-      - name: config-store
-        persistentVolumeClaim:
-          claimName: pvc-config-store
-      - name: schema-store # yang file from git
-        persistentVolumeClaim:
-          claimName: pvc-schema-store
       - name: schema-db # persistent schema obj from the parsed yang files
         persistentVolumeClaim:
           claimName: pvc-schema-db
-      - name: workspace-store # git workspace
+      - name: schema-store # yang file from git
         persistentVolumeClaim:
-          claimName: pvc-workspace-store
+          claimName: pvc-schema-store
+

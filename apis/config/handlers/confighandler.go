@@ -4,75 +4,110 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/config"
-	"github.com/sdcio/config-server/pkg/target"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"github.com/sdcio/config-server/apis/condition"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+
 type ConfigStoreHandler struct {
-	Handler target.TargetHandler
+	Client      client.Client
 }
 
 func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	accessor, err := meta.Accessor(obj)
+	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
 	if err != nil {
 		return obj, err
 	}
-	targetKey, err := config.GetTargetKey(accessor.GetLabels())
+	
+	updates, err := sdctarget.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
 	if err != nil {
-		return obj, err
+		return nil, err
 	}
-	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, config.Deviation{}, dryrun)
-	if err != nil {
-		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
-		cfg.SetConditions(condition.Failed(msg))
-		return cfg, err
+
+	intents := []*sdcpb.TransactionIntent{
+		{
+			Intent:   sdctarget.GetGVKNSN(c),
+			Priority: int32(c.Spec.Priority),
+			Update:   updates,
+		},
 	}
-	cfg.SetConditions(condition.ReadyWithMsg(warnings))
-	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.AppliedConfig = &cfg.Spec
-	return cfg, nil
+
+	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	accessor, err := meta.Accessor(obj)
+	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
 	if err != nil {
 		return obj, err
 	}
-	targetKey, err := config.GetTargetKey(accessor.GetLabels())
+
+	updates, err := sdctarget.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
 	if err != nil {
-		return obj, err
+		return nil, err
 	}
-	cfg := obj.(*config.Config)
-	schema, warnings, err := r.Handler.SetIntent(ctx, targetKey, cfg, config.Deviation{}, dryrun)
-	if err != nil {
-		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
-		cfg.SetConditions(condition.Failed(msg))
-		return cfg, err
+
+	intents := []*sdcpb.TransactionIntent{
+		{
+			Intent:   sdctarget.GetGVKNSN(c),
+			Priority: int32(c.Spec.Priority),
+			Update:   updates,
+		},
 	}
-	cfg.SetConditions(condition.ReadyWithMsg(warnings))
-	cfg.Status.LastKnownGoodSchema = schema
-	cfg.Status.AppliedConfig = &cfg.Spec
-	return cfg, nil
+
+	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
+	if err != nil {
+		return obj, err
+	}
+
+	intents := []*sdcpb.TransactionIntent{
+		{
+			Intent: sdctarget.GetGVKNSN(c),
+			Delete: true,
+		},
+	}
+
+	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+}
+
+
+// prepareConfigAndTarget validates labels, casts the object, fetches the Target
+// and ensures it's ready.
+func (r *ConfigStoreHandler) prepareConfigAndTarget(
+	ctx context.Context,
+	key types.NamespacedName,
+	obj runtime.Object,
+) (*config.Config, *invv1alpha1.Target, error) {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
-		return obj, err
+		return nil, nil, err
 	}
-	targetKey, err := config.GetTargetKey(accessor.GetLabels())
-	if err != nil {
-		return obj, err
+
+	if _, err := config.GetTargetKey(accessor.GetLabels()); err != nil {
+		return nil, nil, err
 	}
-	cfg := obj.(*config.Config)
-	warnings, err := r.Handler.DeleteIntent(ctx, targetKey, cfg, dryrun)
-	if err != nil {
-		msg := fmt.Sprintf("%s err %s", warnings, err.Error())
-		cfg.SetConditions(condition.Failed(msg))
-		return cfg, err
+
+	c, ok := obj.(*config.Config)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected *config.Config, got %T", obj)
 	}
-	return cfg, nil
+
+	target := &invv1alpha1.Target{}
+	if err := r.Client.Get(ctx, key, target); err != nil {
+		return nil, nil, err
+	}
+
+	if !target.IsReady() {
+		return nil, nil, fmt.Errorf("target not ready %s", key)
+	}
+
+	return c, target, nil
 }

@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-controller
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdc-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdc-controller
+    spec:
+      securityContext:
+        runAsUser: 10000
+        runAsGroup: 10000
+        fsGroup: 10000
+      serviceAccountName: controller
+      containers:
+      - name: controller
+        image: input.context[0].data.sdcControllerImage
+        imagePullPolicy: Always
+        command:
+        - /app/controller
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: "NODE_NAME"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: "NODE_IP"
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: METRIC_PORT
+          value: "8443"
+        - name: PPROF_PORT
+          value: "8081"
+        #- name: REVERTIVE
+        #  value: "true"
+        #- name: ENABLE_SUBSCRIPTION
+        #  value: "true"
+        #- name: ENABLE_TARGET
+        #  value: "true"
+        #- name: ENABLE_TARGETDATASTORE
+        #  value: "true"
+        #- name: ENABLE_TARGETCONFIGSERVER
+        #  value: "true"
+        #- name: ENABLE_TARGETRECOVERYSERVER
+        #  value: "true"
+        - name: ENABLE_DISCOVERYRULE
+          value: "true"
+        #- name: ENABLE_SCHEMA
+        #  value: "true"
+        #- name: ENABLE_CONFIG
+        #  value: "true"
+        - name: ENABLE_CONFIGSET
+          value: "true"
+        - name: ENABLE_WORKSPACE
+          value: "true"
+        - name: ENABLE_ROLLOUT
+          value: "true"
+        volumeMounts:
+        #- name: schema-store
+        #  mountPath: /schemas
+        - name: workspace-store
+          mountPath: /workspace
+      volumes:
+      #- name: schema-store # yang file from git
+      #  persistentVolumeClaim:
+      #    claimName: pvc-schema-store
+      - name: workspace-store # git workspace
+        persistentVolumeClaim:
+          claimName: pvc-workspace-store

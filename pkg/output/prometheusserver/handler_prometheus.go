@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 )
 
 // Describe implements prometheus.Collector
@@ -37,7 +37,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 	log:= log.FromContext(ctx)
 
 	keys := []storebackend.Key{}
-	if err := r.targetStore.List(ctx, func(ctx1 context.Context, k storebackend.Key, tctx *target.Context) {
+	if err := r.targetStore.List(ctx, func(ctx1 context.Context, k storebackend.Key, tctx *sdctarget.Context) {
 		keys = append(keys, k)
 	}); err != nil {
 		log.Error("target list failed", "err", err)

@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -35,7 +34,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
@@ -59,9 +57,10 @@ const (
 	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
 )
+
+
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -69,16 +68,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	cfg, ok := c.(*ctrlconfig.ControllerConfig)
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
-	}
-
-	err = cfg.SchemaServerStore.List(ctx, func(ctx context.Context, key storebackend.Key, dsCtx sdcctx.SSContext) {
-		r.schemaclient = dsCtx.SSClient
-	})
-	if err != nil {
-		return nil, err
-	}
-	if r.schemaclient == nil {
-		return nil, fmt.Errorf("cannot get schema client")
 	}
 
 	r.client = mgr.GetClient()
@@ -109,7 +98,6 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	schemaLoader   *schemaloader.Loader
-	schemaclient   ssclient.Client
 	schemaBasePath string
 	recorder       record.EventRecorder
 }
@@ -133,11 +121,29 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	status := &schema.Status
 
 	if !schema.GetDeletionTimestamp().IsZero() {
+
+		cfg := &ssclient.Config{
+			Address:  ssclient.GetSchemaServerAddress(),
+			Insecure: true,
+		}
+
+		schemaclient, closeFn, err := ssclient.NewEphemeral(ctx, cfg)
+		if err != nil {
+			return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
+		}
+		defer func() {
+			if err := closeFn(); err != nil {
+				// You can use your preferred logging framework here
+				fmt.Printf("failed to close connection: %v\n", err)
+			}
+		}()
+
+
 		// check if the schema exists; this is == nil check; in case of err it does not exist
-		if _, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
+		if _, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 			Schema: spec.GetSchema(),
 		}); err == nil {
-			if _, err := r.schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
+			if _, err := schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
 				return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
@@ -189,13 +195,30 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		status.Repositories = repoStatuses
 	}
+
+	cfg := &ssclient.Config{
+		Address:  ssclient.GetSchemaServerAddress(),
+		Insecure: true,
+	}
+
+	schemaclient, closeFn, err := ssclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
+	}
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
+
 	// check if the schema exists
-	rsp, err := r.schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
+	rsp, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 		Schema: spec.GetSchema(),
 	})
 	if err != nil {
 		// schema does not exists in schema-server -> create it
-		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
+		if _, err := schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
 			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
@@ -211,7 +234,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	switch rsp.Schema.Status {
 	case sdcpb.SchemaStatus_FAILED:
-		if _, err := r.schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
+		if _, err := schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
 			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,

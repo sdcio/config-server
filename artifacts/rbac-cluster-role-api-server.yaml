@@ -1,0 +1,20 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sdc-api-server-clusterrole
+rules:
+- apiGroups: [""]
+  resources: ["namespaces", "secrets", "configmaps", "services", "pods"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations", "validatingadmissionpolicies", "validatingadmissionpolicybindings"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["flowcontrol.apiserver.k8s.io"]
+  resources: ["flowschemas", "prioritylevelconfigurations"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["inv.sdcio.dev"]
+  resources: ["targets", "targets/status"]
+  verbs: ["get", "watch", "list"]

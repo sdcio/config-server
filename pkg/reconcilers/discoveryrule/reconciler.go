@@ -32,7 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	"github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -83,7 +83,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
-	targetStore    storebackend.Storer[*target.Context]
+	targetStore    storebackend.Storer[*sdctarget.Context]
 	recorder       record.EventRecorder
 }
 

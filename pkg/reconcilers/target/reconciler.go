@@ -30,7 +30,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	sdctarget "github.com/sdcio/config-server/pkg/target"
+	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
