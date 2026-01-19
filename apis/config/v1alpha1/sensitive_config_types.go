@@ -20,8 +20,8 @@ import (
 	"reflect"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // SensitiveConfigSpec defines the desired state of SensitiveConfig

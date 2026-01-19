@@ -153,15 +153,6 @@ func BuildEmptyConfig() *Config {
 	}
 }
 
-func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
-	}
-}
-
 type RecoveryConfig struct {
 	Config    Config
 	Deviation Deviation

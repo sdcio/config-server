@@ -437,11 +437,6 @@ func (in *ConfigStatus) DeepCopyInto(out *ConfigStatus) {
 		*out = new(ConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.DeviationGeneration != nil {
-		in, out := &in.DeviationGeneration, &out.DeviationGeneration
-		*out = new(int64)
-		**out = **in
-	}
 	return
 }
 

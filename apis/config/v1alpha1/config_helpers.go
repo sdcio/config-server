@@ -89,15 +89,6 @@ func (r *Config) IsRecoverable() bool {
 	return true
 }
 
-func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
-	}
-}
-
 func (r *Config) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }

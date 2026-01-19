@@ -77,7 +77,6 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Named(reconcilerName).
 		For(&invv1alpha1.Target{}).
 		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
-		Watches(&configv1alpha1.Deviation{}, &eventhandler.DeviationForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
