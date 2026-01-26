@@ -27,6 +27,31 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "github.com/sdcio/config-server/apis/config/v1alpha1";
 
+message LocalObjectReference {
+  // Name of the referent.
+  // This field is effectively required, but due to backwards compatibility is
+  // allowed to be empty. Instances of this type with an empty value here are
+  // almost certainly wrong.
+  // More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+  // +optional
+  // +default=""
+  // +kubebuilder:default=""
+  // TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
+  optional string name = 1;
+}
+
+message SecretKeySelector {
+  // The name of the secret in the pod's namespace to select from.
+  optional LocalObjectReference localObjectReference = 1;
+
+  // The key of the secret to select from.  Must be a valid secret key.
+  optional string key = 2;
+
+  // Specify whether the Secret or its key must be defined
+  // +optional
+  optional bool optional = 3;
+}
+
 // Config defines the Schema for the Config API
 message Config {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
@@ -166,9 +191,6 @@ message ConfigStatus {
 
   // AppliedConfig defines the config applied to the target
   optional ConfigSpec appliedConfig = 3;
-
-  // Deviations generation used for the latest config apply
-  optional int64 deviationGeneration = 4;
 }
 
 message ConfigStatusLastKnownGoodSchema {
@@ -246,6 +268,62 @@ message RunningConfigSpec {
 message RunningConfigStatus {
   // +kubebuilder:pruning:PreserveUnknownFields
   optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
+}
+
+// SensitiveConfig defines the Schema for the SensitiveConfig API
+message SensitiveConfig {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional SensitiveConfigSpec spec = 2;
+
+  optional SensitiveConfigStatus status = 3;
+}
+
+message SensitiveConfigData {
+  // Path defines the path relative to which the value is applicable
+  optional string SensitiveConfig = 1;
+
+  // SecretKeyRef refers to a secret in the same namesapce as the config
+  optional SecretKeySelector secretKeyRef = 2;
+}
+
+// SensitiveConfigList contains a list of SensitiveConfigs
+message SensitiveConfigList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated SensitiveConfig items = 2;
+}
+
+// SensitiveConfigSpec defines the desired state of SensitiveConfig
+message SensitiveConfigSpec {
+  // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
+  // will follow
+  optional Lifecycle lifecycle = 1;
+
+  // Priority defines the priority of this SensitiveConfig
+  optional int64 priority = 2;
+
+  // Revertive defines if this CR is enabled for revertive or non revertve operation
+  optional bool revertive = 3;
+
+  // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
+  repeated SensitiveConfigData config = 4;
+}
+
+// SensitiveConfigStatus defines the observed state of SensitiveConfig
+message SensitiveConfigStatus {
+  // ConditionedStatus provides the status of the Readiness using conditions
+  // if the condition is true the other attributes in the status are meaningful
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // LastKnownGoodSchema identifies the last known good schema used to apply the SensitiveConfig successfully
+  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2;
+
+  // AppliedSensitiveConfig defines the SensitiveConfig applied to the target
+  optional SensitiveConfigSpec appliedSensitiveConfig = 3;
+
+  // Deviations generation used for the latest SensitiveConfig apply
+  optional int64 deviationGeneration = 4;
 }
 
 message Target {

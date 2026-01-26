@@ -49,35 +49,6 @@ func GetIntentUpdate(ctx context.Context, key storebackend.Key, config *config.C
 	return update, nil
 }
 
-func getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, []*sdcpb.Path, error) {
-	logger := log.FromContext(ctx)
-	updates := make([]*sdcpb.Update, 0)
-	deletes := make([]*sdcpb.Path, 0)
-
-	for _, deviation := range deviation.Spec.Deviations {
-		if deviation.Reason == "NOT_APPLIED" {
-			path, err := sdcpb.ParsePath(deviation.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
-			}
-			if deviation.CurrentValue == nil {
-				deletes = append(deletes, path)
-			} else {
-				val := &sdcpb.TypedValue{}
-				if err := prototext.Unmarshal([]byte(*deviation.CurrentValue), val); err != nil {
-					logger.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
-					continue
-				}
-				updates = append(updates, &sdcpb.Update{
-					Path:  path,
-					Value: val,
-				})
-			}
-		}
-	}
-	return updates, deletes, nil
-}
-
 // processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them
 // as recoverable or non recoverable.
 func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {

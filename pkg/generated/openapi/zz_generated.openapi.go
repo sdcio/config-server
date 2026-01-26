@@ -1116,13 +1116,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec"),
 						},
 					},
-					"deviationGeneration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Deviations generation used for the latest config apply",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
 				},
 			},
 		},

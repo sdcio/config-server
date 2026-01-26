@@ -54,8 +54,6 @@ type ConfigStatus struct {
 	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
 	// AppliedConfig defines the config applied to the target
 	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
-	// Deviations generation used for the latest config apply
-	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {

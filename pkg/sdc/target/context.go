@@ -20,9 +20,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"log/slog"
-
-	"strconv"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
@@ -257,7 +254,6 @@ func (r *Context) GetDataStore(ctx context.Context, in *sdcpb.GetDataStoreReques
 	return ds.GetDataStore(ctx, in, opts...)
 }
 
-
 func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest) (string, error) {
 	rsp, err := r.dsclient.TransactionSet(ctx, req)
 	msg, err := processTransactionResponse(ctx, rsp, err)
@@ -279,8 +275,8 @@ func (r *Context) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetR
 }
 
 func (r *Context) RecoverIntents(
-	ctx context.Context, 
-	key storebackend.Key, configs []*config.Config, deviations []*config.Deviation) (string, error) {
+	ctx context.Context,
+	key storebackend.Key, configs []*config.Config) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 	if !r.IsReady() {
 		return "", fmt.Errorf("target context not ready")
@@ -290,26 +286,17 @@ func (r *Context) RecoverIntents(
 		return "", nil
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs)+len(deviations))
-	// we only include deviations that have
-	for _, deviation := range deviations {
-		intent, err := buildDeviationIntent(ctx, log, key, deviation)
-		if err != nil {
-			return "", err
-		}
-		if intent != nil {
-			intents = append(intents, intent)
-		}
-	}
+	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
 	for _, config := range configs {
 		update, err := GetIntentUpdate(ctx, key, config, false)
 		if err != nil {
 			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
-			Update:   update,
+			Intent:       GetGVKNSN(config),
+			Priority:     int32(config.Spec.Priority),
+			Update:       update,
+			NonRevertive: !config.IsRevertive(),
 		})
 	}
 
@@ -329,7 +316,6 @@ func (r *Context) SetIntents(
 	targetKey storebackend.Key,
 	transactionID string,
 	configsToUpdate, configsToDelete map[string]*config.Config,
-	deviationsToUpdate, deviationsToDelete map[string]*config.Deviation,
 	dryRun bool,
 ) (*sdcpb.TransactionSetResponse, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
@@ -340,32 +326,8 @@ func (r *Context) SetIntents(
 
 	configsToUpdateSet := sets.New[string]()
 	configsToDeleteSet := sets.New[string]()
-	deviationsToUpdateSet := sets.New[string]()
-	deviationsToDeleteSet := sets.New[string]()
 
 	intents := make([]*sdcpb.TransactionIntent, 0)
-	for key, deviation := range deviationsToUpdate {
-		deviationsToUpdateSet.Insert(key)
-		intent, err := buildDeviationIntent(ctx, log, targetKey, deviation)
-		if err != nil {
-			log.Error("Transaction getDeviationUpdate deviation", "error", err.Error())
-			return nil, err
-		}
-		if intent != nil {
-			intents = append(intents, intent)
-		}
-	}
-
-	for key, deviation := range deviationsToDelete {
-		deviationsToDeleteSet.Insert(key)
-		// only include items for which deviations exist
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent: fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
-			//Priority: int32(config.Spec.Priority),
-			Delete:              true,
-			DeleteIgnoreNoExist: true,
-		})
-	}
 	for key, config := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
 		update, err := GetIntentUpdate(ctx, targetKey, config, true)
@@ -377,13 +339,14 @@ func (r *Context) SetIntents(
 			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
 			Update:   update,
+			NonRevertive: 	!config.IsRevertive(),
 		})
 	}
 	for key, config := range configsToDelete {
 		configsToDeleteSet.Insert(key)
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent: GetGVKNSN(config),
-			//Priority: int32(config.Spec.Priority),
+		intents = append(intents, &sdcpb.TransactionIntent{ // priority is irrelevant
+			Intent:              GetGVKNSN(config),
+			NonRevertive:        !config.IsRevertive(),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
 			Orphan:              config.Orphan(),
@@ -395,10 +358,6 @@ func (r *Context) SetIntents(
 		"configsToUpdate names", configsToUpdateSet.UnsortedList(),
 		"configsToDelete total", len(configsToDelete),
 		"configsToDelete names", configsToDeleteSet.UnsortedList(),
-		"deviationsToUpdate total", len(deviationsToUpdate),
-		"deviationsToUpdate names", deviationsToUpdateSet.UnsortedList(),
-		"deviationsToDelete total", len(deviationsToDelete),
-		"deviationsToDelete names", deviationsToDeleteSet.UnsortedList(),
 	)
 
 	rsp, err := r.dsclient.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
@@ -412,44 +371,6 @@ func (r *Context) SetIntents(
 		log.Info("Transaction rsp", "rsp", prototext.Format(rsp))
 	}
 	return rsp, err
-}
-
-func buildDeviationIntent(
-	ctx context.Context,
-	log *slog.Logger,
-	key storebackend.Key,
-	deviation *config.Deviation,
-) (*sdcpb.TransactionIntent, error) {
-	updates, deletes, err := getDeviationUpdate(ctx, key, deviation)
-	if err != nil {
-		return nil, err
-	}
-
-	priorityStr := deviation.GetLabels()["priority"]
-	if priorityStr == "" {
-		return nil, fmt.Errorf("deviation %s has no priority label", GetGVKNSN(deviation))
-	}
-
-	newPriority, err := strconv.Atoi(priorityStr)
-	if err != nil {
-		return nil, fmt.Errorf("cannot convert priority to int: %w", err)
-	}
-	if newPriority > 0 {
-		newPriority--
-	}
-
-	// Only include items for which deviations exist
-	if len(updates) == 0 && len(deletes) == 0 {
-		return nil, nil
-	}
-
-	return &sdcpb.TransactionIntent{
-		Deviation: true,
-		Intent:    fmt.Sprintf("deviation:%s", GetGVKNSN(deviation)),
-		Priority:  int32(newPriority),
-		Update:    updates,
-		Deletes:   deletes,
-	}, nil
 }
 
 func (r *Context) Confirm(ctx context.Context, key storebackend.Key, transactionID string) error {
@@ -536,15 +457,15 @@ func (r *Context) GetCache() cache.Cache {
 }
 
 func (r *Context) GetPrombLabels() []prompb.Label {
-    labels := make([]prompb.Label, 0, 4)
-    labels = append(labels, prompb.Label{Name: "target_name", Value: r.targetKey.String()})
+	labels := make([]prompb.Label, 0, 4)
+	labels = append(labels, prompb.Label{Name: "target_name", Value: r.targetKey.String()})
 
-    if req := r.getDatastoreReq(); req != nil && req.Target != nil {
-        labels = append(labels,
-            prompb.Label{Name: "vendor", Value: req.Schema.Vendor},
-            prompb.Label{Name: "version", Value: req.Schema.Version},
-            prompb.Label{Name: "address", Value: req.Target.Address},
-        )
-    }
-    return labels
+	if req := r.getDatastoreReq(); req != nil && req.Target != nil {
+		labels = append(labels,
+			prompb.Label{Name: "vendor", Value: req.Schema.Vendor},
+			prompb.Label{Name: "version", Value: req.Schema.Version},
+			prompb.Label{Name: "address", Value: req.Target.Address},
+		)
+	}
+	return labels
 }
