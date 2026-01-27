@@ -327,9 +327,6 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	}
 
 	t.setPhase(ctx, PhaseRunning, nil)
-
-	c, msg := t.connSnapshot()
-	t.pushConnIfChanged(ctx, c, msg)
 }
 
 func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client, desired *sdcpb.CreateDataStoreRequest) error {
