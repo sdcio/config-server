@@ -88,6 +88,15 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	}
 	dsctx.MarkRecovered(true)
 	log.Debug("recovered configs", "count", len(configs))
+
+	if err := r.SetConfigsTargetConditionForTarget(
+        ctx,
+        target,
+        configv1alpha1.ConfigReady("target recovered"),
+    ); err != nil {
+        // recovery succeeded but we failed to patch status -> surface it
+        return ptr.To("recovered, but failed to update config status"), err
+    }
 	return nil, nil
 }
 
