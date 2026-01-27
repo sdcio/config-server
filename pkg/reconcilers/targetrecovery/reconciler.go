@@ -128,7 +128,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig,
 				"target runtime not ready (no dsctx yet)",
 				nil),
-			errUpdateStatus)
+				errUpdateStatus)
 	}
 
 	if dsctx.Client == nil {
@@ -137,14 +137,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
 					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
 				nil),
-			errUpdateStatus)
+				errUpdateStatus)
 	}
 
 	if dsctx.Status.Recovered {
 		log.Info("config recovery -> already recovered")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, nil), errUpdateStatus)
 	}
-
 
 	msg, err := r.transactor.RecoverConfigs(ctx, target, dsctx)
 	if err != nil {

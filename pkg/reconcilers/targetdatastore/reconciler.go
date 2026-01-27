@@ -226,8 +226,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	newTarget.SetConditions(invv1alpha1.DatastoreReady())
 	newTarget.Status.UsedReferences = usedRefs
 
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
+
+	changed := !newCond.Equal(oldCond)
+
 	// we don't update the resource if no condition changed
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+	if !changed &&
 		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences) {
 		log.Info("handleSuccess -> no change")
 		return nil
@@ -264,8 +269,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
+
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DatastoreFailed(msg))
 	//target.SetOverallStatus()
@@ -273,8 +277,13 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		newTarget.Status.UsedReferences = nil
 	}
 
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
+
+	changed := !newCond.Equal(oldCond)
+
 	// we don't update the resource if no condition changed
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)) &&
+	if !changed &&
 		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences) {
 		log.Info("handleError -> no change")
 		return nil

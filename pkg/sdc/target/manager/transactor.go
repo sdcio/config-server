@@ -37,10 +37,10 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -93,7 +93,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 }
 
 func (r *Transactor) recoverIntents(
-	ctx context.Context, 
+	ctx context.Context,
 	dsctx *DatastoreHandle,
 	key storebackend.Key, configs []*config.Config) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
@@ -126,9 +126,8 @@ func (r *Transactor) recoverIntents(
 	})
 }
 
-
 func (r *Transactor) TransactionSet(
-	ctx context.Context, 
+	ctx context.Context,
 	dsctx *DatastoreHandle,
 	req *sdcpb.TransactionSetRequest,
 ) (string, error) {
@@ -674,7 +673,6 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 
 	return result
 }
-
 
 func (r *Transactor) patchStatusIfChanged(
 	ctx context.Context,
