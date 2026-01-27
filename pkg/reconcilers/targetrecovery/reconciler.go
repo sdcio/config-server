@@ -177,8 +177,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	}
 	newTarget.SetConditions(invv1alpha1.ConfigReady(newMsg))
 
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
 
 	changed := !newCond.Equal(oldCond)
 
@@ -189,9 +189,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		return nil
 	}
 	log.Info("handleSuccess -> change",
-		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)))
 
-	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config ready")
+	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config recovery ready")
 
 	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
@@ -220,8 +220,8 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	newTarget.SetConditions(invv1alpha1.ConfigFailed(msg))
 
 	log.Warn(msg, "error", err)
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
 
 	changed := !newCond.Equal(oldCond)
 
@@ -233,7 +233,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 	log.Info("handleError -> change",
-		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
+		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)))
 
 	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{

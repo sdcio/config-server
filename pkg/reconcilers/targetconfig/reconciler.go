@@ -25,19 +25,20 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 func init() {
@@ -86,7 +87,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client          client.Client
 	discoveryClient *discovery.DiscoveryClient
 	finalizer       *resource.APIFinalizer
 	targetMgr       *targetmanager.TargetManager
@@ -122,36 +123,63 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !target.IsReady() {
+		err := r.transactor.SetConfigsConditionForTarget(
+			ctx,
+			targetOrig,
+			condv1alpha1.Failed("target not ready"),
+			nil,
+			false,
+		)
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
 				"target not ready",
-				nil),
-			errUpdateStatus)
+				err),
+				errUpdateStatus)
 	}
 
 	dsctx, ok := r.targetMgr.GetDatastore(ctx, targetKey)
 	if !ok || dsctx == nil {
+		err := r.transactor.SetConfigsConditionForTarget(
+			ctx,
+			targetOrig,
+			condv1alpha1.Failed("target not ready"),
+			nil,
+			false,
+		)
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
 				"target runtime not ready (no dsctx yet)",
-				nil),
-			errUpdateStatus)
+				err),
+				errUpdateStatus)
 	}
 
 	if dsctx.Client == nil {
+		err := r.transactor.SetConfigsConditionForTarget(
+			ctx,
+			targetOrig,
+			condv1alpha1.Failed("target not ready"),
+			nil,
+			false,
+		)
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
 				fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
 					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
-				nil),
-			errUpdateStatus)
+				err),
+				errUpdateStatus)
 	}
-	
 
 	// if the config is not receovered we stop the reconcile loop
 	if !dsctx.Status.Recovered {
+		err := r.transactor.SetConfigsConditionForTarget(
+			ctx,
+			targetOrig,
+			condv1alpha1.Failed("target not ready"),
+			nil,
+			false,
+		)
 		log.Info("config transaction -> target not recovered yet")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 
 	retry, err := r.transactor.Transact(ctx, target, dsctx)
@@ -159,21 +187,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {
 			return ctrl.Result{
-				RequeueAfter: 500 * time.Millisecond,
-				Requeue: true,
-			}, 
-			errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)	
+					RequeueAfter: 500 * time.Millisecond,
+					Requeue:      true,
+				},
+				errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 		}
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 	}
 	log.Info("config transaction success", "retry", retry)
 	if retry {
-			return ctrl.Result{
+		return ctrl.Result{
 				RequeueAfter: 500 * time.Millisecond,
-				Requeue: true,
-			}, 
+				Requeue:      true,
+			},
 			errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
-		}
+	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
@@ -181,7 +209,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	return nil
-	
+
 }
 
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
@@ -193,6 +221,5 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 
 	log.Warn("config transaction failed", "msg", msg, "err", err)
 	return nil
-	
-}
 
+}

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
@@ -359,17 +360,31 @@ func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1
 
 func (r *Transactor) updateConfigWithSuccess(
 	ctx context.Context,
-	config *configv1alpha1.Config,
+	cfg *configv1alpha1.Config,
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
 	msg string,
 ) error {
 	log := log.FromContext(ctx)
-	log.Debug("updateConfigWithSuccess", "config", config.GetName())
+	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
-	return r.patchStatus(ctx, config, func() {
-		config.SetConditions(condv1alpha1.ReadyWithMsg(msg))
-		config.Status.LastKnownGoodSchema = schema
-		config.Status.AppliedConfig = &config.Spec
+	cond := condv1alpha1.ReadyWithMsg(msg)
+
+	return r.patchStatusIfChanged(ctx, cfg, func(c *configv1alpha1.Config) {
+		c.SetConditions(cond)
+		c.Status.LastKnownGoodSchema = schema
+		c.Status.AppliedConfig = &c.Spec
+	}, func(old, new *configv1alpha1.Config) bool {
+		// only write if the ready condition or these fields changed
+		if !new.GetCondition(condv1alpha1.ConditionTypeReady).Equal(old.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			return true
+		}
+		if !reflect.DeepEqual(old.Status.LastKnownGoodSchema, new.Status.LastKnownGoodSchema) {
+			return true
+		}
+		if !reflect.DeepEqual(old.Status.AppliedConfig, new.Status.AppliedConfig) {
+			return true
+		}
+		return false
 	})
 }
 
@@ -431,6 +446,7 @@ func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
 	return out, nil
 }
 
+/*
 func (r *Transactor) patchStatus(
 	ctx context.Context,
 	obj client.Object,
@@ -444,6 +460,7 @@ func (r *Transactor) patchStatus(
 		},
 	)
 }
+*/
 
 func (r *Transactor) patchMetadata(
 	ctx context.Context,
@@ -695,7 +712,6 @@ func (r *Transactor) patchStatusIfChanged(
 	)
 }
 
-/*
 func (r *Transactor) SetConfigsConditionForTarget(
 	ctx context.Context,
 	target *invv1alpha1.Target,
@@ -735,8 +751,8 @@ func (r *Transactor) SetConfigsConditionForTarget(
 				c.Status.AppliedConfig = &c.Spec
 			}
 		}, func(old, new *configv1alpha1.Config) bool {
-			oldC := old.GetCondition(cond.Type)
-			newC := new.GetCondition(cond.Type)
+			oldC := old.GetCondition(condv1alpha1.ConditionTypeReady)
+			newC := new.GetCondition(condv1alpha1.ConditionTypeReady)
 			if !newC.Equal(oldC) {
 				return true
 			}
@@ -756,4 +772,3 @@ func (r *Transactor) SetConfigsConditionForTarget(
 
 	return nil
 }
-*/

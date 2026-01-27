@@ -27,8 +27,8 @@ const (
 	ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
 	// ConditionTypeDatastoreReady represents the resource datastore ready condition
 	ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
-	// ConditionTypeCfgReady represents the resource config ready condition
-	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
+	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
+	ConditionTypeConfigRecoveryReady condv1alpha1.ConditionType = "ConfigRecoveryReady"
 	// ConditionTypeTargetConnectionReady represents the resource target ready condition
 	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
 
@@ -127,7 +127,7 @@ func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
 // get re-applied when the target became ready
 func ConfigReady(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
+		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonReady),
@@ -139,7 +139,7 @@ func ConfigReady(msg string) condv1alpha1.Condition {
 // is in failed condition due to a dependency
 func ConfigFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
+		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonFailed),
@@ -151,7 +151,7 @@ func ConfigFailed(msg string) condv1alpha1.Condition {
 // we we reapplied to the target
 func ConfigReApplyFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
+		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonReApplyFailed),
