@@ -131,6 +131,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errUpdateStatus)
 	}
 
+	if dsctx.Client == nil {
+		return ctrl.Result{RequeueAfter: 5 * time.Second},
+			errors.Wrap(r.handleError(ctx, targetOrig,
+				fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
+					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
+				nil),
+			errUpdateStatus)
+	}
+
 	if dsctx.Status.Recovered {
 		log.Info("config recovery -> already recovered")
 		return ctrl.Result{}, nil
