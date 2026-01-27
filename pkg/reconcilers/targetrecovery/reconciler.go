@@ -62,6 +62,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if !ok {
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
+
+	if cfg.TargetManager == nil {
+		return nil, fmt.Errorf("TargetManager is nil: set LOCAL_DATASERVER=true or disable TargetRecoveryServerController")
+	}
+
 	var err error
 	r.discoveryClient, err = ctrlconfig.GetDiscoveryClient(mgr)
 	if err != nil {

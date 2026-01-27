@@ -19,15 +19,15 @@ package dataservermanager
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"sync"
 	"time"
-	"math/rand/v2"
 
+	"github.com/henderiw/logger/log"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	"google.golang.org/grpc/connectivity"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"github.com/henderiw/logger/log"
-	"google.golang.org/grpc/connectivity"
 )
 
 // DSState represents connectivity to the dataserver.
@@ -45,7 +45,6 @@ type Event struct {
 	At    time.Time
 }
 
-
 // DSConnManager maintains a long-lived client connection to a dataserver and
 // broadcasts Up/Down transitions to subscribers.
 //
@@ -54,11 +53,11 @@ type Event struct {
 type DSConnManager struct {
 	cfg *dsclient.Config
 
-	mu     sync.RWMutex
-	client dsclient.Client
-	state  DSState
+	mu         sync.RWMutex
+	client     dsclient.Client
+	state      DSState
 	connecting bool
-    cond       *sync.Cond
+	cond       *sync.Cond
 
 	subsMu sync.RWMutex
 	subs   map[chan Event]struct{} // fan-out set
@@ -66,7 +65,7 @@ type DSConnManager struct {
 	// internal control
 	startOnce sync.Once
 	stopOnce  sync.Once
-	cancel context.CancelFunc
+	cancel    context.CancelFunc
 }
 
 // New creates a DSConnManager for a single dataserver address/config.
@@ -88,10 +87,11 @@ func (m *DSConnManager) AddToManager(mgr ctrl.Manager) error {
 
 // Start implements controller-runtime Runnable.
 func (m *DSConnManager) Start(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	l := log.FromContext(ctx).With("component", "dataserverManager")
+	log.IntoContext(ctx, l)
 	var err error
 	m.startOnce.Do(func() {
-		log.Info("starting")
+		l.Info("starting")
 		ctx, m.cancel = context.WithCancel(ctx)
 		go m.run(ctx)
 	})
@@ -100,7 +100,7 @@ func (m *DSConnManager) Start(ctx context.Context) error {
 
 // Stop can be used if you run it outside controller-runtime.
 func (m *DSConnManager) Stop() {
-	m.stopOnce.Do(func() { 
+	m.stopOnce.Do(func() {
 		if m.cancel != nil {
 			m.cancel()
 			m.cancel = nil
@@ -221,7 +221,7 @@ func (m *DSConnManager) run(ctx context.Context) {
 		// rest backoff
 		backoff.Duration = 500 * time.Millisecond
 	}
-	
+
 }
 
 // ensureClient creates/starts a new client if needed.
@@ -282,39 +282,39 @@ func (m *DSConnManager) ensureClient(ctx context.Context) (dsclient.Client, erro
 // monitor runs a lightweight health loop.
 func (m *DSConnManager) monitor(ctx context.Context, client dsclient.Client) error {
 	// force it out of idle
-    client.Connect()
+	client.Connect()
 
-    for {
-        select {
-        case <-ctx.Done():
-            return ctx.Err()
-        default:
-        }
-        
-        st := client.ConnState()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 
-        if st == connectivity.Ready {
-            // wait until it changes away from Ready
+		st := client.ConnState()
+
+		if st == connectivity.Ready {
+			// wait until it changes away from Ready
 			ok := client.WaitForStateChange(ctx, connectivity.Ready)
 			if !ok {
 				return ctx.Err()
 			}
 			// loop will re-check new state
 			continue
-        }
+		}
 
 		if st == connectivity.Idle {
 			client.Connect()
 		}
 
-        // treat these as Down
-        if st == connectivity.TransientFailure || st == connectivity.Shutdown {
-            return fmt.Errorf("grpc state: %s", st)
-        }
+		// treat these as Down
+		if st == connectivity.TransientFailure || st == connectivity.Shutdown {
+			return fmt.Errorf("grpc state: %s", st)
+		}
 
-        // For Idle/Connecting: wait a bit and re-check
-        time.Sleep(500 * time.Millisecond)
-    }
+		// For Idle/Connecting: wait a bit and re-check
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (m *DSConnManager) setUp(ctx context.Context, cl dsclient.Client) {
@@ -361,15 +361,15 @@ func (m *DSConnManager) broadcast(ev Event) {
 }
 
 func (m *DSConnManager) closeClient(ctx context.Context, cl dsclient.Client) {
-    if cl == nil {
-        return
-    }
-    cl.Stop(ctx)
+	if cl == nil {
+		return
+	}
+	cl.Stop(ctx)
 	m.mu.Lock()
-    if m.client == cl {
-        m.client = nil
-    }
-    m.mu.Unlock()
+	if m.client == cl {
+		m.client = nil
+	}
+	m.mu.Unlock()
 }
 
 func (m *DSConnManager) sleepWithBackoff(ctx context.Context, b *wait.Backoff) {
@@ -409,10 +409,10 @@ func Step(b *wait.Backoff) time.Duration {
 }
 
 func (m *DSConnManager) closeAllSubs() {
-    m.subsMu.Lock()
-    defer m.subsMu.Unlock()
-    for ch := range m.subs {
-        close(ch)
-        delete(m.subs, ch)
-    }
+	m.subsMu.Lock()
+	defer m.subsMu.Unlock()
+	for ch := range m.subs {
+		close(ch)
+		delete(m.subs, ch)
+	}
 }

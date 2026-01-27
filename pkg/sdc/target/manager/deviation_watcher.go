@@ -39,6 +39,7 @@ import (
 
 const (
 	unManagedConfigDeviation = "__"
+	fieldManagerDeviation = "ConfigController"
 )
 
 type DeviationWatcher struct {
@@ -68,6 +69,9 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 	if r.cancel == nil {
 		return
 	}
+
+	r.clearTargetDeviation(ctx)
+
 	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.key.String())
 	log.Info("stop deviationWatcher")
 	r.cancel()
@@ -250,10 +254,37 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	deviation.Spec.Deviations = deviations
 
-	if err := r.client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: "ConfigController",
-		},
+	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+		FieldManager: fieldManagerDeviation,
+	}); err != nil {
+		log.Error("cannot update intent for recieved deviation", "config", nsn)
+	}
+}
+
+
+func (r *DeviationWatcher) clearTargetDeviation(
+	ctx context.Context,
+) {
+	log := log.FromContext(ctx)
+
+	nsn := r.key.NamespacedName
+	deviation := &configv1alpha1.Deviation{}
+	if err := r.client.Get(ctx, nsn, deviation); err != nil {
+		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
+		return
+	}
+	// If already clear, do nothing (avoids useless writes)
+    if len(deviation.Spec.Deviations) == 0 {
+        return
+    }
+
+	log.Info("clear deviations", "nsn", nsn)
+
+	patch := client.MergeFrom(deviation.DeepObjectCopy())
+	deviation.Spec.Deviations = nil
+
+	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+		FieldManager: fieldManagerDeviation,
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}

@@ -21,9 +21,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	//"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
@@ -31,9 +35,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/openconfig/gnmic/pkg/cache"
-	"github.com/prometheus/prometheus/prompb"
+)
+
+const (
+	fieldManagerTarget = "TargetController"
 )
 
 type TargetPhase string
@@ -71,6 +76,12 @@ type TargetRuntime struct {
 	datastoreReady bool
 	recovered      bool
 
+	// sync connection status
+	statusMu      sync.Mutex
+	lastPushed    time.Time
+	lastConnValid bool
+	lastConn      bool
+
 	// subscriptions
 	subscriptions *Subscriptions
 
@@ -86,12 +97,12 @@ type TargetRuntime struct {
 
 func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s client.Client) *TargetRuntime {
 	return &TargetRuntime{
-		key:    key,
-		ds:     ds,
-		client: k8s,
+		key:           key,
+		ds:            ds,
+		client:        k8s,
 		subscriptions: NewSubscriptions(),
-		phase:  PhasePending,
-		wakeCh: make(chan struct{}, 1),
+		phase:         PhasePending,
+		wakeCh:        make(chan struct{}, 1),
 	}
 }
 
@@ -133,7 +144,7 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 		DSReady:      dsReady,
 		DSStoreReady: dsStoreReady,
 		RunningHash:  rh,
-		Recovered: recovered,
+		Recovered:    recovered,
 	}
 	if err != nil {
 		s.LastError = err.Error()
@@ -142,18 +153,18 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 }
 
 func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSchema {
-    t.desiredMu.RLock()
-    defer t.desiredMu.RUnlock()
+	t.desiredMu.RLock()
+	defer t.desiredMu.RUnlock()
 
-    if t.desired == nil || t.desired.Schema == nil {
-        return &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
-    }
+	if t.desired == nil || t.desired.Schema == nil {
+		return &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
+	}
 
-    return &configv1alpha1.ConfigStatusLastKnownGoodSchema{
-        Type:    t.desired.Schema.Name,
-        Vendor:  t.desired.Schema.Vendor,
-        Version: t.desired.Schema.Version,
-    }
+	return &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    t.desired.Schema.Name,
+		Vendor:  t.desired.Schema.Vendor,
+		Version: t.desired.Schema.Version,
+	}
 }
 
 func (t *TargetRuntime) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
@@ -181,7 +192,6 @@ func (t *TargetRuntime) UpsertSubscription(ctx context.Context, sub *invv1alpha1
 	return nil
 }
 
-
 func (t *TargetRuntime) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
 	if t.subscriptions == nil {
 		return nil
@@ -202,7 +212,6 @@ func (t *TargetRuntime) DeleteSubscription(ctx context.Context, sub *invv1alpha1
 	t.collector.NotifySubscriptionChanged()
 	return nil
 }
-
 
 func (r *TargetRuntime) Start(ctx context.Context) {
 	r.runMu.Lock()
@@ -315,6 +324,9 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	}
 
 	t.setPhase(ctx, PhaseRunning, nil)
+
+	c, msg := t.connSnapshot()
+	t.pushConnIfChanged(ctx, c, msg)
 }
 
 func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client, desired *sdcpb.CreateDataStoreRequest) error {
@@ -482,8 +494,8 @@ func (t *TargetRuntime) setDatastoreReady(ready bool) {
 	defer t.actualMu.Unlock()
 	t.datastoreReady = ready
 	if !ready {
-        t.recovered = false
-    }
+		t.recovered = false
+	}
 }
 
 func (t *TargetRuntime) getDesired() *sdcpb.CreateDataStoreRequest {
@@ -526,13 +538,113 @@ func (t *TargetRuntime) setPhase(_ctx context.Context, p TargetPhase, err error)
 }
 
 func (t *TargetRuntime) setRecovered(b bool) {
-    t.actualMu.Lock()
-    defer t.actualMu.Unlock()
-    t.recovered = b
+	t.actualMu.Lock()
+	defer t.actualMu.Unlock()
+	t.recovered = b
 }
 
-type TargetRuntimeView interface {
-	Key() storebackend.Key
-	Cache() cache.Cache
-	PromLabels() []prompb.Label
+func (t *TargetRuntime) connSnapshot() (bool, string) {
+	st := t.Status()
+
+	if st.Phase == PhaseRunning && st.DSReady && st.DSStoreReady {
+		return true, ""
+	}
+
+	// pick a helpful message
+	if !st.DSReady {
+		if st.LastError != "" {
+			return false, "dataserver not ready: " + st.LastError
+		}
+		return false, "dataserver not ready"
+	}
+	if !st.DSStoreReady {
+		if st.LastError != "" {
+			return false, "datastore not ready: " + st.LastError
+		}
+		return false, "datastore not ready"
+	}
+	if st.Phase == PhaseDegraded && st.LastError != "" {
+		return false, "degraded: " + st.LastError
+	}
+	if st.Phase == PhaseWaitingForDS {
+		return false, "waiting for dataserver"
+	}
+	if st.Phase == PhaseEnsuringDatastore {
+		return false, "ensuring datastore"
+	}
+	if st.Phase == PhasePending {
+		return false, "pending"
+	}
+	return false, string(st.Phase)
+}
+
+func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, msg string) {
+	log := log.FromContext(ctx)
+
+	r.statusMu.Lock()
+	// throttle flaps
+	if r.lastConnValid && r.lastConn == connected && time.Since(r.lastPushed) < 2*time.Second {
+		r.statusMu.Unlock()
+		return
+	}
+	r.lastPushed = time.Now()
+	r.lastConnValid = true
+	r.statusMu.Unlock()
+
+	// get from informer cache
+	target := &invv1alpha1.Target{}
+	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
+		log.Error("target fecth failed", "error", err)
+		return
+	}
+	old := target.DeepCopy()
+
+	// mutate only what you own in status
+	// (use your existing helpers, but mutate `target`, not a separate object)
+	if connected {
+		target.SetConditions(invv1alpha1.TargetConnectionReady())
+	} else {
+		target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+	}
+	target.SetOverallStatus(old)
+
+	// if no effective status change, skip write
+	if conditionsEqual(old.Status.Conditions, target.Status.Conditions) &&
+		old.IsReady() == target.IsReady() {
+		return
+	}
+
+	// PATCH /status using MergeFrom
+	if err := r.client.Status().Patch(ctx, target, client.MergeFrom(old), &client.SubResourcePatchOptions{
+		PatchOptions: client.PatchOptions{
+			FieldManager: fieldManagerTarget,
+		},
+	}); err != nil {
+		log.Error("target status patch failed", "error", err)
+		return
+	}
+}
+
+func conditionsEqual(a, b []condv1alpha1.Condition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	// order is usually stable but not guaranteed; safest is map by Type
+	ma := map[string]condv1alpha1.Condition{}
+	for _, c := range a {
+		ma[c.Type] = c
+	}
+	for _, c := range b {
+		oc, ok := ma[c.Type]
+		if !ok {
+			return false
+		}
+		if oc.Status != c.Status ||
+			oc.Reason != c.Reason ||
+			oc.Message != c.Message ||
+			oc.ObservedGeneration != c.ObservedGeneration {
+			return false
+		}
+	}
+	return true
 }

@@ -33,7 +33,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/prometheus/prompb"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	"github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 )
 
 const (
@@ -57,7 +57,7 @@ type PromMetric struct {
 }
 
 // TODO get user input
-func NewPromMetric(subName string, rt targetmanager.TargetRuntimeView, update *gnmi.Update) (*PromMetric, error) {
+func NewPromMetric(subName string, rt runtimeview.TargetRuntimeView, update *gnmi.Update) (*PromMetric, error) {
 	val, err := getValue(update.GetVal())
 	if err != nil {
 		return nil, fmt.Errorf("prometheus metric cannot get typed value, err: %s", err)
