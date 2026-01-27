@@ -84,6 +84,16 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed
+
+		if err := r.SetConfigsTargetConditionForTarget(
+			ctx,
+			target,
+			configv1alpha1.ConfigFailed(msg),
+		); err != nil {
+			// recovery succeeded but we failed to patch status -> surface it
+			return ptr.To("recovered, but failed to update config status"), err
+		}
+
 		return &msg, err
 	}
 	dsctx.MarkRecovered(true)
@@ -726,7 +736,7 @@ func (r *Transactor) patchStatusIfChanged(
 func (r *Transactor) SetConfigsTargetConditionForTarget(
 	ctx context.Context,
 	target *invv1alpha1.Target,
-	targetCond condv1alpha1.Condition, // must be Type=TargetReady
+	targetCond condv1alpha1.Condition,
 ) error {
 	//log := log.FromContext(ctx)
 
@@ -759,11 +769,7 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 			// 2) did overall Ready change?
 			oldR := old.GetCondition(condv1alpha1.ConditionTypeReady)
 			newR := new.GetCondition(condv1alpha1.ConditionTypeReady)
-			if !newR.Equal(oldR) {
-				return true
-			}
-
-			return false
+			return !newR.Equal(oldR) 
 		})
 		if err != nil {
 			return err
