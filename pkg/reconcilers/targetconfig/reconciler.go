@@ -125,16 +125,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !ok || dsctx == nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
-				fmt.Errorf("target runtime not ready (no dsctx yet)")),
+				"target runtime not ready (no dsctx yet)",
+				nil),
 			errUpdateStatus)
 	}
 
 	if dsctx.Client == nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
-				fmt.Errorf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
+				fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
 					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
-				),
+				nil),
 			errUpdateStatus)
 	}
 	
@@ -147,15 +148,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	retry, err := r.transactor.Transact(ctx, target, dsctx)
 	if err != nil {
-		log.Error("config transaction failed", "retry", retry, "err", err)
+		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {
 			return ctrl.Result{
 				RequeueAfter: 500 * time.Millisecond,
 				Requeue: true,
 			}, 
-			errors.Wrap(r.handleError(ctx, targetOrig, err), errUpdateStatus)	
+			errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)	
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, err), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 	}
 	log.Info("config transaction success", "retry", retry)
 	if retry {
@@ -175,9 +176,14 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, err error) error {
+func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
-	log.Error("config transaction failed", "err", err)
+
+	if err != nil {
+		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+	}
+
+	log.Warn("config transaction failed", "msg", msg, "err", err)
 	return nil
 	
 }

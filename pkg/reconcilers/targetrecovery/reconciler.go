@@ -221,7 +221,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.ConfigFailed(msg))
 	//target.SetOverallStatus()
-	log.Error(msg, "error", err)
+	log.Warn(msg, "error", err)
 	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
 	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {

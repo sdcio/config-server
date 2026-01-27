@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
+	//"google.golang.org/grpc/keepalive"
 )
 
 const dataServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
@@ -264,11 +264,11 @@ func (r *client) Start(ctx context.Context) error {
 	var err error
 	r.conn, err = grpc.NewClient(r.cfg.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
-			Timeout:             5 * time.Second,
-			PermitWithoutStream: false,
-		}),
+		//grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		//	Time:                10 * time.Second,
+		//	Timeout:             5 * time.Second,
+		//	PermitWithoutStream: false,
+		//}),
 	)
 	if err != nil {
 		return err

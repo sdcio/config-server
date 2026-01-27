@@ -222,8 +222,6 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady))
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.DatastoreReady())
 	newTarget.Status.UsedReferences = usedRefs
