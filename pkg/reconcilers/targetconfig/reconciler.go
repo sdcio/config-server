@@ -122,10 +122,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	dsctx, ok := r.targetMgr.GetDatastore(ctx, targetKey)
-	if !ok {
+	if !ok || dsctx == nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
-				fmt.Errorf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%s",
+				fmt.Errorf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
 					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
 				),
 			errUpdateStatus)

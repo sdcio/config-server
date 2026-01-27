@@ -37,9 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	fieldManagerTarget = "TargetController"
-)
+const fieldManagerTargetRuntime = "TargetRuntime"
 
 type TargetPhase string
 
@@ -279,6 +277,11 @@ func (r *TargetRuntime) run(ctx context.Context) {
 }
 
 func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
+	defer func() {
+        c, msg := t.connSnapshot()
+        t.pushConnIfChanged(ctx, c, msg)
+    }()
+
 	desired := t.getDesired()
 	if desired == nil {
 		// Nothing desired => stop runtime
@@ -580,6 +583,7 @@ func (t *TargetRuntime) connSnapshot() (bool, string) {
 
 func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, msg string) {
 	log := log.FromContext(ctx)
+	log.Info("pushConnIfChanged entry")
 
 	r.statusMu.Lock()
 	// throttle flaps
@@ -589,6 +593,7 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	}
 	r.lastPushed = time.Now()
 	r.lastConnValid = true
+	r.lastConn = connected
 	r.statusMu.Unlock()
 
 	// get from informer cache
@@ -611,18 +616,29 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	// if no effective status change, skip write
 	if conditionsEqual(old.Status.Conditions, target.Status.Conditions) &&
 		old.IsReady() == target.IsReady() {
+		log.Info("pushConnIfChanged equal",
+			"connected", connected,
+			"phase", r.Status().Phase,
+			"msg", msg,
+		)
 		return
 	}
 
 	// PATCH /status using MergeFrom
 	if err := r.client.Status().Patch(ctx, target, client.MergeFrom(old), &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
-			FieldManager: fieldManagerTarget,
+			FieldManager: fieldManagerTargetRuntime,
 		},
 	}); err != nil {
 		log.Error("target status patch failed", "error", err)
 		return
 	}
+
+	log.Info("pushConnIfChanged",
+		"connected", connected,
+		"phase", r.Status().Phase,
+		"msg", msg,
+	)
 }
 
 func conditionsEqual(a, b []condv1alpha1.Condition) bool {
