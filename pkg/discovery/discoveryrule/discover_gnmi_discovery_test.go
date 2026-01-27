@@ -102,10 +102,6 @@ func TestParseDiscoveryInformation(t *testing.T) {
 				t.Fatalf("Expected error: %v, got: %v", tc.expectError, err)
 			}
 
-			if err != nil {
-				t.Fatalf("Failed to load capability response: %v", err)
-			}
-
 			d := Discoverer{Provider: tc.provider}
 			di, err := d.parseDiscoveryInformation(ctx, pathMap, capRsp, getRsp)
 			// Check error conditions

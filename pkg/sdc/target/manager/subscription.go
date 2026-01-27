@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2026 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
-/*
+package targetmanager
+
 import (
 	errors "errors"
 	"fmt"
@@ -255,4 +255,3 @@ func (r *Subscriptions) getExistingCRSubscription(nsn string) map[string]sets.Se
 func getSubscriptionNSNName(nsn, name string) string {
 	return fmt.Sprintf("%s.%s", nsn, name)
 }
-*/

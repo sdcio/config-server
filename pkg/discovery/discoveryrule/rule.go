@@ -26,7 +26,6 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	"golang.org/x/sync/semaphore"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -38,12 +37,11 @@ type DiscoveryRule interface {
 	GetDiscoveryRulConfig() *DiscoveryRuleConfig
 }
 
-func New(client client.Client, cfg *DiscoveryRuleConfig, targetStore storebackend.Storer[*sdctarget.Context]) DiscoveryRule {
+func New(client client.Client, cfg *DiscoveryRuleConfig) DiscoveryRule {
 	r := &dr{}
 	r.client = client
 	r.cfg = cfg
 	r.protocols = r.newDiscoveryProtocols()
-	r.targetStore = targetStore
 	return r
 }
 
@@ -51,7 +49,6 @@ type dr struct {
 	client      client.Client
 	cfg         *DiscoveryRuleConfig
 	protocols   *protocols
-	targetStore storebackend.Storer[*sdctarget.Context]
 	children    storebackend.Storer[string]
 
 

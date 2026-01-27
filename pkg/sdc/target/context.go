@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 package target
-
+/*
 import (
 	"context"
 	"fmt"
@@ -548,3 +548,4 @@ func (r *Context) GetPrombLabels() []prompb.Label {
     }
     return labels
 }
+*/

@@ -16,6 +16,8 @@ limitations under the License.
 
 package target
 
+/*
+
 import (
 	"context"
 	"errors"
@@ -253,3 +255,4 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		},
 	})
 }
+*/

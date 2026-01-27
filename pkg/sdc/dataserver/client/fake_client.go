@@ -21,6 +21,7 @@ import (
 
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 func NewFakeClient() Client {
@@ -32,6 +33,15 @@ type fakeclient struct{}
 func (r *fakeclient) IsConnectionReady() bool {return true}
 
 func (r *fakeclient) IsConnected() bool {return true}
+
+func (r *fakeclient) ConnState() connectivity.State {
+    return connectivity.Ready
+}
+
+func (r *fakeclient) WaitForStateChange(ctx context.Context, s connectivity.State) bool {
+    return true
+}
+func (r *fakeclient) Connect() {}
 
 func (r *fakeclient) Start(ctx context.Context) error { return nil }
 

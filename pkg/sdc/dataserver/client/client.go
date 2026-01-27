@@ -163,6 +163,9 @@ type Client interface {
 	GetAddress() string
 	IsConnectionReady() bool
 	IsConnected() bool
+	ConnState() connectivity.State
+    WaitForStateChange(ctx context.Context, source connectivity.State) bool
+    Connect()
 	sdcpb.DataServerClient
 }
 
@@ -223,6 +226,20 @@ func (r *client) IsConnected() bool {
 	return r.conn != nil && r.conn.GetState() != connectivity.Shutdown
 }
 
+func (r *client) ConnState() connectivity.State {
+    if r.conn == nil { return connectivity.Shutdown }
+    return r.conn.GetState()
+}
+
+func (r *client) WaitForStateChange(ctx context.Context, s connectivity.State) bool {
+    if r.conn == nil { return false }
+    return r.conn.WaitForStateChange(ctx, s)
+}
+
+func (r *client) Connect() {
+    if r.conn != nil { r.conn.Connect() }
+}
+
 func (r *client) Stop(ctx context.Context) {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("stopping...")
@@ -241,8 +258,9 @@ func (r *client) Start(ctx context.Context) error {
 	log := log.FromContext(ctx).With("address", r.cfg.Address)
 	log.Info("starting...")
 
-	_, cancel := context.WithTimeout(ctx, 10*time.Second)
+	startCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+
 	var err error
 	r.conn, err = grpc.NewClient(r.cfg.Address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -255,7 +273,13 @@ func (r *client) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	
+	// Wait until the channel is Ready (or timeout)
+	if err := waitForReady(startCtx, r.conn); err != nil {
+		_ = r.conn.Close()
+		r.conn = nil
+		return fmt.Errorf("connect %q: %w", r.cfg.Address, err)
+	}
 	r.dsclient = sdcpb.NewDataServerClient(r.conn)
 
 	// Long-lived cancel for Stop()
@@ -322,4 +346,23 @@ func (r *client) TransactionCancel(ctx context.Context, in *sdcpb.TransactionCan
 
 func (r *client) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, opts ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
 	return r.dsclient.BlameConfig(ctx, in, opts...)
+}
+
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	// Kick it out of idle.
+	conn.Connect()
+
+	for {
+		st := conn.GetState()
+		if st == connectivity.Ready {
+			return nil
+		}
+		// Treat these as hard failures for "start"
+		if st == connectivity.Shutdown || st == connectivity.TransientFailure {
+			return fmt.Errorf("grpc not ready: %s", st)
+		}
+		if !conn.WaitForStateChange(ctx, st) {
+			return ctx.Err() // deadline or cancellation
+		}
+	}
 }

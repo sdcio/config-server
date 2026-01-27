@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
-/*
+package targetmanager
+
 import (
 	"testing"
 	"time"
@@ -237,4 +237,3 @@ func TestModifyEncoding(t *testing.T) {
 	paths = subscriptions.GetPaths()
 	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_PROTO])
 }
-*/

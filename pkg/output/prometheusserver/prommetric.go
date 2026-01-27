@@ -33,7 +33,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/prometheus/prompb"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 const (
@@ -57,7 +57,7 @@ type PromMetric struct {
 }
 
 // TODO get user input
-func NewPromMetric(subName string, tctx *sdctarget.Context, update *gnmi.Update) (*PromMetric, error) {
+func NewPromMetric(subName string, rt targetmanager.TargetRuntimeView, update *gnmi.Update) (*PromMetric, error) {
 	val, err := getValue(update.GetVal())
 	if err != nil {
 		return nil, fmt.Errorf("prometheus metric cannot get typed value, err: %s", err)
@@ -66,7 +66,7 @@ func NewPromMetric(subName string, tctx *sdctarget.Context, update *gnmi.Update)
 	if err != nil {
 		return nil, fmt.Errorf("prometheus metric cannot get float value, err: %s", err)
 	}
-	metricName, labels := getPromPathData("", update.GetPath(), tctx.GetPrombLabels())
+	metricName, labels := getPromPathData("", update.GetPath(), rt.PromLabels())
 
 	return &PromMetric{
 		Name:    metricName,
