@@ -171,8 +171,6 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
 	// set new conditions
 	newMsg := ""
 	if msg != nil {
@@ -180,10 +178,13 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	}
 	newTarget.SetConditions(invv1alpha1.ConfigReady(newMsg))
 
-	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+
+	changed := !newCond.Equal(oldCond)
 
 	// we don't update the resource if no condition changed
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+	if !changed {
 		// we don't update the resource if no condition changed
 		log.Info("handleSuccess -> no change")
 		return nil
@@ -216,19 +217,22 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		invv1alpha1.TargetSpec{},
 		invv1alpha1.TargetStatus{},
 	)
-	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeConfigReady))
 	// set new conditions
 	newTarget.SetConditions(invv1alpha1.ConfigFailed(msg))
-	//target.SetOverallStatus()
-	log.Warn(msg, "error", err)
-	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)) {
+	log.Warn(msg, "error", err)
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady)
+
+	changed := !newCond.Equal(oldCond)
+
+	if !changed {
 		// we don't update the resource if no condition changed
 		log.Info("handleError -> no change")
 		return nil
 	}
+
+	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
 	log.Info("handleError -> change",
 		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigReady)))
 

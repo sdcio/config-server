@@ -65,7 +65,7 @@ func NewTransactor(client client.Client, fieldManager, fieldManagerFinalizer str
 func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
 	log := log.FromContext(ctx)
 	log.Debug("RecoverConfigs")
-	configList, err := r.listConfigsPerTarget(ctx, target)
+	configList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
 	// get all configs for the target
-	configList, err := r.listConfigsPerTarget(ctx, target)
+	configList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
 		return true, err
 	}
@@ -374,7 +374,7 @@ func (r *Transactor) updateConfigWithSuccess(
 	})
 }
 
-func (r *Transactor) listConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
+func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
 	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
 
 	opts := []client.ListOption{
@@ -676,3 +676,86 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 }
 
 
+func (r *Transactor) patchStatusIfChanged(
+	ctx context.Context,
+	cfg *configv1alpha1.Config,
+	mutate func(c *configv1alpha1.Config),
+	changed func(old, new *configv1alpha1.Config) bool,
+) error {
+	orig := cfg.DeepCopy()
+
+	mutate(cfg)
+
+	if changed != nil && !changed(orig, cfg) {
+		return nil
+	}
+
+	return r.client.Status().Patch(ctx, cfg, client.MergeFrom(orig),
+		&client.SubResourcePatchOptions{
+			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
+		},
+	)
+}
+
+/*
+func (r *Transactor) SetConfigsConditionForTarget(
+	ctx context.Context,
+	target *invv1alpha1.Target,
+	cond condv1alpha1.Condition,
+	// optional: also set schema/appliedconfig when marking ready
+	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
+	setApplied bool,
+) error {
+	log := log.FromContext(ctx)
+
+	// Reuse your existing lister (returns config.ConfigList)
+	cfgList, err := r.ListConfigsPerTarget(ctx, target)
+	if err != nil {
+		return err
+	}
+
+	log.Info("SetConfigsConditionForTarget",
+		"target", target.GetNamespacedName(),
+		"count", len(cfgList.Items),
+		"cond", cond.Type,
+	)
+
+	for i := range cfgList.Items {
+		// convert to v1alpha1 for patching
+		v1cfg, err := toV1Alpha1Config(&cfgList.Items[i])
+		if err != nil {
+			return err
+		}
+
+		// patch only if the condition actually changes
+		err = r.patchStatusIfChanged(ctx, v1cfg, func(c *configv1alpha1.Config) {
+			c.SetConditions(cond)
+			if schema != nil {
+				c.Status.LastKnownGoodSchema = schema
+			}
+			if setApplied {
+				c.Status.AppliedConfig = &c.Spec
+			}
+		}, func(old, new *configv1alpha1.Config) bool {
+			oldC := old.GetCondition(cond.Type)
+			newC := new.GetCondition(cond.Type)
+			if !newC.Equal(oldC) {
+				return true
+			}
+			// if you also mutate schema/applied, include those:
+			if schema != nil && !reflect.DeepEqual(old.Status.LastKnownGoodSchema, new.Status.LastKnownGoodSchema) {
+				return true
+			}
+			if setApplied && !reflect.DeepEqual(old.Status.AppliedConfig, new.Status.AppliedConfig) {
+				return true
+			}
+			return false
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+*/
