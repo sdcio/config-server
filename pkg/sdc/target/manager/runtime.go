@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const fieldManagerTargetRuntime = "TargetRuntime"
@@ -599,30 +600,33 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		log.Error("target fecth failed", "error", err)
 		return
 	}
-	old := target.DeepCopy()
+
+	newTarget := invv1alpha1.BuildTarget(
+		metav1.ObjectMeta{
+			Namespace: target.Namespace,
+			Name:      target.Name,
+		},
+		invv1alpha1.TargetSpec{},
+		invv1alpha1.TargetStatus{},
+	)
 
 	// mutate only what you own in status
 	// (use your existing helpers, but mutate `target`, not a separate object)
 	if connected {
-		target.SetConditions(invv1alpha1.TargetConnectionReady())
+		newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
 	} else {
-		target.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+		newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
 	}
-	target.SetOverallStatus(old)
 
 	// if no effective status change, skip write
-	if conditionsEqual(old.Status.Conditions, target.Status.Conditions) &&
-		old.IsReady() == target.IsReady() {
-		log.Info("pushConnIfChanged equal",
-			"connected", connected,
-			"phase", r.Status().Phase,
-			"msg", msg,
-		)
-		return
+	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
+		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
+			log.Info("handleSuccess -> no change")
+			return
 	}
 
 	// PATCH /status using MergeFrom
-	if err := r.client.Status().Patch(ctx, target, client.MergeFrom(old), &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, target, client.MergeFrom(target), &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: fieldManagerTargetRuntime,
 		},
@@ -638,26 +642,3 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	)
 }
 
-func conditionsEqual(a, b []condv1alpha1.Condition) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	// order is usually stable but not guaranteed; safest is map by Type
-	ma := map[string]condv1alpha1.Condition{}
-	for _, c := range a {
-		ma[c.Type] = c
-	}
-	for _, c := range b {
-		oc, ok := ma[c.Type]
-		if !ok {
-			return false
-		}
-		if oc.Status != c.Status ||
-			oc.Reason != c.Reason ||
-			oc.Message != c.Message ||
-			oc.ObservedGeneration != c.ObservedGeneration {
-			return false
-		}
-	}
-	return true
-}
