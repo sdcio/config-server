@@ -21,6 +21,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Condition Types.
+const (
+	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
+	ConditionTypeTargetReady condv1alpha1.ConditionType = "TargetReady"
+)
+
 // Reasons a resource is ready or not
 const (
 	//ConditionReasonDeleting       condv1alpha1.ConditionReason = "deleting"
@@ -35,10 +41,11 @@ const (
 // is ongoing
 func Creating() condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(condv1alpha1.ConditionTypeReady),
+		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonCreating),
+		Message:            "creating",
 	}}
 }
 
@@ -46,9 +53,60 @@ func Creating() condv1alpha1.Condition {
 // is ongoing
 func Updating() condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(condv1alpha1.ConditionTypeReady),
+		Type:               string(ConditionTypeConfigReady),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(ConditionReasonUpdating),
+		Message:            "updating",
+	}}
+}
+
+
+// ConfigReady return a condition that indicates the config
+// get re-applied when the target became ready
+func ConfigReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+		Message:            msg,
+	}}
+}
+
+// ConfigFailed returns a condition that indicates the config
+// is in failed condition due to a dependency
+func ConfigFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+
+// TargetReady return a condition that indicates
+// the target became ready
+func TargetReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+		Message:            msg,
+	}}
+}
+
+// ConfigFailed returns a condition that indicates the config
+// is in failed condition due to a dependency
+func TargetFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeTargetReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
 	}}
 }

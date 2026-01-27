@@ -50,16 +50,14 @@ const (
 )
 
 type Transactor struct {
-	client                client.Client // k8s client
-	fieldManager          string
-	fieldManagerFinalizer string
+	client       client.Client // k8s client
+	fieldManager string
 }
 
-func NewTransactor(client client.Client, fieldManager, fieldManagerFinalizer string) *Transactor {
+func NewTransactor(client client.Client, fieldManager string) *Transactor {
 	return &Transactor{
-		client:                client,
-		fieldManager:          fieldManager,
-		fieldManagerFinalizer: fieldManagerFinalizer,
+		client:       client,
+		fieldManager: fieldManager,
 	}
 }
 
@@ -96,7 +94,9 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 func (r *Transactor) recoverIntents(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
-	key storebackend.Key, configs []*config.Config) (string, error) {
+	key storebackend.Key,
+	configs []*config.Config,
+) (string, error) {
 	log := log.FromContext(ctx).With("target", key.String())
 
 	if len(configs) == 0 {
@@ -319,7 +319,8 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 
 	config.SetFinalizers([]string{finalizer})
 	if recoverable {
-		config.SetConditions(condv1alpha1.Failed(msg))
+		// IMPRTANT TO USE THIS TYPE
+		config.SetConditions(configv1alpha1.ConfigFailed(msg))
 	} else {
 		newMessage := condv1alpha1.UnrecoverableMessage{
 			ResourceVersion: config.GetResourceVersion(),
@@ -367,7 +368,8 @@ func (r *Transactor) updateConfigWithSuccess(
 	log := log.FromContext(ctx)
 	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
-	cond := condv1alpha1.ReadyWithMsg(msg)
+	// THE TYPE IS IMPORTANT here
+	cond := configv1alpha1.ConfigReady(msg)
 
 	return r.patchStatusIfChanged(ctx, cfg, func(c *configv1alpha1.Config) {
 		c.SetConditions(cond)
@@ -471,7 +473,7 @@ func (r *Transactor) patchMetadata(
 	mutate()
 	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
 		&client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{FieldManager: r.fieldManagerFinalizer},
+			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
 		},
 	)
 }
@@ -712,27 +714,18 @@ func (r *Transactor) patchStatusIfChanged(
 	)
 }
 
-func (r *Transactor) SetConfigsConditionForTarget(
+func (r *Transactor) SetConfigsTargetConditionForTarget(
 	ctx context.Context,
 	target *invv1alpha1.Target,
-	cond condv1alpha1.Condition,
-	// optional: also set schema/appliedconfig when marking ready
-	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
-	setApplied bool,
+	targetCond condv1alpha1.Condition, // must be Type=TargetReady
 ) error {
-	log := log.FromContext(ctx)
+	//log := log.FromContext(ctx)
 
 	// Reuse your existing lister (returns config.ConfigList)
 	cfgList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
 		return err
 	}
-
-	log.Info("SetConfigsConditionForTarget",
-		"target", target.GetNamespacedName(),
-		"count", len(cfgList.Items),
-		"cond", cond.Type,
-	)
 
 	for i := range cfgList.Items {
 		// convert to v1alpha1 for patching
@@ -741,28 +734,26 @@ func (r *Transactor) SetConfigsConditionForTarget(
 			return err
 		}
 
-		// patch only if the condition actually changes
 		err = r.patchStatusIfChanged(ctx, v1cfg, func(c *configv1alpha1.Config) {
-			c.SetConditions(cond)
-			if schema != nil {
-				c.Status.LastKnownGoodSchema = schema
-			}
-			if setApplied {
-				c.Status.AppliedConfig = &c.Spec
-			}
+			// 1) set TargetReady condition
+			c.SetConditions(targetCond)
+			// 2) derive overall Ready from ConfigReady + TargetReady
+			c.SetOverallStatus()
 		}, func(old, new *configv1alpha1.Config) bool {
-			oldC := old.GetCondition(condv1alpha1.ConditionTypeReady)
-			newC := new.GetCondition(condv1alpha1.ConditionTypeReady)
-			if !newC.Equal(oldC) {
+			// compare the two condition types you may change
+			oldT := old.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+			newT := new.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+			if !newT.Equal(oldT) {
 				return true
 			}
-			// if you also mutate schema/applied, include those:
-			if schema != nil && !reflect.DeepEqual(old.Status.LastKnownGoodSchema, new.Status.LastKnownGoodSchema) {
+
+			// 2) did overall Ready change?
+			oldR := old.GetCondition(condv1alpha1.ConditionTypeReady)
+			newR := new.GetCondition(condv1alpha1.ConditionTypeReady)
+			if !newR.Equal(oldR) {
 				return true
 			}
-			if setApplied && !reflect.DeepEqual(old.Status.AppliedConfig, new.Status.AppliedConfig) {
-				return true
-			}
+
 			return false
 		})
 		if err != nil {

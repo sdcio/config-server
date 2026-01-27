@@ -47,7 +47,7 @@ func init() {
 
 const (
 	crName                = "targetrecoveryserver"
-	fieldmanagerfinalizer = "targetrecoveryfinalizerr"
+	fieldmanagerfinalizer = "targetrecoveryfinalizer"
 	reconcilerName        = "TargetRecoveryServerController"
 	finalizer             = "targetrecoveryserver.inv.sdcio.dev/finalizer"
 	// errors
@@ -77,7 +77,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
-	r.transactor = targetmanager.NewTransactor(r.client, crName, fieldmanagerfinalizer)
+	r.transactor = targetmanager.NewTransactor(r.client, "transactor")
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
