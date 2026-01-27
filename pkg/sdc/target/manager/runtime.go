@@ -631,7 +631,7 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	}
 
 	// PATCH /status using MergeFrom
-	if err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: fieldManagerTargetRuntime,
 		},
