@@ -349,20 +349,21 @@ func (r *client) BlameConfig(ctx context.Context, in *sdcpb.BlameConfigRequest, 
 }
 
 func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
-	// Kick it out of idle.
-	conn.Connect()
+    conn.Connect()
 
-	for {
-		st := conn.GetState()
-		if st == connectivity.Ready {
-			return nil
-		}
-		// Treat these as hard failures for "start"
-		if st == connectivity.Shutdown || st == connectivity.TransientFailure {
-			return fmt.Errorf("grpc not ready: %s", st)
-		}
-		if !conn.WaitForStateChange(ctx, st) {
-			return ctx.Err() // deadline or cancellation
-		}
-	}
+    for {
+        st := conn.GetState()
+        switch st {
+        case connectivity.Ready:
+            return nil
+        case connectivity.Shutdown:
+            return fmt.Errorf("grpc shutdown")
+        default:
+            // Idle / Connecting / TransientFailure => keep waiting
+        }
+
+        if !conn.WaitForStateChange(ctx, st) {
+            return ctx.Err() // deadline or cancellation
+        }
+    }
 }
