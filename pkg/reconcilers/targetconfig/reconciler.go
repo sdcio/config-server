@@ -202,6 +202,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			},
 			errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 	}
+	// set status if transact did nothing
+	if err := r.transactor.SetConfigsConditionForTarget(
+        ctx, targetOrig,
+        condv1alpha1.ReadyWithMsg(""),
+        dsctx.Schema,
+        true,
+    ); err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
+	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
