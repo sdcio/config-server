@@ -26,7 +26,6 @@ import (
 	//"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
@@ -34,8 +33,8 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const fieldManagerTargetRuntime = "TargetRuntime"
@@ -279,9 +278,9 @@ func (r *TargetRuntime) run(ctx context.Context) {
 
 func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	defer func() {
-        c, msg := t.connSnapshot()
-        t.pushConnIfChanged(ctx, c, msg)
-    }()
+		c, msg := t.connSnapshot()
+		t.pushConnIfChanged(ctx, c, msg)
+	}()
 
 	desired := t.getDesired()
 	if desired == nil {
@@ -613,7 +612,7 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	// mutate only what you own in status
 	// (use your existing helpers, but mutate `target`, not a separate object)
 	if connected {
-		newTarget.SetConditions(target.GetCondition(condv1alpha1.ConditionTypeReady))
+		newTarget.SetConditions(invv1alpha1.TargetConnectionReady())
 	} else {
 		newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
 	}
@@ -623,8 +622,12 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
 	changed := !newCond.Equal(oldCond)
 	if !changed {
-			log.Info("handleSuccess -> no change")
-			return
+		log.Info("pushConnIfChanged -> no change",
+			"connected", connected,
+			"phase", r.Status().Phase,
+			"msg", msg,
+		)
+		return
 	}
 
 	// PATCH /status using MergeFrom
@@ -637,10 +640,9 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		return
 	}
 
-	log.Info("pushConnIfChanged",
+	log.Info("pushConnIfChanged -> updated",
 		"connected", connected,
 		"phase", r.Status().Phase,
 		"msg", msg,
 	)
 }
-
