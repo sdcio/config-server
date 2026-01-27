@@ -597,7 +597,7 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	// get from informer cache
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
-		log.Error("target fecth failed", "error", err)
+		log.Error("target fetch failed", "error", err)
 		return
 	}
 
@@ -619,14 +619,16 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	}
 
 	// if no effective status change, skip write
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)) &&
-		newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
+	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
+	changed := !newCond.Equal(oldCond)
+	if !changed {
 			log.Info("handleSuccess -> no change")
 			return
 	}
 
 	// PATCH /status using MergeFrom
-	if err := r.client.Status().Patch(ctx, target, client.MergeFrom(target), &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, target, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: fieldManagerTargetRuntime,
 		},

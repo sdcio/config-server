@@ -121,6 +121,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
+	if !target.IsReady() {
+		return ctrl.Result{RequeueAfter: 5 * time.Second},
+			errors.Wrap(r.handleError(ctx, targetOrig,
+				"target not ready",
+				nil),
+			errUpdateStatus)
+	}
+
 	dsctx, ok := r.targetMgr.GetDatastore(ctx, targetKey)
 	if !ok || dsctx == nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
