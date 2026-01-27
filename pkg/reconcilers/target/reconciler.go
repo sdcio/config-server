@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
@@ -82,21 +83,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	targetOrig := target.DeepCopy()
-
 	if !target.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.updatCondition(ctx, targetOrig), errUpdateStatus)
+	changed, newReady, err := r.updateCondition(ctx, target)
+	if err != nil {
+		return ctrl.Result{}, pkgerrors.Wrap(err, errUpdateStatus)
+	}
+
+	// "One more kick": if after computing/updating Ready it is still not ready,
+	// requeue once soon. Using changed==true avoids periodic requeues.
+	// If you want the kick even when Ready didn't change, drop `changed &&`.
+	if changed && !newReady {
+		log.Info("overall Ready still false; requeueing for one more kick", "after", "5s")
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	return ctrl.Result{}, nil
 }
 
-func (r *reconciler) updatCondition(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Target) (changed bool, newReady bool, err error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
-	// take a snapshot of the current object
-	//patch := client.MergeFrom(target.DeepCopy())
-	// update status
+
+	// Build SSA patch object for /status
 	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Namespace: target.Namespace,
@@ -108,22 +119,33 @@ func (r *reconciler) updatCondition(ctx context.Context, target *invv1alpha1.Tar
 	// set new conditions
 	newTarget.SetOverallStatus(target)
 
-	// we don't update the resource if no condition changed
-	if newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)) {
-		log.Info("updateCondition -> no change")
-		return nil
+	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
+	newCond := newTarget.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	changed = !newCond.Equal(oldCond)
+	newReady = newCond.IsTrue()
+
+	if !changed {
+		log.Info("updateCondition -> no change", "ready", newReady)
+		return false, newReady, nil
 	}
-	log.Info("updateCondition -> change",
-		"Ready condition change", newTarget.GetCondition(condv1alpha1.ConditionTypeReady).Equal(target.GetCondition(condv1alpha1.ConditionTypeReady)),
-	)
 
-	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	log.Info("updateCondition -> change", "ready", newReady)
 
-	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+	// Optional: emit different event types
+	if newReady {
+		r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+	} else {
+		r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready")
+	}
 
-	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
-	})
+	}); err != nil {
+		return false, false, err
+	}
+
+	return true, newReady, nil
 }
