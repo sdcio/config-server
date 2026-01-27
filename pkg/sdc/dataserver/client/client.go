@@ -267,7 +267,7 @@ func (r *client) Start(ctx context.Context) error {
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                10 * time.Second,
 			Timeout:             5 * time.Second,
-			PermitWithoutStream: true,
+			PermitWithoutStream: false,
 		}),
 	)
 	if err != nil {
