@@ -3764,6 +3764,13 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 							Format: "",
 						},
 					},
+					"targetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetName specifies the target field value in gNMI Path prefix Examples: \"OC-YANG\" (SONiC), \"openconfig\" (some vendors), or empty",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"protocol", "port"},
 			},

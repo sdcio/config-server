@@ -1092,6 +1092,11 @@ func (in *TargetConnectionProfileSpec) DeepCopyInto(out *TargetConnectionProfile
 		*out = new(CommitCandidate)
 		**out = **in
 	}
+	if in.TargetName != nil {
+		in, out := &in.TargetName, &out.TargetName
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

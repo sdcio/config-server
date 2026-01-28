@@ -612,6 +612,11 @@ message TargetConnectionProfileSpec {
   // +kubebuilder:validation:Enum=candidate;running;
   // +kubebuilder:default:="candidate"
   optional string commitCandidate = 12;
+
+  // TargetName specifies the target field value in gNMI Path prefix
+  // Examples: "OC-YANG" (SONiC), "openconfig" (some vendors), or empty
+  // +optional
+  optional string targetName = 13;
 }
 
 // +kubebuilder:object:root=true
