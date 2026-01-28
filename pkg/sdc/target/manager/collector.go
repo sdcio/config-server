@@ -130,7 +130,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
     // build target (needs port)
     tOpts := []gapi.TargetOption{
         gapi.Name(r.targetKey.String()),
-        gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, r.port)),
+        gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
         gapi.Username(string(req.Target.Credentials.Username)),
         gapi.Password(string(req.Target.Credentials.Password)),
         gapi.Timeout(5 * time.Second),
