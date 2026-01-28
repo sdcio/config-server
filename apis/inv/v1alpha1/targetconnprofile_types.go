@@ -115,6 +115,10 @@ type TargetConnectionProfileSpec struct {
 	// +kubebuilder:validation:Enum=candidate;running;
 	// +kubebuilder:default:="candidate"
 	CommitCandidate *CommitCandidate `json:"commitCandidate,omitempty" yaml:"commitCandidate,omitempty" protobuf:"bytes,12,opt,name=commitCandidate,casttype=CommitCandidate"`
+	// TargetName specifies the target field value in gNMI Path prefix
+	// Examples: "OC-YANG" (SONiC), "openconfig" (some vendors), or empty
+	// +optional
+	TargetName *string `json:"targetName,omitempty" yaml:"targetName,omitempty" protobuf:"bytes,13,opt,name=targetName"`
 }
 
 // +kubebuilder:object:root=true
