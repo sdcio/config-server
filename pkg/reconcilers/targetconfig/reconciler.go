@@ -45,10 +45,10 @@ func init() {
 }
 
 const (
-	crName                = "targetconfigserver"
+	crName                = "targetconfig"
 	fieldmanagerfinalizer = "targetconfigfinalizer"
-	reconcilerName        = "TargetConfigServerController"
-	finalizer             = "targetconfigserver.inv.sdcio.dev/finalizer"
+	reconcilerName        = "TargetConfigController"
+	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -118,7 +118,28 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetOrig := target.DeepCopy()
 	if !target.GetDeletionTimestamp().IsZero() {
+		if err := r.transactor.SetConfigsTargetConditionForTarget(
+			ctx,
+			targetOrig,
+			configv1alpha1.TargetFailed("target not available"),
+		); err != nil {
+			return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, targetOrig, "cannot update config status", err), errUpdateStatus)
+		}
+
+		// remove the finalizer
+		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
+			return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, targetOrig, "cannot delete finalizer", err), errUpdateStatus)
+		}
+
+		log.Debug("Successfully deleted resource")
 		return ctrl.Result{}, nil
+	}
+
+	if err := r.finalizer.AddFinalizer(ctx, target); err != nil {
+		return ctrl.Result{Requeue: true},
+			errors.Wrap(r.handleError(ctx, targetOrig, "cannot add finalizer", err), errUpdateStatus)
 	}
 
 	if !target.IsReady() {

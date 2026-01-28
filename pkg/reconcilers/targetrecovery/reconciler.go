@@ -46,9 +46,9 @@ func init() {
 }
 
 const (
-	crName                = "targetrecoveryserver"
-	fieldmanagerfinalizer = "targetrecoveryfinalizer"
-	reconcilerName        = "TargetRecoveryServerController"
+	crName                = "targetrecoveryconfig"
+	fieldmanagerfinalizer = "targetrecoveryconfigfinalizer"
+	reconcilerName        = "TargetRecoveryConfigController"
 	finalizer             = "targetrecoveryserver.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
