@@ -182,6 +182,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 		return true, err
 	}
 	// reapply deviations for each config snippet
+	// This ensure the eviations are applied
 	for _, config := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &config); err != nil {
 			return true, err
@@ -394,6 +395,7 @@ func (r *Transactor) updateConfigWithSuccess(
 		c.SetConditions(cond)
 		c.Status.LastKnownGoodSchema = schema
 		c.Status.AppliedConfig = &c.Spec
+		c.SetOverallStatus()
 	}, func(old, new *configv1alpha1.Config) bool {
 		// only write if the ready condition or these fields changed
 		if !new.GetCondition(condv1alpha1.ConditionTypeReady).Equal(old.GetCondition(condv1alpha1.ConditionTypeReady)) {
@@ -521,6 +523,9 @@ func getConfigsToTransact(
 
 		case cfg.GetDeletionTimestamp() != nil:
 			configsToDelete[key] = cfg
+
+		case !cfg.IsConfigConditionReady():
+			configsToUpdate[key] = cfg
 
 		case cfg.Status.AppliedConfig != nil &&
 			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):

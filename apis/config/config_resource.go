@@ -183,7 +183,7 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 				return []interface{}{
 					fmt.Sprintf("%s.%s/%s", strings.ToLower(ConfigKind), GroupName, config.Name),
 					config.GetCondition(condition.ConditionTypeReady).Status,
-					config.GetCondition(condition.ConditionTypeReady).Reason,
+					config.GetCondition(condition.ConditionTypeReady).Message,
 					config.Spec.Priority,
 					config.GetTarget(),
 					config.GetLastKnownGoodSchema().FileString(),

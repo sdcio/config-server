@@ -289,9 +289,17 @@ func (r *Config) SetOverallStatus() {
 	msg := ""
 	switch {
 	case !cfgC.IsTrue():
-		if cfgC.Message != "" { msg = cfgC.Message } else { msg = "config not applied" }
+		if cfgC.Message != "" {
+			msg = cfgC.Message
+		} else {
+			msg = "config not applied"
+		}
 	case !tgtC.IsTrue():
-		if tgtC.Message != "" { msg = tgtC.Message } else { msg = "target not ready" }
+		if tgtC.Message != "" {
+			msg = tgtC.Message
+		} else {
+			msg = "target not ready"
+		}
 	default:
 		msg = "not ready"
 	}

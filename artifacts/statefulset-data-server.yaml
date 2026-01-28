@@ -62,9 +62,9 @@ spec:
           value: "true"
         - name: ENABLE_TARGETDATASTORE
           value: "true"
-        - name: ENABLE_TARGETCONFIGSERVER
+        - name: ENABLE_TARGETCONFIG
           value: "true"
-        - name: ENABLE_TARGETRECOVERYSERVER
+        - name: ENABLE_TARGETRECOVERYCONFIG
           value: "true"
         #- name: ENABLE_DISCOVERYRULE
         #  value: "true"

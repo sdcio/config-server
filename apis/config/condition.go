@@ -17,24 +17,30 @@ limitations under the License.
 package config
 
 import (
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	cond "github.com/sdcio/config-server/apis/condition"
+)
+
+// Condition Types.
+const (
+	ConditionTypeConfigReady cond.ConditionType = "ConfigReady"
+	ConditionTypeTargetReady cond.ConditionType = "TargetReady"
 )
 
 const (
 	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
-	ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
+	ConditionTypeDiscoveryReady cond.ConditionType = "DiscoveryReady"
 	// ConditionTypeDatastoreReady represents the resource datastore ready condition
-	ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
+	ConditionTypeDatastoreReady cond.ConditionType = "DatastoreReady"
 	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
-	ConditionTypeConfigRecoveryReady condv1alpha1.ConditionType = "ConfigRecoveryReady"
+	ConditionTypeConfigRecoveryReady cond.ConditionType = "ConfigRecoveryReady"
 	// ConditionTypeTargetConnectionReady represents the resource target ready condition
-	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+	ConditionTypeTargetConnectionReady cond.ConditionType = "TargetConnectionReady"
 
-	ConditionTypeConfigApply   condv1alpha1.ConditionType = "ConfigApply"
-	ConditionTypeConfigConfirm condv1alpha1.ConditionType = "ConfigConfirm"
-	ConditionTypeConfigCancel  condv1alpha1.ConditionType = "ConfigCancel"
+	ConditionTypeConfigApply   cond.ConditionType = "ConfigApply"
+	ConditionTypeConfigConfirm cond.ConditionType = "ConfigConfirm"
+	ConditionTypeConfigCancel  cond.ConditionType = "ConfigCancel"
 
-	ConditionTypeSchemaServerReady condv1alpha1.ConditionType = "SchemaServerReady"
+	ConditionTypeSchemaServerReady cond.ConditionType = "SchemaServerReady"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
