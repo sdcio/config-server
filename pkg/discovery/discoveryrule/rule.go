@@ -70,6 +70,7 @@ func (r *dr) GetDiscoveryRulConfig() *DiscoveryRuleConfig {
 func (r *dr) Run(ctx context.Context) error {
 	ctx, r.cancel = context.WithCancel(ctx)
 	log := log.FromContext(ctx).With("discovery-rule", fmt.Sprintf("%s.%s", r.cfg.CR.GetNamespace(), r.cfg.CR.GetName()))
+	log.Info("discovery started")
 	for {
 		select {
 		case <-ctx.Done():
