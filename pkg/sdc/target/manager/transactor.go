@@ -295,7 +295,7 @@ func (r *Transactor) setIntents(
 			Intent:   GetGVKNSN(config),
 			Priority: int32(config.Spec.Priority),
 			Update:   update,
-			NonRevertive: config.IsRevertive(),
+			NonRevertive: !config.IsRevertive(),
 		})
 	}
 	for key, config := range configsToDelete {
