@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2026 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
+package targetmanager
 
 import (
 	"context"
@@ -39,20 +39,25 @@ import (
 
 const (
 	unManagedConfigDeviation = "__"
+	fieldManagerDeviation = "ConfigController"
 )
 
 type DeviationWatcher struct {
-	targetKey storebackend.Key
-	client    client.Client   // k8 client
-	dsclient  dsclient.Client // datastore client
+	key 		storebackend.Key  // target key
+	client    	client.Client     // k8 client
+	dsclient  	dsclient.Client   // datastore client
 
 	m      sync.RWMutex
 	cancel context.CancelFunc
 }
 
-func NewDeviationWatcher(targetKey storebackend.Key, client client.Client, dsclient dsclient.Client) *DeviationWatcher {
+func NewDeviationWatcher(
+	key storebackend.Key, 
+	client client.Client, 
+	dsclient dsclient.Client,
+) *DeviationWatcher {
 	return &DeviationWatcher{
-		targetKey: targetKey,
+		key: key,
 		client:    client,
 		dsclient:  dsclient,
 	}
@@ -64,7 +69,10 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 	if r.cancel == nil {
 		return
 	}
-	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.targetKey.String())
+
+	r.clearTargetDeviation(ctx)
+
+	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.key.String())
 	log.Info("stop deviationWatcher")
 	r.cancel()
 	r.cancel = nil
@@ -80,7 +88,7 @@ func (r *DeviationWatcher) Start(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) start(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.targetKey.String())
+	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.key.String())
 	log.Info("start deviationWatcher")
 	var err error
 	var stream sdcpb.DataServer_WatchDeviationsClient
@@ -90,7 +98,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 	for {
 		if stream == nil {
 			if stream, err = r.dsclient.WatchDeviations(ctx, &sdcpb.WatchDeviationRequest{
-				Name: []string{r.targetKey.String()},
+				Name: []string{r.key.String()},
 			}); err != nil && !errors.Is(err, context.Canceled) {
 				if er, ok := status.FromError(err); ok {
 					switch er.Code() {
@@ -204,7 +212,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		}
 		configDevs := ConvertSdcpbDeviations2ConfigDeviations(ctx, devs)
 
-		nsn := r.targetKey.NamespacedName
+		nsn := r.key.NamespacedName
 		if configName == unManagedConfigDeviation {
 			log.Info("target device deviations", "devs", len(configDevs))
 		} else {
@@ -246,10 +254,37 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	deviation.Spec.Deviations = deviations
 
-	if err := r.client.Patch(ctx, deviation, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: "ConfigController",
-		},
+	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+		FieldManager: fieldManagerDeviation,
+	}); err != nil {
+		log.Error("cannot update intent for recieved deviation", "config", nsn)
+	}
+}
+
+
+func (r *DeviationWatcher) clearTargetDeviation(
+	ctx context.Context,
+) {
+	log := log.FromContext(ctx)
+
+	nsn := r.key.NamespacedName
+	deviation := &configv1alpha1.Deviation{}
+	if err := r.client.Get(ctx, nsn, deviation); err != nil {
+		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
+		return
+	}
+	// If already clear, do nothing (avoids useless writes)
+    if len(deviation.Spec.Deviations) == 0 {
+        return
+    }
+
+	log.Info("clear deviations", "nsn", nsn)
+
+	patch := client.MergeFrom(deviation.DeepObjectCopy())
+	deviation.Spec.Deviations = nil
+
+	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+		FieldManager: fieldManagerDeviation,
 	}); err != nil {
 		log.Error("cannot update intent for recieved deviation", "config", nsn)
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2026 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
+package targetmanager
 
 import (
 	"context"
@@ -39,15 +39,17 @@ type Collector struct {
 	targetKey     storebackend.Key
 	subChan       chan struct{}
 	subscriptions *Subscriptions
-	//intervalCollectors store.Storer[*IntervalCollector]
 	cache cache.Cache
 
 	m      sync.RWMutex
 	target *target.Target
 	port   uint
 	paths  map[invv1alpha1.Encoding][]Path
-	cancel context.CancelFunc
 
+	// collector lifetime
+    cancel context.CancelFunc
+
+    // subscription lifetime (ONLY for curr
 	subscriptionCancel context.CancelFunc
 }
 
@@ -57,13 +59,15 @@ func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Col
 		targetKey:     targetKey,
 		subscriptions: subscriptions,
 		subChan:       make(chan struct{}),
-		//intervalCollectors: memory.NewStore[*IntervalCollector](nil),
 		cache: cache,
 	}
 }
 
-func (r *Collector) GetUpdateChan() chan struct{} {
-	return r.subChan
+func (r *Collector) NotifySubscriptionChanged() {
+    select {
+    case r.subChan <- struct{}{}:
+    default:
+    }
 }
 
 func (r *Collector) SetPort(port uint) {
@@ -90,10 +94,17 @@ func (r *Collector) Stop(ctx context.Context) {
 
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop collector")
+
+	// stop subscription loop
+	r.stopSubscriptionLocked()
+
+	// stop collector loop
 	if r.cancel != nil {
 		r.cancel()
 		r.cancel = nil
 	}
+
+	// close target
 	if r.target != nil {
 		r.target.StopSubscriptions()
 		if err := r.target.Close(); err != nil {
@@ -101,140 +112,177 @@ func (r *Collector) Stop(ctx context.Context) {
 		} 
 		r.target = nil
 	}
+	r.paths = nil
 }
 
+
 func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
-	r.Stop(ctx)
-	// don't lock before since stop also locks
-	r.m.Lock()
-	defer r.m.Unlock()
-	ctx, r.cancel = context.WithCancel(ctx)
+    // stop existing (safe)
+    r.Stop(ctx)
 
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	tOpts := []gapi.TargetOption{
-		gapi.Name(r.targetKey.String()),
-		gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, r.port)),
-		gapi.Username(string(req.Target.Credentials.Username)),
-		gapi.Password(string(req.Target.Credentials.Password)),
-		gapi.Timeout(5 * time.Second),
-	}
-	if req.Target.Tls == nil {
-		tOpts = append(tOpts, gapi.Insecure(true))
-	} else {
-		tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
-		tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
-		tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
-		tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
-	}
-	var err error
-	r.target, err = gapi.NewTarget(tOpts...)
-	if err != nil {
-		log.Error("cannot create gnmi target", "err", err)
-		return err
-	}
-	if err := r.target.CreateGNMIClient(ctx); err != nil {
-		log.Error("cannot create gnmi client", "err", err)
-		return err
-	}
+    r.m.Lock()
+    // start collector lifetime
+    runCtx, cancel := context.WithCancel(ctx)
+    r.cancel = cancel
 
-	go r.start(ctx)
+    log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 
-	return nil
+    // build target (needs port)
+    tOpts := []gapi.TargetOption{
+        gapi.Name(r.targetKey.String()),
+        gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
+        gapi.Username(string(req.Target.Credentials.Username)),
+        gapi.Password(string(req.Target.Credentials.Password)),
+        gapi.Timeout(5 * time.Second),
+    }
+    if req.Target.Tls == nil {
+        tOpts = append(tOpts, gapi.Insecure(true))
+    } else {
+        tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
+        tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
+        tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
+        tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
+    }
+
+    var err error
+    r.target, err = gapi.NewTarget(tOpts...)
+    if err != nil {
+        r.cancel = nil
+        r.m.Unlock()
+        log.Error("cannot create gnmi target", "err", err)
+        return err
+    }
+    if err := r.target.CreateGNMIClient(runCtx); err != nil {
+        _ = r.target.Close()
+        r.target = nil
+        r.cancel = nil
+        r.m.Unlock()
+        log.Error("cannot create gnmi client", "err", err)
+        return err
+    }
+
+    // reset path snapshot so first update triggers
+    r.paths = nil
+    r.m.Unlock()
+
+    go r.start(runCtx)
+    return nil
 }
 
 func (r *Collector) start(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	log.Info("start collector")
+    log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+    log.Info("start collector")
 
-	// kick the collectors
-	r.setNewPaths(map[invv1alpha1.Encoding][]Path{}) // set the paths to empty since we are just starting the collector
-	r.update(ctx)
+    // initial apply
+    r.update(ctx)
 
-	for {
-		select {
-		case <-ctx.Done():
-		case <-r.subChan:
-			r.update(ctx)
-		}
-	}
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case <-r.subChan:
+            r.update(ctx)
+        }
+    }
 }
 
 func (r *Collector) update(ctx context.Context) {
+	r.m.Lock()
+	defer r.m.Unlock()
+
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+
+	if r.subscriptions == nil {
+		log.Debug("no subscriptions")
+        r.stopSubscriptionLocked()
+        r.paths = nil
+        return
+	}
+	
 	newPaths := r.subscriptions.GetPaths()
 	log.Debug("subscription update received", "newPaths", newPaths)
+	
 	if !r.hasPathsChanged(newPaths) {
 		log.Debug("subscription did not change")
 		return
 	}
-	log.Debug("subscription did not change", "newPaths", newPaths, "existingPaths", r.paths)
-	r.StopSubscription(ctx)
+	log.Debug("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
+	
+	// stop current subscription loop
+	r.stopSubscriptionLocked()
 
-	r.setNewPaths(newPaths)
-	// don't lock before since stop also locks
-	r.m.Lock()
-	defer r.m.Unlock()
-	ctx, r.cancel = context.WithCancel(ctx)
-	go r.StartSubscription(ctx)
+	// apply new snapshot
+	r.paths = newPaths
+
+	// if no paths => nothing to run
+	if len(newPaths) == 0 {
+		log.Info("no subscription paths left; subscription loop stopped")
+		return
+	}
+
+	// start new subscription loop with its own cancel
+	subCtx, cancel := context.WithCancel(ctx)
+	r.subscriptionCancel = cancel
+	go r.startSubscription(subCtx, newPaths)
 }
 
-func (r *Collector) setNewPaths(paths map[invv1alpha1.Encoding][]Path) {
-	r.m.Lock()
-	defer r.m.Unlock()
-	r.paths = paths
+func (r *Collector) stopSubscriptionLocked() {
+	// IMPORTANT: caller holds r.m.Lock()
+	if r.subscriptionCancel != nil {
+		r.subscriptionCancel()
+		r.subscriptionCancel = nil
+	}
+	if r.target != nil {
+		r.target.StopSubscriptions()
+	}
 }
+
 
 func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bool {
-	r.m.RLock()
-	defer r.m.RUnlock()
-	existingPaths := r.paths
-	for encoding, newpaths := range newPaths {
-		existingPaths, ok := existingPaths[encoding]
-		if !ok {
-			return true
-		}
-		if len(newpaths) != len(existingPaths) {
-			return true
-		}
-		for i := range existingPaths {
-			if existingPaths[i].Path != newpaths[i].Path ||
-				existingPaths[i].Interval != newpaths[i].Interval {
-				return true
-			}
-		}
-	}
-	return false
+	// IMPORTANT: caller holds r.m.Lock()
+	old := r.paths
+    if old == nil && len(newPaths) == 0 {
+        return false
+    }
+    if len(old) != len(newPaths) {
+        return true
+    }
+    for enc, np := range newPaths {
+        op, ok := old[enc]
+        if !ok {
+            return true
+        }
+        if len(op) != len(np) {
+            return true
+        }
+        // If order is not guaranteed, you should sort; see section 4 below.
+        for i := range op {
+            if op[i].Path != np[i].Path || op[i].Interval != np[i].Interval {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 func (r *Collector) StopSubscription(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop subscription")
-	r.setNewPaths(nil)
+	
 	r.m.Lock()
 	defer r.m.Unlock()
-	if r.subscriptionCancel != nil {
-		r.subscriptionCancel()
-		r.subscriptionCancel = nil
-	}
+
+	r.paths = nil
+	r.stopSubscriptionLocked()
 }
 
-func (r *Collector) StartSubscription(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-	log.Info("start subscription")
-
-	r.m.Lock()
-	defer r.m.Unlock()
-	ctx, r.cancel = context.WithCancel(ctx)
-	go r.startSubscription(ctx)
-}
-
-func (r *Collector) startSubscription(ctx context.Context) {
+func (r *Collector) startSubscription(ctx context.Context, paths map[invv1alpha1.Encoding][]Path) {
 	log := log.FromContext(ctx).With("target", r.targetKey.String())
-	log.Info("starting subscription collector", "paths", r.paths)
+	log.Info("starting subscription collector", "paths", paths)
 
 START:
-	// subscribe
-	for subEncoding, paths := range r.paths {
+	// subscribe using received paths
+	for subEncoding, paths := range paths {
 		opts := make([]gapi.GNMIOption, 0)
 		for _, path := range paths {
 			subscriptionOpts := []gapi.GNMIOption{

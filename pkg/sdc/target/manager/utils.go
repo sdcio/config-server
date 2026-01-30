@@ -1,4 +1,20 @@
-package target
+/*
+Copyright 2026 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package targetmanager
 
 import (
 	"context"
@@ -47,35 +63,6 @@ func GetIntentUpdate(ctx context.Context, key storebackend.Key, config *config.C
 		})
 	}
 	return update, nil
-}
-
-func getDeviationUpdate(ctx context.Context, targetKey storebackend.Key, deviation *config.Deviation) ([]*sdcpb.Update, []*sdcpb.Path, error) {
-	logger := log.FromContext(ctx)
-	updates := make([]*sdcpb.Update, 0)
-	deletes := make([]*sdcpb.Path, 0)
-
-	for _, deviation := range deviation.Spec.Deviations {
-		if deviation.Reason == "NOT_APPLIED" {
-			path, err := sdcpb.ParsePath(deviation.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("deviation path parsing failed forr target %s, path %s invalid", targetKey.String(), deviation.Path)
-			}
-			if deviation.CurrentValue == nil {
-				deletes = append(deletes, path)
-			} else {
-				val := &sdcpb.TypedValue{}
-				if err := prototext.Unmarshal([]byte(*deviation.CurrentValue), val); err != nil {
-					logger.Error("deviation proto unmarshal failed", "key", targetKey.String(), "path", deviation.Path, "currentValue", deviation.CurrentValue)
-					continue
-				}
-				updates = append(updates, &sdcpb.Update{
-					Path:  path,
-					Value: val,
-				})
-			}
-		}
-	}
-	return updates, deletes, nil
 }
 
 // processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them

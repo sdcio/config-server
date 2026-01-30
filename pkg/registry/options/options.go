@@ -20,8 +20,6 @@ import (
 	"context"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/sdcio/config-server/pkg/sdc/target"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,7 +40,6 @@ type Options struct {
 	DB     *badger.DB
 	// Target
 	Client        client.Client
-	TargetStore   storebackend.Storer[*target.Context]
 	// specific functions
 	DryRunCreateFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
 	DryRunUpdateFn func(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error)

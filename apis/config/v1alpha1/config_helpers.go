@@ -272,3 +272,37 @@ var _ ConfigDeviations = &Config{}
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
+
+func (r *Config) SetOverallStatus() {
+	cfgC := r.GetCondition(ConditionTypeConfigReady)
+	tgtC := r.GetCondition(ConditionTypeTargetReady)
+
+	ready := cfgC.IsTrue() && tgtC.IsTrue()
+
+	if ready {
+		// important: only set overall Ready type, do not drop other conditions
+		r.Status.SetConditions(condv1alpha1.ReadyWithMsg("config applied and target ready"))
+		return
+	}
+
+	// pick a useful message
+	msg := ""
+	switch {
+	case !cfgC.IsTrue():
+		if cfgC.Message != "" {
+			msg = cfgC.Message
+		} else {
+			msg = "config not applied"
+		}
+	case !tgtC.IsTrue():
+		if tgtC.Message != "" {
+			msg = tgtC.Message
+		} else {
+			msg = "target not ready"
+		}
+	default:
+		msg = "not ready"
+	}
+
+	r.Status.SetConditions(condv1alpha1.Failed(msg))
+}
