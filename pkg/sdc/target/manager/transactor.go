@@ -133,6 +133,8 @@ func (r *Transactor) recoverIntents(
 			Priority: int32(config.Spec.Priority),
 			Update:   update,
 			NonRevertive: !config.IsRevertive(),
+			PreviouslyApplied: true,
+			
 		})
 	}
 
