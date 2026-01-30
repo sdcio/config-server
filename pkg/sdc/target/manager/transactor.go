@@ -134,7 +134,6 @@ func (r *Transactor) recoverIntents(
 			Update:   update,
 			NonRevertive: !config.IsRevertive(),
 			PreviouslyApplied: true,
-			
 		})
 	}
 
