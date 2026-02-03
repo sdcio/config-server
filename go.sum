@@ -244,8 +244,8 @@ github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sdcio/logger v0.0.3 h1:IFUbObObGry+S8lHGwOQKKRxJSuOphgRU/hxVhOdMOM=
 github.com/sdcio/logger v0.0.3/go.mod h1:yWaOxK/G6vszjg8tKZiMqiEjlZouHsjFME4zSk+SAEA=
-github.com/sdcio/sdc-protos v0.0.50-0.20260129153136-d05a86b54a66 h1:4MATEShmwInlqM3Wygp9EBkUb+juNhla/3bxcsxwJ7Q=
-github.com/sdcio/sdc-protos v0.0.50-0.20260129153136-d05a86b54a66/go.mod h1:huh1QVE023w+reU2Gt6h1f83R3lJidcFLbQje7cMY1M=
+github.com/sdcio/sdc-protos v0.0.50 h1:aR6Av1QMTFNXKKxnrz8vlIXQ0y21lxQJEMut1oLd2Bg=
+github.com/sdcio/sdc-protos v0.0.50/go.mod h1:huh1QVE023w+reU2Gt6h1f83R3lJidcFLbQje7cMY1M=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 h1:n661drycOFuPLCN3Uc8sB6B/s6Z4t2xvBgU1htSHuq8=
 github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
