@@ -52,7 +52,7 @@ func (r *Target) SetOverallStatus(target *Target) {
 		ready = false
 		msg = "datastore not ready" // target.GetCondition(ConditionTypeDatastoreReady).Message)
 	}
-	if ready && !target.GetCondition(ConditionTypeConfigReady).IsTrue() {
+	if ready && !target.GetCondition(ConditionTypeConfigRecoveryReady).IsTrue() {
 		ready = false
 		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
 	}
@@ -93,7 +93,7 @@ func (r *Target) NotReadyReason() string {
 
 	check("DiscoveryReady", r.GetCondition(ConditionTypeDiscoveryReady))
 	check("DatastoreReady", r.GetCondition(ConditionTypeDatastoreReady))
-	check("ConfigReady", r.GetCondition(ConditionTypeConfigReady))
+	check("ConfigReady", r.GetCondition(ConditionTypeConfigRecoveryReady))
 	check("ConnectionReady", r.GetCondition(ConditionTypeTargetConnectionReady))
 
 	if len(reasons) == 0 {

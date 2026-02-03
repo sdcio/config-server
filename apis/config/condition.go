@@ -16,6 +16,33 @@ limitations under the License.
 
 package config
 
+import (
+	cond "github.com/sdcio/config-server/apis/condition"
+)
+
+// Condition Types.
+const (
+	ConditionTypeConfigReady cond.ConditionType = "ConfigReady"
+	ConditionTypeTargetReady cond.ConditionType = "TargetReady"
+)
+
+const (
+	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
+	ConditionTypeDiscoveryReady cond.ConditionType = "DiscoveryReady"
+	// ConditionTypeDatastoreReady represents the resource datastore ready condition
+	ConditionTypeDatastoreReady cond.ConditionType = "DatastoreReady"
+	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
+	ConditionTypeConfigRecoveryReady cond.ConditionType = "ConfigRecoveryReady"
+	// ConditionTypeTargetConnectionReady represents the resource target ready condition
+	ConditionTypeTargetConnectionReady cond.ConditionType = "TargetConnectionReady"
+
+	ConditionTypeConfigApply   cond.ConditionType = "ConfigApply"
+	ConditionTypeConfigConfirm cond.ConditionType = "ConfigConfirm"
+	ConditionTypeConfigCancel  cond.ConditionType = "ConfigCancel"
+
+	ConditionTypeSchemaServerReady cond.ConditionType = "SchemaServerReady"
+)
+
 // A ConditionReason represents the reason a resource is in a condition.
 type ConditionReason string
 

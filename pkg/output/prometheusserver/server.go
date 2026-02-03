@@ -24,31 +24,31 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
+	targetruntimeview "github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 	certutil "k8s.io/client-go/util/cert"
+
 )
 
 type Config struct {
-	Address     string
-	TargetStore storebackend.Storer[*sdctarget.Context]
+	Address       string
+	TargetManager targetruntimeview.TargetManager
 }
 
 func NewServer(c *Config) *PrometheusServer {
 	return &PrometheusServer{
-		address:     c.Address,
-		targetStore: c.TargetStore,
-		regex:       regexp.MustCompile(metricNameRegex),
+		address:       c.Address,
+		targetManager: c.TargetManager,
+		regex:         regexp.MustCompile(metricNameRegex),
 	}
 }
 
 type PrometheusServer struct {
-	address     string
-	targetStore storebackend.Storer[*sdctarget.Context]
-	regex       *regexp.Regexp
+	address       string
+	targetManager targetruntimeview.TargetManager
+	regex         *regexp.Regexp
 	// dynamic
 	cancel func()
 	server *http.Server
@@ -85,7 +85,7 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 		return err
 	}
 	defer func() {
-		if err:= listener.Close(); err != nil {
+		if err := listener.Close(); err != nil {
 			log.Error("closing listener failed", "err", err)
 		}
 	}()

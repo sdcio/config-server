@@ -169,10 +169,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, schemaOrig, "cannot add finalizer", err)
 	}
 
-	if schema.IsSchemaServerReady() {
-		return r.handleError(ctx, schemaOrig, "schema server not ready", nil)
-	}
-
 	// we just insert the schema again
 	r.schemaLoader.AddRef(ctx, schema)
 	_, dirExists, err := r.schemaLoader.GetRef(ctx, spec.GetKey())
@@ -203,7 +199,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	schemaclient, closeFn, err := ssclient.NewEphemeral(ctx, cfg)
 	if err != nil {
-		return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
+		return r.handleError(ctx, schema, "cannot get schema client", err)
 	}
 	defer func() {
 		if err := closeFn(); err != nil {
