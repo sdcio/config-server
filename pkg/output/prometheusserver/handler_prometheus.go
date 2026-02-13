@@ -21,12 +21,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/prometheus/client_golang/prometheus"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
+	targetruntimeview "github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 )
 
 // Describe implements prometheus.Collector
@@ -34,28 +33,23 @@ func (r *PrometheusServer) Describe(ch chan<- *prometheus.Desc) {}
 
 func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 	ctx := context.Background()
-	log:= log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	keys := []storebackend.Key{}
-	if err := r.targetStore.List(ctx, func(ctx1 context.Context, k storebackend.Key, tctx *sdctarget.Context) {
-		keys = append(keys, k)
-	}); err != nil {
-		log.Error("target list failed", "err", err)
-		return
-	}
-	log.Info("prometheus collect")
+	runtimes := make([]targetruntimeview.TargetRuntimeView, 0)
+    r.targetManager.ForEachRuntime(func(rt targetruntimeview.TargetRuntimeView) {
+        runtimes = append(runtimes, rt)
+    })
+	log.Info("prometheus collect", "targets", len(runtimes))
 
 	wg1 := new(sync.WaitGroup)
-	wg1.Add(len(keys))
-	for _, key := range keys {
-		go func(key storebackend.Key) {
+	wg1.Add(len(runtimes))
+	for _, rt := range runtimes {
+		rt := rt
+		go func() {
 			defer wg1.Done()
-			log := log.With("target", key.Name)
-			tctx, err := r.targetStore.Get(ctx, key)
-			if err != nil || tctx == nil {
-				return
-			}
-			cache := tctx.GetCache()
+			log := log.With("target", rt.Key().String())
+
+			cache := rt.Cache()
 			if cache == nil {
 				return
 			}
@@ -80,7 +74,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 								go func(update *gnmi.Update) {
 									defer wg4.Done()
 									// TODO user input
-									promMetric, err := NewPromMetric(subName, tctx, update)
+									promMetric, err := NewPromMetric(subName, rt, update)
 									if err != nil {
 										log.Debug("error getting prom metric",
 											"path", path.GnmiPathToXPath(update.GetPath(), false),
@@ -105,7 +99,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 				}(subName)
 			}
 			wg2.Wait()
-		}(key)
+		}()
 	}
 	wg1.Wait()
 }

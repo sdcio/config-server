@@ -18,12 +18,9 @@ package subscription
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
-	"sort"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -32,15 +29,13 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 func init() {
@@ -66,7 +61,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
-	r.targetStore = cfg.TargetStore
+	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
@@ -79,8 +74,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client client.Client
 	finalizer       *resource.APIFinalizer
-	targetStore     storebackend.Storer[*sdctarget.Context]
-	//dataServerStore storebackend.Storer[sdcctx.DSContext]
+	targetMgr       *targetmanager.TargetManager
 	recorder        record.EventRecorder
 }
 
@@ -101,28 +95,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	subscriptionOrig := subscription.DeepCopy()
 
+
 	if !subscription.GetDeletionTimestamp().IsZero() {
-		targets, err := r.getDownstreamTargets(ctx, subscription)
-		if err != nil {
-			return r.handleError(ctx, subscriptionOrig, "cannot get downstream targets", err)
-		}
-		var errs error
-		for _, targetName := range targets {
-			targetKey := storebackend.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: subscription.Namespace})
-
-			if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-				if tctx != nil {
-					if err := tctx.DeleteSubscription(ctx, subscription); err != nil {
-						log.Error("cannot delete subscription", "err", err)
-					}
-				}
-				return tctx
-			}); err != nil {
-				errs = errors.Join(errs, err)
-			}
-
-		}
-		if errs != nil {
+		
+		if err := r.targetMgr.RemoveSubscription(ctx, subscription); err != nil {
 			return r.handleError(ctx, subscription, "cannot delete state from target collector", err)
 		}
 
@@ -139,42 +115,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, subscriptionOrig, "cannot remove finalizer", err)
 	}
 
-	// get existing targets in a set on which the target state was applied
-	existingTargetSet := subscription.GetExistingTargets()
-	// get the new targets based on the current state
-	targets, err := r.getDownstreamTargets(ctx, subscription)
+	targets, err := r.targetMgr.ApplySubscription(ctx, subscription)
 	if err != nil {
-		return r.handleError(ctx, subscriptionOrig, "cannot get downstream targets", err)
-	}
-	var errs error
-	for _, targetName := range targets {
-		targetKey := storebackend.KeyFromNSN(types.NamespacedName{Name: targetName, Namespace: subscription.Namespace})
-		if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-			if tctx != nil {
-				if err := tctx.UpsertSubscription(ctx, subscription); err != nil {
-					log.Error("cannot upsert subscription", "err", err)
-				}
-			}
-			return tctx
-		}); err != nil {
-			errs = errors.Join(errs, err)
-		}
-
-		if !existingTargetSet.Has(targetName) {
-			if err := r.targetStore.UpdateWithKeyFn(ctx, targetKey, func(ctx context.Context, tctx *sdctarget.Context) *sdctarget.Context {
-				if tctx != nil {
-					if err := tctx.DeleteSubscription(ctx, subscription); err != nil {
-						log.Error("cannot delete subscription", "err", err)
-					}
-				}
-				return tctx
-			}); err != nil {
-				errs = errors.Join(errs, err)
-			}
-		}
-	}
-	if errs != nil {
-		return r.handleError(ctx, subscriptionOrig, "cannot update target collectors", err)
+		return r.handleError(ctx, subscription, "cannot delete state from target collector", err)
 	}
 	return r.handleSuccess(ctx, subscription, targets)
 }
@@ -217,30 +160,4 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
-}
-
-// getDownstreamTargets list the targets
-func (r *reconciler) getDownstreamTargets(ctx context.Context, state *invv1alpha1.Subscription) ([]string, error) {
-	selector, err := metav1.LabelSelectorAsSelector(state.Spec.Target.TargetSelector)
-	if err != nil {
-		return nil, fmt.Errorf("parsing selector failed: err: %s", err.Error())
-	}
-	opts := []client.ListOption{
-		client.InNamespace(state.Namespace),
-		client.MatchingLabelsSelector{Selector: selector},
-	}
-
-	targetList := &invv1alpha1.TargetList{}
-	if err := r.client.List(ctx, targetList, opts...); err != nil {
-		return nil, err
-	}
-	targets := make([]string, 0, len(targetList.Items))
-	for _, target := range targetList.Items {
-		// only add targets that are not in deleting state
-		if target.GetDeletionTimestamp().IsZero() {
-			targets = append(targets, target.Name)
-		}
-	}
-	sort.Strings(targets)
-	return targets, nil
 }

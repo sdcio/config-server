@@ -25,9 +25,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
-	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
+	//"time"
+
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -35,8 +35,9 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -127,21 +128,37 @@ func main() {
 		workspaceDir = envDir
 	}
 
-	targetStore := memstore.NewStore[*sdctarget.Context]()
-
 	ctrlCfg := &ctrlconfig.ControllerConfig{
-		TargetStore:       targetStore,
-		SchemaDir:         schemaBaseDir,
-		WorkspaceDir:      workspaceDir,
+		SchemaDir:    schemaBaseDir,
+		WorkspaceDir: workspaceDir,
 	}
 	if IsLocalDataServerEnabled() {
-		time.Sleep(5 * time.Second)
-		dataServerStore := memstore.NewStore[sdcctx.DSContext]()
-		if err := sdcctx.CreateDataServerClient(ctx, dataServerStore, mgr.GetClient()); err != nil {
-			log.Error("cannot create data server", "error", err.Error())
+		// Create the DS connection manager and register it with controller-runtime.
+		dsCfg := &dsclient.Config{
+			Address: dsclient.GetDataServerAddress(),
+			// Insecure/TLS settings etc if needed
+		}
+		dsConnMgr := dsmanager.New(ctx, dsCfg)
+		if err := dsConnMgr.AddToManager(mgr); err != nil {
+			log.Error("cannot add dataserver conn manager", "err", err)
 			os.Exit(1)
 		}
-		ctrlCfg.DataServerStore = dataServerStore
+		ctrlCfg.DataServerManager = dsConnMgr
+		// mgr.Add -> calls dsConnMgr.Start(ctx)
+
+		tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient())
+		ctrlCfg.TargetManager = tm
+
+		promserver := prometheusserver.NewServer(&prometheusserver.Config{
+			Address:       ":9443",
+			TargetManager: tm,
+		})
+		go func() {
+			if err := promserver.Start(ctx); err != nil {
+				log.Error("cannot start promerver", "err", err.Error())
+				os.Exit(1)
+			}
+		}()
 	}
 
 	for name, reconciler := range reconcilers.Reconcilers {
@@ -154,17 +171,6 @@ func main() {
 			}
 		}
 	}
-
-	promserver := prometheusserver.NewServer(&prometheusserver.Config{
-		Address:     ":9443",
-		TargetStore: targetStore,
-	})
-	go func() {
-		if err := promserver.Start(ctx); err != nil {
-			log.Error("cannot start promerver", "err", err.Error())
-			os.Exit(1)
-		}
-	}()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Error("unable to set up health check", "error", err.Error())
@@ -203,7 +209,6 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 	}
 	return false
 }
-
 
 func IsLocalDataServerEnabled() bool {
 	if val, found := os.LookupEnv("LOCAL_DATASERVER"); found {

@@ -19,20 +19,21 @@ package ctrlconfig
 import (
 	"context"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	sdcctx "github.com/sdcio/config-server/pkg/sdc/ctx"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 type ControllerConfig struct {
-	TargetStore       storebackend.Storer[*sdctarget.Context]
-	DataServerStore   storebackend.Storer[sdcctx.DSContext]
+	//TargetStore       storebackend.Storer[*sdctarget.Context]
+	//DataServerStore   storebackend.Storer[sdcctx.DSContext]
 	SchemaDir         string
 	WorkspaceDir      string
+	DataServerManager  *dsmanager.DSConnManager
+	TargetManager      *targetmanager.TargetManager
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

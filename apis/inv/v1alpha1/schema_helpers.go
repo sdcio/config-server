@@ -24,7 +24,6 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,10 +38,6 @@ func (r *Schema) GetCondition(t condv1alpha1.ConditionType) condv1alpha1.Conditi
 // to be set at once
 func (r *Schema) SetConditions(c ...condv1alpha1.Condition) {
 	r.Status.SetConditions(c...)
-}
-
-func (r *Schema) IsSchemaServerReady() bool {
-	return r.GetCondition(ConditionTypeSchemaServerReady).Status == metav1.ConditionTrue
 }
 
 func (r *Schema) GetNamespacedName() types.NamespacedName {

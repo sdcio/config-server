@@ -7,12 +7,12 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdctarget "github.com/sdcio/config-server/pkg/sdc/target"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 
@@ -26,20 +26,20 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 	
-	updates, err := sdctarget.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
+	updates, err := targetmanager.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
 	if err != nil {
 		return nil, err
 	}
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   sdctarget.GetGVKNSN(c),
+			Intent:   targetmanager.GetGVKNSN(c),
 			Priority: int32(c.Spec.Priority),
 			Update:   updates,
 		},
 	}
 
-	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
 	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
@@ -47,20 +47,20 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := sdctarget.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
+	updates, err := targetmanager.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
 	if err != nil {
 		return nil, err
 	}
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   sdctarget.GetGVKNSN(c),
+			Intent:   targetmanager.GetGVKNSN(c),
 			Priority: int32(c.Spec.Priority),
 			Update:   updates,
 		},
 	}
 
-	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
@@ -70,12 +70,12 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent: sdctarget.GetGVKNSN(c),
+			Intent: targetmanager.GetGVKNSN(c),
 			Delete: true,
 		},
 	}
 
-	return sdctarget.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
 
 
