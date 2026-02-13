@@ -425,9 +425,14 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	}
 
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_GNMI {
+		targetName:= ""
+		if connProfile.Spec.TargetName != nil {
+			targetName = *connProfile.Spec.TargetName
+		}
 		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
 			GnmiOpts: &sdcpb.GnmiOptions{
 				Encoding: string(connProfile.Encoding()),
+				TargetName: targetName,
 			},
 		}
 	}

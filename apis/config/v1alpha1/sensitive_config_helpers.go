@@ -28,12 +28,12 @@ import (
 
 	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"github.com/sdcio/config-server/apis/config"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -163,7 +163,6 @@ func (r *SensitiveConfig) Validate() error {
 	}
 	return errm
 }
-
 
 // BuildSensitiveConfig returns a reource from a client Object a Spec/Status
 func BuildSensitiveConfig(meta metav1.ObjectMeta, spec SensitiveConfigSpec, status SensitiveConfigStatus) *SensitiveConfig {
