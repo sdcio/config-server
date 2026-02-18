@@ -576,6 +576,14 @@ func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallba
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus"),
 						},
 					},
+					
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Config", "version": "v1alpha1"},
+					},
 				},
 			},
 		},
@@ -1209,6 +1217,13 @@ func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCal
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.DeviationStatus"),
 						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Deviation", "version": "v1alpha1"},
 					},
 				},
 			},
