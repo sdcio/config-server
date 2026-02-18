@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
+	builderoptions "github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 )
 
 func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *options.Options) *builderrest.StorageProvider {
@@ -109,11 +110,12 @@ func NewREST(
 		ShortNameList:             obj.GetShortNames(),
 		Storage:                   storage,
 	}
-	options := &generic.StoreOptions{
+	storeOptions := &generic.StoreOptions{
 		RESTOptions: optsGetter,
 		AttrFunc:    utils.GetAttrs,
 	}
-	if err := store.CompleteWithOptions(options); err != nil {
+
+	if err := store.CompleteWithOptions(storeOptions); err != nil {
 		return nil, err
 	}
 	return store, nil
