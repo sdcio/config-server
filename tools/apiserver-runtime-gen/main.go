@@ -164,7 +164,7 @@ func doGen() error {
 			"k8s.io/apimachinery/pkg/version",
 		}
 		cmdArgs = append(cmdArgs, typeVersions...)
-		err := run(getCmdSimple("openapi-gen", cmdArgs...))
+		err := run(getCmdSimple("bin/openapi-gen", cmdArgs...))
 
 		if err != nil {
 			return err
