@@ -178,10 +178,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !dirExists {
-		// we set the loading condition to know loading started
-		schema.SetConditions(invv1alpha1.Loading())
-		if err := r.client.Status().Update(ctx, schema); err != nil {
-			// we always retry when status fails -> optimistic concurrency
+		// SSA apply for loading condition
+		loadingApply := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+			WithStatus(invv1alpha1apply.SchemaStatus().
+				WithConditions(invv1alpha1.Loading()),
+			)
+		if err := r.client.Status().Apply(ctx, loadingApply, &client.SubResourceApplyOptions{
+			ApplyOptions: client.ApplyOptions{
+				FieldManager: reconcilerName,
+			},
+		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
 		r.recorder.Eventf(schema, nil, corev1.EventTypeNormal,
