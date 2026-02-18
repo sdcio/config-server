@@ -52,7 +52,6 @@ var _ resource.InternalObject = &Config{}
 var _ resource.ObjectList = &ConfigList{}
 var _ resource.ObjectWithStatusSubResource = &Config{}
 var _ resource.StatusSubResource = &ConfigStatus{}
-var _ resource.ArbitrarySubResource = &ClearDeviations{}
 
 func (Config) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -148,10 +147,6 @@ func (r *Config) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Ob
 func (r *Config) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 	return allErrs
-}
-
-func (ClearDeviations) SubResourceName() string {
-	return fmt.Sprintf("%s/%s", ConfigPlural, "clearDeviations")
 }
 
 // SubResourceName resturns the name of the subresource

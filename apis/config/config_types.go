@@ -67,10 +67,6 @@ type ConfigStatusLastKnownGoodSchema struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
 }
 
-type ClearDeviations struct {
-	Dummy string `json:"dummy,omitempty" protobuf:"bytes,1,opt,name=dummy"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
@@ -85,7 +81,6 @@ type Config struct {
 
 	Spec            ConfigSpec      `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status          ConfigStatus    `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	ClearDeviations ClearDeviations `json:"clearDeviations,omitempty" protobuf:"bytes,4,opt,name=clearDeviations"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
