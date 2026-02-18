@@ -102,7 +102,7 @@ tidy:
 	go mod tidy
 
 .PHONY: lint
-lint:
+lint: golangci-lint
 	$(GOLANGCILINT) run ./...
 
 .PHONY: test

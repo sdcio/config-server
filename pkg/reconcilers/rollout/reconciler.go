@@ -41,7 +41,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,7 +82,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "cannot initialize RolloutController")
 	}
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -94,7 +94,7 @@ type reconciler struct {
 	client client.Client
 	finalizer       *resource.APIFinalizer
 	workspaceReader *workspacereader.Reader
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -325,7 +325,7 @@ func (r *reconciler) handleStatus(
 	err error,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
-	//patch := client.MergeFrom(rollout.DeepCopy())
+	patch := client.MergeFrom(rollout.DeepCopy())
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
@@ -334,13 +334,13 @@ func (r *reconciler) handleStatus(
 	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
 
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
-		r.recorder.Eventf(rollout, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref))
+		r.recorder.Eventf(rollout, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref), "")
 	} else {
 		log.Error(condition.Message)
-		r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, condition.Message)
+		r.recorder.Eventf(rollout, nil, corev1.EventTypeWarning, crName, condition.Message, "")
 	}
 	result := ctrl.Result{Requeue: requeue}
-	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, rollout, client.Apply, &client.SubResourcePatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

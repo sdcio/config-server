@@ -35,7 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -65,7 +65,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -81,7 +81,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
-	recorder       record.EventRecorder
+	recorder       events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -259,18 +259,18 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(discoveryRule.DeepCopy())
+	patch := client.MergeFrom(discoveryRule.DeepCopy())
 	// update status
 	discoveryRule.ManagedFields = nil
 	discoveryRule.SetConditions(condv1alpha1.Ready())
 	if changed {
 		discoveryRule.Status.StartTime = ptr.To(metav1.Now())
-		r.recorder.Eventf(discoveryRule, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready")
+		r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready", "")
 	}
 
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status new", discoveryRule.Status)
 
-	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, discoveryRule, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -280,7 +280,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(discoveryRule.DeepCopy())
+	patch := client.MergeFrom(discoveryRule.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -289,9 +289,9 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 	discoveryRule.Status.StartTime = ptr.To(metav1.Now())
 	discoveryRule.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
-	r.recorder.Eventf(discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
+	r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg, "")
 
-	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, discoveryRule, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

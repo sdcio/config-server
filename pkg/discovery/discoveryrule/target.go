@@ -143,18 +143,6 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 			return err
 		}
 		time.Sleep(500 * time.Millisecond)
-
-		// we get the target again to get the latest update
-		/*
-			target = &invv1alpha1.Target{}
-			if err := r.client.Get(ctx, types.NamespacedName{
-				Namespace: targetNew.Namespace,
-				Name:      targetNew.Name,
-			}, target); err != nil {
-				// the resource should always exist
-				return err
-			}
-		*/
 	}
 
 	// set old condition to avoid updating the new status if not changed
@@ -176,11 +164,13 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 
 	log.Info("newTarget", "target", newTarget)
 
-	err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	patch := client.MergeFrom(target.DeepCopy())
+	err := r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
 	})
+
 	if err != nil {
 		log.Error("failed to patch target status", "err", err)
 		return err

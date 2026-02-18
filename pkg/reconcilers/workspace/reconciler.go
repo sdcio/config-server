@@ -34,7 +34,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,7 +76,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot initialize WorkspaceController")
 	}
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -91,7 +91,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 
 	workspaceLoader *workspaceloader.Loader
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -177,7 +177,7 @@ func (r *reconciler) handleStatus(
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	//patch := client.MergeFrom(workspace.DeepCopy())
+	patch := client.MergeFrom(workspace.DeepCopy())
 
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
@@ -188,14 +188,14 @@ func (r *reconciler) handleStatus(
 
 	// Determine event type based on condition type
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
-		r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref))
+		r.recorder.Eventf(workspace, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref), "")
 	} else {
 		log.Error(condition.Message)
-		r.recorder.Eventf(workspace, corev1.EventTypeWarning, crName, condition.Message)
+		r.recorder.Eventf(workspace, nil, corev1.EventTypeWarning, crName, condition.Message, "")
 	}
 
 	result := ctrl.Result{Requeue: requeue}
-	return result, errors.Wrap(r.client.Status().Patch(ctx, workspace, client.Apply, &client.SubResourcePatchOptions{
+	return result, errors.Wrap(r.client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

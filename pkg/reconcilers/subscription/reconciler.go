@@ -31,7 +31,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -62,7 +62,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetMgr = cfg.TargetManager
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -75,7 +75,7 @@ type reconciler struct {
 	client client.Client
 	finalizer       *resource.APIFinalizer
 	targetMgr       *targetmanager.TargetManager
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -126,15 +126,15 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(state.DeepCopy())
+	patch := client.MergeFrom(state.DeepCopy())
 	// update status
 	state.SetConditions(condv1alpha1.Ready())
 	state.SetTargets(targets)
-	r.recorder.Eventf(state, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready")
+	r.recorder.Eventf(state, nil, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready", "")
 
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status new", state.Status)
-
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, client.Apply, &client.SubResourcePatchOptions{
+	
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -153,7 +153,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 	state.ManagedFields = nil
 	state.SetConditions(condv1alpha1.Failed(msg))
 	log.Error(msg)
-	r.recorder.Eventf(state, corev1.EventTypeWarning, crName, msg)
+	r.recorder.Eventf(state, nil, corev1.EventTypeWarning, crName, msg, "")
 
 	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{

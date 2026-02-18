@@ -35,7 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -76,7 +76,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetMgr = cfg.TargetManager
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.transactor = targetmanager.NewTransactor(r.client, "transactor")
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
@@ -90,7 +90,7 @@ type reconciler struct {
 	discoveryClient *discovery.DiscoveryClient
 	finalizer       *resource.APIFinalizer
 	targetMgr       *targetmanager.TargetManager
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 	transactor      *targetmanager.Transactor
 }
 
@@ -160,7 +160,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(target.DeepCopy())
+	patch := client.MergeFrom(target.DeepCopy())
 	// update status
 	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
@@ -191,9 +191,9 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	log.Info("handleSuccess -> change",
 		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)))
 
-	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config recovery ready")
+	r.recorder.Eventf(newTarget, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config recovery ready", "")
 
-	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
@@ -203,7 +203,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(target.DeepCopy())
+	patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -231,11 +231,11 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		return nil
 	}
 
-	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(newTarget, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg, "")
 	log.Info("handleError -> change",
 		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)))
 
-	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	return r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},

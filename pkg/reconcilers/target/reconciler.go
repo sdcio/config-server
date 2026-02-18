@@ -30,7 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -54,7 +54,7 @@ const (
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -65,7 +65,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 type reconciler struct {
 	client    client.Client
 	finalizer *resource.APIFinalizer
-	recorder  record.EventRecorder
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -107,6 +107,7 @@ func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Ta
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 
+	patch := client.MergeFrom(target.DeepCopy())
 	// Build SSA patch object for /status
 	newTarget := invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
@@ -134,12 +135,12 @@ func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Ta
 
 	// Optional: emit different event types
 	if newReady {
-		r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready")
+		r.recorder.Eventf(newTarget, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready", "")
 	} else {
-		r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready")
+		r.recorder.Eventf(newTarget, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready", "")
 	}
 
-	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
+	if err := r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
 		PatchOptions: client.PatchOptions{
 			FieldManager: reconcilerName,
 		},
