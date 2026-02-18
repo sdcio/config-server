@@ -8,7 +8,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.5
+	github.com/henderiw/apiserver-builder v0.0.6-0.20260218064045-beff0f08c914
 	github.com/henderiw/apiserver-store v0.0.3
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
@@ -37,7 +37,7 @@ require (
 	k8s.io/client-go v0.35.1
 	k8s.io/code-generator v0.35.1
 	k8s.io/component-base v0.35.1
-	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912
+	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2
@@ -166,7 +166,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.35.0 // indirect
+	k8s.io/apiextensions-apiserver v0.35.1 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kms v0.35.1 // indirect

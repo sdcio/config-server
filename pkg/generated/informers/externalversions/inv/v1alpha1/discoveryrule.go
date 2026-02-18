@@ -56,7 +56,7 @@ func NewDiscoveryRuleInformer(client versioned.Interface, namespace string, resy
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredDiscoveryRuleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredDiscoveryRuleInformer(client versioned.Interface, namespace stri
 				}
 				return client.InvV1alpha1().DiscoveryRules(namespace).Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisinvv1alpha1.DiscoveryRule{},
 		resyncPeriod,
 		indexers,
