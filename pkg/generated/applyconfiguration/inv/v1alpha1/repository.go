@@ -24,8 +24,8 @@ import (
 // RepositoryApplyConfiguration represents a declarative configuration of the Repository type for use
 // with apply.
 type RepositoryApplyConfiguration struct {
-	// RepositoryURL specifies the base URL for a given repository
-	RepositoryURL *string `json:"repoURL,omitempty"`
+	// RepoURL specifies the base URL for a given repository
+	RepoURL *string `json:"repoURL,omitempty"`
 	// Credentials defines the name of the secret that holds the credentials to connect to the repo
 	Credentials *string `json:"credentials,omitempty"`
 	// Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.
@@ -43,11 +43,11 @@ func Repository() *RepositoryApplyConfiguration {
 	return &RepositoryApplyConfiguration{}
 }
 
-// WithRepositoryURL sets the RepositoryURL field in the declarative configuration to the given value
+// WithRepoURL sets the RepoURL field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the RepositoryURL field is set to the value of the last call.
-func (b *RepositoryApplyConfiguration) WithRepositoryURL(value string) *RepositoryApplyConfiguration {
-	b.RepositoryURL = &value
+// If called multiple times, the RepoURL field is set to the value of the last call.
+func (b *RepositoryApplyConfiguration) WithRepoURL(value string) *RepositoryApplyConfiguration {
+	b.RepoURL = &value
 	return b
 }
 

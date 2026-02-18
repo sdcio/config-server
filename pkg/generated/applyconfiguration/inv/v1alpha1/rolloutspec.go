@@ -37,11 +37,11 @@ func RolloutSpec() *RolloutSpecApplyConfiguration {
 	return &RolloutSpecApplyConfiguration{}
 }
 
-// WithRepositoryURL sets the RepositoryURL field in the declarative configuration to the given value
+// WithRepoURL sets the RepoURL field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the RepositoryURL field is set to the value of the last call.
-func (b *RolloutSpecApplyConfiguration) WithRepositoryURL(value string) *RolloutSpecApplyConfiguration {
-	b.RepositoryApplyConfiguration.RepositoryURL = &value
+// If called multiple times, the RepoURL field is set to the value of the last call.
+func (b *RolloutSpecApplyConfiguration) WithRepoURL(value string) *RolloutSpecApplyConfiguration {
+	b.RepositoryApplyConfiguration.RepoURL = &value
 	return b
 }
 

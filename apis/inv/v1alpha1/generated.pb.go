@@ -1878,9 +1878,9 @@ func (m *DiscoveryInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Platform)))
 	i--
 	dAtA[i] = 0x2a
-	i -= len(m.HostName)
-	copy(dAtA[i:], m.HostName)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.HostName)))
+	i -= len(m.Hostname)
+	copy(dAtA[i:], m.Hostname)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Hostname)))
 	i--
 	dAtA[i] = 0x22
 	i -= len(m.Version)
@@ -2652,9 +2652,9 @@ func (m *Repository) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Credentials)))
 	i--
 	dAtA[i] = 0x12
-	i -= len(m.RepositoryURL)
-	copy(dAtA[i:], m.RepositoryURL)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RepositoryURL)))
+	i -= len(m.RepoURL)
+	copy(dAtA[i:], m.RepoURL)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RepoURL)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -4620,7 +4620,7 @@ func (m *DiscoveryInfo) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Version)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.HostName)
+	l = len(m.Hostname)
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Platform)
 	n += 1 + l + sovGenerated(uint64(l))
@@ -4907,7 +4907,7 @@ func (m *Repository) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.RepositoryURL)
+	l = len(m.RepoURL)
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Credentials)
 	n += 1 + l + sovGenerated(uint64(l))
@@ -5638,7 +5638,7 @@ func (this *DiscoveryInfo) String() string {
 		`Protocol:` + fmt.Sprintf("%v", this.Protocol) + `,`,
 		`Provider:` + fmt.Sprintf("%v", this.Provider) + `,`,
 		`Version:` + fmt.Sprintf("%v", this.Version) + `,`,
-		`HostName:` + fmt.Sprintf("%v", this.HostName) + `,`,
+		`HostName:` + fmt.Sprintf("%v", this.Hostname) + `,`,
 		`Platform:` + fmt.Sprintf("%v", this.Platform) + `,`,
 		`MacAddress:` + fmt.Sprintf("%v", this.MacAddress) + `,`,
 		`SerialNumber:` + fmt.Sprintf("%v", this.SerialNumber) + `,`,
@@ -5850,7 +5850,7 @@ func (this *Repository) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&Repository{`,
-		`RepositoryURL:` + fmt.Sprintf("%v", this.RepositoryURL) + `,`,
+		`RepositoryURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
 		`Credentials:` + fmt.Sprintf("%v", this.Credentials) + `,`,
 		`Proxy:` + strings.Replace(this.Proxy.String(), "Proxy", "Proxy", 1) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
@@ -6576,7 +6576,7 @@ func (m *DiscoveryInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.HostName = string(dAtA[iNdEx:postIndex])
+			m.Hostname = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -8858,7 +8858,7 @@ func (m *Repository) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RepositoryURL = string(dAtA[iNdEx:postIndex])
+			m.RepoURL = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {

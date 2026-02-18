@@ -34,6 +34,7 @@ type SensitiveConfigSpec struct {
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,3,opt,name=revertive"`
 	// SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
+	// +listType=atomic
 	Config []SensitiveConfigData `json:"config" protobuf:"bytes,4,rep,name=config"`
 }
 

@@ -26,8 +26,8 @@ type DiscoveryInfoApplyConfiguration struct {
 	Provider *string `json:"provider,omitempty"`
 	// Version associated with the target
 	Version *string `json:"version,omitempty"`
-	// HostName associated with the target
-	HostName *string `json:"hostname,omitempty"`
+	// Hostname associated with the target
+	Hostname *string `json:"hostname,omitempty"`
 	// Platform associated with the target
 	Platform *string `json:"platform,omitempty"`
 	// MacAddress associated with the target
@@ -68,11 +68,11 @@ func (b *DiscoveryInfoApplyConfiguration) WithVersion(value string) *DiscoveryIn
 	return b
 }
 
-// WithHostName sets the HostName field in the declarative configuration to the given value
+// WithHostname sets the Hostname field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the HostName field is set to the value of the last call.
-func (b *DiscoveryInfoApplyConfiguration) WithHostName(value string) *DiscoveryInfoApplyConfiguration {
-	b.HostName = &value
+// If called multiple times, the Hostname field is set to the value of the last call.
+func (b *DiscoveryInfoApplyConfiguration) WithHostname(value string) *DiscoveryInfoApplyConfiguration {
+	b.Hostname = &value
 	return b
 }
 

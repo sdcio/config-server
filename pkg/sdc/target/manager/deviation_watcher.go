@@ -40,27 +40,27 @@ import (
 
 const (
 	unManagedConfigDeviation = "__"
-	fieldManagerDeviation = "ConfigController"
+	fieldManagerDeviation    = "ConfigController"
 )
 
 type DeviationWatcher struct {
-	key 		storebackend.Key  // target key
-	client    	client.Client     // k8 client
-	dsclient  	dsclient.Client   // datastore client
+	key      storebackend.Key // target key
+	client   client.Client    // k8 client
+	dsclient dsclient.Client  // datastore client
 
 	m      sync.RWMutex
 	cancel context.CancelFunc
 }
 
 func NewDeviationWatcher(
-	key storebackend.Key, 
-	client client.Client, 
+	key storebackend.Key,
+	client client.Client,
 	dsclient dsclient.Client,
 ) *DeviationWatcher {
 	return &DeviationWatcher{
-		key: key,
-		client:    client,
-		dsclient:  dsclient,
+		key:      key,
+		client:   client,
+		dsclient: dsclient,
 	}
 }
 
@@ -138,11 +138,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if started {
 				log.Error("protocol violation start on start")
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -155,11 +155,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if !started {
 				log.Error("protocol violation update without start")
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -183,11 +183,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				log.Error("protocol violation end without start")
 
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -257,7 +257,6 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 }
 
-
 func (r *DeviationWatcher) clearTargetDeviation(
 	ctx context.Context,
 ) {
@@ -270,9 +269,9 @@ func (r *DeviationWatcher) clearTargetDeviation(
 		return
 	}
 	// If already clear, do nothing (avoids useless writes)
-    if len(deviation.Spec.Deviations) == 0 {
-        return
-    }
+	if len(deviation.Spec.Deviations) == 0 {
+		return
+	}
 
 	log.Info("clear deviations", "nsn", nsn)
 
@@ -305,7 +304,7 @@ func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
 			Path:         dev.GetPath().ToXPath(false),
 			DesiredValue: desiredValue,
-			CurrentValue: currentValue,
+			ActualValue:  currentValue,
 			Reason:       dev.GetReason().String(),
 		})
 
@@ -325,7 +324,6 @@ func getDeviationString(val *sdcpb.TypedValue) (*string, error) {
 	return v, nil
 }
 
-
 func configDeviationsToApply(devs []configv1alpha1.ConfigDeviation) []*configv1alpha1apply.ConfigDeviationApplyConfiguration {
 	result := make([]*configv1alpha1apply.ConfigDeviationApplyConfiguration, 0, len(devs))
 	for _, d := range devs {
@@ -335,8 +333,8 @@ func configDeviationsToApply(devs []configv1alpha1.ConfigDeviation) []*configv1a
 		if d.DesiredValue != nil {
 			a = a.WithDesiredValue(*d.DesiredValue)
 		}
-		if d.CurrentValue != nil {
-			a = a.WithCurrentValue(*d.CurrentValue)
+		if d.ActualValue != nil {
+			a = a.WithActualValue(*d.ActualValue)
 		}
 		result = append(result, a)
 	}

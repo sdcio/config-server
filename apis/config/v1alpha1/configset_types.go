@@ -36,6 +36,7 @@ type ConfigSetSpec struct {
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
+	// +listType=atomic
 	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
 }
 
@@ -50,6 +51,7 @@ type ConfigSetStatus struct {
 	// if the condition is true the other attributes in the status are meaningful
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the configSet resource on the respective target
+	// +listType=atomic
 	Targets []TargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 

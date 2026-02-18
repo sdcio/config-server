@@ -61,10 +61,10 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 		return err
 	}
 	defer func() {
-        if err := t.Close(); err != nil {
-            log.Error("closing gNMI target", "err", err)
-        }
-    }()
+		if err := t.Close(); err != nil {
+			log.Error("closing gNMI target", "err", err)
+		}
+	}()
 	capRsp, err := t.Capabilities(ctx)
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 		"platform":     &di.Platform,
 		"serialNumber": &di.SerialNumber,
 		"macAddress":   &di.MacAddress,
-		"hostname":     &di.HostName,
+		"hostname":     &di.Hostname,
 	}
 
 	// Process gNMI notifications

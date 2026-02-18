@@ -67,7 +67,6 @@ type ConfigStatusLastKnownGoodSchema struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion

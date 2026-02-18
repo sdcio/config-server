@@ -57,7 +57,6 @@ type SensitiveConfigStatus struct {
 	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion

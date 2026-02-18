@@ -42,7 +42,7 @@ const (
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
 	log := log.FromContext(ctx)
-	if err := r.children.Create(ctx, storebackend.ToKey(getTargetName(di.HostName)), ""); err != nil {
+	if err := r.children.Create(ctx, storebackend.ToKey(getTargetName(di.Hostname)), ""); err != nil {
 		return err
 	}
 
@@ -68,11 +68,10 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 		return err
 	}
 
-	
 	if err := r.applyTargetDeviationCR(ctx, target); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -98,7 +97,7 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 
 	return invv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
-			Name:        getTargetName(di.HostName),
+			Name:        getTargetName(di.Hostname),
 			Namespace:   r.cfg.CR.GetNamespace(),
 			Labels:      labels,
 			Annotations: anno,
@@ -197,8 +196,8 @@ func discoveryInfoToApply(di *invv1alpha1.DiscoveryInfo) *invv1alpha1apply.Disco
 	if di.Version != "" {
 		a.WithVersion(di.Version)
 	}
-	if di.HostName != "" {
-		a.WithHostName(di.HostName)
+	if di.Hostname != "" {
+		a.WithHostname(di.Hostname)
 	}
 	if di.Platform != "" {
 		a.WithPlatform(di.Platform)

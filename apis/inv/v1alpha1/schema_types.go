@@ -43,6 +43,7 @@ type SchemaSpec struct {
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=10
 	// Repositories define the repositories used for building the provider schema
+	// +listType=atomic
 	Repositories []*SchemaSpecRepository `json:"repositories" protobuf:"bytes,3,rep,name=repositories"`
 }
 
@@ -51,6 +52,7 @@ type SchemaSpecRepository struct {
 	// +kubebuilder:validation:MaxItems=10
 	// Dirs defines the list of directories that identified the provider schema in src/dst pairs
 	// relative within the repository
+	// +listType=atomic
 	Dirs []SrcDstPath `json:"dirs,omitempty" yaml:"dirs,omitempty" protobuf:"bytes,6,rep,name=dirs"`
 	// Schema provides the details of which files must be used for the models and which files/directories
 	// cana be excludes
@@ -69,12 +71,15 @@ type SrcDstPath struct {
 type SchemaSpecSchema struct {
 	// +kubebuilder:validation:MaxItems=64
 	// Models defines the list of files/directories to be used as a model
+	// +listType=atomic
 	Models []string `json:"models,omitempty" yaml:"models,omitempty" protobuf:"bytes,1,rep,name=models"`
 	// +kubebuilder:validation:MaxItems=64
 	// Excludes defines the list of files/directories to be excluded
+	// +listType=atomic
 	Includes []string `json:"includes,omitempty" yaml:"includes,omitempty" protobuf:"bytes,2,rep,name=includes"`
 	// +kubebuilder:validation:MaxItems=64
 	// Excludes defines the list of files/directories to be excluded
+	// +listType=atomic
 	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty" protobuf:"bytes,3,rep,name=excludes"`
 }
 
@@ -83,6 +88,7 @@ type SchemaStatus struct {
 	// ConditionedStatus provides the status of the Schema using conditions
 	condv1alpha1.ConditionedStatus `json:",inline" yaml:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// SchemaRepositoryStatus provides the array of repositories
+	// +listType=atomic
 	Repositories []SchemaRepositoryStatus `json:"repositories,omitempty" protobuf:"bytes,2,rep,name=repositories"`
 }
 

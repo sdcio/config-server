@@ -37,8 +37,10 @@ const (
 // DiscoveryRuleSpec defines the desired state of DiscoveryRule
 type DiscoveryRuleSpec struct {
 	// IP Prefixes for which this discovery rule applies
+	// +listType=atomic
 	Prefixes []DiscoveryRulePrefix `json:"prefixes,omitempty" yaml:"prefixes,omitempty" protobuf:"bytes,1,rep,name=prefixes"`
 	// IP Prefixes for which this discovery rule applies
+	// +listType=atomic
 	Addresses []DiscoveryRuleAddress `json:"addresses,omitempty" yaml:"addresses,omitempty" protobuf:"bytes,2,rep,name=addresses"`
 	// PodSelector defines the pod selector for which this discovery rule applies
 	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty" yaml:"podSelector,omitempty" protobuf:"bytes,3,opt,name=podSelector"`
@@ -59,6 +61,7 @@ type DiscoveryParameters struct {
 	DiscoveryProfile *DiscoveryProfile `json:"discoveryProfile,omitempty" yaml:"discoveryProfile,omitempty" protobuf:"bytes,2,opt,name=discoveryProfile"`
 	// TargetConnectionProfiles define the profile the discovery controller uses to create targets
 	// once discovered
+	// +listType=atomic
 	TargetConnectionProfiles []TargetProfile `json:"targetConnectionProfiles" yaml:"targetConnectionProfiles" protobuf:"bytes,3,rep,name=targetConnectionProfiles"`
 	// TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
 	TargetTemplate *TargetTemplate `json:"targetTemplate,omitempty" yaml:"targetTemplate,omitempty" protobuf:"bytes,4,opt,name=targetTemplate"`
@@ -72,6 +75,7 @@ type DiscoveryRulePrefix struct {
 	// Prefix of the target/target(s)
 	Prefix string `json:"prefix" yaml:"prefix" protobuf:"bytes,1,opt,name=prefix"`
 	// IP Prefixes to be excluded
+	// +listType=atomic
 	Excludes []string `json:"excludes,omitempty" yaml:"excludes,omitempty" protobuf:"bytes,2,rep,name=excludes"`
 }
 
@@ -89,6 +93,7 @@ type DiscoveryProfile struct {
 	TLSSecret *string `json:"tlsSecret,omitempty" yaml:"tlsSecret,omitempty" protobuf:"bytes,2,opt,name=tlsSecret"`
 	// ConnectionProfiles define the list of profiles the discovery controller uses to discover the target.
 	// The order in which they are specified is the order in which discovery is executed.
+	// +listType=atomic
 	ConnectionProfiles []string `json:"connectionProfiles" yaml:"connectionProfiles" protobuf:"bytes,3,rep,name=connectionProfiles"`
 }
 

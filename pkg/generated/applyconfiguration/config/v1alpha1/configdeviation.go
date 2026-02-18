@@ -24,9 +24,9 @@ type ConfigDeviationApplyConfiguration struct {
 	Path *string `json:"path,omitempty"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue *string `json:"desiredValue,omitempty"`
-	// CurrentValue defines the current value of the config belonging to the path
+	// ActualValue defines the current value of the config belonging to the path
 	// that is currently configured on the target
-	CurrentValue *string `json:"actualValue,omitempty"`
+	ActualValue *string `json:"actualValue,omitempty"`
 	// Reason defines the reason of the deviation
 	Reason *string `json:"reason,omitempty"`
 }
@@ -53,11 +53,11 @@ func (b *ConfigDeviationApplyConfiguration) WithDesiredValue(value string) *Conf
 	return b
 }
 
-// WithCurrentValue sets the CurrentValue field in the declarative configuration to the given value
+// WithActualValue sets the ActualValue field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the CurrentValue field is set to the value of the last call.
-func (b *ConfigDeviationApplyConfiguration) WithCurrentValue(value string) *ConfigDeviationApplyConfiguration {
-	b.CurrentValue = &value
+// If called multiple times, the ActualValue field is set to the value of the last call.
+func (b *ConfigDeviationApplyConfiguration) WithActualValue(value string) *ConfigDeviationApplyConfiguration {
+	b.ActualValue = &value
 	return b
 }
 

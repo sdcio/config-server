@@ -61,7 +61,6 @@ type TargetStatus struct {
 	condition.Condition `json:",inline" protobuf:"bytes,3,opt,name=condition"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion

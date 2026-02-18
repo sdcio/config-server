@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	//"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"

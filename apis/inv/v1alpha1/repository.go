@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 type Repository struct {
-	// RepositoryURL specifies the base URL for a given repository
-	RepositoryURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
+	// RepoURL specifies the base URL for a given repository
+	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Credentials defines the name of the secret that holds the credentials to connect to the repo
 	Credentials string `json:"credentials,omitempty" protobuf:"bytes,2,opt,name=credentials"`
 	// Proxy defines the HTTP/HTTPS proxy to be used to connect to the repo.
@@ -34,7 +34,7 @@ type Repository struct {
 
 type Proxy struct {
 	// URL specifies the base URL of the HTTP/HTTPS proxy server.
-	URL string `json:"URL" protobuf:"bytes,1,opt,name=URL"`
+	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
 	// Credentials defines the name of the secret that holds the credentials to connect to the proxy server
 	Credentials string `json:"credentials" protobuf:"bytes,2,opt,name=credentials"`
 }

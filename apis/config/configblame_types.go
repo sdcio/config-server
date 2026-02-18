@@ -33,7 +33,6 @@ type ConfigBlameStatus struct {
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion

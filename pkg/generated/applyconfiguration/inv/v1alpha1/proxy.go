@@ -21,7 +21,7 @@ package v1alpha1
 // with apply.
 type ProxyApplyConfiguration struct {
 	// URL specifies the base URL of the HTTP/HTTPS proxy server.
-	URL *string `json:"URL,omitempty"`
+	URL *string `json:"url,omitempty"`
 	// Credentials defines the name of the secret that holds the credentials to connect to the proxy server
 	Credentials *string `json:"credentials,omitempty"`
 }
