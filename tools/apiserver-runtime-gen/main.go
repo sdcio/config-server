@@ -65,7 +65,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		for _, gen := range generators {
 			// nolint:gosec
 			if gen == "openapi-gen" {
-				err := run(exec.Command("go", "install", "k8s.io/kube-openapi/cmd/openapi-gen@latest"))
+				err := run(exec.Command("go", "install", "k8s.io/kube-openapi/cmd/openapi-gen"))
 				if err != nil {
 					return err
 				}
@@ -164,7 +164,7 @@ func doGen() error {
 			"k8s.io/apimachinery/pkg/version",
 		}
 		cmdArgs = append(cmdArgs, typeVersions...)
-		err := run(getCmdSimple("bin/openapi-gen", cmdArgs...))
+		err := run(getCmdSimple("openapi-gen", cmdArgs...))
 
 		if err != nil {
 			return err
