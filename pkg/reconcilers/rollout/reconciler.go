@@ -32,6 +32,7 @@ import (
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -325,13 +326,18 @@ func (r *reconciler) handleStatus(
 	err error,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
-	patch := client.MergeFrom(rollout.DeepCopy())
+	
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
-	rollout.ManagedFields = nil
-	rollout.SetConditions(condition)
-	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
+
+	newTargets := getTargetStatus(ctx, targetStatus)
+	oldCond := rollout.GetCondition(condv1alpha1.ConditionType(condition.Type))
+
+	if condition.Equal(oldCond) && reflect.DeepEqual(newTargets, rollout.Status.Targets) {
+		log.Info("handleStatus -> no change")
+		return ctrl.Result{Requeue: requeue}, nil
+	}
 
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
 		r.recorder.Eventf(rollout, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref), "")
@@ -339,9 +345,17 @@ func (r *reconciler) handleStatus(
 		log.Error(condition.Message)
 		r.recorder.Eventf(rollout, nil, corev1.EventTypeWarning, crName, condition.Message, "")
 	}
+
+	statusApply := invv1alpha1apply.RolloutStatus().
+		WithConditions(condition).
+		WithTargets(rolloutTargetStatusToApply(newTargets)...)
+
+	applyConfig := invv1alpha1apply.Rollout(rollout.Name, rollout.Namespace).
+		WithStatus(statusApply)
+
 	result := ctrl.Result{Requeue: requeue}
-	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, rollout, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
@@ -366,4 +380,14 @@ func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[
 		return targetStatus[i].Name < targetStatus[j].Name
 	})
 	return targetStatus
+}
+
+func rolloutTargetStatusToApply(targets []invv1alpha1.RolloutTargetStatus) []*invv1alpha1apply.RolloutTargetStatusApplyConfiguration {
+	result := make([]*invv1alpha1apply.RolloutTargetStatusApplyConfiguration, 0, len(targets))
+	for _, t := range targets {
+		result = append(result, invv1alpha1apply.RolloutTargetStatus().
+			WithName(t.Name),
+		)
+	}
+	return result
 }

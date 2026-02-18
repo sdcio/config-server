@@ -244,6 +244,18 @@ func doGen() error {
 		}
 	}
 
+	if gen["applyconfiguration-gen"] {
+		applyArgs := []string{
+			"--output-dir", "pkg/generated/applyconfiguration",
+			"--output-pkg", fmt.Sprintf("%s/pkg/generated/applyconfiguration", module),
+		}
+		applyArgs = append(applyArgs, clientgenVersions...)
+		err := run(getCmd("applyconfiguration-gen", applyArgs...))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -259,7 +271,7 @@ var (
 func main() {
 	cmd.Flags().BoolVar(&clean, "clean", true, "Delete temporary directory for code generation.")
 
-	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen", "go-to-protobuf"}
+	options := []string{"client-gen", "deepcopy-gen", "informer-gen", "lister-gen", "openapi-gen", "go-to-protobuf", "applyconfiguration-gen"}
 	defaultGen := []string{"deepcopy-gen", "openapi-gen"}
 	cmd.Flags().StringSliceVarP(&generators, "generator", "g",
 		defaultGen, fmt.Sprintf("Code generator to install and run.  Options: %v.", options))

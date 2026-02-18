@@ -26,14 +26,15 @@ import (
 	//"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -583,7 +584,6 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	log.Info("pushConnIfChanged entry")
 
 	r.statusMu.Lock()
-	// throttle flaps
 	if r.lastConnValid && r.lastConn == connected && time.Since(r.lastPushed) < 2*time.Second {
 		r.statusMu.Unlock()
 		return
@@ -593,35 +593,21 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	r.lastConn = connected
 	r.statusMu.Unlock()
 
-	// get from informer cache
 	target := &invv1alpha1.Target{}
 	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
 		log.Error("target fetch failed", "error", err)
 		return
 	}
 
-	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: target.Namespace,
-			Name:      target.Name,
-		},
-		invv1alpha1.TargetSpec{},
-		invv1alpha1.TargetStatus{},
-	)
-
-	// mutate only what you own in status
-	// (use your existing helpers, but mutate `target`, not a separate object)
+	var newCond condv1alpha1.Condition
 	if connected {
-		newTarget.SetConditions(invv1alpha1.TargetConnectionReady())
+		newCond = invv1alpha1.TargetConnectionReady()
 	} else {
-		newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+		newCond = invv1alpha1.TargetConnectionFailed(msg)
 	}
 
-	// if no effective status change, skip write
 	oldCond := target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
-	changed := !newCond.Equal(oldCond)
-	if !changed {
+	if newCond.Equal(oldCond) {
 		log.Info("pushConnIfChanged -> no change",
 			"connected", connected,
 			"phase", r.Status().Phase,
@@ -630,11 +616,13 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		return
 	}
 
-	// PATCH /status using MergeFrom
+	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(invv1alpha1apply.TargetStatus().
+			WithConditions(newCond),
+		)
 
-	patch := client.MergeFrom(target.DeepCopy())
-	if err := r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: fieldManagerTargetRuntime,
 		},
 	}); err != nil {

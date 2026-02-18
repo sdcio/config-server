@@ -27,6 +27,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -249,18 +250,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(schema.DeepCopy())
-	// update status
-	schema.Status = *updatedStatus
-	//schema.ManagedFields = nil
-	schema.SetConditions(condv1alpha1.Ready())
+	
+	newCond := condv1alpha1.Ready()
+	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// no-change guard includes both condition and repositories
+	if newCond.Equal(oldCond) && reflect.DeepEqual(updatedStatus.Repositories, schema.Status.Repositories) {
+		log.Info("handleSuccess -> no change")
+		return ctrl.Result{}, nil
+	}
+
 	r.recorder.Eventf(schema, nil, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready", "")
 
-	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status new", schema.Status)
+	statusApply := invv1alpha1apply.SchemaStatus().
+		WithConditions(newCond)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	// only set repositories if populated
+	if len(updatedStatus.Repositories) > 0 {
+		statusApply = statusApply.WithRepositories(repoStatusToApply(updatedStatus.Repositories)...)
+	}
+
+	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+		WithStatus(statusApply)
+
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
@@ -269,26 +283,51 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	// take a snapshot of the current object
-	patch := client.MergeFrom(schema.DeepCopy())
-
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	schema.ManagedFields = nil
-	schema.SetConditions(condv1alpha1.Failed(msg))
+
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) {
+		log.Info("handleError -> no change")
+		return ctrl.Result{}, nil
+	}
+
 	log.Error(msg)
 	r.recorder.Eventf(schema, nil, corev1.EventTypeWarning, crName, msg, "")
+
+	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+		WithStatus(invv1alpha1apply.SchemaStatus().
+			WithConditions(newCond),
+		)
 
 	var unrecoverableError *sdcerrors.UnrecoverableError
 	result := ctrl.Result{}
 	if errors.As(err, &unrecoverableError) {
-		result = ctrl.Result{Requeue: false} // unrecoverable error - setting an error here would result in ignoring a request to not requeue
+		result = ctrl.Result{Requeue: false}
 	}
 
-	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
+}
+
+
+func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
+	result := make([]*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration, 0, len(repos))
+	for _, r := range repos {
+		a := invv1alpha1apply.SchemaRepositoryStatus()
+		if r.RepoURL != "" {
+			a.WithRepoURL(r.RepoURL)
+		}
+		if r.Reference != "" {
+			a.WithReference(r.Reference)
+		}
+		result = append(result, a)
+	}
+	return result
 }

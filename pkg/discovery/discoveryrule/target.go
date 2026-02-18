@@ -26,6 +26,7 @@ import (
 
 	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -145,143 +146,71 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	// set old condition to avoid updating the new status if not changed
-	newTarget.SetConditions(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady))
-	// set new conditions
-	newTarget.SetConditions(invv1alpha1.DiscoveryReady())
+	newCond := invv1alpha1.DiscoveryReady()
+	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)
 
-	if newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)) &&
+	if newCond.Equal(oldCond) &&
 		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
 		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo) {
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
+
 	log.Info("handleSuccess",
-		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)),
-		"spec change", equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
-		"discovery info change", equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
+		"condition change", !newCond.Equal(oldCond),
+		"spec change", !equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
+		"discovery info change", !equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
 	)
 
-	log.Info("newTarget", "target", newTarget)
+	statusApply := invv1alpha1apply.TargetStatus().
+		WithConditions(newCond)
 
-	patch := client.MergeFrom(target.DeepCopy())
-	err := r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	if newTarget.Status.DiscoveryInfo != nil {
+		statusApply = statusApply.WithDiscoveryInfo(discoveryInfoToApply(newTarget.Status.DiscoveryInfo))
+	}
+
+	applyConfig := invv1alpha1apply.Target(newTarget.Name, newTarget.Namespace).
+		WithStatus(statusApply)
+
+	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
-	})
-
-	if err != nil {
+	}); err != nil {
 		log.Error("failed to patch target status", "err", err)
 		return err
 	}
-	/*
-		//targetPatch := targetCurrent.DeepCopy()
-		//targetPatch.Status.SetConditions(invv1alpha1.DiscoveryReady())
-		//targetPatch.Status.DiscoveryInfo = di
-
-		log.Info("discovery target apply",
-			"Ready", targetPatch.GetCondition(condv1alpha1.ConditionTypeReady).Status,
-			"DSReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Status,
-			"ConfigReady", targetPatch.GetCondition(invv1alpha1.ConditionTypeConfigReady).Status,
-			"DiscoveryInfo", targetPatch.Status.DiscoveryInfo,
-		)
-
-		// Apply the patch
-		err := r.client.Status().Patch(ctx, targetPatch, client.Apply, &client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{
-				FieldManager: reconcilerName,
-			},
-		})
-		if err != nil {
-			log.Error("failed to patch target status", "err", err)
-			return err
-		}
-	*/
-
 	return nil
 }
 
-/*
-func hasChanged(ctx context.Context, curTargetCR, newTargetCR *invv1alpha1.Target) bool {
-	log := log.FromContext(ctx).With("target", newTargetCR.GetName(), "address", newTargetCR.Spec.Address)
-
-	log.Info("validateDataStoreChanges", "current target status", curTargetCR.Status.GetCondition(condv1alpha1.ConditionTypeReady).Status)
-	if curTargetCR.Status.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionFalse {
-		return true
+func discoveryInfoToApply(di *invv1alpha1.DiscoveryInfo) *invv1alpha1apply.DiscoveryInfoApplyConfiguration {
+	if di == nil {
+		return nil
 	}
-
-	if curTargetCR.Spec.SyncProfile != nil && newTargetCR.Spec.SyncProfile != nil {
-		log.Info("validateDataStoreChanges",
-			"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
-			"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
-			"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
-			"SyncProfile", fmt.Sprintf("%s/%s", *curTargetCR.Spec.SyncProfile, *newTargetCR.Spec.SyncProfile),
-			"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
-			//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
-		)
-		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
-			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
-			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
-			*curTargetCR.Spec.SyncProfile != *newTargetCR.Spec.SyncProfile ||
-			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
-			return true
-		}
-	} else {
-		log.Info("validateDataStoreChanges",
-			"Provider", fmt.Sprintf("%s/%s", curTargetCR.Spec.Provider, newTargetCR.Spec.Provider),
-			"Address", fmt.Sprintf("%s/%s", curTargetCR.Spec.Address, newTargetCR.Spec.Address),
-			"connectionProfile", fmt.Sprintf("%s/%s", curTargetCR.Spec.ConnectionProfile, newTargetCR.Spec.ConnectionProfile),
-			"Secret", fmt.Sprintf("%s/%s", curTargetCR.Spec.Credentials, newTargetCR.Spec.Credentials),
-			//"TLSSecret", fmt.Sprintf("%s/%s", *curTargetCR.Spec.TLSSecret, *newTargetCR.Spec.TLSSecret),
-		)
-
-		if curTargetCR.Spec.Address != newTargetCR.Spec.Address ||
-			curTargetCR.Spec.Provider != newTargetCR.Spec.Provider ||
-			curTargetCR.Spec.ConnectionProfile != newTargetCR.Spec.ConnectionProfile ||
-			curTargetCR.Spec.Credentials != newTargetCR.Spec.Credentials { // TODO TLS Secret
-			return true
-		}
+	a := invv1alpha1apply.DiscoveryInfo()
+	if di.Protocol != "" {
+		a.WithProtocol(di.Protocol)
 	}
-
-	if curTargetCR.Status.DiscoveryInfo == nil {
-		log.Info("validateDataStoreChanges", "DiscoveryInfo", "nil")
-		return true
+	if di.Provider != "" {
+		a.WithProvider(di.Provider)
 	}
-
-	log.Info("validateDataStoreChanges",
-		"Protocol", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.Protocol, newTargetCR.Status.DiscoveryInfo.Protocol),
-		"Provider", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.Provider, newTargetCR.Status.DiscoveryInfo.Provider),
-		"Version", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.Version, newTargetCR.Status.DiscoveryInfo.Version),
-		"HostName", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.HostName, newTargetCR.Status.DiscoveryInfo.HostName),
-		"Platform", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.Platform, newTargetCR.Status.DiscoveryInfo.Platform),
-		"MacAddress", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.MacAddress, newTargetCR.Status.DiscoveryInfo.MacAddress),
-		"SerialNumber", fmt.Sprintf("%s/%s", curTargetCR.Status.DiscoveryInfo.SerialNumber, newTargetCR.Status.DiscoveryInfo.SerialNumber),
-	)
-
-	if curTargetCR.Status.DiscoveryInfo.Protocol != newTargetCR.Status.DiscoveryInfo.Protocol ||
-		curTargetCR.Status.DiscoveryInfo.Provider != newTargetCR.Status.DiscoveryInfo.Provider ||
-		curTargetCR.Status.DiscoveryInfo.Version != newTargetCR.Status.DiscoveryInfo.Version ||
-		curTargetCR.Status.DiscoveryInfo.HostName != newTargetCR.Status.DiscoveryInfo.HostName ||
-		curTargetCR.Status.DiscoveryInfo.Platform != newTargetCR.Status.DiscoveryInfo.Platform {
-		return true
+	if di.Version != "" {
+		a.WithVersion(di.Version)
 	}
-
-	if newTargetCR.Status.DiscoveryInfo.SerialNumber != "" && (curTargetCR.Status.DiscoveryInfo.SerialNumber != newTargetCR.Status.DiscoveryInfo.SerialNumber) {
-		return true
+	if di.HostName != "" {
+		a.WithHostName(di.HostName)
 	}
-
-	if newTargetCR.Status.DiscoveryInfo.MacAddress != "" && (curTargetCR.Status.DiscoveryInfo.MacAddress != newTargetCR.Status.DiscoveryInfo.MacAddress) {
-		return true
+	if di.Platform != "" {
+		a.WithPlatform(di.Platform)
 	}
-
-	if newTargetCR.Status.DiscoveryInfo.Platform != "" && (curTargetCR.Status.DiscoveryInfo.Platform != newTargetCR.Status.DiscoveryInfo.Platform) {
-		return true
+	if di.MacAddress != "" {
+		a.WithMacAddress(di.MacAddress)
 	}
-
-	return false
+	if di.SerialNumber != "" {
+		a.WithSerialNumber(di.SerialNumber)
+	}
+	return a
 }
-*/
 
 func getTargetName(s string) string {
 	targetName := strings.ReplaceAll(s, ":", "-")

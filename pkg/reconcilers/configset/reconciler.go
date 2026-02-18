@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"reflect"
 
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -334,17 +336,25 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 
 func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet) error {
 	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status old", configSet.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(configSetOrig)
-	// update status
-	configSet.SetConditions(condv1alpha1.Ready())
+	newCond := condv1alpha1.Ready()
+	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
+		log.Info("handleSuccess -> no change")
+		return nil
+	}
+
 	r.recorder.Eventf(configSet, nil, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready", "")
 
-	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status new", configSet.Status)
+	statusApply := configv1alpha1apply.ConfigSetStatus().
+		WithConditions(newCond).
+		WithTargets(targetStatusToApply(configSet.Status.Targets)...)
 
-	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	applyConfig := configv1alpha1apply.ConfigSet(configSet.Name, configSet.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
@@ -352,21 +362,34 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet
 
 func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
 	log := log.FromContext(ctx)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(configSetOrig.DeepCopy())
-
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	configSet.SetConditions(condv1alpha1.Failed(msg))
+
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
+		log.Info("handleError -> no change")
+		return nil
+	}
+
 	log.Error(msg)
 	r.recorder.Eventf(configSet, nil, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg, "")
 
-	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	statusApply := configv1alpha1apply.ConfigSetStatus().
+		WithConditions(newCond).
+		WithTargets(targetStatusToApply(configSet.Status.Targets)...)
+
+	applyConfig := configv1alpha1apply.ConfigSet(configSet.Name, configSet.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
+
 }
 
 func (r *reconciler) determineOverallStatus(_ context.Context, configSet *configv1alpha1.ConfigSet) string {
@@ -377,4 +400,14 @@ func (r *reconciler) determineOverallStatus(_ context.Context, configSet *config
 		}
 	}
 	return sb.String()
+}
+
+func targetStatusToApply(targets []configv1alpha1.TargetStatus) []*configv1alpha1apply.TargetStatusApplyConfiguration {
+	result := make([]*configv1alpha1apply.TargetStatusApplyConfiguration, 0, len(targets))
+	for _, t := range targets {
+		result = append(result, configv1alpha1apply.TargetStatus().
+			WithName(t.Name),
+		)
+	}
+	return result
 }

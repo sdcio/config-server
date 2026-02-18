@@ -63,6 +63,7 @@ genclients:
 		-g openapi-gen \
 		-g defaulter-gen \
 		-g conversion-gen \
+		-g applyconfiguration-gen \
 		--module $(REPO) \
 
 .PHONY: genproto

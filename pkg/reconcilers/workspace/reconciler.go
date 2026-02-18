@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -177,16 +178,15 @@ func (r *reconciler) handleStatus(
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	patch := client.MergeFrom(workspace.DeepCopy())
-
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
 
-	workspace.ManagedFields = nil
-	workspace.SetConditions(condition)
+	oldCond := workspace.GetCondition(condv1alpha1.ConditionType(condition.Type))
+	if condition.Equal(oldCond) {
+		return ctrl.Result{Requeue: requeue}, nil
+	}
 
-	// Determine event type based on condition type
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
 		r.recorder.Eventf(workspace, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref), "")
 	} else {
@@ -194,89 +194,15 @@ func (r *reconciler) handleStatus(
 		r.recorder.Eventf(workspace, nil, corev1.EventTypeWarning, crName, condition.Message, "")
 	}
 
+	applyConfig := invv1alpha1apply.Workspace(workspace.Name, workspace.Namespace).
+		WithStatus(invv1alpha1apply.WorkspaceStatus().
+			WithConditions(condition),
+		)
+
 	result := ctrl.Result{Requeue: requeue}
-	return result, errors.Wrap(r.client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return result, errors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
 }
-
-/*
-
-func (r *reconciler) handleSuccess(ctx context.Context, workspace *invv1alpha1.Workspace) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", workspace.GetNamespacedName(), "status old", workspace.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(workspace.DeepCopy())
-	// update status
-	workspace.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, "ready")
-
-	log.Debug("handleSuccess", "key", workspace.GetNamespacedName(), "status new", workspace.Status)
-
-	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-
-func (r *reconciler) handleFailed(ctx context.Context, workspace *invv1alpha1.Workspace, msg string) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleFailure", "key", workspace.GetNamespacedName(), "status old", workspace.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(workspace.DeepCopy())
-	// update status
-	workspace.SetConditions(condv1alpha1.Failed(msg))
-	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, "failed")
-
-	log.Debug("handleFailure", "key", workspace.GetNamespacedName(), "status new", workspace.Status)
-
-	return ctrl.Result{}, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-
-func (r *reconciler) handleRollout(ctx context.Context, workspace *invv1alpha1.Workspace, msg string) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// take a snapshot of the current object
-	patch := client.MergeFrom(workspace.DeepCopy())
-
-	workspace.SetConditions(condv1alpha1.Rollout(msg))
-	log.Debug(msg)
-	r.recorder.Eventf(workspace, corev1.EventTypeNormal, crName, msg)
-
-	result := ctrl.Result{}
-	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-
-func (r *reconciler) handleError(ctx context.Context, workspace *invv1alpha1.Workspace, msg string, err error) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// take a snapshot of the current object
-	patch := client.MergeFrom(workspace.DeepCopy())
-
-	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
-	}
-
-	workspace.SetConditions(condv1alpha1.Failed(msg))
-	log.Error(msg)
-	r.recorder.Eventf(workspace, corev1.EventTypeWarning, crName, msg)
-
-	result := ctrl.Result{Requeue: true}
-	return result, errors.Wrap(r.Client.Status().Patch(ctx, workspace, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: reconcilerName,
-		},
-	}), errUpdateStatus)
-}
-*/

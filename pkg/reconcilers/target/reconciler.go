@@ -28,12 +28,13 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 )
 
 func init() {
@@ -107,21 +108,8 @@ func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Ta
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 
-	patch := client.MergeFrom(target.DeepCopy())
-	// Build SSA patch object for /status
-	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: target.Namespace,
-			Name:      target.Name,
-		},
-		invv1alpha1.TargetSpec{},
-		invv1alpha1.TargetStatus{},
-	)
-	// set new conditions
-	newTarget.SetOverallStatus(target)
-
 	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
-	newCond := newTarget.GetCondition(condv1alpha1.ConditionTypeReady)
+	newCond := invv1alpha1.GetOverallStatus(target)
 
 	changed = !newCond.Equal(oldCond)
 	newReady = newCond.IsTrue()
@@ -135,13 +123,18 @@ func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Ta
 
 	// Optional: emit different event types
 	if newReady {
-		r.recorder.Eventf(newTarget, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready", "")
+		r.recorder.Eventf(target, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready", "")
 	} else {
-		r.recorder.Eventf(newTarget, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready", "")
+		r.recorder.Eventf(target, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready", "")
 	}
 
-	if err := r.client.Status().Patch(ctx, newTarget, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(invv1alpha1apply.TargetStatus().
+			WithConditions(newCond),
+		)
+
+	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}); err != nil {
