@@ -751,7 +751,7 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 
 		if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 			ApplyOptions: client.ApplyOptions{
-				FieldManager: r.fieldManager,
+				FieldManager: r.fieldManager + "-target",
 			},
 		}); err != nil {
 			return err
