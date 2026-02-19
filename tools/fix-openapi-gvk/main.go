@@ -146,9 +146,10 @@ func main() {
 			fl := lines[i]
 			funcLines = append(funcLines, fl)
 			for _, ch := range fl {
-				if ch == '{' {
+				switch ch {
+				case '{':
 					depth++
-				} else if ch == '}' {
+				case '}':
 					depth--
 				}
 			}
