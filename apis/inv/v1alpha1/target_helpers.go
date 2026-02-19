@@ -67,7 +67,6 @@ func (r *Target) SetOverallStatus(target *Target) {
 	}
 }
 
-
 func GetOverallStatus(target *Target) condv1alpha1.Condition {
 	ready := true
 	msg := "target ready"
@@ -89,8 +88,8 @@ func GetOverallStatus(target *Target) condv1alpha1.Condition {
 	}
 	if !ready {
 		return condv1alpha1.Failed(msg)
-	} 
-	return 	condv1alpha1.Ready()
+	}
+	return condv1alpha1.Ready()
 }
 
 func (r *Target) IsDatastoreReady() bool {

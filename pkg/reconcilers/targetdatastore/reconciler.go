@@ -89,10 +89,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client          client.Client
-	finalizer       *resource.APIFinalizer
-	targetMgr       *targetmanager.TargetManager
-	recorder        events.EventRecorder
+	client    client.Client
+	finalizer *resource.APIFinalizer
+	targetMgr *targetmanager.TargetManager
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -123,7 +123,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		log.Debug("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
-		
+
 		if r.targetMgr != nil {
 			r.targetMgr.ClearDesired(ctx, targetKey)
 			r.targetMgr.Delete(ctx, targetKey)
@@ -176,38 +176,37 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Compute desired hash (must be stable)
-	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs) 
+	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs)
 
 	// Drive runtime
 	r.targetMgr.ApplyDesired(ctx, targetKey, dsReq, usedRefs, hash)
-	
+
 	// Read runtime status
 	rt := r.targetMgr.GetOrCreate(targetKey)
 	st := rt.Status()
 
 	switch st.Phase {
-		case targetmanager.PhaseRunning:
-			return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
+	case targetmanager.PhaseRunning:
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
 
-		case targetmanager.PhaseWaitingForDS, targetmanager.PhaseEnsuringDatastore, targetmanager.PhasePending:
-			// not ready yet; update status as failed/degraded but requeue soon
-			msg := fmt.Sprintf("runtime phase=%s dsReady=%t dsStoreReady=%t err=%s",
-				st.Phase, st.DSReady, st.DSStoreReady, st.LastError)
+	case targetmanager.PhaseWaitingForDS, targetmanager.PhaseEnsuringDatastore, targetmanager.PhasePending:
+		// not ready yet; update status as failed/degraded but requeue soon
+		msg := fmt.Sprintf("runtime phase=%s dsReady=%t dsStoreReady=%t err=%s",
+			st.Phase, st.DSReady, st.DSStoreReady, st.LastError)
 
-			_ = r.handleError(ctx, targetOrig, msg, nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		_ = r.handleError(ctx, targetOrig, msg, nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 
-		case targetmanager.PhaseDegraded:
-			msg := fmt.Sprintf("runtime degraded: %s", st.LastError)
-			_ = r.handleError(ctx, targetOrig, msg, nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	case targetmanager.PhaseDegraded:
+		msg := fmt.Sprintf("runtime degraded: %s", st.LastError)
+		_ = r.handleError(ctx, targetOrig, msg, nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 
-		default:
-			_ = r.handleError(ctx, targetOrig, "runtime unknown phase", nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
-		}
+	default:
+		_ = r.handleError(ctx, targetOrig, "runtime unknown phase", nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
 }
-
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
@@ -262,7 +261,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 		log.Info("handleError -> no change")
 		return nil
 	}
-	
+
 	log.Info("handleError",
 		"condition change", !newCond.Equal(oldCond),
 		"usedRefs change", !equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences),
@@ -405,13 +404,13 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	}
 
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_GNMI {
-		targetName:= ""
+		targetName := ""
 		if connProfile.Spec.TargetName != nil {
 			targetName = *connProfile.Spec.TargetName
 		}
 		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
 			GnmiOpts: &sdcpb.GnmiOptions{
-				Encoding: string(connProfile.Encoding()),
+				Encoding:   string(connProfile.Encoding()),
 				TargetName: targetName,
 			},
 		}
@@ -435,7 +434,6 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 
 	return req, usedReferences, nil
 }
-
 
 func usedRefsToApply(refs *invv1alpha1.TargetStatusUsedReferences) *invv1alpha1apply.TargetStatusUsedReferencesApplyConfiguration {
 	if refs == nil {

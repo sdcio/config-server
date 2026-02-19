@@ -88,7 +88,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
 
 	workspaceLoader *workspaceloader.Loader

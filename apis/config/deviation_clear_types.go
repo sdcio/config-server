@@ -19,17 +19,17 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DeviationClearType string
 
 const (
-	DeviationClearType_TARGET   	DeviationClearType = "target"
-	DeviationClearType_CONFIG   	DeviationClearType = "config"
-	DeviationClearType_ALL_CONFIG   DeviationClearType = "allConfig"
-	DeviationClearType_ALL   		DeviationClearType = "all"
+	DeviationClearType_TARGET     DeviationClearType = "target"
+	DeviationClearType_CONFIG     DeviationClearType = "config"
+	DeviationClearType_ALL_CONFIG DeviationClearType = "allConfig"
+	DeviationClearType_ALL        DeviationClearType = "all"
 )
 
 func (r DeviationClearType) String() string {
@@ -53,9 +53,9 @@ type DeviationClearSpec struct {
 }
 
 type DeviationClearItem struct {
-	Type DeviationClearType  `json:"type" protobuf:"bytes,1,opt,name=type"`
+	Type DeviationClearType `json:"type" protobuf:"bytes,1,opt,name=type"`
 	// Name of the config - mandatory if the type is config - not applicable for the other types
-	ConfigName *string  `json:"configName,omitempty" protobuf:"bytes,2,opt,name=configName"`
+	ConfigName *string `json:"configName,omitempty" protobuf:"bytes,2,opt,name=configName"`
 	// Paths of the respective type that should be cleared
 	Paths []string `json:"paths" protobuf:"bytes,3,rep,name=paths"`
 }
@@ -74,7 +74,7 @@ type DeviationClearStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	DeviationClear is the Schema for the DeviationClear API
+// DeviationClear is the Schema for the DeviationClear API
 type DeviationClear struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

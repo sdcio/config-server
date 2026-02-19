@@ -36,9 +36,9 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 	log := log.FromContext(ctx)
 
 	runtimes := make([]targetruntimeview.TargetRuntimeView, 0)
-    r.targetManager.ForEachRuntime(func(rt targetruntimeview.TargetRuntimeView) {
-        runtimes = append(runtimes, rt)
-    })
+	r.targetManager.ForEachRuntime(func(rt targetruntimeview.TargetRuntimeView) {
+		runtimes = append(runtimes, rt)
+	})
 	log.Info("prometheus collect", "targets", len(runtimes))
 
 	wg1 := new(sync.WaitGroup)

@@ -30,8 +30,8 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
@@ -101,13 +101,13 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	log.Debug("recovered configs", "count", len(configs))
 
 	if err := r.SetConfigsTargetConditionForTarget(
-        ctx,
-        target,
-        configv1alpha1.ConfigReady("target recovered"),
-    ); err != nil {
-        // recovery succeeded but we failed to patch status -> surface it
-        return ptr.To("recovered, but failed to update config status"), err
-    }
+		ctx,
+		target,
+		configv1alpha1.ConfigReady("target recovered"),
+	); err != nil {
+		// recovery succeeded but we failed to patch status -> surface it
+		return ptr.To("recovered, but failed to update config status"), err
+	}
 	return nil, nil
 }
 
@@ -130,10 +130,10 @@ func (r *Transactor) recoverIntents(
 			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
-			Update:   update,
-			NonRevertive: !config.IsRevertive(),
+			Intent:            GetGVKNSN(config),
+			Priority:          int32(config.Spec.Priority),
+			Update:            update,
+			NonRevertive:      !config.IsRevertive(),
 			PreviouslyApplied: true,
 		})
 	}
@@ -293,9 +293,9 @@ func (r *Transactor) setIntents(
 			return nil, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
-			Update:   update,
+			Intent:       GetGVKNSN(config),
+			Priority:     int32(config.Spec.Priority),
+			Update:       update,
 			NonRevertive: !config.IsRevertive(),
 		})
 	}
@@ -400,7 +400,7 @@ func (r *Transactor) updateConfigWithSuccess(
 	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
 	cond := configv1alpha1.ConfigReady(msg)
-	overallCond := configv1alpha1.GetOverallCondition(cfg) 
+	overallCond := configv1alpha1.GetOverallCondition(cfg)
 
 	if cond.Equal(cfg.GetCondition(condv1alpha1.ConditionType(cond.Type))) &&
 		reflect.DeepEqual(schema, cfg.Status.LastKnownGoodSchema) &&
@@ -480,7 +480,6 @@ func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
 	}
 	return out, nil
 }
-
 
 func (r *Transactor) patchMetadata(
 	ctx context.Context,
@@ -761,7 +760,6 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 	return nil
 }
 
-
 func schemaToApply(s *configv1alpha1.ConfigStatusLastKnownGoodSchema) *configv1alpha1apply.ConfigStatusLastKnownGoodSchemaApplyConfiguration {
 	if s == nil {
 		return nil
@@ -784,8 +782,8 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 		return nil
 	}
 	revertive := false
-	if (s.Revertive != nil) {
-		revertive= *s.Revertive
+	if s.Revertive != nil {
+		revertive = *s.Revertive
 	}
 
 	a := configv1alpha1apply.ConfigSpec().
@@ -808,7 +806,7 @@ func lifecycleToApply(l *configv1alpha1.Lifecycle) *configv1alpha1apply.Lifecycl
 	}
 	a := configv1alpha1apply.Lifecycle()
 	a.WithDeletionPolicy(l.DeletionPolicy)
-	
+
 	return a
 }
 

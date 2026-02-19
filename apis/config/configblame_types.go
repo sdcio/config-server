@@ -39,7 +39,7 @@ type ConfigBlameStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	ConfigBlame defines the Schema for the ConfigBlame API
+// ConfigBlame defines the Schema for the ConfigBlame API
 type ConfigBlame struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

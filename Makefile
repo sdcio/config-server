@@ -72,6 +72,13 @@ genproto:
 		-g go-to-protobuf \
 		--module $(REPO) \
 
+.PHONY: fix-openapi-gvk
+fix-openapi-gvk:
+	go run ./tools/fix-openapi-gvk/main.go \
+  --file pkg/generated/openapi/zz_generated.openapi.go \
+	--group config.sdcio.dev \
+	--prefix config_server_apis_config_v1alpha1
+
 .PHONY: generate
 generate: controller-gen 
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/inv/..."

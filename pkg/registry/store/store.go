@@ -57,10 +57,10 @@ func CreateFileStore(scheme *runtime.Scheme, obj resource.Object, prefix string)
 	}
 
 	return file.NewStore[runtime.Object](&storebackend.Config{
-	     GroupResource: gr,
-	     Prefix:        prefix,
-	     Codec:         codec,
-	     NewFunc:       obj.New,
+		GroupResource: gr,
+		Prefix:        prefix,
+		Codec:         codec,
+		NewFunc:       obj.New,
 	})
 }
 

@@ -307,8 +307,7 @@ func (r *Config) SetOverallStatus() {
 	r.Status.SetConditions(condv1alpha1.Failed(msg))
 }
 
-
-func GetOverallCondition(r *Config)  condv1alpha1.Condition {
+func GetOverallCondition(r *Config) condv1alpha1.Condition {
 	cfgC := r.GetCondition(ConditionTypeConfigReady)
 	tgtC := r.GetCondition(ConditionTypeTargetReady)
 

@@ -39,7 +39,7 @@ type Collector struct {
 	targetKey     storebackend.Key
 	subChan       chan struct{}
 	subscriptions *Subscriptions
-	cache cache.Cache
+	cache         cache.Cache
 
 	m      sync.RWMutex
 	target *target.Target
@@ -47,9 +47,9 @@ type Collector struct {
 	paths  map[invv1alpha1.Encoding][]Path
 
 	// collector lifetime
-    cancel context.CancelFunc
+	cancel context.CancelFunc
 
-    // subscription lifetime (ONLY for curr
+	// subscription lifetime (ONLY for curr
 	subscriptionCancel context.CancelFunc
 }
 
@@ -59,15 +59,15 @@ func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Col
 		targetKey:     targetKey,
 		subscriptions: subscriptions,
 		subChan:       make(chan struct{}),
-		cache: cache,
+		cache:         cache,
 	}
 }
 
 func (r *Collector) NotifySubscriptionChanged() {
-    select {
-    case r.subChan <- struct{}{}:
-    default:
-    }
+	select {
+	case r.subChan <- struct{}{}:
+	default:
+	}
 }
 
 func (r *Collector) SetPort(port uint) {
@@ -109,81 +109,80 @@ func (r *Collector) Stop(ctx context.Context) {
 		r.target.StopSubscriptions()
 		if err := r.target.Close(); err != nil {
 			log.Error("close error", "err", err)
-		} 
+		}
 		r.target = nil
 	}
 	r.paths = nil
 }
 
-
 func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
-    // stop existing (safe)
-    r.Stop(ctx)
+	// stop existing (safe)
+	r.Stop(ctx)
 
-    r.m.Lock()
-    // start collector lifetime
-    runCtx, cancel := context.WithCancel(ctx)
-    r.cancel = cancel
+	r.m.Lock()
+	// start collector lifetime
+	runCtx, cancel := context.WithCancel(ctx)
+	r.cancel = cancel
 
-    log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 
-    // build target (needs port)
-    tOpts := []gapi.TargetOption{
-        gapi.Name(r.targetKey.String()),
-        gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
-        gapi.Username(string(req.Target.Credentials.Username)),
-        gapi.Password(string(req.Target.Credentials.Password)),
-        gapi.Timeout(5 * time.Second),
-    }
-    if req.Target.Tls == nil {
-        tOpts = append(tOpts, gapi.Insecure(true))
-    } else {
-        tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
-        tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
-        tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
-        tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
-    }
+	// build target (needs port)
+	tOpts := []gapi.TargetOption{
+		gapi.Name(r.targetKey.String()),
+		gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
+		gapi.Username(string(req.Target.Credentials.Username)),
+		gapi.Password(string(req.Target.Credentials.Password)),
+		gapi.Timeout(5 * time.Second),
+	}
+	if req.Target.Tls == nil {
+		tOpts = append(tOpts, gapi.Insecure(true))
+	} else {
+		tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
+		tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
+		tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
+		tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
+	}
 
-    var err error
-    r.target, err = gapi.NewTarget(tOpts...)
-    if err != nil {
-        r.cancel = nil
-        r.m.Unlock()
-        log.Error("cannot create gnmi target", "err", err)
-        return err
-    }
-    if err := r.target.CreateGNMIClient(runCtx); err != nil {
-        _ = r.target.Close()
-        r.target = nil
-        r.cancel = nil
-        r.m.Unlock()
-        log.Error("cannot create gnmi client", "err", err)
-        return err
-    }
+	var err error
+	r.target, err = gapi.NewTarget(tOpts...)
+	if err != nil {
+		r.cancel = nil
+		r.m.Unlock()
+		log.Error("cannot create gnmi target", "err", err)
+		return err
+	}
+	if err := r.target.CreateGNMIClient(runCtx); err != nil {
+		_ = r.target.Close()
+		r.target = nil
+		r.cancel = nil
+		r.m.Unlock()
+		log.Error("cannot create gnmi client", "err", err)
+		return err
+	}
 
-    // reset path snapshot so first update triggers
-    r.paths = nil
-    r.m.Unlock()
+	// reset path snapshot so first update triggers
+	r.paths = nil
+	r.m.Unlock()
 
-    go r.start(runCtx)
-    return nil
+	go r.start(runCtx)
+	return nil
 }
 
 func (r *Collector) start(ctx context.Context) {
-    log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
-    log.Info("start collector")
+	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log.Info("start collector")
 
-    // initial apply
-    r.update(ctx)
+	// initial apply
+	r.update(ctx)
 
-    for {
-        select {
-        case <-ctx.Done():
-            return
-        case <-r.subChan:
-            r.update(ctx)
-        }
-    }
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.subChan:
+			r.update(ctx)
+		}
+	}
 }
 
 func (r *Collector) update(ctx context.Context) {
@@ -194,20 +193,20 @@ func (r *Collector) update(ctx context.Context) {
 
 	if r.subscriptions == nil {
 		log.Debug("no subscriptions")
-        r.stopSubscriptionLocked()
-        r.paths = nil
-        return
+		r.stopSubscriptionLocked()
+		r.paths = nil
+		return
 	}
-	
+
 	newPaths := r.subscriptions.GetPaths()
 	log.Debug("subscription update received", "newPaths", newPaths)
-	
+
 	if !r.hasPathsChanged(newPaths) {
 		log.Debug("subscription did not change")
 		return
 	}
 	log.Debug("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
-	
+
 	// stop current subscription loop
 	r.stopSubscriptionLocked()
 
@@ -237,38 +236,37 @@ func (r *Collector) stopSubscriptionLocked() {
 	}
 }
 
-
 func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bool {
 	// IMPORTANT: caller holds r.m.Lock()
 	old := r.paths
-    if old == nil && len(newPaths) == 0 {
-        return false
-    }
-    if len(old) != len(newPaths) {
-        return true
-    }
-    for enc, np := range newPaths {
-        op, ok := old[enc]
-        if !ok {
-            return true
-        }
-        if len(op) != len(np) {
-            return true
-        }
-        // If order is not guaranteed, you should sort; see section 4 below.
-        for i := range op {
-            if op[i].Path != np[i].Path || op[i].Interval != np[i].Interval {
-                return true
-            }
-        }
-    }
-    return false
+	if old == nil && len(newPaths) == 0 {
+		return false
+	}
+	if len(old) != len(newPaths) {
+		return true
+	}
+	for enc, np := range newPaths {
+		op, ok := old[enc]
+		if !ok {
+			return true
+		}
+		if len(op) != len(np) {
+			return true
+		}
+		// If order is not guaranteed, you should sort; see section 4 below.
+		for i := range op {
+			if op[i].Path != np[i].Path || op[i].Interval != np[i].Interval {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *Collector) StopSubscription(ctx context.Context) {
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop subscription")
-	
+
 	r.m.Lock()
 	defer r.m.Unlock()
 

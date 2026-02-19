@@ -59,8 +59,8 @@ const (
 	reconcilerName = "RolloutController"
 	finalizer      = "rollout.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateStatus    = "cannot update status"
+	errGetCr        = "cannot get cr"
+	errUpdateStatus = "cannot update status"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -92,7 +92,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client          client.Client
 	finalizer       *resource.APIFinalizer
 	workspaceReader *workspacereader.Reader
 	recorder        events.EventRecorder
@@ -326,7 +326,7 @@ func (r *reconciler) handleStatus(
 	err error,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
-	
+
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}

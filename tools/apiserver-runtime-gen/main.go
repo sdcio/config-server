@@ -260,10 +260,10 @@ func doGen() error {
 }
 
 var (
-	generators     []string
-	header         string
-	module         string
-	versions       []string
+	generators []string
+	header     string
+	module     string
+	versions   []string
 	//rawVersions    []string
 	clean, install bool
 )

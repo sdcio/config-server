@@ -61,7 +61,6 @@ func Updating() condv1alpha1.Condition {
 	}}
 }
 
-
 // ConfigReady return a condition that indicates the config
 // get re-applied when the target became ready
 func ConfigReady(msg string) condv1alpha1.Condition {
@@ -85,7 +84,6 @@ func ConfigFailed(msg string) condv1alpha1.Condition {
 		Message:            msg,
 	}}
 }
-
 
 // TargetReady return a condition that indicates
 // the target became ready

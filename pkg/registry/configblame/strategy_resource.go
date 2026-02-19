@@ -29,8 +29,12 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/protobuf/encoding/protojson"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,10 +44,6 @@ import (
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/protobuf/encoding/protojson"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewStrategy creates and returns a strategy instance
@@ -170,7 +170,6 @@ func (r *strategy) getConfigBlame(ctx context.Context, target *invv1alpha1.Targe
 			fmt.Printf("failed to close connection: %v\n", err)
 		}
 	}()
-
 
 	// check if the schema exists; this is == nil check; in case of err it does not exist
 	rsp, err := dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{

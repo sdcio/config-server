@@ -28,22 +28,22 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	v1 "k8s.io/api/flowcontrol/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 )
 
 type transactionManager struct {
 	newTargetUpdateConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
 	newTargetDeleteConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
 	//targetHandler              target.TargetHandler
-	client client.Client
-	globalTimeout              time.Duration
-	targetTimeout              time.Duration
-	skipUnavailableTarget      bool
+	client                client.Client
+	globalTimeout         time.Duration
+	targetTimeout         time.Duration
+	skipUnavailableTarget bool
 	// derived
 	targets      sets.Set[types.NamespacedName]
 	targetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]
@@ -59,7 +59,7 @@ func NewTransactionManager(
 	tm := &transactionManager{
 		newTargetUpdateConfigStore: newTargetUpdateConfigStore,
 		newTargetDeleteConfigStore: newTargetDeleteConfigStore,
-		client: client,
+		client:                     client,
 		globalTimeout:              globalTimeout,
 		targetTimeout:              targetTimeout,
 		targetStatus:               memstore.NewStore[invv1alpha1.RolloutTargetStatus](),
@@ -96,16 +96,14 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 	errChan := make(chan error, r.targets.Len())
 	done := make(chan struct{})
 
-
-
 	for _, targetKey := range r.targets.UnsortedList() {
 		t := &invv1alpha1.Target{}
-		if err :=  r.client.Get(ctx, targetKey, t); err != nil {
+		if err := r.client.Get(ctx, targetKey, t); err != nil {
 			// target unavailable -> we continue for now
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnavailable(fmt.Sprintf("target unavailable %s", err.Error())))
 			_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
-			if r.skipUnavailableTarget  {
+			if r.skipUnavailableTarget {
 				globalCancel()
 				return r.targetStatus, fmt.Errorf("transaction aborted: target %s is unavailable", targetKey.String())
 			}
@@ -116,13 +114,12 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnavailable("target not ready"))
 			_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
-			if r.skipUnavailableTarget  {
+			if r.skipUnavailableTarget {
 				globalCancel()
 				return r.targetStatus, fmt.Errorf("transaction aborted: target %s is not ready", targetKey.String())
 			}
 			continue
 		}
-
 
 		wg.Add(1)
 		go func(targetKey types.NamespacedName) {
@@ -200,7 +197,7 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 				} else {
 					targetStatus.SetConditions(invv1alpha1.ConfigCancelReady())
 				}
-				if err :=  r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
+				if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
 					log.Error("target status update failed", "err", err)
 				}
 			}(targetKey)
@@ -273,7 +270,7 @@ func (r *transactionManager) cancel(ctx context.Context, targetKey types.Namespa
 				return err
 			}
 			return nil
-		})	
+		})
 		close(done)
 	}()
 
@@ -315,7 +312,7 @@ func (r *transactionManager) confirm(ctx context.Context, targetKey types.Namesp
 				return err
 			}
 			return nil
-		})	
+		})
 		close(done)
 	}()
 
@@ -378,7 +375,7 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 				return err
 			}
 			return nil
-		})	
+		})
 		close(done)
 
 	}()

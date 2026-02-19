@@ -30,13 +30,13 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 func init() {
@@ -73,10 +73,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
-	finalizer       *resource.APIFinalizer
-	targetMgr       *targetmanager.TargetManager
-	recorder        events.EventRecorder
+	client    client.Client
+	finalizer *resource.APIFinalizer
+	targetMgr *targetmanager.TargetManager
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -96,9 +96,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	subscriptionOrig := subscription.DeepCopy()
 
-
 	if !subscription.GetDeletionTimestamp().IsZero() {
-		
+
 		if err := r.targetMgr.RemoveSubscription(ctx, subscription); err != nil {
 			return r.handleError(ctx, subscription, "cannot delete state from target collector", err)
 		}
@@ -126,7 +125,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subscription, targets []string) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
-	
+
 	newCond := condv1alpha1.Ready()
 	oldCond := state.GetCondition(condv1alpha1.ConditionTypeReady)
 

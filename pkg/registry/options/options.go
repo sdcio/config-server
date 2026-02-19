@@ -39,7 +39,7 @@ type Options struct {
 	Type   StorageType
 	DB     *badger.DB
 	// Target
-	Client        client.Client
+	Client client.Client
 	// specific functions
 	DryRunCreateFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
 	DryRunUpdateFn func(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error)

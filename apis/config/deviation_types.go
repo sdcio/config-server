@@ -19,8 +19,8 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeviationSpec defines the desired state of Deviation
@@ -33,8 +33,8 @@ type DeviationSpec struct {
 type DeviationType string
 
 const (
-	DeviationType_TARGET   DeviationType = "target"
-	DeviationType_CONFIG   DeviationType = "config"
+	DeviationType_TARGET DeviationType = "target"
+	DeviationType_CONFIG DeviationType = "config"
 )
 
 func (r DeviationType) String() string {
@@ -73,7 +73,7 @@ type DeviationStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	Deviation is the Schema for the Deviation API
+// Deviation is the Schema for the Deviation API
 type Deviation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -81,7 +81,6 @@ type Deviation struct {
 	Spec   DeviationSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status DeviationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
-
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

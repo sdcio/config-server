@@ -27,8 +27,8 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -57,11 +57,9 @@ const (
 	reconcilerName = "SchemaController"
 	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateStatus    = "cannot update status"
+	errGetCr        = "cannot get cr"
+	errUpdateStatus = "cannot update status"
 )
-
-
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -95,7 +93,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
 
 	schemaLoader   *schemaloader.Loader
@@ -138,7 +136,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				fmt.Printf("failed to close connection: %v\n", err)
 			}
 		}()
-
 
 		// check if the schema exists; this is == nil check; in case of err it does not exist
 		if _, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
@@ -256,7 +253,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
-	
+
 	newCond := condv1alpha1.Ready()
 	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
 
@@ -321,7 +318,6 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 		},
 	}), errUpdateStatus)
 }
-
 
 func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
 	result := make([]*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration, 0, len(repos))

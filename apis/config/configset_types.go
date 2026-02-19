@@ -19,8 +19,8 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ConfigSetSpec defines the desired state of Config
@@ -75,7 +75,6 @@ type ConfigSet struct {
 	Spec   ConfigSetSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status ConfigSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
-
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

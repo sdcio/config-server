@@ -98,6 +98,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*ConfigDeviation)(nil), (*config.ConfigDeviation)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(a.(*ConfigDeviation), b.(*config.ConfigDeviation), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.ConfigDeviation)(nil), (*ConfigDeviation)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(a.(*config.ConfigDeviation), b.(*ConfigDeviation), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*ConfigList)(nil), (*config.ConfigList)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ConfigList_To_config_ConfigList(a.(*ConfigList), b.(*config.ConfigList), scope)
 	}); err != nil {

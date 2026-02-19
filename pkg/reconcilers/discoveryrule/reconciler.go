@@ -27,8 +27,8 @@ import (
 	errors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
@@ -77,7 +77,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
@@ -175,7 +175,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// new discovery initialization -> create or update (we deleted the DRConfig before)
 	if err := r.discoveryStore.Create(ctx, key, dr); err != nil {
 		// given this is a ummutable field this means the CR will have to be deleted/recreated
-		return ctrl.Result{Requeue: true}, 
+		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot get normalized discoveryRule", err), errUpdateStatus)
 	}
 
@@ -258,7 +258,7 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, changed bool) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
-	
+
 	newCond := condv1alpha1.Ready()
 	oldCond := discoveryRule.GetCondition(condv1alpha1.ConditionTypeReady)
 
@@ -287,7 +287,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 
 func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, msg string, err error) error {
 	log := log.FromContext(ctx)
-	
+
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}

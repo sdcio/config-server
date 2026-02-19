@@ -64,7 +64,6 @@ func (r *ConfigForTargetEventHandler) add(ctx context.Context, obj runtime.Objec
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "config-event", Name: config.GetName()})
 	log := log.FromContext(ctx)
 
-
 	targetKey, err := config.GetTargetNamespaceName()
 	if err != nil {
 		log.Error(err.Error())
