@@ -185,6 +185,8 @@ github.com/henderiw/apiserver-builder v0.0.6-0.20260219043804-e86807fd6ce5 h1:Wh
 github.com/henderiw/apiserver-builder v0.0.6-0.20260219043804-e86807fd6ce5/go.mod h1:n5ApsFfaK3h5B1WVEnZ29erGuMV0ovPA0/ErcXeQet0=
 github.com/henderiw/apiserver-builder v0.0.6-0.20260219044914-498b0bc2e82b h1:NMPa8cchw2y66ymBTjTBhpK/69LDnelUDf6FJaS09Zg=
 github.com/henderiw/apiserver-builder v0.0.6-0.20260219044914-498b0bc2e82b/go.mod h1:Py2AD4oB1McoYpz4chBNAFo9bYeZ9N9cKPijzkMxk2U=
+github.com/henderiw/apiserver-builder v0.0.6-0.20260219051624-595e0ea22ab4 h1:dfa+4LWwmk0EZAr+iO+GwUm0fbUxrOtJ9znND8M4Vc4=
+github.com/henderiw/apiserver-builder v0.0.6-0.20260219051624-595e0ea22ab4/go.mod h1:Py2AD4oB1McoYpz4chBNAFo9bYeZ9N9cKPijzkMxk2U=
 github.com/henderiw/apiserver-store v0.0.3 h1:cUNzimOvxVKsw+/kj+7IkI/GnRuFlziwCc3AsfYo9zM=
 github.com/henderiw/apiserver-store v0.0.3/go.mod h1:RuXLMHJwszn6LXgL6fO9fxMC7AW5wAc4zOddnnZpkKI=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
