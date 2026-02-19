@@ -8,7 +8,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.6-0.20260219040518-f1e69f8ea9a3
+	github.com/henderiw/apiserver-builder v0.0.6-0.20260219042604-0940a62b5ab6
 	github.com/henderiw/apiserver-store v0.0.3
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
