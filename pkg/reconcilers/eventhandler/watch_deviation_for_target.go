@@ -64,7 +64,6 @@ func (r *DeviationForTargetEventHandler) add(ctx context.Context, obj runtime.Ob
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "deviation-event", Name: deviation.GetName()})
 	log := log.FromContext(ctx)
 
-
 	targetKey, err := deviation.GetTargetNamespaceName()
 	if err != nil {
 		log.Error(err.Error())

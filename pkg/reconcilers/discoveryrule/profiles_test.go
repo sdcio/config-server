@@ -42,7 +42,7 @@ func createFakeClient(secret, targetConnProfile, targetSyncProfile string) clien
 	if err := clientgoscheme.AddToScheme(runScheme); err != nil {
 		log.Error("cannot add scheme", "err", err)
 	}
-	if err := invv1alpha1.AddToScheme(runScheme) ; err != nil {
+	if err := invv1alpha1.AddToScheme(runScheme); err != nil {
 		log.Error("cannot add scheme", "err", err)
 	}
 	client := fake.NewClientBuilder().WithScheme(runScheme).Build()

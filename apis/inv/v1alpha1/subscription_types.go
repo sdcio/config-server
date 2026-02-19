@@ -44,6 +44,7 @@ type SubscriptionSpec struct {
 	Encoding *Encoding `json:"encoding,omitempty" protobuf:"bytes,4,opt,name=encoding,casttype=Encoding"`
 	// +kubebuilder:validation:MaxItems=128
 	// +kubebuilder:validation:Optional
+	// +listType=atomic
 	Subscriptions []SubscriptionParameters `json:"subscriptions" protobuf:"bytes,5,rep,name=subscriptions"`
 }
 
@@ -74,6 +75,7 @@ type SubscriptionParameters struct {
 	// +kubebuilder:validation:Enum="1s";"15s";"30s";"60s";
 	Interval *metav1.Duration `json:"interval,omitempty" protobuf:"bytes,6,opt,name=interval"`
 	// +kubebuilder:validation:MaxItems=128
+	// +listType=atomic
 	Paths []string `json:"paths" protobuf:"bytes,7,rep,name=paths"`
 	// TODO Outputs define the outputs to which this information should go -> reight now we only support prometheus locally
 	// this looks up another CR where they are defined with their respective secrets, etc
@@ -84,6 +86,7 @@ type SubscriptionStatus struct {
 	// ConditionedStatus provides the status of the Schema using conditions
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the list of targets this resource applies to
+	// +listType=atomic
 	Targets []string `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 

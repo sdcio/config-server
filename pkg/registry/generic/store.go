@@ -109,11 +109,12 @@ func NewREST(
 		ShortNameList:             obj.GetShortNames(),
 		Storage:                   storage,
 	}
-	options := &generic.StoreOptions{
+	storeOptions := &generic.StoreOptions{
 		RESTOptions: optsGetter,
 		AttrFunc:    utils.GetAttrs,
 	}
-	if err := store.CompleteWithOptions(options); err != nil {
+
+	if err := store.CompleteWithOptions(storeOptions); err != nil {
 		return nil, err
 	}
 	return store, nil

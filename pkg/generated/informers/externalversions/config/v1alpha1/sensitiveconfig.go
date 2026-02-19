@@ -56,7 +56,7 @@ func NewSensitiveConfigInformer(client versioned.Interface, namespace string, re
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredSensitiveConfigInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredSensitiveConfigInformer(client versioned.Interface, namespace st
 				}
 				return client.ConfigV1alpha1().SensitiveConfigs(namespace).Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisconfigv1alpha1.SensitiveConfig{},
 		resyncPeriod,
 		indexers,

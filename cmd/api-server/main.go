@@ -45,14 +45,14 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
-	configDir     = "/config"
+	configDir = "/config"
 )
 
 func main() {
@@ -84,7 +84,6 @@ func main() {
 		}
 	}
 
-	
 	var tlsOpts []func(*tls.Config)
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   MetricBindAddress(),
@@ -99,7 +98,6 @@ func main() {
 		// this setup is not recommended for production.
 		TLSOpts: tlsOpts,
 	}
-		
 
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
@@ -133,7 +131,7 @@ func main() {
 	}
 
 	configHandler := handlers.ConfigStoreHandler{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 	}
 
 	configregistryOptions := *registryOptions
@@ -149,15 +147,15 @@ func main() {
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 		//TargetStore: targetStore,
 	})
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 		//TargetStore: targetStore,
 	})
-	
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
@@ -206,7 +204,6 @@ func IsPProfEnabled() *string {
 	}
 	return nil
 }
-
 
 func MetricBindAddress() string {
 	if val, found := os.LookupEnv("METRIC_PORT"); found {

@@ -32,6 +32,7 @@ type GnmiDiscoveryVendorProfileParameters struct {
 	Organization string  `json:"organization" protobuf:"bytes,1,opt,name=organization"`
 	ModelMatch   *string `json:"modelMatch,omitempty" protobuf:"bytes,2,opt,name=modelMatch"`
 	//Paths        DiscoveryPaths `json:"paths" protobuf:"bytes,3,opt,name=paths"`
+	// +listType=atomic
 	Paths []DiscoveryPathDefinition `json:"paths" protobuf:"bytes,3,rep,name=paths"`
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
 	// +kubebuilder:validation:Enum=UNKNOWN;JSON;JSON_IETF;PROTO;ASCII;

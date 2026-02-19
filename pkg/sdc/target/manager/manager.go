@@ -20,10 +20,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"sync"
+	"errors"
 	"fmt"
 	"sort"
-	"errors"
+	"sync"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -34,8 +34,8 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TargetManager struct {
@@ -208,41 +208,49 @@ func (m *TargetManager) listRuntimes() []*TargetRuntime {
 }
 
 func (m *TargetManager) ForEachRuntime(fn func(runtimeview.TargetRuntimeView)) {
-    for _, rt := range m.listRuntimes() {
-        fn(rt)
-    }
+	for _, rt := range m.listRuntimes() {
+		fn(rt)
+	}
 }
 
 func (m *TargetManager) ApplySubscription(ctx context.Context, sub *invv1alpha1.Subscription) ([]string, error) {
-  targets, err := m.getDownstreamTargets(ctx, sub) // optional helper
-  if err != nil { return nil, err }
+	targets, err := m.getDownstreamTargets(ctx, sub) // optional helper
+	if err != nil {
+		return nil, err
+	}
 
-  var errs error
-  for _, tn := range targets {
-	key := storebackend.KeyFromNSN(client.ObjectKey{Namespace: sub.Namespace, Name: tn})
-    rt := m.GetRuntimeForTarget(ctx, key)
-    if rt == nil { continue }
-    if err := rt.UpsertSubscription(ctx, sub); err != nil {
-      errs = errors.Join(errs, err)
-    }
-  }
-  return targets, errs
+	var errs error
+	for _, tn := range targets {
+		key := storebackend.KeyFromNSN(client.ObjectKey{Namespace: sub.Namespace, Name: tn})
+		rt := m.GetRuntimeForTarget(ctx, key)
+		if rt == nil {
+			continue
+		}
+		if err := rt.UpsertSubscription(ctx, sub); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
+	return targets, errs
 }
 
 func (m *TargetManager) RemoveSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-  targets, err := m.getDownstreamTargets(ctx, sub)
-  if err != nil { return err }
+	targets, err := m.getDownstreamTargets(ctx, sub)
+	if err != nil {
+		return err
+	}
 
-  var errs error
-  for _, tn := range targets {
-	key := storebackend.KeyFromNSN(client.ObjectKey{Namespace: sub.Namespace, Name: tn})
-    rt := m.GetRuntimeForTarget(ctx, key)
-    if rt == nil { continue }
-    if err := rt.DeleteSubscription(ctx, sub); err != nil {
-      errs = errors.Join(errs, err)
-    }
-  }
-  return errs
+	var errs error
+	for _, tn := range targets {
+		key := storebackend.KeyFromNSN(client.ObjectKey{Namespace: sub.Namespace, Name: tn})
+		rt := m.GetRuntimeForTarget(ctx, key)
+		if rt == nil {
+			continue
+		}
+		if err := rt.DeleteSubscription(ctx, sub); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
+	return errs
 }
 
 // getDownstreamTargets list the targets

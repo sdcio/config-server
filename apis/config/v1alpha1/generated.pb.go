@@ -42,8 +42,8 @@ var _ = math.Inf
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
-func (m *Config) Reset()      { *m = Config{} }
-func (*Config) ProtoMessage() {}
+func (m *Config) Reset()                   { *m = Config{} }
+func (*Config) ProtoMessage()              {}
 func (*Config) Descriptor() ([]byte, []int) {
 	return fileDescriptor_609f4c56ac31047c, []int{2}
 }
@@ -1178,10 +1178,10 @@ func (m *ConfigDeviation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Reason)))
 	i--
 	dAtA[i] = 0x22
-	if m.CurrentValue != nil {
-		i -= len(*m.CurrentValue)
-		copy(dAtA[i:], *m.CurrentValue)
-		i = encodeVarintGenerated(dAtA, i, uint64(len(*m.CurrentValue)))
+	if m.ActualValue != nil {
+		i -= len(*m.ActualValue)
+		copy(dAtA[i:], *m.ActualValue)
+		i = encodeVarintGenerated(dAtA, i, uint64(len(*m.ActualValue)))
 		i--
 		dAtA[i] = 0x1a
 	}
@@ -2165,8 +2165,8 @@ func (m *ConfigDeviation) Size() (n int) {
 		l = len(*m.DesiredValue)
 		n += 1 + l + sovGenerated(uint64(l))
 	}
-	if m.CurrentValue != nil {
-		l = len(*m.CurrentValue)
+	if m.ActualValue != nil {
+		l = len(*m.ActualValue)
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	l = len(m.Reason)
@@ -2559,7 +2559,7 @@ func (this *ConfigDeviation) String() string {
 	s := strings.Join([]string{`&ConfigDeviation{`,
 		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
 		`DesiredValue:` + valueToStringGenerated(this.DesiredValue) + `,`,
-		`CurrentValue:` + valueToStringGenerated(this.CurrentValue) + `,`,
+		`CurrentValue:` + valueToStringGenerated(this.ActualValue) + `,`,
 		`Reason:` + fmt.Sprintf("%v", this.Reason) + `,`,
 		`}`,
 	}, "")
@@ -3615,7 +3615,7 @@ func (m *ConfigDeviation) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			s := string(dAtA[iNdEx:postIndex])
-			m.CurrentValue = &s
+			m.ActualValue = &s
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {

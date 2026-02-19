@@ -172,8 +172,8 @@ func (in *ConfigDeviation) DeepCopyInto(out *ConfigDeviation) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.CurrentValue != nil {
-		in, out := &in.CurrentValue, &out.CurrentValue
+	if in.ActualValue != nil {
+		in, out := &in.ActualValue, &out.ActualValue
 		*out = new(string)
 		**out = **in
 	}

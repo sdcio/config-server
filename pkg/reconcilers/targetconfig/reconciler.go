@@ -34,7 +34,7 @@ import (
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -74,7 +74,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
 	r.targetMgr = cfg.TargetManager
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.transactor = targetmanager.NewTransactor(r.client, "transactor")
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
@@ -89,7 +89,7 @@ type reconciler struct {
 	discoveryClient *discovery.DiscoveryClient
 	finalizer       *resource.APIFinalizer
 	targetMgr       *targetmanager.TargetManager
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 	transactor      *targetmanager.Transactor
 }
 
@@ -193,7 +193,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	retry, err := r.transactor.Transact(ctx, target, dsctx)
+	retry, err := r.transactor.Transact(ctx, target, dsctx, configv1alpha1.TargetReady("target ready"))
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {

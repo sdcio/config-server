@@ -45,7 +45,7 @@ func newGitDownloader(destDir, namespace string, schemaRepo *invv1alpha1.SchemaS
 func (l *gitDownloader) Download(ctx context.Context) (string, error) {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(l.schemaRepo.RepositoryURL)
+	repo, err := git.NewRepo(l.schemaRepo.RepoURL)
 	if err != nil {
 		return "", err
 	}

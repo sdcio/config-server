@@ -19,8 +19,8 @@ package client
 import (
 	"context"
 	"fmt"
-	"time"
 	"os"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -158,7 +158,6 @@ type Client interface {
 	IsConnected() bool
 	sdcpb.SchemaServerClient
 }
-
 
 func New(cfg *Config) (Client, error) {
 	defaultConfig(cfg)

@@ -36,7 +36,7 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 		Protocol: "static",
 		Provider: provider,
 		Version:  version,
-		HostName: h.hostName,
+		Hostname: h.hostName,
 		//LastSeen: metav1.Now(),
 	}
 	return r.createTarget(ctx, provider, h.Address, di)

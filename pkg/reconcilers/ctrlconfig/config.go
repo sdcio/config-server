@@ -20,11 +20,11 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
+	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 type ControllerConfig struct {
@@ -32,8 +32,8 @@ type ControllerConfig struct {
 	//DataServerStore   storebackend.Storer[sdcctx.DSContext]
 	SchemaDir         string
 	WorkspaceDir      string
-	DataServerManager  *dsmanager.DSConnManager
-	TargetManager      *targetmanager.TargetManager
+	DataServerManager *dsmanager.DSConnManager
+	TargetManager     *targetmanager.TargetManager
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

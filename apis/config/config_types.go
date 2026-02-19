@@ -19,9 +19,9 @@ package config
 import (
 	"reflect"
 
+	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"github.com/sdcio/config-server/apis/condition"
 )
 
 // ConfigSpec defines the desired state of Config
@@ -67,14 +67,13 @@ type ConfigStatusLastKnownGoodSchema struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	Config defines the Schema for the Config API
+// Config defines the Schema for the Config API
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

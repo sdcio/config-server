@@ -62,9 +62,9 @@ func TestApplyRegex(t *testing.T) {
 			shouldError: true,
 		},
 		{
-			name: "Version",
-			pattern: `^v?(\d+\.\d+\.\d+)`,
-			value: "v24.3.2-118-g706b4f0d99",
+			name:     "Version",
+			pattern:  `^v?(\d+\.\d+\.\d+)`,
+			value:    "v24.3.2-118-g706b4f0d99",
 			expected: "24.3.2",
 		},
 	}

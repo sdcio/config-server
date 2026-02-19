@@ -29,7 +29,6 @@ const (
 	BranchPrefixInLocalRepo  = "refs/heads/"
 	TagsPrefixInLocalRepo    = "refs/tags/"
 	TagsPrefixInRemoteRepo   = "refs/tags/"
-
 )
 
 var (

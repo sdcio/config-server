@@ -281,7 +281,7 @@ func (r *Config) SetOverallStatus() {
 
 	if ready {
 		// important: only set overall Ready type, do not drop other conditions
-		r.Status.SetConditions(condv1alpha1.ReadyWithMsg("config applied and target ready"))
+		r.Status.SetConditions(condv1alpha1.ReadyWithMsg(""))
 		return
 	}
 
@@ -305,4 +305,36 @@ func (r *Config) SetOverallStatus() {
 	}
 
 	r.Status.SetConditions(condv1alpha1.Failed(msg))
+}
+
+func GetOverallCondition(r *Config) condv1alpha1.Condition {
+	cfgC := r.GetCondition(ConditionTypeConfigReady)
+	tgtC := r.GetCondition(ConditionTypeTargetReady)
+
+	ready := cfgC.IsTrue() && tgtC.IsTrue()
+
+	if ready {
+		return condv1alpha1.ReadyWithMsg("applied")
+	}
+
+	// pick a useful message
+	msg := ""
+	switch {
+	case !cfgC.IsTrue():
+		if cfgC.Message != "" {
+			msg = cfgC.Message
+		} else {
+			msg = "config not applied"
+		}
+	case !tgtC.IsTrue():
+		if tgtC.Message != "" {
+			msg = tgtC.Message
+		} else {
+			msg = "target not ready"
+		}
+	default:
+		msg = "not ready"
+	}
+
+	return condv1alpha1.Failed(msg)
 }

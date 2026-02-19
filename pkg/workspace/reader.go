@@ -50,7 +50,7 @@ func NewReader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (storebackend.Storer[storebackend.Storer[*config.Config]], error) {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(rollout.Spec.RepositoryURL)
+	repo, err := git.NewRepo(rollout.Spec.RepoURL)
 	if err != nil {
 		return nil, err
 	}

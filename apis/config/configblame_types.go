@@ -33,14 +33,13 @@ type ConfigBlameStatus struct {
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	ConfigBlame defines the Schema for the ConfigBlame API
+// ConfigBlame defines the Schema for the ConfigBlame API
 type ConfigBlame struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

@@ -23,7 +23,7 @@ func BuildConfigBlame(meta metav1.ObjectMeta, spec ConfigBlameSpec, status Confi
 	return &ConfigBlame{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind: ConfigBlameKind,
+			Kind:       ConfigBlameKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,

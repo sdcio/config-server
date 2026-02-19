@@ -30,7 +30,7 @@ import (
 )
 
 type TargetConnProfileForDiscoveryRuleEventHandler struct {
-	Client  client.Client
+	Client client.Client
 }
 
 // Create enqueues a request
@@ -68,7 +68,7 @@ func (r *TargetConnProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
 	}
-	drs :=  &invv1alpha1.DiscoveryRuleList{}
+	drs := &invv1alpha1.DiscoveryRuleList{}
 	if err := r.Client.List(ctx, drs, opts...); err != nil {
 		log.Error("cannot list discovery rules", "error", err)
 		return

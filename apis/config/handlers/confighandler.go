@@ -7,17 +7,16 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
-
 type ConfigStoreHandler struct {
-	Client      client.Client
+	Client client.Client
 }
 
 func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
@@ -25,7 +24,7 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 	if err != nil {
 		return obj, err
 	}
-	
+
 	updates, err := targetmanager.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
 	if err != nil {
 		return nil, err
@@ -77,7 +76,6 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 
 	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
 }
-
 
 // prepareConfigAndTarget validates labels, casts the object, fetches the Target
 // and ensures it's ready.
