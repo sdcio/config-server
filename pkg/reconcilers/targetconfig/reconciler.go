@@ -193,7 +193,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	retry, err := r.transactor.Transact(ctx, target, dsctx)
+	retry, err := r.transactor.Transact(ctx, target, dsctx, configv1alpha1.TargetReady("target ready"))
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {

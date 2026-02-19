@@ -176,7 +176,12 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
-func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, dsctx *DatastoreHandle) (bool, error) {
+func (r *Transactor) Transact(
+	ctx context.Context, 
+	target *invv1alpha1.Target, 
+	dsctx *DatastoreHandle,
+	targetCond condv1alpha1.Condition,
+) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
 	// get all configs for the target
@@ -252,7 +257,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 			return true, err
 		}
 
-		if err := r.updateConfigWithSuccess(ctx, config, dsctx.Schema, ""); err != nil {
+		if err := r.updateConfigWithSuccess(ctx, config, dsctx.Schema, targetCond, ""); err != nil {
 			return true, err
 		}
 	}
@@ -358,7 +363,6 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1
 		WithConditions(cond)
 
 	if !recoverable {
-		// clear DeviationGeneration
 		statusApply = statusApply.WithDeviationGeneration(0)
 	}
 
@@ -394,22 +398,34 @@ func (r *Transactor) updateConfigWithSuccess(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
+	targetCond condv1alpha1.Condition,
 	msg string,
 ) error {
 	log := log.FromContext(ctx)
 	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
-	cond := configv1alpha1.ConfigReady(msg)
-	overallCond := configv1alpha1.GetOverallCondition(cfg)
+	configCond := configv1alpha1.ConfigReady(msg)
 
-	if cond.Equal(cfg.GetCondition(condv1alpha1.ConditionType(cond.Type))) &&
+	// capture
+	oldConfigCond := cfg.GetCondition(condv1alpha1.ConditionType(configCond.Type))
+	oldTargetCond := cfg.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+
+	// compute overall from both conditions
+	cfg.SetConditions(configCond, targetCond)
+	cfg.SetOverallStatus()
+	overallCond := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+
+
+	// check against OLD state
+	if configCond.Equal(oldConfigCond) &&
+		targetCond.Equal(oldTargetCond) &&
 		reflect.DeepEqual(schema, cfg.Status.LastKnownGoodSchema) &&
 		reflect.DeepEqual(&cfg.Spec, cfg.Status.AppliedConfig) {
 		return nil
 	}
 
 	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(cond, overallCond).
+		WithConditions(configCond, targetCond, overallCond).
 		WithLastKnownGoodSchema(schemaToApply(schema)).
 		WithAppliedConfig(configSpecToApply(&cfg.Spec))
 
@@ -744,14 +760,30 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 			continue
 		}
 
+		// Preserve ALL existing status fields to avoid stripping them
+		configCond := v1cfg.GetCondition(condv1alpha1.ConditionType(
+			configv1alpha1.ConfigReady("").Type,
+		))
+
+		statusApply := configv1alpha1apply.ConfigStatus().
+			WithConditions(targetCond, configCond, newReadyCond)
+
+		// preserve schema + appliedConfig so SSA doesn't strip them
+		if v1cfg.Status.LastKnownGoodSchema != nil {
+			statusApply = statusApply.WithLastKnownGoodSchema(
+				schemaToApply(v1cfg.Status.LastKnownGoodSchema))
+		}
+		if v1cfg.Status.AppliedConfig != nil {
+			statusApply = statusApply.WithAppliedConfig(
+				configSpecToApply(v1cfg.Status.AppliedConfig))
+		}
+
 		applyConfig := configv1alpha1apply.Config(v1cfg.Name, v1cfg.Namespace).
-			WithStatus(configv1alpha1apply.ConfigStatus().
-				WithConditions(targetCond, newReadyCond),
-			)
+			WithStatus(statusApply)
 
 		if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 			ApplyOptions: client.ApplyOptions{
-				FieldManager: r.fieldManager + "-target",
+				FieldManager: r.fieldManager,
 			},
 		}); err != nil {
 			return err
