@@ -136,6 +136,8 @@ func NewStatusREST(
 	statusStore := *registryStore
 	statusStore.CreateStrategy = nil
 	statusStore.DeleteStrategy = nil
+	statusStore.CategoryList = nil    
+    statusStore.ShortNameList = nil
 	statusStrategy := NewStatusStrategy(obj, scheme, registryStore.Storage, watcherManager, opts)
 	statusStore.UpdateStrategy = statusStrategy
 	statusStore.ResetFieldsStrategy = statusStrategy
