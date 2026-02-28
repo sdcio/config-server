@@ -210,9 +210,10 @@ func main() {
 		for j := schemaLineIdx; j < len(funcLines); j++ {
 			fl := funcLines[j]
 			for _, ch := range fl {
-				if ch == '{' {
+				switch ch {
+				case '{':
 					schemaDepth++
-				} else if ch == '}' {
+				case '}':
 					schemaDepth--
 				}
 			}
