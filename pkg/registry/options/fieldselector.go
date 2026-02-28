@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runningconfig
+package options
 
 import (
 	"context"
@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/selection"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Filter
@@ -36,7 +38,7 @@ type Filter struct {
 }
 
 // parseFieldSelector parses client-provided fields.Selector into a packageFilter
-func parseFieldSelector(ctx context.Context, fieldSelector fields.Selector) (*Filter, error) {
+func ParseFieldSelector(ctx context.Context, fieldSelector fields.Selector) (*Filter, error) {
 	var filter *Filter
 
 	// add the namespace to the list
@@ -79,4 +81,29 @@ func parseFieldSelector(ctx context.Context, fieldSelector fields.Selector) (*Fi
 	}
 
 	return filter, nil
+}
+
+
+func ListOptsFromInternal(filter *Filter, opts *metainternalversion.ListOptions) []client.ListOption {
+    listOpts := []client.ListOption{}
+
+    if filter != nil && filter.Namespace != "" {
+        listOpts = append(listOpts, client.InNamespace(filter.Namespace))
+    }
+
+    if opts != nil {
+        if opts.LabelSelector != nil {
+            listOpts = append(listOpts, client.MatchingLabelsSelector{
+                Selector: opts.LabelSelector,
+            })
+        }
+        if opts.Limit > 0 {
+            listOpts = append(listOpts, client.Limit(opts.Limit))
+        }
+        if opts.Continue != "" {
+            listOpts = append(listOpts, client.Continue(opts.Continue))
+        }
+    }
+
+    return listOpts
 }

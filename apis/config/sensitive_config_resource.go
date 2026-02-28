@@ -262,26 +262,17 @@ type SensitiveConfigFilter struct {
 }
 
 func (r *SensitiveConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
-	f := false // result of the previous filter
 	o, ok := obj.(*SensitiveConfig)
 	if !ok {
-		return f
+		return true
 	}
-	if r.Name != "" {
-		if o.GetName() == r.Name {
-			f = false
-		} else {
-			f = true
-		}
-	}
-	if r.Namespace != "" {
-		if o.GetNamespace() == r.Namespace {
-			f = false
-		} else {
-			f = true
-		}
-	}
-	return f
+	if r.Name != "" && o.GetName() != r.Name {
+        return true
+    }
+    if r.Namespace != "" && o.GetNamespace() != r.Namespace {
+        return true
+    }
+    return false
 }
 
 func (r *SensitiveConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {

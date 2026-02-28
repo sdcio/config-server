@@ -40,7 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
@@ -234,23 +233,12 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 	return r.getConfigBlame(ctx, target, key)
 }
 
-func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
+func (r *strategy) List(ctx context.Context, opts *metainternalversion.ListOptions) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 
-	filter, err := parseFieldSelector(ctx, options.FieldSelector)
+	filter, err := options.ParseFieldSelector(ctx, opts.FieldSelector)
 	if err != nil {
 		return nil, err
-	}
-
-	namespace, ok := genericapirequest.NamespaceFrom(ctx)
-	if ok {
-		if filter != nil {
-			filter.Namespace = namespace
-		} else {
-			filter = &Filter{
-				Namespace: namespace,
-			}
-		}
 	}
 
 	newListObj := r.obj.NewList()
@@ -260,7 +248,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 	}
 
 	targets := &invv1alpha1.TargetList{}
-	if err := r.client.List(ctx, targets); err != nil {
+	if err := r.client.List(ctx, targets, options.ListOptsFromInternal(filter, opts)...); err != nil {
 		return nil, err
 	}
 

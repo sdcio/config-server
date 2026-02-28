@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 )
 
 // NewStrategy creates and returns a strategy instance
@@ -230,6 +231,14 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		if err != nil {
 			log.Error("cannot get meta from object", "error", err.Error())
 			return
+		}
+
+		// Always enforce namespace scoping for namespace-scoped resources
+		if r.obj.NamespaceScoped() {
+			ns, ok := genericapirequest.NamespaceFrom(ctx)
+			if ok && ns != "" && accessor.GetNamespace() != ns {
+				return
+			}
 		}
 
 		if options.LabelSelector != nil || filter != nil {
