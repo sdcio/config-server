@@ -141,7 +141,7 @@ $(KFORM): $(LOCALBIN)
 	test -s $(LOCALBIN)/kform || GOBIN=$(LOCALBIN) go install github.com/kform-dev/kform/cmd/kform@$(KFORM_VERSION)
 
 .PHONY: golangci-lint
-golangci-lint: $(GOLANGCILINT) ## Download kform locally if necessary.
+golangci-lint: $(GOLANGCILINT) ## Download golangci locally if necessary.
 $(GOLANGCILINT): $(LOCALBIN)
 	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
 
