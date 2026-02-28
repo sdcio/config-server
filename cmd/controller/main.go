@@ -135,7 +135,7 @@ func main() {
 	if IsLocalDataServerEnabled() {
 		// Create the DS connection manager and register it with controller-runtime.
 		dsCfg := &dsclient.Config{
-			Address: dsclient.GetDataServerAddress(),
+			Address: dsclient.GetLocalDataServerAddress(),
 			// Insecure/TLS settings etc if needed
 		}
 		dsConnMgr := dsmanager.New(ctx, dsCfg)
