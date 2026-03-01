@@ -175,6 +175,7 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *configv1alpha1.Target) 
 	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
+			Force: ptr.To(true),
 		},
 	}); err != nil {
 		log.Error("failed to patch target status", "err", err)
