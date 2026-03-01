@@ -122,27 +122,31 @@ func (r *dr) applyTargetStatus(ctx context.Context, targetKey types.NamespacedNa
 
 	// Check current state to avoid unnecessary updates
 	target := &configv1alpha1.Target{}
+	targetExists := true
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		return nil, err
+		if client.IgnoreNotFound(err) != nil {
+			return nil, err
+		}
+		// Object just created — cache hasn't synced yet, skip optimization
+		targetExists = false
 	}
 
-	newCond := configv1alpha1.TargetDiscoveryReady()
-	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady)
-
-	if newCond.Equal(oldCond) &&
-		equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo) {
-		log.Info("applyTargetStatus -> no change")
-		return target, nil
+	if targetExists {
+		newCond := configv1alpha1.TargetDiscoveryReady()
+		oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady)
+		if newCond.Equal(oldCond) &&
+			equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo) {
+			log.Info("applyTargetStatus -> no change")
+			return target, nil
+		}
+		log.Info("applyTargetStatus",
+			"condition change", !newCond.Equal(oldCond),
+			"discovery info change", !equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo),
+		)
 	}
-
-	log.Info("applyTargetStatus",
-		"condition change", !newCond.Equal(oldCond),
-		"discovery info change", !equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo),
-	)
 
 	statusApply := configv1alpha1apply.TargetStatus().
-		WithConditions(newCond)
-
+		WithConditions(configv1alpha1.TargetDiscoveryReady())
 	if di != nil {
 		statusApply = statusApply.WithDiscoveryInfo(discoveryInfoToApply(di))
 	}
@@ -156,6 +160,11 @@ func (r *dr) applyTargetStatus(ctx context.Context, targetKey types.NamespacedNa
 		},
 	}); err != nil {
 		log.Error("failed to apply target status", "err", err)
+		return nil, err
+	}
+
+	// Re-fetch to return fresh object
+	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		return nil, err
 	}
 	return target, nil

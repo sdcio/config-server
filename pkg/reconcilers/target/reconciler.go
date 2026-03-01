@@ -102,7 +102,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	changed, newReady, err := r.updateCondition(ctx, target)
 	if err != nil {
-		return ctrl.Result{}, pkgerrors.Wrap(err, errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, pkgerrors.Wrap(err, errUpdateStatus)
 	}
 
 	// "One more kick": if after computing/updating Ready it is still not ready,
