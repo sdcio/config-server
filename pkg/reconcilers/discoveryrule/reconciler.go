@@ -79,6 +79,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
+	r.baseCtx = ctx
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -95,6 +96,7 @@ type reconciler struct {
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
 	recorder       events.EventRecorder
+	baseCtx        context.Context // manager-scoped, lives until shutdown
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -128,7 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// stop and delete the discovery rule
-		dr.Stop(ctx)
+		dr.Stop(r.baseCtx)
 		if err := r.discoveryStore.Delete(ctx, key); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot delete discoveryRule from store", err), errUpdateStatus)
@@ -193,7 +195,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	go func() {
-		if err := dr.Run(ctx); err != nil {
+		if err := dr.Run(r.baseCtx); err != nil {
 			log.Error("run error", "err", err)
 		}
 	}()
