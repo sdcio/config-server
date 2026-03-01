@@ -76,6 +76,8 @@ spec:
           value: "true"
         - name: ENABLE_ROLLOUT
           value: "true"
+        - name: KUBE_FEATURE_WatchListClient
+          value: "false"
         volumeMounts:
         #- name: schema-store
         #  mountPath: /schemas

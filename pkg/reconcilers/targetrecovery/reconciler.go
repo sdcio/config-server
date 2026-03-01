@@ -26,7 +26,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -173,8 +173,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 	log.Info("handleSuccess -> change", "condition change", true)
 	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "config recovery ready", "")
 
-	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(invv1alpha1apply.TargetStatus().
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
 			WithConditions(newCond),
 		)
 
@@ -204,8 +204,8 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 	log.Info("handleError -> change", "condition change", true)
 	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
 
-	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(invv1alpha1apply.TargetStatus().
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
 			WithConditions(newCond),
 		)
 

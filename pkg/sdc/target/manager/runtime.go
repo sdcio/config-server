@@ -28,7 +28,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -615,8 +615,8 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		return
 	}
 
-	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(invv1alpha1apply.TargetStatus().
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
 			WithConditions(newCond),
 		)
 

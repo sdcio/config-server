@@ -24,7 +24,7 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -127,8 +127,8 @@ func (r *reconciler) updateCondition(ctx context.Context, target *configv1alpha1
 		r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, "not ready", "")
 	}
 
-	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(invv1alpha1apply.TargetStatus().
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
 			WithConditions(newCond),
 		)
 

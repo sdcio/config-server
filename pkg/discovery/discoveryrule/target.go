@@ -27,7 +27,7 @@ import (
 	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -162,14 +162,14 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *configv1alpha1.Target) 
 		"discovery info change", !equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
 	)
 
-	statusApply := invv1alpha1apply.TargetStatus().
+	statusApply := configv1alpha1apply.TargetStatus().
 		WithConditions(newCond)
 
 	if newTarget.Status.DiscoveryInfo != nil {
 		statusApply = statusApply.WithDiscoveryInfo(discoveryInfoToApply(newTarget.Status.DiscoveryInfo))
 	}
 
-	applyConfig := invv1alpha1apply.Target(newTarget.Name, newTarget.Namespace).
+	applyConfig := configv1alpha1apply.Target(newTarget.Name, newTarget.Namespace).
 		WithStatus(statusApply)
 
 	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
@@ -183,11 +183,11 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *configv1alpha1.Target) 
 	return nil
 }
 
-func discoveryInfoToApply(di *configv1alpha1.DiscoveryInfo) *invv1alpha1apply.DiscoveryInfoApplyConfiguration {
+func discoveryInfoToApply(di *configv1alpha1.DiscoveryInfo) *configv1alpha1apply.DiscoveryInfoApplyConfiguration {
 	if di == nil {
 		return nil
 	}
-	a := invv1alpha1apply.DiscoveryInfo()
+	a := configv1alpha1apply.DiscoveryInfo()
 	if di.Protocol != "" {
 		a.WithProtocol(di.Protocol)
 	}
