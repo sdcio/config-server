@@ -6,7 +6,7 @@ rules:
 - apiGroups: [""]
   resources: ["namespaces", "secrets", "services", "pods"]
   verbs: ["get", "watch", "list"]
-- apiGroups: [""]
+- apiGroups: ["events.k8s.io"]
   resources: ["events"]
   verbs: ["create", "patch"]
 - apiGroups: ["admissionregistration.k8s.io"]

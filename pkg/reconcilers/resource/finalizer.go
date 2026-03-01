@@ -18,84 +18,65 @@ package resource
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Finalizer manages the lifecycle of the finalizer on a k8s object
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj client.Object) error
 	RemoveFinalizer(ctx context.Context, obj client.Object) error
 }
 
-// An APIFinalizer manages the lifecycle of a finalizer on a k8s object.
 type APIFinalizer struct {
 	client         client.Client
 	reconcilerName string
 	finalizer      string
 }
 
-// NewAPIFinalizer returns a new APIFinalizer.
 func NewAPIFinalizer(c client.Client, finalizer, reconcilerName string) *APIFinalizer {
 	return &APIFinalizer{client: c, finalizer: finalizer, reconcilerName: reconcilerName}
 }
 
-// AddFinalizer to the supplied Managed resource.
 func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) error {
 	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	patch, err := r.finalizerPatch(obj, []string{r.finalizer})
-	if err != nil {
-		return fmt.Errorf("cannot build finalizer patch: %w", err)
-	}
-	return r.client.Patch(ctx, obj, client.RawPatch(types.ApplyPatchType, patch), client.ForceOwnership, &client.PatchOptions{
-		FieldManager: r.reconcilerName,
-	})
+	addFinalizer(obj, r.finalizer)
+	return errors.Wrap(r.client.Update(ctx, obj), errUpdateObject)
 }
 
 func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) error {
 	if !FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	patch, err := r.finalizerPatch(obj, nil)
-	if err != nil {
-		return fmt.Errorf("cannot build finalizer patch: %w", err)
-	}
-	return r.client.Patch(ctx, obj, client.RawPatch(types.ApplyPatchType, patch), client.ForceOwnership, &client.PatchOptions{
-		FieldManager: r.reconcilerName,
-	})
+	removeFinalizer(obj, r.finalizer)
+	return errors.Wrap(r.client.Update(ctx, obj), errUpdateObject)
 }
 
-// finalizerPatch builds a minimal SSA patch containing only apiVersion, kind, metadata.name,
-// metadata.namespace, and metadata.finalizers.
-func (r *APIFinalizer) finalizerPatch(obj client.Object, finalizers []string) ([]byte, error) {
-	gvk := obj.GetObjectKind().GroupVersionKind()
-	if gvk.Empty() {
-		return nil, fmt.Errorf("object has no GVK set")
-	}
-
-	patch := map[string]interface{}{
-		"apiVersion": gvk.GroupVersion().String(),
-		"kind":       gvk.Kind,
-		"metadata": map[string]interface{}{
-			"name":       obj.GetName(),
-			"namespace":  obj.GetNamespace(),
-			"finalizers": finalizers,
-		},
-	}
-	return json.Marshal(patch)
-}
-
-// FinalizerExists checks whether a certain finalizer is already set
-// on the aupplied object
-func FinalizerExists(o metav1.Object, finalizer string) bool {
+func addFinalizer(o metav1.Object, finalizer string) {
 	f := o.GetFinalizers()
 	for _, e := range f {
+		if e == finalizer {
+			return
+		}
+	}
+	o.SetFinalizers(append(f, finalizer))
+}
+
+func removeFinalizer(o metav1.Object, finalizer string) {
+	var result []string
+	for _, e := range o.GetFinalizers() {
+		if e != finalizer {
+			result = append(result, e)
+		}
+	}
+	o.SetFinalizers(result)
+}
+
+func FinalizerExists(o metav1.Object, finalizer string) bool {
+	for _, e := range o.GetFinalizers() {
 		if e == finalizer {
 			return true
 		}
