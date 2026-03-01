@@ -26,32 +26,6 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "github.com/sdcio/config-server/apis/inv/v1alpha1";
 
-message DiscoveryInfo {
-  // Protocol used for discovery
-  optional string protocol = 1;
-
-  // Type associated with the target
-  optional string provider = 2;
-
-  // Version associated with the target
-  optional string version = 3;
-
-  // HostName associated with the target
-  optional string hostname = 4;
-
-  // Platform associated with the target
-  optional string platform = 5;
-
-  // MacAddress associated with the target
-  optional string macAddress = 6;
-
-  // SerialNumber associated with the target
-  optional string serialNumber = 7;
-
-  // Supported Encodings of the target
-  repeated string supportedEncodings = 8;
-}
-
 message DiscoveryParameters {
   // DefaultSchema define the default schema used to connect to a target
   // Indicates that discovery is disable; cannot be used for prefix based discovery rules
@@ -62,6 +36,7 @@ message DiscoveryParameters {
 
   // TargetConnectionProfiles define the profile the discovery controller uses to create targets
   // once discovered
+  // +listType=atomic
   repeated TargetProfile targetConnectionProfiles = 3;
 
   // TargetTemplate defines the template the discovery controller uses to create the targets as a result of the discovery
@@ -97,6 +72,7 @@ message DiscoveryProfile {
 
   // ConnectionProfiles define the list of profiles the discovery controller uses to discover the target.
   // The order in which they are specified is the order in which discovery is executed.
+  // +listType=atomic
   repeated string connectionProfiles = 3;
 }
 
@@ -139,15 +115,18 @@ message DiscoveryRulePrefix {
   optional string prefix = 1;
 
   // IP Prefixes to be excluded
+  // +listType=atomic
   repeated string excludes = 2;
 }
 
 // DiscoveryRuleSpec defines the desired state of DiscoveryRule
 message DiscoveryRuleSpec {
   // IP Prefixes for which this discovery rule applies
+  // +listType=atomic
   repeated DiscoveryRulePrefix prefixes = 1;
 
   // IP Prefixes for which this discovery rule applies
+  // +listType=atomic
   repeated DiscoveryRuleAddress addresses = 2;
 
   // PodSelector defines the pod selector for which this discovery rule applies
@@ -210,6 +189,7 @@ message GnmiDiscoveryVendorProfileParameters {
   optional string modelMatch = 2;
 
   // Paths        DiscoveryPaths `json:"paths" protobuf:"bytes,3,opt,name=paths"`
+  // +listType=atomic
   repeated DiscoveryPathDefinition paths = 3;
 
   // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="encoding is immutable"
@@ -224,14 +204,14 @@ message GnmiDiscoveryVendorProfileParameters {
 
 message Proxy {
   // URL specifies the base URL of the HTTP/HTTPS proxy server.
-  optional string URL = 1;
+  optional string url = 1;
 
   // Credentials defines the name of the secret that holds the credentials to connect to the proxy server
   optional string credentials = 2;
 }
 
 message Repository {
-  // RepositoryURL specifies the base URL for a given repository
+  // RepoURL specifies the base URL for a given repository
   optional string repoURL = 1;
 
   // Credentials defines the name of the secret that holds the credentials to connect to the repo
@@ -293,6 +273,7 @@ message RolloutStatus {
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Targets defines the status of the rollout on the respective target
+  // +listType=atomic
   repeated RolloutTargetStatus targets = 2;
 }
 
@@ -363,6 +344,7 @@ message SchemaSpec {
   // +kubebuilder:validation:MinItems:=1
   // +kubebuilder:validation:MaxItems:=10
   // Repositories define the repositories used for building the provider schema
+  // +listType=atomic
   repeated SchemaSpecRepository repositories = 3;
 }
 
@@ -372,6 +354,7 @@ message SchemaSpecRepository {
   // +kubebuilder:validation:MaxItems=10
   // Dirs defines the list of directories that identified the provider schema in src/dst pairs
   // relative within the repository
+  // +listType=atomic
   repeated SrcDstPath dirs = 6;
 
   // Schema provides the details of which files must be used for the models and which files/directories
@@ -382,14 +365,17 @@ message SchemaSpecRepository {
 message SchemaSpecSchema {
   // +kubebuilder:validation:MaxItems=64
   // Models defines the list of files/directories to be used as a model
+  // +listType=atomic
   repeated string models = 1;
 
   // +kubebuilder:validation:MaxItems=64
   // Excludes defines the list of files/directories to be excluded
+  // +listType=atomic
   repeated string includes = 2;
 
   // +kubebuilder:validation:MaxItems=64
   // Excludes defines the list of files/directories to be excluded
+  // +listType=atomic
   repeated string excludes = 3;
 }
 
@@ -399,6 +385,7 @@ message SchemaStatus {
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // SchemaRepositoryStatus provides the array of repositories
+  // +listType=atomic
   repeated SchemaRepositoryStatus repositories = 2;
 }
 
@@ -471,6 +458,7 @@ message SubscriptionParameters {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration interval = 6;
 
   // +kubebuilder:validation:MaxItems=128
+  // +listType=atomic
   repeated string paths = 7;
 }
 
@@ -492,6 +480,7 @@ message SubscriptionSpec {
 
   // +kubebuilder:validation:MaxItems=128
   // +kubebuilder:validation:Optional
+  // +listType=atomic
   repeated SubscriptionParameters subscriptions = 5;
 }
 
@@ -500,36 +489,13 @@ message SubscriptionStatus {
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Targets defines the list of targets this resource applies to
+  // +listType=atomic
   repeated string targets = 2;
 }
 
 message SubscriptionTarget {
   // TargetSelector defines the selector used to select the targets to which the config applies
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1;
-}
-
-// +kubebuilder:object:root=true
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="REASON",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].message"
-// +kubebuilder:printcolumn:name="PROVIDER",type="string",JSONPath=".spec.provider"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".status.discoveryInfo.version"
-// +kubebuilder:printcolumn:name="ADDRESS",type="string",JSONPath=".spec.address"
-// +kubebuilder:printcolumn:name="PLATFORM",type="string",JSONPath=".status.discoveryInfo.platform"
-// +kubebuilder:printcolumn:name="SERIALNUMBER",type="string",JSONPath=".status.discoveryInfo.serialNumber"
-// +kubebuilder:printcolumn:name="MACADDRESS",type="string",JSONPath=".status.discoveryInfo.macAddress"
-// +kubebuilder:resource:categories={sdc,inv}
-// Target is the Schema for the Target API
-// +k8s:openapi-gen=true
-message Target {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
-
-  optional TargetSpec spec = 2;
-
-  optional TargetStatus status = 3;
 }
 
 // +kubebuilder:object:root=true
@@ -619,15 +585,6 @@ message TargetConnectionProfileSpec {
   optional string targetName = 13;
 }
 
-// +kubebuilder:object:root=true
-// TargetList contains a list of Targets
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-message TargetList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
-
-  repeated Target items = 2;
-}
-
 message TargetProfile {
   // Credentials defines the name of the secret that holds the credentials to connect to the target
   optional string credentials = 1;
@@ -640,40 +597,6 @@ message TargetProfile {
 
   // SyncProfile define the profile used to sync to the target config once discovered
   optional string syncProfile = 4;
-}
-
-// TargetSpec defines the desired state of Target
-message TargetSpec {
-  // Provider specifies the provider using this target.
-  optional string provider = 1;
-
-  // Address defines the address to connect to the target
-  optional string address = 2;
-
-  // TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
-  optional TargetProfile targetProfile = 3;
-}
-
-// TargetStatus defines the observed state of Target
-message TargetStatus {
-  // ConditionedStatus provides the status of the Target using conditions
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
-
-  // Discovery info defines the information retrieved during discovery
-  optional DiscoveryInfo discoveryInfo = 2;
-
-  // UsedReferences track the resource used to reconcile the cr
-  optional TargetStatusUsedReferences usedReferences = 3;
-}
-
-message TargetStatusUsedReferences {
-  optional string secretResourceVersion = 1;
-
-  optional string tlsSecretResourceVersion = 2;
-
-  optional string connectionProfileResourceVersion = 3;
-
-  optional string syncProfileResourceVersion = 4;
 }
 
 // +kubebuilder:object:root=true
@@ -721,6 +644,7 @@ message TargetSyncProfileSpec {
   // +kubebuilder:validation:MaxItems=10
   // +kubebuilder:validation:Optional
   // +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync may only be added"
+  // +listType=atomic
   repeated TargetSyncProfileSync sync = 4;
 }
 
@@ -737,6 +661,7 @@ message TargetSyncProfileSync {
   optional uint32 port = 3;
 
   // +kubebuilder:validation:MaxItems=10
+  // +listType=atomic
   repeated string paths = 4;
 
   // +kubebuilder:validation:Enum=unknown;onChange;sample;once;get;

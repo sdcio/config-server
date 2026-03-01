@@ -26,7 +26,6 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -82,7 +81,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
-		For(&invv1alpha1.Target{}).
+		For(&configv1alpha1.Target{}).
 		Complete(r)
 }
 
@@ -107,7 +106,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
@@ -157,14 +156,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, msg *string) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target, msg *string) error {
 	log := log.FromContext(ctx)
 	newMsg := ""
 	if msg != nil {
 		newMsg = *msg
 	}
-	newCond := invv1alpha1.ConfigRecoveryReady(newMsg)
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
+	newCond := configv1alpha1.TargetConfigRecoveryReady(newMsg)
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConfigRecoveryReady)
 
 	if newCond.Equal(oldCond) {
 		log.Info("handleSuccess -> no change")
@@ -172,7 +171,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	}
 
 	log.Info("handleSuccess -> change", "condition change", true)
-	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "config recovery ready", "")
+	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "config recovery ready", "")
 
 	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(invv1alpha1apply.TargetStatus().
@@ -182,19 +181,19 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
-			Force:  ptr.To(true),
+			Force:        ptr.To(true),
 		},
 	})
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error) error {
+func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	newCond := invv1alpha1.ConfigRecoveryFailed(msg)
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
+	newCond := configv1alpha1.TargetConfigRecoveryFailed(msg)
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConfigRecoveryReady)
 
 	if newCond.Equal(oldCond) {
 		log.Info("handleError -> no change")
@@ -203,7 +202,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 
 	log.Warn(msg, "error", err)
 	log.Info("handleError -> change", "condition change", true)
-	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg, "")
+	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
 
 	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(invv1alpha1apply.TargetStatus().
@@ -213,7 +212,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
-			Force:  ptr.To(true),
+			Force:        ptr.To(true),
 		},
 	})
 }

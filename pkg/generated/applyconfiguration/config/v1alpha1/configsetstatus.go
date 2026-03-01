@@ -30,7 +30,7 @@ type ConfigSetStatusApplyConfiguration struct {
 	// if the condition is true the other attributes in the status are meaningful
 	conditionv1alpha1.ConditionedStatus `json:",inline"`
 	// Targets defines the status of the configSet resource on the respective target
-	Targets []TargetStatusApplyConfiguration `json:"targets,omitempty"`
+	Targets []ConfigSetTargetStatusApplyConfiguration `json:"targets,omitempty"`
 }
 
 // ConfigSetStatusApplyConfiguration constructs a declarative configuration of the ConfigSetStatus type for use with
@@ -52,7 +52,7 @@ func (b *ConfigSetStatusApplyConfiguration) WithConditions(values ...conditionv1
 // WithTargets adds the given value to the Targets field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Targets field.
-func (b *ConfigSetStatusApplyConfiguration) WithTargets(values ...*TargetStatusApplyConfiguration) *ConfigSetStatusApplyConfiguration {
+func (b *ConfigSetStatusApplyConfiguration) WithTargets(values ...*ConfigSetTargetStatusApplyConfiguration) *ConfigSetStatusApplyConfiguration {
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithTargets")

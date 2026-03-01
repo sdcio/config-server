@@ -206,12 +206,12 @@ func (r *RunningConfigFilter) Filter(ctx context.Context, obj runtime.Object) bo
 		return true
 	}
 	if r.Name != "" && o.GetName() != r.Name {
-        return true
-    }
-    if r.Namespace != "" && o.GetNamespace() != r.Namespace {
-        return true
-    }
-    return false
+		return true
+	}
+	if r.Namespace != "" && o.GetNamespace() != r.Namespace {
+		return true
+	}
+	return false
 }
 
 func (r *RunningConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {

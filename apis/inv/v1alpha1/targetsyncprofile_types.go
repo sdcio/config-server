@@ -111,6 +111,6 @@ func init() {
 var (
 	TargetSyncProfileKind             = reflect.TypeOf(TargetSyncProfile{}).Name()
 	TargetSyncProfileGroupKind        = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetSyncProfileKind}.String()
-	TargetSyncProfileKindAPIVersion   = TargetKind + "." + SchemeGroupVersion.String()
+	TargetSyncProfileKindAPIVersion   = TargetSyncProfileKind + "." + SchemeGroupVersion.String()
 	TargetSyncProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetSyncProfileKind)
 )

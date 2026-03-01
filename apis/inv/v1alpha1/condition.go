@@ -23,19 +23,23 @@ import (
 
 // Condition Types.
 const (
-	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
-	ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
-	// ConditionTypeDatastoreReady represents the resource datastore ready condition
-	ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
-	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
-	ConditionTypeConfigRecoveryReady condv1alpha1.ConditionType = "ConfigRecoveryReady"
-	// ConditionTypeTargetConnectionReady represents the resource target ready condition
-	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+	/*
+		// ConditionTypeDiscoveryReady represents the resource discovery ready condition
+		ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
+		// ConditionTypeDatastoreReady represents the resource datastore ready condition
+		ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
+		// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
+		ConditionTypeConfigRecoveryReady condv1alpha1.ConditionType = "ConfigRecoveryReady"
+		// ConditionTypeTargetConnectionReady represents the resource target ready condition
+		ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+	*/
 
+	// Rollout Conditions
 	ConditionTypeConfigApply   condv1alpha1.ConditionType = "ConfigApply"
 	ConditionTypeConfigConfirm condv1alpha1.ConditionType = "ConfigConfirm"
 	ConditionTypeConfigCancel  condv1alpha1.ConditionType = "ConfigCancel"
 
+	// Schema Conditions
 	ConditionTypeSchemaServerReady condv1alpha1.ConditionType = "SchemaServerReady"
 )
 
@@ -89,125 +93,7 @@ func Loading() condv1alpha1.Condition {
 	}}
 }
 
-// DatastoreReady indicates the datastire is ready
-func DatastoreReady() condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeDatastoreReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-	}}
-}
-
-// DatastoreFailed returns a condition that indicates the datastore
-// failed to get reconciled.
-func DatastoreFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeDatastoreReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// DatastoreSchemaNotReady returns a condition that indicates the schema
-// of the datastore is not ready.
-func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeDatastoreReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonSchemaNotReady),
-		Message:            msg,
-	}}
-}
-
-// ConfigRecoveryReady return a condition that indicates the config
-// get re-applied when the target became ready
-func ConfigRecoveryReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigRecoveryReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-		Message:            msg,
-	}}
-}
-
-// ConfigRecoveryFailed returns a condition that indicates the config
-// is in failed condition due to a dependency
-func ConfigRecoveryFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigRecoveryReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// ConfigRecoveryReApplyFailed returns a condition that indicates the config
-// we we reapplied to the target
-func ConfigRecoveryReApplyFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigRecoveryReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReApplyFailed),
-		Message:            msg,
-	}}
-}
-
-// DiscoveryReady return a condition that indicates the discovery
-// is ready
-func DiscoveryReady() condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeDiscoveryReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-	}}
-}
-
-// DiscoveryFailed returns a condition that indicates the discovery
-// is in failed condition
-func DiscoveryFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeDiscoveryReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// TargetConnectionReady return a condition that indicates the target connection
-// is ready
-func TargetConnectionReady() condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConnectionReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-	}}
-}
-
-// TargetConnectionFailed returns a condition that indicates the target connection
-// is in failed condition
-func TargetConnectionFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConnectionReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// TargetConnectionFailed returns a condition that indicates the target connection
-// is in failed condition
-
+// Config Rollout Conditions
 func ConfigApplyReady() condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigApply),
@@ -284,6 +170,7 @@ func ConfigCancelFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
+// Schema server conditions
 func SchemaServerReady() condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeSchemaServerReady),

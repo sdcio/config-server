@@ -20,7 +20,7 @@ package v1alpha1
 import (
 	context "context"
 
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	scheme "github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -36,34 +36,34 @@ type TargetsGetter interface {
 
 // TargetInterface has methods to work with Target resources.
 type TargetInterface interface {
-	Create(ctx context.Context, target *invv1alpha1.Target, opts v1.CreateOptions) (*invv1alpha1.Target, error)
-	Update(ctx context.Context, target *invv1alpha1.Target, opts v1.UpdateOptions) (*invv1alpha1.Target, error)
+	Create(ctx context.Context, target *configv1alpha1.Target, opts v1.CreateOptions) (*configv1alpha1.Target, error)
+	Update(ctx context.Context, target *configv1alpha1.Target, opts v1.UpdateOptions) (*configv1alpha1.Target, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, target *invv1alpha1.Target, opts v1.UpdateOptions) (*invv1alpha1.Target, error)
+	UpdateStatus(ctx context.Context, target *configv1alpha1.Target, opts v1.UpdateOptions) (*configv1alpha1.Target, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*invv1alpha1.Target, error)
-	List(ctx context.Context, opts v1.ListOptions) (*invv1alpha1.TargetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.Target, error)
+	List(ctx context.Context, opts v1.ListOptions) (*configv1alpha1.TargetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *invv1alpha1.Target, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *configv1alpha1.Target, err error)
 	TargetExpansion
 }
 
 // targets implements TargetInterface
 type targets struct {
-	*gentype.ClientWithList[*invv1alpha1.Target, *invv1alpha1.TargetList]
+	*gentype.ClientWithList[*configv1alpha1.Target, *configv1alpha1.TargetList]
 }
 
 // newTargets returns a Targets
-func newTargets(c *InvV1alpha1Client, namespace string) *targets {
+func newTargets(c *ConfigV1alpha1Client, namespace string) *targets {
 	return &targets{
-		gentype.NewClientWithList[*invv1alpha1.Target, *invv1alpha1.TargetList](
+		gentype.NewClientWithList[*configv1alpha1.Target, *configv1alpha1.TargetList](
 			"targets",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *invv1alpha1.Target { return &invv1alpha1.Target{} },
-			func() *invv1alpha1.TargetList { return &invv1alpha1.TargetList{} },
+			func() *configv1alpha1.Target { return &configv1alpha1.Target{} },
+			func() *configv1alpha1.TargetList { return &configv1alpha1.TargetList{} },
 		),
 	}
 }

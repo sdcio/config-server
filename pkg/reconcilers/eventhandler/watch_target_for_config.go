@@ -22,7 +22,6 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -59,14 +58,14 @@ func (r *TargetForConfigEventHandler) Generic(ctx context.Context, evt event.Gen
 }
 
 func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Object, queue adder) {
-	target, ok := obj.(*invv1alpha1.Target)
+	target, ok := obj.(*configv1alpha1.Target)
 	if !ok {
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Debug("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.Debug("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list all the configs of the particular target that got changed
 	opts := []client.ListOption{

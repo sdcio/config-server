@@ -24,7 +24,7 @@ rules:
 - apiGroups: ["config.sdcio.dev"]
   resources: ["deviations", "deviations/status"]
   verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
-- apiGroups: ["inv.sdcio.dev"]
+- apiGroups: ["config.sdcio.dev"]
   resources: ["targets", "targets/status"]
   verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
 - apiGroups: ["inv.sdcio.dev"]

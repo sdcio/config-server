@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
@@ -32,7 +33,7 @@ func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *inv
 	//	h.Address,
 	//	r.cfg.TargetConnectionProfiles[0].Connectionprofile.Spec.Port,
 	//)
-	di := &invv1alpha1.DiscoveryInfo{
+	di := &configv1alpha1.DiscoveryInfo{
 		Protocol: "static",
 		Provider: provider,
 		Version:  version,

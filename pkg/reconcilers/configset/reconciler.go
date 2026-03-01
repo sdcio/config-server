@@ -29,7 +29,6 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -71,7 +70,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Named(reconcilerName).
 		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
-		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
@@ -161,7 +160,7 @@ func (r *reconciler) unrollDownstreamTargets(ctx context.Context, configSet *con
 		client.MatchingLabelsSelector{Selector: selector},
 	}
 
-	targetList := &invv1alpha1.TargetList{}
+	targetList := &configv1alpha1.TargetList{}
 	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, err
 	}
@@ -186,9 +185,9 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 
 	// TODO run in parallel and/or try 1 first to see if the validation works or not
-	TargetsStatus := make([]configv1alpha1.TargetStatus, len(targets))
+	TargetsStatus := make([]configv1alpha1.ConfigSetTargetStatus, len(targets))
 	for i, target := range targets {
-		TargetsStatus[i] = configv1alpha1.TargetStatus{Name: target.Name}
+		TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{Name: target.Name}
 
 		var oldConfig *configv1alpha1.Config
 		newConfig := buildConfig(ctx, configSet, target)
@@ -249,7 +248,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			}
 
 			if oldHash == newHash {
-				TargetsStatus[i] = configv1alpha1.TargetStatus{
+				TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{
 					Name:      target.Name,
 					Condition: oldConfig.GetCondition(condv1alpha1.ConditionTypeReady),
 				}
@@ -402,10 +401,10 @@ func (r *reconciler) determineOverallStatus(_ context.Context, configSet *config
 	return sb.String()
 }
 
-func targetStatusToApply(targets []configv1alpha1.TargetStatus) []*configv1alpha1apply.TargetStatusApplyConfiguration {
-	result := make([]*configv1alpha1apply.TargetStatusApplyConfiguration, 0, len(targets))
+func targetStatusToApply(targets []configv1alpha1.ConfigSetTargetStatus) []*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration {
+	result := make([]*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration, 0, len(targets))
 	for _, t := range targets {
-		result = append(result, configv1alpha1apply.TargetStatus().
+		result = append(result, configv1alpha1apply.ConfigSetTargetStatus().
 			WithName(t.Name),
 		)
 	}

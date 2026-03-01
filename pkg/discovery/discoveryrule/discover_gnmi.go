@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/openconfig/gnmic/pkg/api/target"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
@@ -133,7 +134,7 @@ func (r *Discoverer) GetProvider() string {
 	return r.Provider
 }
 
-func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*invv1alpha1.DiscoveryInfo, error) {
+func (r *Discoverer) Discover(ctx context.Context, t *target.Target) (*configv1alpha1.DiscoveryInfo, error) {
 	var req *gnmi.GetRequest
 	var err error
 	switch r.DiscoveryParameters.GetEncoding() {
@@ -200,10 +201,10 @@ func (r *Discoverer) parseDiscoveryInformation(
 	pathMap map[string]invv1alpha1.DiscoveryPathDefinition,
 	capRsp *gnmi.CapabilityResponse,
 	getRsp *gnmi.GetResponse,
-) (*invv1alpha1.DiscoveryInfo, error) {
+) (*configv1alpha1.DiscoveryInfo, error) {
 	log := log.FromContext(ctx).With("provider", r.Provider)
 
-	di := &invv1alpha1.DiscoveryInfo{
+	di := &configv1alpha1.DiscoveryInfo{
 		Protocol:           string(invv1alpha1.Protocol_GNMI),
 		Provider:           r.Provider,
 		SupportedEncodings: make([]string, 0, len(capRsp.GetSupportedEncodings())),

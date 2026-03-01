@@ -49,6 +49,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.ConfigSetSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSetStatus"):
 		return &configv1alpha1.ConfigSetStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSetTarget"):
+		return &configv1alpha1.ConfigSetTargetApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSetTargetStatus"):
+		return &configv1alpha1.ConfigSetTargetStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSpec"):
 		return &configv1alpha1.ConfigSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigStatus"):
@@ -61,6 +65,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.DeviationSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("DeviationStatus"):
 		return &configv1alpha1.DeviationStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("DiscoveryInfo"):
+		return &configv1alpha1.DiscoveryInfoApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Lifecycle"):
 		return &configv1alpha1.LifecycleApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("RunningConfig"):
@@ -77,12 +83,14 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.SensitiveConfigStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Target"):
 		return &configv1alpha1.TargetApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("TargetSpec"):
+		return &configv1alpha1.TargetSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("TargetStatus"):
 		return &configv1alpha1.TargetStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("TargetStatusUsedReferences"):
+		return &configv1alpha1.TargetStatusUsedReferencesApplyConfiguration{}
 
 		// Group=inv.sdcio.dev, Version=v1alpha1
-	case invv1alpha1.SchemeGroupVersion.WithKind("DiscoveryInfo"):
-		return &applyconfigurationinvv1alpha1.DiscoveryInfoApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("DiscoveryParameters"):
 		return &applyconfigurationinvv1alpha1.DiscoveryParametersApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("DiscoveryPathDefinition"):
@@ -143,20 +151,12 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationinvv1alpha1.SubscriptionStatusApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("SubscriptionTarget"):
 		return &applyconfigurationinvv1alpha1.SubscriptionTargetApplyConfiguration{}
-	case invv1alpha1.SchemeGroupVersion.WithKind("Target"):
-		return &applyconfigurationinvv1alpha1.TargetApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("TargetConnectionProfile"):
 		return &applyconfigurationinvv1alpha1.TargetConnectionProfileApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("TargetConnectionProfileSpec"):
 		return &applyconfigurationinvv1alpha1.TargetConnectionProfileSpecApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("TargetProfile"):
 		return &applyconfigurationinvv1alpha1.TargetProfileApplyConfiguration{}
-	case invv1alpha1.SchemeGroupVersion.WithKind("TargetSpec"):
-		return &applyconfigurationinvv1alpha1.TargetSpecApplyConfiguration{}
-	case invv1alpha1.SchemeGroupVersion.WithKind("TargetStatus"):
-		return &applyconfigurationinvv1alpha1.TargetStatusApplyConfiguration{}
-	case invv1alpha1.SchemeGroupVersion.WithKind("TargetStatusUsedReferences"):
-		return &applyconfigurationinvv1alpha1.TargetStatusUsedReferencesApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("TargetSyncProfile"):
 		return &applyconfigurationinvv1alpha1.TargetSyncProfileApplyConfiguration{}
 	case invv1alpha1.SchemeGroupVersion.WithKind("TargetSyncProfileSpec"):

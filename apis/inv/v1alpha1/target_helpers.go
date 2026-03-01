@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"fmt"
 	strings "strings"
@@ -149,3 +150,4 @@ func BuildTarget(meta metav1.ObjectMeta, spec TargetSpec, status TargetStatus) *
 		Status:     status,
 	}
 }
+*/

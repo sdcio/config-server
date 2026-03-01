@@ -59,7 +59,7 @@ type TargetRuntime struct {
 	// desired (from reconciler)
 	desiredMu   sync.RWMutex
 	desired     *sdcpb.CreateDataStoreRequest
-	desiredRefs *invv1alpha1.TargetStatusUsedReferences
+	desiredRefs *configv1alpha1.TargetStatusUsedReferences
 	desiredHash string
 
 	// running state
@@ -104,7 +104,7 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 	}
 }
 
-func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *invv1alpha1.TargetStatusUsedReferences, hash string) {
+func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *configv1alpha1.TargetStatusUsedReferences, hash string) {
 	r.desiredMu.Lock()
 	r.desired = req
 	r.desiredRefs = refs
@@ -592,7 +592,7 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	r.lastConn = connected
 	r.statusMu.Unlock()
 
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
 		log.Error("target fetch failed", "error", err)
 		return
@@ -600,12 +600,12 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 
 	var newCond condv1alpha1.Condition
 	if connected {
-		newCond = invv1alpha1.TargetConnectionReady()
+		newCond = configv1alpha1.TargetConnectionReady()
 	} else {
-		newCond = invv1alpha1.TargetConnectionFailed(msg)
+		newCond = configv1alpha1.TargetConnectionFailed(msg)
 	}
 
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConnectionReady)
 	if newCond.Equal(oldCond) {
 		log.Info("pushConnIfChanged -> no change",
 			"connected", connected,

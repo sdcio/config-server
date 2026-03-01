@@ -44,7 +44,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 		client.MatchingLabels{invv1alpha1.LabelKeyDiscoveryRule: r.cfg.CR.GetName()},
 	}
 
-	targetList := &invv1alpha1.TargetList{}
+	targetList := &configv1alpha1.TargetList{}
 	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return err
 	}

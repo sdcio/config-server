@@ -27,6 +27,7 @@ import (
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -97,7 +98,7 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 	done := make(chan struct{})
 
 	for _, targetKey := range r.targets.UnsortedList() {
-		t := &invv1alpha1.Target{}
+		t := &configv1alpha1.Target{}
 		if err := r.client.Get(ctx, targetKey, t); err != nil {
 			// target unavailable -> we continue for now
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}

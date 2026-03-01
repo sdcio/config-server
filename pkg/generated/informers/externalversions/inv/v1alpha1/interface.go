@@ -33,8 +33,6 @@ type Interface interface {
 	Schemas() SchemaInformer
 	// Subscriptions returns a SubscriptionInformer.
 	Subscriptions() SubscriptionInformer
-	// Targets returns a TargetInformer.
-	Targets() TargetInformer
 	// TargetConnectionProfiles returns a TargetConnectionProfileInformer.
 	TargetConnectionProfiles() TargetConnectionProfileInformer
 	// TargetSyncProfiles returns a TargetSyncProfileInformer.
@@ -77,11 +75,6 @@ func (v *version) Schemas() SchemaInformer {
 // Subscriptions returns a SubscriptionInformer.
 func (v *version) Subscriptions() SubscriptionInformer {
 	return &subscriptionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// Targets returns a TargetInformer.
-func (v *version) Targets() TargetInformer {
-	return &targetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // TargetConnectionProfiles returns a TargetConnectionProfileInformer.

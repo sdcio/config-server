@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/henderiw/logger/log"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -70,7 +70,7 @@ func (r *SecretForTargetEventHandler) add(ctx context.Context, obj runtime.Objec
 	opts := []client.ListOption{
 		client.InNamespace(cr.Namespace),
 	}
-	targets := &invv1alpha1.TargetList{}
+	targets := &configv1alpha1.TargetList{}
 	if err := r.Client.List(ctx, targets, opts...); err != nil {
 		log.Error("cannot list targets", "error", err)
 		return

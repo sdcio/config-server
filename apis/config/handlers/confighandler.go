@@ -6,7 +6,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/config"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -83,7 +83,7 @@ func (r *ConfigStoreHandler) prepareConfigAndTarget(
 	ctx context.Context,
 	key types.NamespacedName,
 	obj runtime.Object,
-) (*config.Config, *invv1alpha1.Target, error) {
+) (*config.Config, *configv1alpha1.Target, error) {
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return nil, nil, err
@@ -98,7 +98,7 @@ func (r *ConfigStoreHandler) prepareConfigAndTarget(
 		return nil, nil, fmt.Errorf("expected *config.Config, got %T", obj)
 	}
 
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.Client.Get(ctx, key, target); err != nil {
 		return nil, nil, err
 	}

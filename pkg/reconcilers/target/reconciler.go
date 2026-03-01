@@ -23,7 +23,7 @@ import (
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -58,7 +58,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
-		For(&invv1alpha1.Target{}).
+		For(&configv1alpha1.Target{}).
 		Complete(r)
 }
 
@@ -73,7 +73,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
@@ -103,12 +103,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, nil
 }
 
-func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Target) (changed bool, newReady bool, err error) {
+func (r *reconciler) updateCondition(ctx context.Context, target *configv1alpha1.Target) (changed bool, newReady bool, err error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 
 	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
-	newCond := invv1alpha1.GetOverallStatus(target)
+	newCond := configv1alpha1.GetOverallStatus(target)
 
 	changed = !newCond.Equal(oldCond)
 	newReady = newCond.IsTrue()
@@ -122,9 +122,9 @@ func (r *reconciler) updateCondition(ctx context.Context, target *invv1alpha1.Ta
 
 	// Optional: emit different event types
 	if newReady {
-		r.recorder.Eventf(target, nil, corev1.EventTypeNormal, invv1alpha1.TargetKind, "ready", "")
+		r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "ready", "")
 	} else {
-		r.recorder.Eventf(target, nil, corev1.EventTypeWarning, invv1alpha1.TargetKind, "not ready", "")
+		r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, "not ready", "")
 	}
 
 	applyConfig := invv1alpha1apply.Target(target.Name, target.Namespace).

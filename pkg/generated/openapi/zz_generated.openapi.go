@@ -47,6 +47,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetList":                     schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec":                     schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus":                   schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTarget":                   schema_config_server_apis_config_v1alpha1_ConfigSetTarget(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTargetStatus":             schema_config_server_apis_config_v1alpha1_ConfigSetTargetStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                        schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                      schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema":   schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
@@ -54,6 +56,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationList":                     schema_config_server_apis_config_v1alpha1_DeviationList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec":                     schema_config_server_apis_config_v1alpha1_DeviationSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationStatus":                   schema_config_server_apis_config_v1alpha1_DeviationStatus(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.DiscoveryInfo":                     schema_config_server_apis_config_v1alpha1_DiscoveryInfo(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle":                         schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig":                     schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":                 schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
@@ -65,8 +68,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec":               schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec":                        schema_config_server_apis_config_v1alpha1_TargetSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo":                        schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences":        schema_config_server_apis_config_v1alpha1_TargetStatusUsedReferences(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryParameters":                  schema_config_server_apis_inv_v1alpha1_DiscoveryParameters(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryPathDefinition":              schema_config_server_apis_inv_v1alpha1_DiscoveryPathDefinition(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryProfile":                     schema_config_server_apis_inv_v1alpha1_DiscoveryProfile(ref),
@@ -102,15 +107,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionSpec":                     schema_config_server_apis_inv_v1alpha1_SubscriptionSpec(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionStatus":                   schema_config_server_apis_inv_v1alpha1_SubscriptionStatus(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.SubscriptionTarget":                   schema_config_server_apis_inv_v1alpha1_SubscriptionTarget(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.Target":                               schema_config_server_apis_inv_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfile":              schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileList":          schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileList(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetConnectionProfileSpec":          schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetList":                           schema_config_server_apis_inv_v1alpha1_TargetList(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetProfile":                        schema_config_server_apis_inv_v1alpha1_TargetProfile(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec":                           schema_config_server_apis_inv_v1alpha1_TargetSpec(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus":                         schema_config_server_apis_inv_v1alpha1_TargetStatus(ref),
-		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences":           schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfile":                    schema_config_server_apis_inv_v1alpha1_TargetSyncProfile(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileList":                schema_config_server_apis_inv_v1alpha1_TargetSyncProfileList(ref),
 		"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSyncProfileSpec":                schema_config_server_apis_inv_v1alpha1_TargetSyncProfileSpec(ref),
@@ -579,13 +579,6 @@ func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallba
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Config", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -630,13 +623,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigBlame(ref common.ReferenceC
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "ConfigBlame", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -884,13 +870,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCal
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "ConfigSet", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -957,7 +936,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Targets defines the targets on which this configSet applies",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.Target"),
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTarget"),
 						},
 					},
 					"lifecycle": {
@@ -1004,7 +983,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle", "github.com/sdcio/config-server/apis/config/v1alpha1.Target"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTarget", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
 	}
 }
 
@@ -1050,7 +1029,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"),
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTargetStatus"),
 									},
 								},
 							},
@@ -1060,7 +1039,94 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetStatus(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"},
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetTargetStatus"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetTarget(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"targetSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetSelector defines the selector used to select the targets to which the config applies",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.LabelSelector{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigSetTargetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "type of condition in CamelCase or in foo.example.com/CamelCase.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "status of the condition, one of True, False, Unknown.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "message is a human readable message indicating details about the transition. This may be an empty string.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "type", "status", "lastTransitionTime", "reason", "message"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
@@ -1249,13 +1315,6 @@ func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCal
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Deviation", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.DeviationStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -1388,6 +1447,87 @@ func schema_config_server_apis_config_v1alpha1_DeviationStatus(ref common.Refere
 	}
 }
 
+func schema_config_server_apis_config_v1alpha1_DiscoveryInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"protocol": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Protocol used for discovery",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hostname": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hostname associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"platform": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Platform associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"macAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MacAddress associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"serialNumber": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SerialNumber associated with the target",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"supportedEncodings": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Supported Encodings of the target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_Lifecycle(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1445,13 +1585,6 @@ func schema_config_server_apis_config_v1alpha1_RunningConfig(ref common.Referenc
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "RunningConfig", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -1580,13 +1713,6 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref common.Refere
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "SensitiveConfig", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -1790,19 +1916,155 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "Target is the Schema for the Target API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"targetSelector": {
+					"kind": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TargetSelector defines the selector used to select the targets to which the config applies",
-							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			metav1.LabelSelector{}.OpenAPIModelName()},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetList contains a list of Targets",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.Target"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.Target", metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetSpec defines the desired state of Target",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"provider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provider specifies the provider using this target.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Address defines the address to connect to the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tlsSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"connectionProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncProfile define the profile used to sync to the target config once discovered",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"provider", "address", "credentials", "connectionProfile"},
+			},
+		},
 	}
 }
 
@@ -1810,145 +2072,85 @@ func schema_config_server_apis_config_v1alpha1_TargetStatus(ref common.Reference
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
+				Description: "TargetStatus defines the observed state of Target",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions of the resource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"discoveryInfo": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Discovery info defines the information retrieved during discovery",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.DiscoveryInfo"),
+						},
+					},
+					"usedReferences": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UsedReferences track the resource used to reconcile the cr",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.DiscoveryInfo", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences"},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetStatusUsedReferences(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
+					"secretResourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"tlsSecretResourceVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"connectionProfileResourceVersion": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
 							Format:  "",
 						},
 					},
-					"type": {
+					"syncProfileResourceVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "type of condition in CamelCase or in foo.example.com/CamelCase.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "status of the condition, one of True, False, Unknown.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"observedGeneration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"lastTransitionTime": {
-						SchemaProps: spec.SchemaProps{
-							Description: "lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.",
-							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
-						},
-					},
-					"reason": {
-						SchemaProps: spec.SchemaProps{
-							Description: "reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"message": {
-						SchemaProps: spec.SchemaProps{
-							Description: "message is a human readable message indicating details about the transition. This may be an empty string.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},
-				Required: []string{"name", "type", "status", "lastTransitionTime", "reason", "message"},
-			},
-		},
-		Dependencies: []string{
-			metav1.Time{}.OpenAPIModelName()},
-	}
-}
-
-func schema_config_server_apis_inv_v1alpha1_DiscoveryInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"protocol": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Protocol used for discovery",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"provider": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"version": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Version associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"hostname": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Hostname associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"platform": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Platform associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"macAddress": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MacAddress associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"serialNumber": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SerialNumber associated with the target",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"supportedEncodings": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Supported Encodings of the target",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-				},
+				Required: []string{"connectionProfileResourceVersion", "syncProfileResourceVersion"},
 			},
 		},
 	}
@@ -3712,53 +3914,6 @@ func schema_config_server_apis_inv_v1alpha1_SubscriptionTarget(ref common.Refere
 	}
 }
 
-func schema_config_server_apis_inv_v1alpha1_Target(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Target is the Schema for the Target API",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/inv/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
-	}
-}
-
 func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3945,55 +4100,6 @@ func schema_config_server_apis_inv_v1alpha1_TargetConnectionProfileSpec(ref comm
 	}
 }
 
-func schema_config_server_apis_inv_v1alpha1_TargetList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "TargetList contains a list of Targets",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
-						},
-					},
-					"items": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/inv/v1alpha1.Target"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"items"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/inv/v1alpha1.Target", metav1.ListMeta{}.OpenAPIModelName()},
-	}
-}
-
 func schema_config_server_apis_inv_v1alpha1_TargetProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4032,154 +4138,6 @@ func schema_config_server_apis_inv_v1alpha1_TargetProfile(ref common.ReferenceCa
 					},
 				},
 				Required: []string{"credentials", "connectionProfile"},
-			},
-		},
-	}
-}
-
-func schema_config_server_apis_inv_v1alpha1_TargetSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "TargetSpec defines the desired state of Target",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"provider": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Provider specifies the provider using this target.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"address": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Address defines the address to connect to the target",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"credentials": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Credentials defines the name of the secret that holds the credentials to connect to the target",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tlsSecret": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TLSSecret defines the name of the TLS secret to connect to the target if mtls is used",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"connectionProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConnectionProfile define the profile used to connect to the target once discovered",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"syncProfile": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SyncProfile define the profile used to sync to the target config once discovered",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"provider", "address", "credentials", "connectionProfile"},
-			},
-		},
-	}
-}
-
-func schema_config_server_apis_inv_v1alpha1_TargetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "TargetStatus defines the observed state of Target",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"conditions": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"type",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Conditions of the resource.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
-									},
-								},
-							},
-						},
-					},
-					"discoveryInfo": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Discovery info defines the information retrieved during discovery",
-							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo"),
-						},
-					},
-					"usedReferences": {
-						SchemaProps: spec.SchemaProps{
-							Description: "UsedReferences track the resource used to reconcile the cr",
-							Ref:         ref("github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/inv/v1alpha1.DiscoveryInfo", "github.com/sdcio/config-server/apis/inv/v1alpha1.TargetStatusUsedReferences"},
-	}
-}
-
-func schema_config_server_apis_inv_v1alpha1_TargetStatusUsedReferences(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"secretResourceVersion": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"tlsSecretResourceVersion": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"connectionProfileResourceVersion": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"syncProfileResourceVersion": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"connectionProfileResourceVersion", "syncProfileResourceVersion"},
 			},
 		},
 	}

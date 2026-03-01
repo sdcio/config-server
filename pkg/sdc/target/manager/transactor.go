@@ -30,7 +30,6 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -62,7 +61,7 @@ func NewTransactor(client client.Client, fieldManager string) *Transactor {
 	}
 }
 
-func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
+func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
 	log := log.FromContext(ctx)
 	log.Debug("RecoverConfigs")
 	configList, err := r.ListConfigsPerTarget(ctx, target)
@@ -177,8 +176,8 @@ func (r *Transactor) TransactionSet(
 }
 
 func (r *Transactor) Transact(
-	ctx context.Context, 
-	target *invv1alpha1.Target, 
+	ctx context.Context,
+	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
 	targetCond condv1alpha1.Condition,
 ) (bool, error) {
@@ -415,7 +414,6 @@ func (r *Transactor) updateConfigWithSuccess(
 	cfg.SetOverallStatus()
 	overallCond := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 
-
 	// check against OLD state
 	if configCond.Equal(oldConfigCond) &&
 		targetCond.Equal(oldTargetCond) &&
@@ -439,7 +437,7 @@ func (r *Transactor) updateConfigWithSuccess(
 	})
 }
 
-func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
+func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
 	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
 
 	opts := []client.ListOption{
@@ -731,7 +729,7 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 
 func (r *Transactor) SetConfigsTargetConditionForTarget(
 	ctx context.Context,
-	target *invv1alpha1.Target,
+	target *configv1alpha1.Target,
 	targetCond condv1alpha1.Condition,
 ) error {
 	//log := log.FromContext(ctx)

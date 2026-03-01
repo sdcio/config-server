@@ -23,12 +23,15 @@ import (
 
 // TargetStatusApplyConfiguration represents a declarative configuration of the TargetStatus type for use
 // with apply.
+//
+// TargetStatus defines the observed state of Target
 type TargetStatusApplyConfiguration struct {
-	Name *string `json:"name,omitempty"`
-	// right now we assume the namespace of the config and target are aligned
-	// NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
-	// Condition of the configCR status
-	conditionv1alpha1.Condition `json:",inline"`
+	// ConditionedStatus provides the status of the Target using conditions
+	conditionv1alpha1.ConditionedStatus `json:",inline"`
+	// Discovery info defines the information retrieved during discovery
+	DiscoveryInfo *DiscoveryInfoApplyConfiguration `json:"discoveryInfo,omitempty"`
+	// UsedReferences track the resource used to reconcile the cr
+	UsedReferences *TargetStatusUsedReferencesApplyConfiguration `json:"usedReferences,omitempty"`
 }
 
 // TargetStatusApplyConfiguration constructs a declarative configuration of the TargetStatus type for use with
@@ -37,10 +40,28 @@ func TargetStatus() *TargetStatusApplyConfiguration {
 	return &TargetStatusApplyConfiguration{}
 }
 
-// WithName sets the Name field in the declarative configuration to the given value
+// WithConditions adds the given value to the Conditions field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the Conditions field.
+func (b *TargetStatusApplyConfiguration) WithConditions(values ...conditionv1alpha1.Condition) *TargetStatusApplyConfiguration {
+	for i := range values {
+		b.ConditionedStatus.Conditions = append(b.ConditionedStatus.Conditions, values[i])
+	}
+	return b
+}
+
+// WithDiscoveryInfo sets the DiscoveryInfo field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Name field is set to the value of the last call.
-func (b *TargetStatusApplyConfiguration) WithName(value string) *TargetStatusApplyConfiguration {
-	b.Name = &value
+// If called multiple times, the DiscoveryInfo field is set to the value of the last call.
+func (b *TargetStatusApplyConfiguration) WithDiscoveryInfo(value *DiscoveryInfoApplyConfiguration) *TargetStatusApplyConfiguration {
+	b.DiscoveryInfo = value
+	return b
+}
+
+// WithUsedReferences sets the UsedReferences field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the UsedReferences field is set to the value of the last call.
+func (b *TargetStatusApplyConfiguration) WithUsedReferences(value *TargetStatusUsedReferencesApplyConfiguration) *TargetStatusApplyConfiguration {
+	b.UsedReferences = value
 	return b
 }

@@ -275,7 +275,7 @@ func (r *Config) DeepObjectCopy() client.Object {
 
 func (r *Config) SetOverallStatus() {
 	cfgC := r.GetCondition(ConditionTypeConfigReady)
-	tgtC := r.GetCondition(ConditionTypeTargetReady)
+	tgtC := r.GetCondition(ConditionTypeTargetForConfigReady)
 
 	ready := cfgC.IsTrue() && tgtC.IsTrue()
 
@@ -309,7 +309,7 @@ func (r *Config) SetOverallStatus() {
 
 func GetOverallCondition(r *Config) condv1alpha1.Condition {
 	cfgC := r.GetCondition(ConditionTypeConfigReady)
-	tgtC := r.GetCondition(ConditionTypeTargetReady)
+	tgtC := r.GetCondition(ConditionTypeTargetForConfigReady)
 
 	ready := cfgC.IsTrue() && tgtC.IsTrue()
 

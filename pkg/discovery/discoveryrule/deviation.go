@@ -22,7 +22,6 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,7 +29,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func (r *dr) applyTargetDeviationCR(ctx context.Context, target *invv1alpha1.Target) error {
+func (r *dr) applyTargetDeviationCR(ctx context.Context, target *configv1alpha1.Target) error {
 	newUnManagedConfigCR, err := r.newDeviationCR(ctx, target)
 	if err != nil {
 		return err
@@ -54,7 +53,7 @@ func (r *dr) applyTargetDeviationCR(ctx context.Context, target *invv1alpha1.Tar
 	return nil
 }
 
-func (r *dr) newDeviationCR(_ context.Context, target *invv1alpha1.Target) (*configv1alpha1.Deviation, error) {
+func (r *dr) newDeviationCR(_ context.Context, target *configv1alpha1.Target) (*configv1alpha1.Deviation, error) {
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
 		return nil, err

@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"reflect"
 
@@ -107,7 +108,7 @@ type TargetList struct {
 }
 
 func init() {
-	localSchemeBuilder.Register(&Target{}, &TargetList{})
+	//localSchemeBuilder.Register(&Target{}, &TargetList{})
 }
 
 var (
@@ -116,3 +117,4 @@ var (
 	TargetKindAPIVersion   = TargetKind + "." + SchemeGroupVersion.String()
 	TargetGroupVersionKind = SchemeGroupVersion.WithKind(TargetKind)
 )
+*/

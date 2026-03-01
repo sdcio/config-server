@@ -71,7 +71,7 @@ func (m *TargetManager) ApplyDesired(
 	ctx context.Context,
 	key storebackend.Key,
 	req *sdcpb.CreateDataStoreRequest,
-	refs *invv1alpha1.TargetStatusUsedReferences,
+	refs *configv1alpha1.TargetStatusUsedReferences,
 	hash string,
 ) {
 	rt := m.GetOrCreate(key)
@@ -167,7 +167,7 @@ func (m *TargetManager) GetRuntimeForTarget(_ context.Context, key storebackend.
 	return m.targets[key]
 }
 
-func ComputeCreateDSHash(req *sdcpb.CreateDataStoreRequest, refs *invv1alpha1.TargetStatusUsedReferences) string {
+func ComputeCreateDSHash(req *sdcpb.CreateDataStoreRequest, refs *configv1alpha1.TargetStatusUsedReferences) string {
 	h := sha256.New()
 
 	// hash the request deterministically
@@ -264,7 +264,7 @@ func (r *TargetManager) getDownstreamTargets(ctx context.Context, sub *invv1alph
 		client.MatchingLabelsSelector{Selector: selector},
 	}
 
-	targetList := &invv1alpha1.TargetList{}
+	targetList := &configv1alpha1.TargetList{}
 	if err := r.k8s.List(ctx, targetList, opts...); err != nil {
 		return nil, err
 	}

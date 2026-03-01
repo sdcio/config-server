@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -68,7 +69,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		For(&invv1alpha1.Subscription{}).
-		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForSubscriptionEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Target{}, &eventhandler.TargetForSubscriptionEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 

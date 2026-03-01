@@ -15,6 +15,6 @@ rules:
 - apiGroups: ["flowcontrol.apiserver.k8s.io"]
   resources: ["flowschemas", "prioritylevelconfigurations"]
   verbs: ["get", "watch", "list"]
-- apiGroups: ["inv.sdcio.dev"]
+- apiGroups: ["config.sdcio.dev"]
   resources: ["targets", "targets/status"]
   verbs: ["get", "watch", "list"]

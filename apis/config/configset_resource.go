@@ -259,12 +259,12 @@ func (r *ConfigSetFilter) Filter(ctx context.Context, obj runtime.Object) bool {
 		return true
 	}
 	if r.Name != "" && o.GetName() != r.Name {
-        return true
-    }
-    if r.Namespace != "" && o.GetNamespace() != r.Namespace {
-        return true
-    }
-    return false
+		return true
+	}
+	if r.Namespace != "" && o.GetNamespace() != r.Namespace {
+		return true
+	}
+	return false
 }
 
 func (r *ConfigSet) PrepareForCreate(ctx context.Context, obj runtime.Object) {

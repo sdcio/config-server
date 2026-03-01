@@ -25,6 +25,7 @@ import (
 	"github.com/henderiw/logger/log"
 
 	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -40,7 +41,7 @@ const (
 	reconcilerName = "DiscoveryController"
 )
 
-func (r *dr) createTarget(ctx context.Context, provider, address string, di *invv1alpha1.DiscoveryInfo) error {
+func (r *dr) createTarget(ctx context.Context, provider, address string, di *configv1alpha1.DiscoveryInfo) error {
 	log := log.FromContext(ctx)
 	if err := r.children.Create(ctx, storebackend.ToKey(getTargetName(di.Hostname)), ""); err != nil {
 		return err
@@ -62,7 +63,7 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	}
 
 	targetKey := newTarget.GetNamespacedName()
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, targetKey, target); err != nil {
 		log.Info("cannot get target", "error", err)
 		return err
@@ -75,8 +76,8 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *inv
 	return nil
 }
 
-func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv1alpha1.DiscoveryInfo) (*invv1alpha1.Target, error) {
-	targetSpec := invv1alpha1.TargetSpec{
+func (r *dr) newTarget(_ context.Context, providerName, address string, di *configv1alpha1.DiscoveryInfo) (*configv1alpha1.Target, error) {
+	targetSpec := configv1alpha1.TargetSpec{
 		Provider: providerName,
 		Address:  address,
 		TargetProfile: invv1alpha1.TargetProfile{
@@ -95,7 +96,7 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 		return nil, err
 	}
 
-	return invv1alpha1.BuildTarget(
+	return configv1alpha1.BuildTarget(
 		metav1.ObjectMeta{
 			Name:        getTargetName(di.Hostname),
 			Namespace:   r.cfg.CR.GetNamespace(),
@@ -114,7 +115,7 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 				}},
 		},
 		targetSpec,
-		invv1alpha1.TargetStatus{
+		configv1alpha1.TargetStatus{
 			DiscoveryInfo: di,
 		},
 	), nil
@@ -122,12 +123,12 @@ func (r *dr) newTarget(_ context.Context, providerName, address string, di *invv
 
 // w/o seperated discovery info
 
-func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) error {
+func (r *dr) applyTarget(ctx context.Context, newTarget *configv1alpha1.Target) error {
 	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
 	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address)
 
 	// Check if the target already exists
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: newTarget.Namespace,
 		Name:      newTarget.Name,
@@ -145,8 +146,8 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	newCond := invv1alpha1.DiscoveryReady()
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady)
+	newCond := configv1alpha1.TargetDiscoveryReady()
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady)
 
 	if newCond.Equal(oldCond) &&
 		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
@@ -182,7 +183,7 @@ func (r *dr) applyTarget(ctx context.Context, newTarget *invv1alpha1.Target) err
 	return nil
 }
 
-func discoveryInfoToApply(di *invv1alpha1.DiscoveryInfo) *invv1alpha1apply.DiscoveryInfoApplyConfiguration {
+func discoveryInfoToApply(di *configv1alpha1.DiscoveryInfo) *invv1alpha1apply.DiscoveryInfoApplyConfiguration {
 	if di == nil {
 		return nil
 	}

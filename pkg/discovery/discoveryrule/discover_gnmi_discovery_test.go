@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/gnmi/proto/gnmi"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 )
 
 func TestParseDiscoveryInformation(t *testing.T) {
@@ -30,14 +30,14 @@ func TestParseDiscoveryInformation(t *testing.T) {
 		capabilityFile string
 		provider       string
 		getResponse    func() *gnmi.GetResponse
-		expectedResult *invv1alpha1.DiscoveryInfo
+		expectedResult *configv1alpha1.DiscoveryInfo
 		expectError    bool
 	}{
 		"NokiaSRL": {
 			capabilityFile: "data/nokia-srl-capabilities.json",
 			provider:       "srl.nokia.sdcio.dev",
 			getResponse:    getSRLResponse,
-			expectedResult: &invv1alpha1.DiscoveryInfo{
+			expectedResult: &configv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "srl.nokia.sdcio.dev",
 				Version:            "24.3.2",
@@ -52,7 +52,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 			capabilityFile: "data/arista-capabilities.json",
 			provider:       "eos.arista.sdcio.dev",
 			getResponse:    getAristaResponse,
-			expectedResult: &invv1alpha1.DiscoveryInfo{
+			expectedResult: &configv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "eos.arista.sdcio.dev",
 				Version:            "4.33.1F",
@@ -67,7 +67,7 @@ func TestParseDiscoveryInformation(t *testing.T) {
 			capabilityFile: "data/cisco-capabilities.json",
 			provider:       "iosxr.cisco.sdcio.dev",
 			getResponse:    getCiscoResponse,
-			expectedResult: &invv1alpha1.DiscoveryInfo{
+			expectedResult: &configv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "iosxr.cisco.sdcio.dev",
 				Version:            "24.4.1.26I",

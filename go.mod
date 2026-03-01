@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/go-git/go-git/v5 v5.16.5
-	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.6
@@ -94,6 +93,7 @@ require (
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
