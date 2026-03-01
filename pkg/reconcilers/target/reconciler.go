@@ -41,9 +41,10 @@ func init() {
 }
 
 const (
-	crName         = "target"
-	reconcilerName = "TargetController"
-	finalizer      = "target.inv.sdcio.dev/finalizer"
+	crName                = "target"
+	fieldmanagerfinalizer = "TargetControllerFinalizer"
+	reconcilerName        = "TargetController"
+	finalizer             = "target.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -53,7 +54,7 @@ const (
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).

@@ -54,6 +54,7 @@ func init() {
 
 const (
 	crName         = "schema"
+	fieldmanagerfinalizer = "SchemaControllerFinalizer"
 	reconcilerName = "SchemaController"
 	finalizer      = "schema.inv.sdcio.dev/finalizer"
 	// errors
@@ -70,7 +71,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
 	r.schemaLoader, err = schemaloader.NewLoader(

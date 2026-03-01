@@ -45,7 +45,7 @@ func init() {
 
 const (
 	crName                = "targetconfig"
-	fieldmanagerfinalizer = "targetconfigfinalizer"
+	fieldmanagerfinalizer = "TargetConfigControllerFinalizer"
 	reconcilerName        = "TargetConfigController"
 	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
@@ -71,7 +71,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.transactor = targetmanager.NewTransactor(r.client, "transactor")

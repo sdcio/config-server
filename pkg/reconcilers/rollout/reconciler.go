@@ -56,6 +56,7 @@ func init() {
 
 const (
 	crName         = "rollout"
+	fieldmanagerfinalizer = "RolloutControllerFinalizer"
 	reconcilerName = "RolloutController"
 	finalizer      = "rollout.inv.sdcio.dev/finalizer"
 	// errors
@@ -72,7 +73,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	// initializes the directory
 	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,

@@ -48,9 +48,10 @@ func init() {
 }
 
 const (
-	crName         = "workspace"
-	reconcilerName = "WorkspaceController"
-	finalizer      = "workspace.inv.sdcio.dev/finalizer"
+	crName                = "workspace"
+	fieldmanagerfinalizer = "WorkspaceControllerFinalizer"
+	reconcilerName        = "WorkspaceController"
+	finalizer             = "workspace.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -66,7 +67,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	// initializes the directory
 	r.workspaceLoader, err = workspaceloader.NewLoader(
 		cfg.WorkspaceDir,

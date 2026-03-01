@@ -45,9 +45,10 @@ func init() {
 }
 
 const (
-	crName         = "subscription"
-	reconcilerName = "SubscriptionController"
-	finalizer      = "subscription.inv.sdcio.dev/finalizer"
+	crName                = "subscription"
+	fieldmanagerfinalizer = "SubscriptionControllerFinalizer"
+	reconcilerName        = "SubscriptionController"
+	finalizer             = "subscription.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -62,7 +63,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
