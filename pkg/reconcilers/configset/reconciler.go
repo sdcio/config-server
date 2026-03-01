@@ -52,7 +52,7 @@ func init() {
 
 const (
 	crName                = "configset"
-	fieldmanagerfinalizer = "ConfigSetControllerFinalizer"
+	fieldmanagerfinalizer = "ConfigSetController-finalizer"
 	reconcilerName        = "ConfigSetController"
 	finalizer             = "configset.config.sdcio.dev/finalizer"
 	// errors

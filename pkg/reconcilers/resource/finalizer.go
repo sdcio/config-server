@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 
+	"github.com/henderiw/logger/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,6 +54,7 @@ func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) erro
 	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
+	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "finalizer", r.finalizer)
 	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace(), r.finalizer)
 	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
 		FieldManager: r.fieldManager,

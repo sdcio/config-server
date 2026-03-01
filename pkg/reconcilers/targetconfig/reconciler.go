@@ -47,7 +47,7 @@ func init() {
 
 const (
 	crName                = "targetconfig"
-	fieldmanagerfinalizer = "TargetDataStoreController-finalizer"
+	fieldmanagerfinalizer = "TargetConfigController-finalizer"
 	reconcilerName        = "TargetConfigController"
 	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
@@ -261,7 +261,10 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 	log := log.FromContext(ctx)
 
 	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+		msg = fmt.Sprintf("%q err %q", msg, err.Error())
+	}
+	if len(msg) > 128 {
+		msg = msg[:128]
 	}
 
 	log.Warn("config transaction failed", "msg", msg, "err", err)

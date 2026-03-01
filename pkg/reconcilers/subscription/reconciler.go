@@ -47,7 +47,7 @@ func init() {
 
 const (
 	crName                = "subscription"
-	fieldmanagerfinalizer = "SubscriptionControllerFinalizer"
+	fieldmanagerfinalizer = "SubscriptionController-finalizer"
 	reconcilerName        = "SubscriptionController"
 	finalizer             = "subscription.inv.sdcio.dev/finalizer"
 	// errors

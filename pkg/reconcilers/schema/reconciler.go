@@ -55,7 +55,7 @@ func init() {
 
 const (
 	crName                = "schema"
-	fieldmanagerfinalizer = "SchemaControllerFinalizer"
+	fieldmanagerfinalizer = "SchemaController-finalizer"
 	reconcilerName        = "SchemaController"
 	finalizer             = "schema.inv.sdcio.dev/finalizer"
 	// errors

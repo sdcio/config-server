@@ -43,7 +43,7 @@ func init() {
 
 const (
 	crName                = "target"
-	fieldmanagerfinalizer = "TargetControllerFinalizer"
+	fieldmanagerfinalizer = "TargetController-finalizer"
 	reconcilerName        = "TargetController"
 	finalizer             = "target.inv.sdcio.dev/finalizer"
 	// errors

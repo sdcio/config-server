@@ -53,7 +53,7 @@ func init() {
 
 const (
 	crName                = "targetdatastore"
-	fieldmanagerfinalizer = "TargetDataStoreControllerFinalizer"
+	fieldmanagerfinalizer = "TargetDataStoreController-finalizer"
 	reconcilerName        = "TargetDataStoreController"
 	finalizer             = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
@@ -261,8 +261,8 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 	if err != nil {
 		msg = fmt.Sprintf("%q err %q", msg, err.Error())
 	}
-	if len(msg) > 256 {
-		msg = msg[:256]
+	if len(msg) > 128 {
+		msg = msg[:128]
 	}
 
 	newCond := configv1alpha1.TargetDatastoreFailed(msg)
