@@ -174,16 +174,18 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 	}
 
 	// Send bookmark event to signal initial list is complete
-	bookmarkObj := r.obj.New()
-	accessor, _ := meta.Accessor(bookmarkObj)
-	// Set resourceVersion so the client knows where it is
-	if accessor.GetResourceVersion() == "" {
-		accessor.SetResourceVersion("0")
-	}
-	r.sendWatchEvent(ctx, watch.Event{
-		Type:   watch.Bookmark,
-		Object: bookmarkObj,
-	})
+	/*
+		bookmarkObj := r.obj.New()
+		accessor, _ := meta.Accessor(bookmarkObj)
+		// Set resourceVersion so the client knows where it is
+		if accessor.GetResourceVersion() == "" {
+			accessor.SetResourceVersion("0")
+		}
+		r.sendWatchEvent(ctx, watch.Event{
+			Type:   watch.Bookmark,
+			Object: bookmarkObj,
+		})
+	*/
 
 	log.Debug("moving into streaming mode")
 	r.eventCallback = func(eventType watch.EventType, obj runtime.Object) bool {

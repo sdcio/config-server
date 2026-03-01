@@ -246,7 +246,10 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 	log := log.FromContext(ctx)
 
 	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+		msg = fmt.Sprintf("%q err %q", msg, err.Error())
+	}
+	if len(msg) > 256 {
+		msg = msg[:256]
 	}
 
 	newCond := configv1alpha1.TargetDatastoreFailed(msg)
