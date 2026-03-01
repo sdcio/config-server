@@ -19,26 +19,25 @@ package discoveryrule
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 
-	//condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	reconcilerName = "DiscoveryController"
+	specFieldManager   = "DiscoveryRuleController-spec"
+	statusFieldManager = "DiscoveryRuleController-status"
 )
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *configv1alpha1.DiscoveryInfo) error {
@@ -47,25 +46,19 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *con
 		return err
 	}
 
-	newTarget, err := r.newTarget(
-		ctx,
-		provider,
-		address,
-		di,
-	)
-	if err != nil {
-		return err
+	targetKey := types.NamespacedName{
+		Namespace: r.cfg.CR.GetNamespace(),
+		Name:      getTargetName(di.Hostname),
 	}
 
-	if err := r.applyTarget(ctx, newTarget); err != nil {
+	if err := r.applyTargetSpec(ctx, targetKey, provider, address); err != nil {
 		log.Info("dynamic target creation failed", "error", err)
 		return err
 	}
 
-	targetKey := newTarget.GetNamespacedName()
-	target := &configv1alpha1.Target{}
-	if err := r.client.Get(ctx, targetKey, target); err != nil {
-		log.Info("cannot get target", "error", err)
+	target, err := r.applyTargetStatus(ctx, targetKey, di)
+	if err != nil {
+		log.Info("dynamic target status apply failed", "error", err)
 		return err
 	}
 
@@ -76,112 +69,96 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *con
 	return nil
 }
 
-func (r *dr) newTarget(_ context.Context, providerName, address string, di *configv1alpha1.DiscoveryInfo) (*configv1alpha1.Target, error) {
-	targetSpec := configv1alpha1.TargetSpec{
-		Provider: providerName,
-		Address:  address,
-		TargetProfile: invv1alpha1.TargetProfile{
-			Credentials: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].Credentials,
-			// TODO TLSSecret:
-			ConnectionProfile: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].ConnectionProfile,
-			SyncProfile:       r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile,
-		},
-	}
+func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName, provider, address string) error {
+	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
+	log := log.FromContext(ctx).With("target", targetKey)
+
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	anno, err := r.cfg.CR.GetDiscoveryParameters().GetTargetAnnotations(r.cfg.CR.GetName())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return configv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Name:        getTargetName(di.Hostname),
-			Namespace:   r.cfg.CR.GetNamespace(),
-			Labels:      labels,
-			Annotations: anno,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: schema.GroupVersion{
-						Group:   r.cfg.CR.GetObjectKind().GroupVersionKind().Group,
-						Version: r.cfg.CR.GetObjectKind().GroupVersionKind().Version,
-					}.String(),
-					Kind:       r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
-					Name:       r.cfg.CR.GetName(),
-					UID:        r.cfg.CR.GetUID(),
-					Controller: ptr.To[bool](true),
-				}},
-		},
-		targetSpec,
-		configv1alpha1.TargetStatus{
-			DiscoveryInfo: di,
-		},
-	), nil
+	applyConfig := configv1alpha1apply.Target(targetKey.Name, targetKey.Namespace).
+		WithLabels(labels).
+		WithAnnotations(anno).
+		WithOwnerReferences(ownerRefsToApply([]metav1.OwnerReference{
+			{
+				APIVersion: schema.GroupVersion{
+					Group:   r.cfg.CR.GetObjectKind().GroupVersionKind().Group,
+					Version: r.cfg.CR.GetObjectKind().GroupVersionKind().Version,
+				}.String(),
+				Kind:       r.cfg.CR.GetObjectKind().GroupVersionKind().Kind,
+				Name:       r.cfg.CR.GetName(),
+				UID:        r.cfg.CR.GetUID(),
+				Controller: ptr.To[bool](true),
+			}})...).
+		WithSpec(specToApply(&configv1alpha1.TargetSpec{
+			Provider: provider,
+			Address:  address,
+			TargetProfile: invv1alpha1.TargetProfile{
+				Credentials: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].Credentials,
+				// TODO TLSSecret:
+				ConnectionProfile: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].ConnectionProfile,
+				SyncProfile:       r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile,
+			},
+		}))
+
+	if err := r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+		FieldManager: specFieldManager,
+	}); err != nil {
+		log.Error("failed to apply target spec", "err", err)
+		return err
+	}
+	return nil
 }
 
-// w/o seperated discovery info
+// applyTargetStatus applies status (condition + discoveryInfo) via SSA on the status subresource
+func (r *dr) applyTargetStatus(ctx context.Context, targetKey types.NamespacedName, di *configv1alpha1.DiscoveryInfo) (*configv1alpha1.Target, error) {
+	log := log.FromContext(ctx).With("targetKey", targetKey)
 
-func (r *dr) applyTarget(ctx context.Context, newTarget *configv1alpha1.Target) error {
-	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("targetName", newTarget.Name, "address", newTarget.Spec.Address)
-
-	// Check if the target already exists
+	// Check current state to avoid unnecessary updates
 	target := &configv1alpha1.Target{}
-	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: newTarget.Namespace,
-		Name:      newTarget.Name,
-	}, target); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return err
-		}
-		log.Info("discovery target apply, target does not exist -> create")
-
-		target := newTarget.DeepCopy()
-
-		if err := r.client.Create(ctx, target, &client.CreateOptions{FieldManager: reconcilerName}); err != nil {
-			return err
-		}
-		time.Sleep(500 * time.Millisecond)
+	if err := r.client.Get(ctx, targetKey, target); err != nil {
+		return nil, err
 	}
 
 	newCond := configv1alpha1.TargetDiscoveryReady()
 	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady)
 
 	if newCond.Equal(oldCond) &&
-		equality.Semantic.DeepEqual(newTarget.Spec, target.Spec) &&
-		equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo) {
-		log.Info("handleSuccess -> no change")
-		return nil
+		equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo) {
+		log.Info("applyTargetStatus -> no change")
+		return target, nil
 	}
 
-	log.Info("handleSuccess",
+	log.Info("applyTargetStatus",
 		"condition change", !newCond.Equal(oldCond),
-		"spec change", !equality.Semantic.DeepEqual(newTarget.Spec, target.Spec),
-		"discovery info change", !equality.Semantic.DeepEqual(newTarget.Status.DiscoveryInfo, target.Status.DiscoveryInfo),
+		"discovery info change", !equality.Semantic.DeepEqual(di, target.Status.DiscoveryInfo),
 	)
 
 	statusApply := configv1alpha1apply.TargetStatus().
 		WithConditions(newCond)
 
-	if newTarget.Status.DiscoveryInfo != nil {
-		statusApply = statusApply.WithDiscoveryInfo(discoveryInfoToApply(newTarget.Status.DiscoveryInfo))
+	if di != nil {
+		statusApply = statusApply.WithDiscoveryInfo(discoveryInfoToApply(di))
 	}
 
-	applyConfig := configv1alpha1apply.Target(newTarget.Name, newTarget.Namespace).
+	applyConfig := configv1alpha1apply.Target(targetKey.Name, targetKey.Namespace).
 		WithStatus(statusApply)
 
 	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
-			FieldManager: reconcilerName,
-			Force: ptr.To(true),
+			FieldManager: statusFieldManager,
 		},
 	}); err != nil {
-		log.Error("failed to patch target status", "err", err)
-		return err
+		log.Error("failed to apply target status", "err", err)
+		return nil, err
 	}
-	return nil
+	return target, nil
 }
 
 func discoveryInfoToApply(di *configv1alpha1.DiscoveryInfo) *configv1alpha1apply.DiscoveryInfoApplyConfiguration {
@@ -216,4 +193,35 @@ func discoveryInfoToApply(di *configv1alpha1.DiscoveryInfo) *configv1alpha1apply
 func getTargetName(s string) string {
 	targetName := strings.ReplaceAll(s, ":", "-")
 	return strings.ToLower(targetName)
+}
+
+func specToApply(spec *configv1alpha1.TargetSpec) *configv1alpha1apply.TargetSpecApplyConfiguration {
+	a := configv1alpha1apply.TargetSpec().
+		WithProvider(spec.Provider).
+		WithAddress(spec.Address).
+		WithCredentials(spec.Credentials).
+		WithConnectionProfile(spec.ConnectionProfile)
+	if spec.SyncProfile != nil {
+		a.WithSyncProfile(*spec.SyncProfile)
+	}
+	if spec.TLSSecret != nil {
+		a.WithTLSSecret(*spec.TLSSecret)
+	}
+	return a
+}
+
+func ownerRefsToApply(refs []metav1.OwnerReference) []*v1.OwnerReferenceApplyConfiguration {
+	result := make([]*v1.OwnerReferenceApplyConfiguration, 0, len(refs))
+	for _, ref := range refs {
+		r := v1.OwnerReference().
+			WithAPIVersion(ref.APIVersion).
+			WithKind(ref.Kind).
+			WithName(ref.Name).
+			WithUID(ref.UID)
+		if ref.Controller != nil {
+			r.WithController(*ref.Controller)
+		}
+		result = append(result, r)
+	}
+	return result
 }

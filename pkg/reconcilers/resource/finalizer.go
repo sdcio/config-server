@@ -64,11 +64,10 @@ func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) erro
 }
 
 func (r *APIFinalizer) Update(ctx context.Context, obj client.Object, patch client.Patch) error {
-	return r.client.Patch(ctx, obj, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.reconcilerName,
-		},
-	})
+	return r.client.Patch(ctx, obj, patch, &client.PatchOptions{
+		FieldManager: r.reconcilerName,
+	},
+	)
 }
 
 func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) error {
