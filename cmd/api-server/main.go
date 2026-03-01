@@ -139,6 +139,7 @@ func main() {
 	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
+	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
 
 	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
@@ -160,6 +161,8 @@ func main() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
+			WithResourceAndHandler(&sdcconfig.Target{}, targetStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Target{}, targetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&sdcconfig.SensitiveConfig{}, sensitiveconfigStorageProvider).
