@@ -19,60 +19,55 @@ package resource
 import (
 	"context"
 
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ApplyConfigFn builds a typed apply configuration for the given object.
+// When finalizers is non-empty, they should be set on the apply config.
+type ApplyConfigFn func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration
+
 type Finalizer interface {
-	AddFinalizer(ctx context.Context, obj client.Object) error
-	RemoveFinalizer(ctx context.Context, obj client.Object) error
+	AddFinalizer(ctx context.Context, obj runtime.ApplyConfiguration) error
+	RemoveFinalizer(ctx context.Context, obj runtime.ApplyConfiguration) error
 }
 
 type APIFinalizer struct {
-	client         client.Client
-	reconcilerName string
-	finalizer      string
+	client       client.Client
+	fieldManager string
+	finalizer    string
+	buildApply   ApplyConfigFn
 }
 
-func NewAPIFinalizer(c client.Client, finalizer, reconcilerName string) *APIFinalizer {
-	return &APIFinalizer{client: c, finalizer: finalizer, reconcilerName: reconcilerName}
+func NewAPIFinalizer(c client.Client, finalizer, fieldManager string, buildApply ApplyConfigFn) *APIFinalizer {
+	return &APIFinalizer{
+		client:       c,
+		finalizer:    finalizer,
+		fieldManager: fieldManager,
+		buildApply:   buildApply,
+	}
 }
 
 func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) error {
 	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	addFinalizer(obj, r.finalizer)
-	return errors.Wrap(r.client.Update(ctx, obj), errUpdateObject)
+	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace(), r.finalizer)
+	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+		FieldManager: r.fieldManager,
+	})
 }
 
 func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) error {
 	if !FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	removeFinalizer(obj, r.finalizer)
-	return errors.Wrap(r.client.Update(ctx, obj), errUpdateObject)
-}
-
-func addFinalizer(o metav1.Object, finalizer string) {
-	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return
-		}
-	}
-	o.SetFinalizers(append(f, finalizer))
-}
-
-func removeFinalizer(o metav1.Object, finalizer string) {
-	var result []string
-	for _, e := range o.GetFinalizers() {
-		if e != finalizer {
-			result = append(result, e)
-		}
-	}
-	o.SetFinalizers(result)
+	// Apply with no finalizers — SSA removes only what this field manager owns
+	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace())
+	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+		FieldManager: r.fieldManager,
+	})
 }
 
 func FinalizerExists(o metav1.Object, finalizer string) bool {

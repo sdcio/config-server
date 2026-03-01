@@ -35,6 +35,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -47,9 +48,10 @@ func init() {
 }
 
 const (
-	crName         = "discoveryrule"
-	reconcilerName = "DiscoveryRuleController"
-	finalizer      = "discoveryrule.inv.sdcio.dev/finalizer"
+	crName                = "discoveryrule"
+	fieldmanagerfinalizer = "DiscoveryRuleController-finalizer"
+	reconcilerName        = "DiscoveryRuleController"
+	finalizer             = "discoveryrule.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -63,7 +65,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.DiscoveryRule(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 

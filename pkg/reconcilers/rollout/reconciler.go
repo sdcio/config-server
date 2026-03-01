@@ -40,6 +40,7 @@ import (
 	workspacereader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -55,10 +56,10 @@ func init() {
 }
 
 const (
-	crName         = "rollout"
-	fieldmanagerfinalizer = "RolloutControllerFinalizer"
-	reconcilerName = "RolloutController"
-	finalizer      = "rollout.inv.sdcio.dev/finalizer"
+	crName                = "rollout"
+	fieldmanagerfinalizer = "RolloutController-finalizer"
+	reconcilerName        = "RolloutController"
+	finalizer             = "rollout.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -73,7 +74,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.Rollout(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	// initializes the directory
 	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,

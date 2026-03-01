@@ -38,6 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
@@ -51,10 +52,10 @@ func init() {
 }
 
 const (
-	crName         = "targetdatastore"
+	crName                = "targetdatastore"
 	fieldmanagerfinalizer = "TargetDataStoreControllerFinalizer"
-	reconcilerName = "TargetDataStoreController"
-	finalizer      = "targetdatastore.inv.sdcio.dev/finalizer"
+	reconcilerName        = "TargetDataStoreController"
+	finalizer             = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -76,7 +77,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := configv1alpha1apply.Target(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 

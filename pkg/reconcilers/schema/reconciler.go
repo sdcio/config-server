@@ -39,6 +39,7 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,10 +54,10 @@ func init() {
 }
 
 const (
-	crName         = "schema"
+	crName                = "schema"
 	fieldmanagerfinalizer = "SchemaControllerFinalizer"
-	reconcilerName = "SchemaController"
-	finalizer      = "schema.inv.sdcio.dev/finalizer"
+	reconcilerName        = "SchemaController"
+	finalizer             = "schema.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -71,7 +72,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.Schema(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
 	r.schemaLoader, err = schemaloader.NewLoader(

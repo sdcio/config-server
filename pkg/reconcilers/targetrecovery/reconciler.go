@@ -32,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
@@ -74,7 +75,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, fieldmanagerfinalizer)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := configv1alpha1apply.Target(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.transactor = targetmanager.NewTransactor(r.client, "transactor")

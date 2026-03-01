@@ -137,7 +137,7 @@ message ConfigSetList {
 // ConfigSetSpec defines the desired state of Config
 message ConfigSetSpec {
   // Targets defines the targets on which this configSet applies
-  optional Target target = 1;
+  optional ConfigSetTarget target = 1;
 
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
