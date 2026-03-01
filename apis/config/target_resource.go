@@ -26,7 +26,6 @@ import (
 	"github.com/sdcio/config-server/apis/condition"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -305,50 +304,5 @@ func (r *Target) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) 
 func (r *Target) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	var allErrs field.ErrorList
 
-	newaccessor, err := meta.Accessor(obj)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			err.Error(),
-		))
-		return allErrs
-	}
-	newKey, err := GetTargetKey(newaccessor.GetLabels())
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			err.Error(),
-		))
-	}
-	oldaccessor, err := meta.Accessor(old)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			err.Error(),
-		))
-		return allErrs
-	}
-	oldKey, err := GetTargetKey(oldaccessor.GetLabels())
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			err.Error(),
-		))
-	}
-
-	if len(allErrs) != 0 {
-		return allErrs
-	}
-	if oldKey.String() != newKey.String() {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
-		))
-	}
 	return allErrs
 }

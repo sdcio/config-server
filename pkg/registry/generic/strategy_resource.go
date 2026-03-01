@@ -138,7 +138,7 @@ func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object
 	r.obj.PrepareForUpdate(ctx, obj, old)
 }
 
-func (r *strategy) AllowCreateOnUpdate() bool { return false }
+func (r *strategy) AllowCreateOnUpdate() bool { return true }
 
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
