@@ -31,7 +31,7 @@ import (
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	//invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
@@ -76,7 +76,7 @@ func main() {
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
 		configv1alpha1.AddToScheme,
-		invv1alpha1.AddToScheme,
+		//invv1alpha1.AddToScheme,
 	}) {
 		if err := api(runScheme); err != nil {
 			log.Error("cannot add scheme", "err", err)
@@ -141,7 +141,6 @@ func main() {
 
 	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
-
 	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
