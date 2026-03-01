@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"k8s.io/client-go/features"
 )
 
 var (
@@ -59,8 +58,7 @@ var (
 func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
-
-	features.SetFeatureGateUsage(features.WatchListClient, false)
+	
 
 	l := log.NewLogger(&log.HandlerOptions{Name: "sdc-api-server-logger", AddSource: false})
 	slog.SetDefault(l)
