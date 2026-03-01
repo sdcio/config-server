@@ -248,6 +248,7 @@ func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListO
 		cancel:         cancel,
 		resultChan:     make(chan watch.Event),
 		watcherManager: r.watcherManager,
+		obj:            r.obj,
 	}
 
 	go w.listAndWatch(ctx, r, options)
