@@ -128,7 +128,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	targetOrig := target.DeepCopy()
-	if !target.GetDeletionTimestamp().IsZero() {
+	if !targetOrig.GetDeletionTimestamp().IsZero() {
 		if err := r.transactor.SetConfigsTargetConditionForTarget(
 			ctx,
 			targetOrig,
@@ -139,7 +139,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 
 		// remove the finalizer
-		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
+		if err := r.finalizer.RemoveFinalizer(ctx, targetOrig); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, targetOrig, "cannot delete finalizer", err), errUpdateStatus)
 		}
@@ -148,12 +148,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.finalizer.AddFinalizer(ctx, target); err != nil {
+	if err := r.finalizer.AddFinalizer(ctx, targetOrig); err != nil {
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot add finalizer", err), errUpdateStatus)
 	}
 
-	if !target.IsReady() {
+	if !targetOrig.IsReady() {
 		err := r.transactor.SetConfigsTargetConditionForTarget(
 			ctx,
 			targetOrig,
@@ -205,7 +205,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
 	}
 
-	retry, err := r.transactor.Transact(ctx, target, dsctx, configv1alpha1.TargetForConfigReady("target ready"))
+	retry, err := r.transactor.Transact(ctx, targetOrig, dsctx, configv1alpha1.TargetForConfigReady("target ready"))
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {

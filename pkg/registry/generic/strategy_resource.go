@@ -87,6 +87,13 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 	if err != nil {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
+	accessor, _ := meta.Accessor(obj)
+    log.FromContext(ctx).Info("strategy.Get",
+        "key", key,
+        "managedFieldsCount", len(accessor.GetManagedFields()),
+        "labelsCount", len(accessor.GetLabels()),
+        "finalizersCount", len(accessor.GetFinalizers()),
+    )
 	return obj, nil
 }
 

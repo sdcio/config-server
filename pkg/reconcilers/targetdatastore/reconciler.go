@@ -128,10 +128,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetOrig := target.DeepCopy()
 
-	if !target.GetDeletionTimestamp().IsZero() {
+	if !targetOrig.GetDeletionTimestamp().IsZero() {
 		if len(target.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the targetStore
-			log.Debug("requeue delete, not all finalizers removed", "finalizers", target.GetFinalizers())
+			log.Debug("requeue delete, not all finalizers removed", "finalizers", targetOrig.GetFinalizers())
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, targetOrig, "deleting target, not all finalizers removed", nil, true), errUpdateStatus)
 		}
@@ -160,7 +160,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not discoveredReady (ready state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Info("target discovery ready condition", "status", target.Status.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status)
+	log.Info("target discovery ready condition", "status", targetOrig.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status)
 	if target.Status.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status != metav1.ConditionTrue {
 		if r.targetMgr != nil {
 			r.targetMgr.ClearDesired(ctx, targetKey)
