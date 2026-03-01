@@ -587,9 +587,9 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		r.statusMu.Unlock()
 		return
 	}
-	r.lastPushed = time.Now()
-	r.lastConnValid = true
-	r.lastConn = connected
+	//we're about to push, but don't mark as "done" yet unless apply succeeds
+	pushing := connected
+	pushingMsg := msg
 	r.statusMu.Unlock()
 
 	target := &configv1alpha1.Target{}
@@ -612,8 +612,20 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 			"phase", r.Status().Phase,
 			"msg", msg,
 		)
+		// Already correct in storage — mark as pushed so we don't retry needlessly
+		r.statusMu.Lock()
+		r.lastConnValid = true
+		r.lastConn = pushing
+		r.lastPushed = time.Now()
+		r.statusMu.Unlock()
 		return
 	}
+
+	log.Info("pushConnIfChanged -> applying",
+		"connected", pushing,
+		"phase", r.Status().Phase,
+		"msg", pushingMsg,
+	)
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().
@@ -628,6 +640,13 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		log.Error("target status patch failed", "error", err)
 		return
 	}
+
+	// Only mark as successfully pushed AFTER Apply succeeds
+	r.statusMu.Lock()
+	r.lastConnValid = true
+	r.lastConn = pushing
+	r.lastPushed = time.Now()
+	r.statusMu.Unlock()
 
 	log.Info("pushConnIfChanged -> updated",
 		"connected", connected,
