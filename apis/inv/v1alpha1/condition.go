@@ -123,9 +123,9 @@ func DatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// ConfigReady return a condition that indicates the config
+// ConfigRecoveryReady return a condition that indicates the config
 // get re-applied when the target became ready
-func ConfigReady(msg string) condv1alpha1.Condition {
+func ConfigRecoveryReady(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionTrue,
@@ -135,9 +135,9 @@ func ConfigReady(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// ConfigFailed returns a condition that indicates the config
+// ConfigRecoveryFailed returns a condition that indicates the config
 // is in failed condition due to a dependency
-func ConfigFailed(msg string) condv1alpha1.Condition {
+func ConfigRecoveryFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionFalse,
@@ -147,9 +147,9 @@ func ConfigFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// ConfigReApplyFailed returns a condition that indicates the config
+// ConfigRecoveryReApplyFailed returns a condition that indicates the config
 // we we reapplied to the target
-func ConfigReApplyFailed(msg string) condv1alpha1.Condition {
+func ConfigRecoveryReApplyFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeConfigRecoveryReady),
 		Status:             metav1.ConditionFalse,

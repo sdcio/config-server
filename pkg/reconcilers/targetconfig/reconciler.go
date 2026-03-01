@@ -190,7 +190,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			configv1alpha1.TargetFailed("target not recovered"),
 		)
 		log.Info("config transaction -> target not recovered yet")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
 	}
 
 	retry, err := r.transactor.Transact(ctx, target, dsctx, configv1alpha1.TargetReady("target ready"))

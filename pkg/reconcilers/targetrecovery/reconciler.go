@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -162,7 +163,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	if msg != nil {
 		newMsg = *msg
 	}
-	newCond := invv1alpha1.ConfigReady(newMsg)
+	newCond := invv1alpha1.ConfigRecoveryReady(newMsg)
 	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
 
 	if newCond.Equal(oldCond) {
@@ -181,6 +182,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Targ
 	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
+			Force:  ptr.To(true),
 		},
 	})
 }
@@ -191,7 +193,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	newCond := invv1alpha1.ConfigFailed(msg)
+	newCond := invv1alpha1.ConfigRecoveryFailed(msg)
 	oldCond := target.GetCondition(invv1alpha1.ConditionTypeConfigRecoveryReady)
 
 	if newCond.Equal(oldCond) {
@@ -211,6 +213,7 @@ func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target
 	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
+			Force:  ptr.To(true),
 		},
 	})
 }
