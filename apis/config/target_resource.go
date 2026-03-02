@@ -295,7 +295,7 @@ func (r *Target) ValidateCreate(ctx context.Context, obj runtime.Object) field.E
 }
 
 func (r *Target) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
-	// ensure the sttaus dont get updated
+	// ensure the status dont get updated
 	newobj := obj.(*Target)
 	oldObj := old.(*Target)
 	newobj.Status = oldObj.Status

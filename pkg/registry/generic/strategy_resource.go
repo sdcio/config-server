@@ -161,30 +161,10 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	
 	if shouldLog(obj) {
 		logObject(ctx, "Update New", key, obj)
 		logObject(ctx, "Update Old", key, old)
 	}
-
-	accessoro, _ := meta.Accessor(old)
-	lo := log.FromContext(ctx).With(
-		"key", key,
-		"resourceVersion", accessoro.GetResourceVersion(),
-		"generation", accessoro.GetGeneration(),
-		"managedFields", len(accessoro.GetManagedFields()),
-		"finalizers", accessoro.GetFinalizers(),
-	)
-
-	if cg, ok := old.(conditionsGetter); ok {
-		conditions := cg.GetConditions()
-		condSummary := make([]string, 0, len(conditions))
-		for _, c := range conditions {
-			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
-		}
-		lo = lo.With("conditions", condSummary)
-	}
-	lo.Info("Updata Old")
 
 	if r.obj.IsEqual(ctx, obj, old) {
 		return obj, nil
@@ -350,7 +330,8 @@ func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 
 
 func shouldLog(obj runtime.Object) bool {
-	return obj.GetObjectKind().GroupVersionKind().Kind == "Target"
+	return true
+	//return obj.GetObjectKind().GroupVersionKind().Kind == "Target"
 }
 
 func logObject(ctx context.Context, op string, key types.NamespacedName, obj runtime.Object) {
@@ -358,6 +339,7 @@ func logObject(ctx context.Context, op string, key types.NamespacedName, obj run
 	l := log.FromContext(ctx).With(
 		"op", op,
 		"key", key,
+		"kind", obj.GetObjectKind().GroupVersionKind().Kind,
 		"resourceVersion", accessor.GetResourceVersion(),
 		"generation", accessor.GetGeneration(),
 		"managedFields", len(accessor.GetManagedFields()),
