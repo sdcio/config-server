@@ -42,6 +42,7 @@ const (
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *configv1alpha1.DiscoveryInfo) error {
 	log := log.FromContext(ctx)
+	log.Info("createTarget start", "hostname", di.Hostname, "address", address)
 	if err := r.children.Apply(ctx, storebackend.ToKey(getTargetName(di.Hostname)), ""); err != nil {
 		log.Warn("children.apply", "error", err)
 		return err
@@ -52,22 +53,25 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *con
 		Name:      getTargetName(di.Hostname),
 	}
 
+	log.Info("applyTargetSpec start", "target", targetKey)
 	if err := r.applyTargetSpec(ctx, targetKey, provider, address); err != nil {
 		log.Error("dynamic target creation failed", "error", err)
 		return err
 	}
 
+	log.Info("applyTargetSpec done", "target", targetKey)
 	target, err := r.applyTargetStatus(ctx, targetKey, di)
 	if err != nil {
 		log.Error("dynamic target status apply failed", "error", err)
 		return err
 	}
+	log.Info("applyTargetStatus done", "target", targetKey)
 
 	if err := r.applyTargetDeviationCR(ctx, target); err != nil {
 		log.Error("apply deviation failed", "error", err)
 		return err
 	}
-
+	log.Info("createTarget done", "target", targetKey)
 	return nil
 }
 

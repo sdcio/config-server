@@ -56,7 +56,7 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	if err != nil {
 		return err
 	}
-	log.Info("Creating gNMI client")
+	log.Debug("Creating gNMI client")
 	err = t.CreateGNMIClient(ctx)
 	if err != nil {
 		return err
@@ -235,7 +235,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 				gnmiPath = strings.Join(strings.Split(gnmiPath, ":")[1:], ":")
 			}
 
-			log.Info("discovery", "path", preserveNamespace)
+			log.Debug("discovery", "path", preserveNamespace)
 
 			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
 			// for which the first key was found
@@ -244,7 +244,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 
 			if param, exists := pathMap[gnmiPath]; exists {
 				if targetField, found := fieldMapping[param.Key]; found {
-					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
+					log.Debug("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
 
 					string_value, err := getStringValue(upd.GetVal())
 					if err != nil {
@@ -253,7 +253,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 
 					*targetField = string_value
 
-					log.Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
+					log.Debug("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
 
 					// Apply transformations (Regex + Starlark)
 					transformedValue, err := applyTransformations(ctx, param, *targetField)
@@ -261,7 +261,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 						return nil, fmt.Errorf("failed to process transformation for %q: %w", param.Key, err)
 					}
 
-					log.Info("discovery after transform", "path", gnmiPath, "key", param.Key, "value", transformedValue)
+					log.Debug("discovery after transform", "path", gnmiPath, "key", param.Key, "value", transformedValue)
 					*targetField = transformedValue
 				}
 			}
