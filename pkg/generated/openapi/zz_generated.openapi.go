@@ -69,6 +69,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning":                     schema_config_server_apis_config_v1alpha1_TargetRunning(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec":                        schema_config_server_apis_config_v1alpha1_TargetSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences":        schema_config_server_apis_config_v1alpha1_TargetStatusUsedReferences(ref),
@@ -1993,6 +1994,12 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"),
 						},
 					},
+					"running": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning"),
+						},
+					},
 				},
 			},
 			VendorExtensible: spec.VendorExtensible{
@@ -2004,7 +2011,7 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -2054,6 +2061,26 @@ func schema_config_server_apis_config_v1alpha1_TargetList(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.Target", metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetRunning(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"value"},
+			},
+		},
+		Dependencies: []string{
+			runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 

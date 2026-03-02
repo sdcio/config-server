@@ -83,6 +83,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.SensitiveConfigStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Target"):
 		return &configv1alpha1.TargetApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("TargetRunning"):
+		return &configv1alpha1.TargetRunningApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("TargetSpec"):
 		return &configv1alpha1.TargetSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("TargetStatus"):

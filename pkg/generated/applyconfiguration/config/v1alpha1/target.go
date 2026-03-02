@@ -30,8 +30,9 @@ import (
 type TargetApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *TargetSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *TargetStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                             *TargetSpecApplyConfiguration    `json:"spec,omitempty"`
+	Status                           *TargetStatusApplyConfiguration  `json:"status,omitempty"`
+	Running                          *TargetRunningApplyConfiguration `json:"running,omitempty"`
 }
 
 // Target constructs a declarative configuration of the Target type for use with
@@ -218,6 +219,14 @@ func (b *TargetApplyConfiguration) WithSpec(value *TargetSpecApplyConfiguration)
 // If called multiple times, the Status field is set to the value of the last call.
 func (b *TargetApplyConfiguration) WithStatus(value *TargetStatusApplyConfiguration) *TargetApplyConfiguration {
 	b.Status = value
+	return b
+}
+
+// WithRunning sets the Running field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Running field is set to the value of the last call.
+func (b *TargetApplyConfiguration) WithRunning(value *TargetRunningApplyConfiguration) *TargetApplyConfiguration {
+	b.Running = value
 	return b
 }
 

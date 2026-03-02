@@ -22,6 +22,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -68,10 +69,15 @@ type DiscoveryInfo struct {
 }
 
 type TargetStatusUsedReferences struct {
-	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
-	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
-	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion" protobuf:"bytes,3,opt,name=connectionProfileResourceVersion"`
-	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
+	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
+	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
+	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" protobuf:"bytes,3,opt,name=connectionProfileResourceVersion"`
+	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
+}
+
+type TargetRunning struct {
+	//+kubebuilder:pruning:PreserveUnknownFields
+	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
 // +genclient
@@ -84,11 +90,12 @@ type TargetStatusUsedReferences struct {
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true
 type Target struct {
-	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   TargetSpec   `json:"spec,omitempty" yaml:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
-	Status TargetStatus `json:"status,omitempty" yaml:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Spec    TargetSpec    `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status  TargetStatus  `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Running TargetRunning `json:"running,omitempty" protobuf:"bytes,4,opt,name=running"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -96,9 +103,9 @@ type Target struct {
 
 // TargetList contains a list of Targets
 type TargetList struct {
-	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" yaml:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []Target `json:"items" yaml:"items" protobuf:"bytes,2,rep,name=items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []Target `json:"items"  protobuf:"bytes,2,rep,name=items"`
 }
 
 var (
