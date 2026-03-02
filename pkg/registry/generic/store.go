@@ -19,6 +19,7 @@ package generic
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -108,6 +109,7 @@ func NewREST(
 		CategoryList:              obj.GetCategories(),
 		ShortNameList:             obj.GetShortNames(),
 		Storage:                   storage,
+		KeyLocks:                  &sync.Map{},
 	}
 	storeOptions := &generic.StoreOptions{
 		RESTOptions: optsGetter,
