@@ -19,7 +19,7 @@ spec:
   - name: config
     schema:
       openAPIV3Schema:
-        description: "\tConfig defines the Schema for the Config API"
+        description: Config defines the Schema for the Config API
         properties:
           apiVersion:
             description: |-
@@ -250,6 +250,7 @@ spec:
                   - value
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
                 x-kubernetes-preserve-unknown-fields: true
               lifecycle:
                 description: |-
@@ -300,6 +301,7 @@ spec:
                       - value
                       type: object
                     type: array
+                    x-kubernetes-list-type: atomic
                     x-kubernetes-preserve-unknown-fields: true
                   lifecycle:
                     description: |-

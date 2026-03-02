@@ -23,10 +23,7 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/condition"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/sdc-protos/sdcpb"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +51,16 @@ var _ resource.InternalObject = &Target{}
 var _ resource.ObjectList = &TargetList{}
 var _ resource.ObjectWithStatusSubResource = &Target{}
 var _ resource.StatusSubResource = &TargetStatus{}
+
+var _ resource.ObjectWithArbitrarySubResource = &Target{}
+
+func (r *Target) GetArbitrarySubResources() []resource.ArbitrarySubResource {
+	return []resource.ArbitrarySubResource{
+		&TargetRunning{},
+		&TargetClearDeviation{},
+		&TargetBlame{},
+	}
+}
 
 func (Target) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -308,85 +315,4 @@ func (r *Target) ValidateUpdate(ctx context.Context, obj, old runtime.Object) fi
 	var allErrs field.ErrorList
 
 	return allErrs
-}
-
-var _ resource.ObjectWithArbitrarySubResource = &Target{}
-
-func (r *Target) GetArbitrarySubResources() []resource.ArbitrarySubResource {
-	return []resource.ArbitrarySubResource{
-		&TargetRunning{},
-	}
-}
-
-func (TargetRunning) SubResourceName() string {
-	return "running"
-}
-
-func (TargetRunning) New() runtime.Object {
-	return &Target{} // returns parent type — GET returns the full Target
-}
-
-func (TargetRunning) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
-	return &targetRunningREST{
-		parentStore: parentStorage,
-	}, nil
-}
-
-// targetRunningREST implements rest.Storage + rest.Getter
-type targetRunningREST struct {
-	parentStore rest.Storage
-}
-
-func (r *targetRunningREST) New() runtime.Object {
-	return &Target{}
-}
-
-func (r *targetRunningREST) Destroy() {}
-
-func (r *targetRunningREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	// Get the parent Target from the parent store
-	getter := r.parentStore.(rest.Getter)
-	obj, err := getter.Get(ctx, name, options)
-	if err != nil {
-		return nil, err
-	}
-	target := obj.(*Target)
-
-	if !target.IsReady() {
-		return nil, apierrors.NewServiceUnavailable(
-        	fmt.Sprintf("target %s is not ready: %s", name, target.GetCondition(condition.ConditionTypeReady).Message))
-	}
-
-	cfg := &dsclient.Config{
-		Address:  dsclient.GetDataServerAddress(),
-		Insecure: true,
-	}
-
-	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := closeFn(); err != nil {
-			// You can use your preferred logging framework here
-			fmt.Printf("failed to close connection: %v\n", err)
-		}
-	}()
-
-	// check if the schema exists; this is == nil check; in case of err it does not exist
-	key := target.GetNamespacedName()
-	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
-		DatastoreName: storebackend.KeyFromNSN(key).String(),
-		Intent:        "running",
-		Format:        sdcpb.Format_Intent_Format_JSON,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("runnning config: %s", rsp.GetBlob())
-
-	target.Running.Value.Raw = rsp.GetBlob()
-
-	return target, nil
 }

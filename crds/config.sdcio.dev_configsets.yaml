@@ -300,6 +300,7 @@ spec:
                   - value
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
                 x-kubernetes-preserve-unknown-fields: true
               lifecycle:
                 description: |-
@@ -500,6 +501,7 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
             type: object
         type: object
     served: true

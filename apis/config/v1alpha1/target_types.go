@@ -22,7 +22,6 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -75,11 +74,6 @@ type TargetStatusUsedReferences struct {
 	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
 }
 
-type TargetRunning struct {
-	//+kubebuilder:pruning:PreserveUnknownFields
-	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
-}
-
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
@@ -93,9 +87,8 @@ type Target struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec    TargetSpec    `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
-	Status  TargetStatus  `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	Running TargetRunning `json:"running,omitempty" protobuf:"bytes,4,opt,name=running"`
+	Spec   TargetSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status TargetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

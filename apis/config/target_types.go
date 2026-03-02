@@ -22,7 +22,6 @@ import (
 	"github.com/sdcio/config-server/apis/condition"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -68,11 +67,6 @@ type DiscoveryInfo struct {
 	//LastSeen metav1.Time `json:"lastSeen,omitempty"`
 }
 
-type TargetRunning struct {
-	//+kubebuilder:pruning:PreserveUnknownFields
-	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
-}
-
 type TargetStatusUsedReferences struct {
 	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
 	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
@@ -94,7 +88,6 @@ type Target struct {
 
 	Spec    TargetSpec    `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status  TargetStatus  `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	Running TargetRunning `json:"running,omitempty" protobuf:"bytes,4,opt,name=running"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

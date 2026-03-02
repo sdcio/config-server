@@ -4,22 +4,22 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.0
-  name: deviations.config.sdcio.dev
+  name: targets.config.sdcio.dev
 spec:
   group: config.sdcio.dev
   names:
     categories:
     - sdc
-    kind: Deviation
-    listKind: DeviationList
-    plural: deviations
-    singular: deviation
+    kind: Target
+    listKind: TargetList
+    plural: targets
+    singular: target
   scope: Namespaced
   versions:
   - name: config
     schema:
       openAPIV3Schema:
-        description: Deviation is the Schema for the Deviation API
+        description: Target is the Schema for the Target API
         properties:
           apiVersion:
             description: |-
@@ -39,35 +39,38 @@ spec:
           metadata:
             type: object
           spec:
-            description: DeviationSpec defines the desired state of Deviation
+            description: TargetSpec defines the desired state of Target
             properties:
-              deviationType:
+              address:
+                description: Address defines the address to connect to the target
                 type: string
-              deviations:
-                description: Deviations identify the configuration deviation based
-                  on the last applied config CR
-                items:
-                  properties:
-                    actualValue:
-                      description: |-
-                        ActualValue defines the current value of the config belonging to the path
-                        that is currently configured on the target
-                      type: string
-                    desiredValue:
-                      description: DesiredValue is the desired value of the config
-                        belonging to the path
-                      type: string
-                    path:
-                      description: Path of the config this deviation belongs to
-                      type: string
-                    reason:
-                      description: Reason defines the reason of the deviation
-                      type: string
-                  type: object
-                type: array
+              connectionProfile:
+                description: ConnectionProfile define the profile used to connect
+                  to the target once discovered
+                type: string
+              credentials:
+                description: Credentials defines the name of the secret that holds
+                  the credentials to connect to the target
+                type: string
+              provider:
+                description: Provider specifies the provider using this target.
+                type: string
+              syncProfile:
+                description: SyncProfile define the profile used to sync to the target
+                  config once discovered
+                type: string
+              tlsSecret:
+                description: TLSSecret defines the name of the TLS secret to connect
+                  to the target if mtls is used
+                type: string
+            required:
+            - address
+            - connectionProfile
+            - credentials
+            - provider
             type: object
           status:
-            description: DeviationStatus defines the observed state of Deviationgit
+            description: TargetStatus defines the observed state of Target
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -127,6 +130,54 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              discoveryInfo:
+                description: Discovery info defines the information retrieved during
+                  discovery
+                properties:
+                  hostname:
+                    description: Hostname associated with the target
+                    type: string
+                  macAddress:
+                    description: MacAddress associated with the target
+                    type: string
+                  platform:
+                    description: Platform associated with the target
+                    type: string
+                  protocol:
+                    description: Protocol used for discovery
+                    type: string
+                  provider:
+                    description: Type associated with the target
+                    type: string
+                  serialNumber:
+                    description: SerialNumber associated with the target
+                    type: string
+                  supportedEncodings:
+                    description: Supported Encodings of the target
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  version:
+                    description: Version associated with the target
+                    type: string
+                type: object
+              usedReferences:
+                description: UsedReferences track the resource used to reconcile the
+                  cr
+                properties:
+                  connectionProfileResourceVersion:
+                    type: string
+                  secretResourceVersion:
+                    type: string
+                  syncProfileResourceVersion:
+                    type: string
+                  tlsSecretResourceVersion:
+                    type: string
+                required:
+                - connectionProfileResourceVersion
+                - syncProfileResourceVersion
+                type: object
             type: object
         type: object
     served: true
@@ -136,7 +187,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Deviation is the Schema for the Deviation API
+        description: Target is the Schema for the Target API
         properties:
           apiVersion:
             description: |-
@@ -156,36 +207,38 @@ spec:
           metadata:
             type: object
           spec:
-            description: DeviationSpec defines the desired state of Deviation
+            description: TargetSpec defines the desired state of Target
             properties:
-              deviationType:
+              address:
+                description: Address defines the address to connect to the target
                 type: string
-              deviations:
-                description: Deviations identify the configuration deviation based
-                  on the last applied config CR
-                items:
-                  properties:
-                    actualValue:
-                      description: |-
-                        ActualValue defines the current value of the config belonging to the path
-                        that is currently configured on the target
-                      type: string
-                    desiredValue:
-                      description: DesiredValue is the desired value of the config
-                        belonging to the path
-                      type: string
-                    path:
-                      description: Path of the config this deviation belongs to
-                      type: string
-                    reason:
-                      description: Reason defines the reason of the deviation
-                      type: string
-                  type: object
-                type: array
-                x-kubernetes-list-type: atomic
+              connectionProfile:
+                description: ConnectionProfile define the profile used to connect
+                  to the target once discovered
+                type: string
+              credentials:
+                description: Credentials defines the name of the secret that holds
+                  the credentials to connect to the target
+                type: string
+              provider:
+                description: Provider specifies the provider using this target.
+                type: string
+              syncProfile:
+                description: SyncProfile define the profile used to sync to the target
+                  config once discovered
+                type: string
+              tlsSecret:
+                description: TLSSecret defines the name of the TLS secret to connect
+                  to the target if mtls is used
+                type: string
+            required:
+            - address
+            - connectionProfile
+            - credentials
+            - provider
             type: object
           status:
-            description: DeviationStatus defines the observed state of Deviation
+            description: TargetStatus defines the observed state of Target
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -245,9 +298,57 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              discoveryInfo:
+                description: Discovery info defines the information retrieved during
+                  discovery
+                properties:
+                  hostname:
+                    description: Hostname associated with the target
+                    type: string
+                  macAddress:
+                    description: MacAddress associated with the target
+                    type: string
+                  platform:
+                    description: Platform associated with the target
+                    type: string
+                  protocol:
+                    description: Protocol used for discovery
+                    type: string
+                  provider:
+                    description: Type associated with the target
+                    type: string
+                  serialNumber:
+                    description: SerialNumber associated with the target
+                    type: string
+                  supportedEncodings:
+                    description: Supported Encodings of the target
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  version:
+                    description: Version associated with the target
+                    type: string
+                type: object
+              usedReferences:
+                description: UsedReferences track the resource used to reconcile the
+                  cr
+                properties:
+                  connectionProfileResourceVersion:
+                    type: string
+                  secretResourceVersion:
+                    type: string
+                  syncProfileResourceVersion:
+                    type: string
+                  tlsSecretResourceVersion:
+                    type: string
+                required:
+                - connectionProfileResourceVersion
+                - syncProfileResourceVersion
+                type: object
             type: object
         type: object
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}

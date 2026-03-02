@@ -125,6 +125,7 @@ spec:
                         type: string
                       maxItems: 128
                       type: array
+                      x-kubernetes-list-type: atomic
                   required:
                   - mode
                   - name
@@ -132,6 +133,7 @@ spec:
                   type: object
                 maxItems: 128
                 type: array
+                x-kubernetes-list-type: atomic
               target:
                 description: Targets defines the targets on which this Subscription
                   applies
@@ -255,6 +257,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
             type: object
         type: object
     served: true

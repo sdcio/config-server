@@ -68,6 +68,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec":               schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetBlame":                       schema_config_server_apis_config_v1alpha1_TargetBlame(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviation":              schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec":          schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus":        schema_config_server_apis_config_v1alpha1_TargetClearDeviationStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning":                     schema_config_server_apis_config_v1alpha1_TargetRunning(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec":                        schema_config_server_apis_config_v1alpha1_TargetSpec(ref),
@@ -1994,12 +1998,6 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus"),
 						},
 					},
-					"running": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning"),
-						},
-					},
 				},
 			},
 			VendorExtensible: spec.VendorExtensible{
@@ -2011,7 +2009,165 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunning", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetBlame(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetBlame is the Schema for the TargetBlame API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"value"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetBlame", "version": "v1alpha1"},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.ObjectMeta{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetClearDeviation is the Schema for the TargetClearDeviation API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus"),
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetClearDeviation", "version": "v1alpha1"},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetClearDeviationSpec defines the desired state of Target",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"paths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Paths provide the path of the deviation to be cleared",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"paths"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"cleared": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"cleared", "message"},
+			},
+		},
 	}
 }
 
@@ -2068,8 +2224,29 @@ func schema_config_server_apis_config_v1alpha1_TargetRunning(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "TargetRunning is the Schema for the TargetRunning API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
@@ -2078,9 +2255,16 @@ func schema_config_server_apis_config_v1alpha1_TargetRunning(ref common.Referenc
 				},
 				Required: []string{"value"},
 			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetRunning", "version": "v1alpha1"},
+					},
+				},
+			},
 		},
 		Dependencies: []string{
-			runtime.RawExtension{}.OpenAPIModelName()},
+			metav1.ObjectMeta{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 
