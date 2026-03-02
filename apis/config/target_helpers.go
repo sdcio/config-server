@@ -19,6 +19,7 @@ package config
 import (
 	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -74,4 +75,8 @@ func (r *Target) IsReady() bool {
 		r.GetCondition(ConditionTypeDiscoveryReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeDatastoreReady).Status == metav1.ConditionTrue &&
 		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
+}
+
+func (r *Target) GetNamespacedName() types.NamespacedName {
+	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }

@@ -169,8 +169,8 @@ github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 h1:Ovs26xHkKqVztRpIrF/92Bcuy
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 h1:NmZ1PKzSTQbuGHw9DGPFomqkkLWMC+vZCkfs+FHv1Vg=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3/go.mod h1:zQrxl1YP88HQlA6i9c63DSVPFklWpGX4OWAc9bFuaH4=
-github.com/henderiw/apiserver-builder v0.0.6 h1:8vlnpGmQsIgSCVNNSQKaBeHtbAtgCvKoKQii7Vx3YLk=
-github.com/henderiw/apiserver-builder v0.0.6/go.mod h1:Py2AD4oB1McoYpz4chBNAFo9bYeZ9N9cKPijzkMxk2U=
+github.com/henderiw/apiserver-builder v0.0.7-0.20260302093549-7ef05fb00905 h1:PrVO840pQejbWI0/u4z3B/qAF6IB55gXVDSbr1sHaA4=
+github.com/henderiw/apiserver-builder v0.0.7-0.20260302093549-7ef05fb00905/go.mod h1:Py2AD4oB1McoYpz4chBNAFo9bYeZ9N9cKPijzkMxk2U=
 github.com/henderiw/apiserver-store v0.0.4-0.20260302081117-f4f810bec88b h1:iFG9vtD2eDR481k8/Y8rVBzNGXHsHdQLYS5aRk34lbA=
 github.com/henderiw/apiserver-store v0.0.4-0.20260302081117-f4f810bec88b/go.mod h1:RuXLMHJwszn6LXgL6fO9fxMC7AW5wAc4zOddnnZpkKI=
 github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c h1:nFnCNyRV1Ej/zqV/gn8UnFESkoPUXhwpUCZyhSYGSYA=
