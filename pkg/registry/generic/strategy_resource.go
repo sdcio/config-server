@@ -118,24 +118,9 @@ func (r *strategy) InvokeCreate(ctx context.Context, obj runtime.Object, recursi
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	accessor, _ := meta.Accessor(obj)
-	l := log.FromContext(ctx).With(
-		"key", key,
-		"resourceVersion", accessor.GetResourceVersion(),
-		"generation", accessor.GetGeneration(),
-		"managedFields", len(accessor.GetManagedFields()),
-		"finalizers", accessor.GetFinalizers(),
-	)
-
-	if cg, ok := obj.(conditionsGetter); ok {
-		conditions := cg.GetConditions()
-		condSummary := make([]string, 0, len(conditions))
-		for _, c := range conditions {
-			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
-		}
-		l = l.With("conditions", condSummary)
+	if shouldLog(obj) {
+		logObject(ctx, "Create", key, obj)
 	}
-	l.Info("Create")
 
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunCreateFn != nil {
@@ -176,24 +161,11 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	accessor, _ := meta.Accessor(obj)
-	l := log.FromContext(ctx).With(
-		"key", key,
-		"resourceVersion", accessor.GetResourceVersion(),
-		"generation", accessor.GetGeneration(),
-		"managedFields", len(accessor.GetManagedFields()),
-		"finalizers", accessor.GetFinalizers(),
-	)
-
-	if cg, ok := obj.(conditionsGetter); ok {
-		conditions := cg.GetConditions()
-		condSummary := make([]string, 0, len(conditions))
-		for _, c := range conditions {
-			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
-		}
-		l = l.With("conditions", condSummary)
+	
+	if shouldLog(obj) {
+		logObject(ctx, "Update New", key, obj)
+		logObject(ctx, "Update Old", key, old)
 	}
-	l.Info("Updata New")
 
 	accessoro, _ := meta.Accessor(old)
 	lo := log.FromContext(ctx).With(
@@ -374,4 +346,30 @@ func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log.Debug("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
+}
+
+
+func shouldLog(obj runtime.Object) bool {
+	return obj.GetObjectKind().GroupVersionKind().Kind == "Target"
+}
+
+func logObject(ctx context.Context, op string, key types.NamespacedName, obj runtime.Object) {
+	accessor, _ := meta.Accessor(obj)
+	l := log.FromContext(ctx).With(
+		"op", op,
+		"key", key,
+		"resourceVersion", accessor.GetResourceVersion(),
+		"generation", accessor.GetGeneration(),
+		"managedFields", len(accessor.GetManagedFields()),
+		"finalizers", accessor.GetFinalizers(),
+	)
+	if cg, ok := obj.(conditionsGetter); ok {
+		conditions := cg.GetConditions()
+		condSummary := make([]string, 0, len(conditions))
+		for _, c := range conditions {
+			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
+		}
+		l = l.With("conditions", condSummary)
+	}
+	l.Info("strategy")
 }
