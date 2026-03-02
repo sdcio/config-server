@@ -91,7 +91,12 @@ func (r *targetClearDeviationREST) Create(
 	if err != nil {
 		return nil, err
 	}
-	defer closeFn()
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	// Your actual clear deviation RPC call here
 	_ = client
