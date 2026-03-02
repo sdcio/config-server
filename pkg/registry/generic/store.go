@@ -53,15 +53,15 @@ func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *
 	}
 
 	// arbitrary subresources
-    if arb, ok := obj.(resource.ObjectWithArbitrarySubResource); ok {
-        sp.ArbitrarySubresourceHandlerProviders = make(map[string]builderrest.SubResourceStorageProviderFn)
-        for _, sub := range arb.GetArbitrarySubResources() {
-            sub := sub
-            sp.ArbitrarySubresourceHandlerProviders[sub.SubResourceName()] = func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error) {
-                return sub.NewStorage(scheme, store)
-            }
-        }
-    }
+	if arb, ok := obj.(resource.ObjectWithArbitrarySubResource); ok {
+		sp.ArbitrarySubresourceHandlerProviders = make(map[string]builderrest.SubResourceStorageProviderFn)
+		for _, sub := range arb.GetArbitrarySubResources() {
+			sub := sub
+			sp.ArbitrarySubresourceHandlerProviders[sub.SubResourceName()] = func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error) {
+				return sub.NewStorage(scheme, store)
+			}
+		}
+	}
 	// Add addtional subresources
 	return sp
 }

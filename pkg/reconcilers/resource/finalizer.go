@@ -57,7 +57,6 @@ func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) erro
 	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "finalizer", r.finalizer)
 	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace(), r.finalizer)
 
-
 	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
 
 	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
@@ -71,7 +70,6 @@ func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) e
 	}
 	// Apply with no finalizers — SSA removes only what this field manager owns
 	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace())
-
 
 	log.FromContext(ctx).Info("SSA removing finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
 

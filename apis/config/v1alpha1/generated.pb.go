@@ -104,7 +104,6 @@ func (m *TargetStatus) Reset() { *m = TargetStatus{} }
 
 func (m *TargetStatusUsedReferences) Reset() { *m = TargetStatusUsedReferences{} }
 
-
 func (m *Config) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)

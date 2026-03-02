@@ -58,7 +58,6 @@ var (
 func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
-	
 
 	l := log.NewLogger(&log.HandlerOptions{Name: "sdc-api-server-logger", AddSource: false})
 	slog.SetDefault(l)

@@ -25,6 +25,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/condition"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/sdc-protos/sdcpb"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 )
 
 const (
