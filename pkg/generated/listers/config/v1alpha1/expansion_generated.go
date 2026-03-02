@@ -72,11 +72,3 @@ type TargetListerExpansion interface{}
 // TargetNamespaceListerExpansion allows custom methods to be added to
 // TargetNamespaceLister.
 type TargetNamespaceListerExpansion interface{}
-
-// TargetRunningListerExpansion allows custom methods to be added to
-// TargetRunningLister.
-type TargetRunningListerExpansion interface{}
-
-// TargetRunningNamespaceListerExpansion allows custom methods to be added to
-// TargetRunningNamespaceLister.
-type TargetRunningNamespaceListerExpansion interface{}

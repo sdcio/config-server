@@ -37,8 +37,6 @@ type Interface interface {
 	SensitiveConfigs() SensitiveConfigInformer
 	// Targets returns a TargetInformer.
 	Targets() TargetInformer
-	// TargetRunnings returns a TargetRunningInformer.
-	TargetRunnings() TargetRunningInformer
 }
 
 type version struct {
@@ -85,9 +83,4 @@ func (v *version) SensitiveConfigs() SensitiveConfigInformer {
 // Targets returns a TargetInformer.
 func (v *version) Targets() TargetInformer {
 	return &targetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// TargetRunnings returns a TargetRunningInformer.
-func (v *version) TargetRunnings() TargetRunningInformer {
-	return &targetRunningInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

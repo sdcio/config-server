@@ -55,10 +55,6 @@ func (c *FakeConfigV1alpha1) Targets(namespace string) v1alpha1.TargetInterface 
 	return newFakeTargets(c, namespace)
 }
 
-func (c *FakeConfigV1alpha1) TargetRunnings(namespace string) v1alpha1.TargetRunningInterface {
-	return newFakeTargetRunnings(c, namespace)
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeConfigV1alpha1) RESTClient() rest.Interface {

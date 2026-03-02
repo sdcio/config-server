@@ -30,5 +30,3 @@ type RunningConfigExpansion interface{}
 type SensitiveConfigExpansion interface{}
 
 type TargetExpansion interface{}
-
-type TargetRunningExpansion interface{}
