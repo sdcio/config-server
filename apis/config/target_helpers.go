@@ -22,6 +22,11 @@ import (
 )
 
 // GetCondition returns the condition based on the condition kind
+func (r *Target) GetConditions() []condition.Condition {
+	return r.Status.GetConditions()
+}
+
+// GetCondition returns the condition based on the condition kind
 func (r *Target) GetCondition(t condition.ConditionType) condition.Condition {
 	return r.Status.GetCondition(t)
 }
