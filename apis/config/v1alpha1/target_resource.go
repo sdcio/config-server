@@ -17,17 +17,30 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/sdcio/config-server/apis/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apiserver/pkg/registry/rest"
 )
 
 // +k8s:deepcopy-gen=false
 var _ resource.Object = &Target{}
 var _ resource.ObjectList = &TargetList{}
 var _ resource.MultiVersionObject = &Target{}
+
+var _ resource.ObjectWithArbitrarySubResource = &Target{}
+
+func (r *Target) GetArbitrarySubResources() []resource.ArbitrarySubResource {
+	return []resource.ArbitrarySubResource{
+		&TargetRunning{},
+		&TargetClearDeviation{},
+		&TargetBlame{},
+	}
+}
 
 func (Target) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -76,4 +89,23 @@ func (r *TargetList) GetListMeta() *metav1.ListMeta {
 // RegisterConversions implements resource.MultiVersionObject
 func (Target) RegisterConversions() func(s *runtime.Scheme) error {
 	return RegisterConversions
+}
+
+// Minimal interface implementations for v1alpha1 types
+func (TargetRunning) SubResourceName() string { return "running" }
+func (TargetRunning) New() runtime.Object     { return &TargetRunning{} }
+func (TargetRunning) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
+	return nil, fmt.Errorf("not implemented on versioned type")
+}
+
+func (TargetClearDeviation) SubResourceName() string { return "cleardeviation" }
+func (TargetClearDeviation) New() runtime.Object     { return &TargetClearDeviation{} }
+func (TargetClearDeviation) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
+	return nil, fmt.Errorf("not implemented on versioned type")
+}
+
+func (TargetBlame) SubResourceName() string { return "blame" }
+func (TargetBlame) New() runtime.Object     { return &TargetBlame{} }
+func (TargetBlame) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
+	return nil, fmt.Errorf("not implemented on versioned type")
 }
