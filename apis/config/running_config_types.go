@@ -33,14 +33,13 @@ type RunningConfigStatus struct {
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	RunningConfig defines the Schema for the RunningConfig API
+// RunningConfig defines the Schema for the RunningConfig API
 type RunningConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

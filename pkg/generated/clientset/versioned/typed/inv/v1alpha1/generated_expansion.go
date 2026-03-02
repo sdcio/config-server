@@ -27,8 +27,6 @@ type SchemaExpansion interface{}
 
 type SubscriptionExpansion interface{}
 
-type TargetExpansion interface{}
-
 type TargetConnectionProfileExpansion interface{}
 
 type TargetSyncProfileExpansion interface{}

@@ -27,20 +27,22 @@ const (
 )
 
 const (
+	// Target relation conditions
 	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
-	ConditionTypeDiscoveryReady cond.ConditionType = "DiscoveryReady"
+	ConditionTypeTargetDiscoveryReady cond.ConditionType = "TargetDiscoveryReady"
 	// ConditionTypeDatastoreReady represents the resource datastore ready condition
-	ConditionTypeDatastoreReady cond.ConditionType = "DatastoreReady"
+	ConditionTypeTargetDatastoreReady cond.ConditionType = "TargetDatastoreReady"
 	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
-	ConditionTypeConfigRecoveryReady cond.ConditionType = "ConfigRecoveryReady"
+	ConditionTypeTargetConfigRecoveryReady cond.ConditionType = "TargetConfigRecoveryReady"
 	// ConditionTypeTargetConnectionReady represents the resource target ready condition
 	ConditionTypeTargetConnectionReady cond.ConditionType = "TargetConnectionReady"
 
-	ConditionTypeConfigApply   cond.ConditionType = "ConfigApply"
-	ConditionTypeConfigConfirm cond.ConditionType = "ConfigConfirm"
-	ConditionTypeConfigCancel  cond.ConditionType = "ConfigCancel"
+	//ConditionTypeConfigApply   cond.ConditionType = "ConfigApply"
+	//ConditionTypeConfigConfirm cond.ConditionType = "ConfigConfirm"
+	//ConditionTypeConfigCancel  cond.ConditionType = "ConfigCancel"
 
-	ConditionTypeSchemaServerReady cond.ConditionType = "SchemaServerReady"
+	//ConditionTypeSchemaServerReady cond.ConditionType = "SchemaServerReady"
+
 )
 
 // A ConditionReason represents the reason a resource is in a condition.

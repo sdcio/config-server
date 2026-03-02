@@ -17,17 +17,17 @@ limitations under the License.
 package runtimeview
 
 import (
-    "github.com/henderiw/apiserver-store/pkg/storebackend"
-    "github.com/openconfig/gnmic/pkg/cache"
-    "github.com/prometheus/prometheus/prompb"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/openconfig/gnmic/pkg/cache"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 type TargetRuntimeView interface {
-    Key() storebackend.Key
-    Cache() cache.Cache
-    PromLabels() []prompb.Label
+	Key() storebackend.Key
+	Cache() cache.Cache
+	PromLabels() []prompb.Label
 }
 
 type TargetManager interface {
-    ForEachRuntime(func(TargetRuntimeView))
+	ForEachRuntime(func(TargetRuntimeView))
 }

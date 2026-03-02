@@ -20,6 +20,7 @@ syntax = "proto2";
 package github.com.sdcio.config_server.apis.config.v1alpha1;
 
 import "github.com/sdcio/config-server/apis/condition/v1alpha1/generated.proto";
+import "github.com/sdcio/config-server/apis/inv/v1alpha1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -102,7 +103,7 @@ message ConfigDeviation {
   // DesiredValue is the desired value of the config belonging to the path
   optional string desiredValue = 2;
 
-  // CurrentValue defines the current value of the config belonging to the path
+  // ActualValue defines the current value of the config belonging to the path
   // that is currently configured on the target
   optional string actualValue = 3;
 
@@ -136,7 +137,7 @@ message ConfigSetList {
 // ConfigSetSpec defines the desired state of Config
 message ConfigSetSpec {
   // Targets defines the targets on which this configSet applies
-  optional Target target = 1;
+  optional ConfigSetTarget target = 1;
 
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
@@ -150,6 +151,7 @@ message ConfigSetSpec {
 
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
+  // +listType=atomic
   repeated ConfigBlob config = 5;
 }
 
@@ -160,7 +162,22 @@ message ConfigSetStatus {
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Targets defines the status of the configSet resource on the respective target
-  repeated TargetStatus targets = 2;
+  // +listType=atomic
+  repeated ConfigSetTargetStatus targets = 2;
+}
+
+message ConfigSetTarget {
+  // TargetSelector defines the selector used to select the targets to which the config applies
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1;
+}
+
+message ConfigSetTargetStatus {
+  optional string name = 1;
+
+  // right now we assume the namespace of the config and target are aligned
+  // NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
+  // Condition of the configCR status
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3;
 }
 
 // ConfigSpec defines the desired state of Config
@@ -177,6 +194,7 @@ message ConfigSpec {
 
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
+  // +listType=atomic
   repeated ConfigBlob config = 4;
 }
 
@@ -228,6 +246,7 @@ message DeviationSpec {
   optional string deviationType = 1;
 
   // Deviations identify the configuration deviation based on the last applied config CR
+  // +listType=atomic
   repeated ConfigDeviation deviations = 2;
 }
 
@@ -236,6 +255,33 @@ message DeviationStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+}
+
+message DiscoveryInfo {
+  // Protocol used for discovery
+  optional string protocol = 1;
+
+  // Type associated with the target
+  optional string provider = 2;
+
+  // Version associated with the target
+  optional string version = 3;
+
+  // Hostname associated with the target
+  optional string hostname = 4;
+
+  // Platform associated with the target
+  optional string platform = 5;
+
+  // MacAddress associated with the target
+  optional string macAddress = 6;
+
+  // SerialNumber associated with the target
+  optional string serialNumber = 7;
+
+  // Supported Encodings of the target
+  // +listType=atomic
+  repeated string supportedEncodings = 8;
 }
 
 message Lifecycle {
@@ -310,6 +356,7 @@ message SensitiveConfigSpec {
   optional bool revertive = 3;
 
   // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
+  // +listType=atomic
   repeated SensitiveConfigData config = 4;
 }
 
@@ -329,17 +376,54 @@ message SensitiveConfigStatus {
   optional int64 deviationGeneration = 4;
 }
 
+// Target is the Schema for the Target API
+// +k8s:openapi-gen=true
 message Target {
-  // TargetSelector defines the selector used to select the targets to which the config applies
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional TargetSpec spec = 2;
+
+  optional TargetStatus status = 3;
 }
 
-message TargetStatus {
-  optional string name = 1;
+// TargetList contains a list of Targets
+message TargetList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  // right now we assume the namespace of the config and target are aligned
-  // NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
-  // Condition of the configCR status
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3;
+  repeated Target items = 2;
+}
+
+// TargetSpec defines the desired state of Target
+message TargetSpec {
+  // Provider specifies the provider using this target.
+  optional string provider = 1;
+
+  // Address defines the address to connect to the target
+  optional string address = 2;
+
+  // TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
+  optional .github.com.sdcio.config_server.apis.inv.v1alpha1.TargetProfile targetProfile = 3;
+}
+
+// TargetStatus defines the observed state of Target
+message TargetStatus {
+  // ConditionedStatus provides the status of the Target using conditions
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+
+  // Discovery info defines the information retrieved during discovery
+  optional DiscoveryInfo discoveryInfo = 2;
+
+  // UsedReferences track the resource used to reconcile the cr
+  optional TargetStatusUsedReferences usedReferences = 3;
+}
+
+message TargetStatusUsedReferences {
+  optional string secretResourceVersion = 1;
+
+  optional string tlsSecretResourceVersion = 2;
+
+  optional string connectionProfileResourceVersion = 3;
+
+  optional string syncProfileResourceVersion = 4;
 }
 

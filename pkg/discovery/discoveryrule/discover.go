@@ -57,12 +57,12 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 	for _, connProfile := range r.getDiscoveryProfiles(ctx, h) {
 		discover, ok := r.protocols.get(connProfile.Spec.Protocol)
 		if !ok {
-			log.Info("connection profile points to unsupported protocol", "protocol", connProfile.Spec.Protocol)
+			log.Warn("connection profile points to unsupported protocol", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, fmt.Errorf("unsupported protocol :%s", string(connProfile.Spec.Protocol)))
 			continue
 		}
 		if derr := discover(ctx, h, connProfile); derr != nil {
-			log.Info("discovery failed", "protocol", connProfile.Spec.Protocol)
+			log.Debug("discovery failed", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, derr)
 			continue
 		}

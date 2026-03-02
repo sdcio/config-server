@@ -47,10 +47,6 @@ func (c *FakeInvV1alpha1) Subscriptions(namespace string) v1alpha1.SubscriptionI
 	return newFakeSubscriptions(c, namespace)
 }
 
-func (c *FakeInvV1alpha1) Targets(namespace string) v1alpha1.TargetInterface {
-	return newFakeTargets(c, namespace)
-}
-
 func (c *FakeInvV1alpha1) TargetConnectionProfiles(namespace string) v1alpha1.TargetConnectionProfileInterface {
 	return newFakeTargetConnectionProfiles(c, namespace)
 }

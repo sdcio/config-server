@@ -262,26 +262,17 @@ type ConfigFilter struct {
 }
 
 func (r *ConfigFilter) Filter(ctx context.Context, obj runtime.Object) bool {
-	f := false // result of the previous filter
 	o, ok := obj.(*Config)
 	if !ok {
-		return f
+		return true
 	}
-	if r.Name != "" {
-		if o.GetName() == r.Name {
-			f = false
-		} else {
-			f = true
-		}
+	if r.Name != "" && o.GetName() != r.Name {
+		return true
 	}
-	if r.Namespace != "" {
-		if o.GetNamespace() == r.Namespace {
-			f = false
-		} else {
-			f = true
-		}
+	if r.Namespace != "" && o.GetNamespace() != r.Namespace {
+		return true
 	}
-	return f
+	return false
 }
 
 func (r *Config) PrepareForCreate(ctx context.Context, obj runtime.Object) {

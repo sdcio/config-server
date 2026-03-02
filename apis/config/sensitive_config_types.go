@@ -19,9 +19,9 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/api/core/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // SensitiveConfigSpec defines the desired state of SensitiveConfig
@@ -57,14 +57,13 @@ type SensitiveConfigStatus struct {
 	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	SensitiveConfig defines the Schema for the SensitiveConfig API
+// SensitiveConfig defines the Schema for the SensitiveConfig API
 type SensitiveConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

@@ -32,6 +32,7 @@ import (
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -39,9 +40,10 @@ import (
 	workspacereader "github.com/sdcio/config-server/pkg/workspace"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,12 +56,13 @@ func init() {
 }
 
 const (
-	crName         = "rollout"
-	reconcilerName = "RolloutController"
-	finalizer      = "rollout.inv.sdcio.dev/finalizer"
+	crName                = "rollout"
+	fieldmanagerfinalizer = "RolloutController-finalizer"
+	reconcilerName        = "RolloutController"
+	finalizer             = "rollout.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateStatus    = "cannot update status"
+	errGetCr        = "cannot get cr"
+	errUpdateStatus = "cannot update status"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -71,7 +74,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.Rollout(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	// initializes the directory
 	r.workspaceReader, err = workspacereader.NewReader(
 		cfg.WorkspaceDir,
@@ -82,7 +96,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "cannot initialize RolloutController")
 	}
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -91,10 +105,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client          client.Client
 	finalizer       *resource.APIFinalizer
 	workspaceReader *workspacereader.Reader
-	recorder        record.EventRecorder
+	recorder        events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -325,23 +339,36 @@ func (r *reconciler) handleStatus(
 	err error,
 ) (ctrl.Result, error) {
 	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
-	//patch := client.MergeFrom(rollout.DeepCopy())
+
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
 	}
-	rollout.ManagedFields = nil
-	rollout.SetConditions(condition)
-	rollout.Status.Targets = getTargetStatus(ctx, targetStatus)
+
+	newTargets := getTargetStatus(ctx, targetStatus)
+	oldCond := rollout.GetCondition(condv1alpha1.ConditionType(condition.Type))
+
+	if condition.Equal(oldCond) && reflect.DeepEqual(newTargets, rollout.Status.Targets) {
+		log.Info("handleStatus -> no change")
+		return ctrl.Result{Requeue: requeue}, nil
+	}
 
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
-		r.recorder.Eventf(rollout, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref))
+		r.recorder.Eventf(rollout, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref), "")
 	} else {
 		log.Error(condition.Message)
-		r.recorder.Eventf(rollout, corev1.EventTypeWarning, crName, condition.Message)
+		r.recorder.Eventf(rollout, nil, corev1.EventTypeWarning, crName, condition.Message, "")
 	}
+
+	statusApply := invv1alpha1apply.RolloutStatus().
+		WithConditions(condition).
+		WithTargets(rolloutTargetStatusToApply(newTargets)...)
+
+	applyConfig := invv1alpha1apply.Rollout(rollout.Name, rollout.Namespace).
+		WithStatus(statusApply)
+
 	result := ctrl.Result{Requeue: requeue}
-	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, rollout, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
@@ -366,4 +393,14 @@ func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[
 		return targetStatus[i].Name < targetStatus[j].Name
 	})
 	return targetStatus
+}
+
+func rolloutTargetStatusToApply(targets []invv1alpha1.RolloutTargetStatus) []*invv1alpha1apply.RolloutTargetStatusApplyConfiguration {
+	result := make([]*invv1alpha1apply.RolloutTargetStatusApplyConfiguration, 0, len(targets))
+	for _, t := range targets {
+		result = append(result, invv1alpha1apply.RolloutTargetStatus().
+			WithName(t.Name),
+		)
+	}
+	return result
 }

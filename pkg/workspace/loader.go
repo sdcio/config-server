@@ -48,7 +48,7 @@ func NewLoader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 func (r *Loader) EnsureCommit(ctx context.Context, workspace *invv1alpha1.Workspace) (string, error) {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(workspace.Spec.RepositoryURL)
+	repo, err := git.NewRepo(workspace.Spec.RepoURL)
 	if err != nil {
 		return "", err
 	}

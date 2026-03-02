@@ -18,104 +18,68 @@ package resource
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/henderiw/logger/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Finalizer manages the lifecycle of the finalizer on a k8s object
+// ApplyConfigFn builds a typed apply configuration for the given object.
+// When finalizers is non-empty, they should be set on the apply config.
+type ApplyConfigFn func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration
+
 type Finalizer interface {
-	AddFinalizer(ctx context.Context, obj client.Object) error
-	RemoveFinalizer(ctx context.Context, obj client.Object) error
+	AddFinalizer(ctx context.Context, obj runtime.ApplyConfiguration) error
+	RemoveFinalizer(ctx context.Context, obj runtime.ApplyConfiguration) error
 }
 
-// An APIFinalizer manages the lifecycle of a finalizer on a k8s object.
 type APIFinalizer struct {
-	client         client.Client
-	reconcilerName string
-	finalizer      string
+	client       client.Client
+	fieldManager string
+	finalizer    string
+	buildApply   ApplyConfigFn
 }
 
-// NewAPIFinalizer returns a new APIFinalizer.
-func NewAPIFinalizer(c client.Client, finalizer, reconcilerName string) *APIFinalizer {
-	return &APIFinalizer{client: c, finalizer: finalizer, reconcilerName: reconcilerName}
-}
-
-// AddFinalizer to the supplied Managed resource.
-func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) error {
-	// take a snapshot of the current object
-	origObj := obj.DeepCopyObject()
-
-	// Again assert to client.Object to manipulate metadata and finalizers
-	copiedObj, ok := origObj.(client.Object)
-	if !ok {
-		return fmt.Errorf("deep copied object does not implement client.Object")
+func NewAPIFinalizer(c client.Client, finalizer, fieldManager string, buildApply ApplyConfigFn) *APIFinalizer {
+	return &APIFinalizer{
+		client:       c,
+		finalizer:    finalizer,
+		fieldManager: fieldManager,
+		buildApply:   buildApply,
 	}
+}
 
-	patch := client.MergeFrom(copiedObj)
-
+func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) error {
 	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	AddFinalizer(obj, r.finalizer)
-	return errors.Wrap(r.Update(ctx, obj, patch), errUpdateObject)
-}
+	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "finalizer", r.finalizer)
+	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace(), r.finalizer)
 
-func (r *APIFinalizer) Update(ctx context.Context, obj client.Object, patch client.Patch) error {
-	return r.client.Patch(ctx, obj, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
-			FieldManager: r.reconcilerName,
-		},
+	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
+
+	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+		FieldManager: r.fieldManager,
 	})
 }
 
 func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) error {
-	// take a snapshot of the current object
-	origObj := obj.DeepCopyObject()
-
-	// Again assert to client.Object to manipulate metadata and finalizers
-	copiedObj, ok := origObj.(client.Object)
-	if !ok {
-		return fmt.Errorf("deep copied object does not implement client.Object")
-	}
-	patch := client.MergeFrom(copiedObj)
-
 	if !FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	RemoveFinalizer(obj, r.finalizer)
-	return errors.Wrap(r.Update(ctx, obj, patch), errUpdateObject)
+	// Apply with no finalizers — SSA removes only what this field manager owns
+	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace())
+
+	log.FromContext(ctx).Info("SSA removing finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
+
+	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+		FieldManager: r.fieldManager,
+	})
 }
 
-// AddFinalizer to the supplied k8s object's metadata.
-func AddFinalizer(o metav1.Object, finalizer string) {
-	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return
-		}
-	}
-	o.SetFinalizers(append(f, finalizer))
-}
-
-// RemoveFinalizer from the supplied k8s object's metadata.
-func RemoveFinalizer(o metav1.Object, finalizer string) {
-	f := o.GetFinalizers()
-	for i, e := range f {
-		if e == finalizer {
-			f = append(f[:i], f[i+1:]...)
-		}
-	}
-	o.SetFinalizers(f)
-}
-
-// FinalizerExists checks whether a certain finalizer is already set
-// on the aupplied object
 func FinalizerExists(o metav1.Object, finalizer string) bool {
-	f := o.GetFinalizers()
-	for _, e := range f {
+	for _, e := range o.GetFinalizers() {
 		if e == finalizer {
 			return true
 		}

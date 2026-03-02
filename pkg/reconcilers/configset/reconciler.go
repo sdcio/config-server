@@ -20,6 +20,7 @@ import (
 	"context"
 	merrors "errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -28,16 +29,17 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,9 +51,10 @@ func init() {
 }
 
 const (
-	crName         = "configset"
-	reconcilerName = "ConfigSetController"
-	finalizer      = "configset.config.sdcio.dev/finalizer"
+	crName                = "configset"
+	fieldmanagerfinalizer = "ConfigSetController-finalizer"
+	reconcilerName        = "ConfigSetController"
+	finalizer             = "configset.config.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -62,21 +65,32 @@ const (
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := configv1alpha1apply.ConfigSet(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		Owns(&configv1alpha1.Config{}).
 		For(&configv1alpha1.ConfigSet{}).
-		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Target{}, &eventhandler.TargetForConfigSet{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
-	recorder  record.EventRecorder
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -159,7 +173,7 @@ func (r *reconciler) unrollDownstreamTargets(ctx context.Context, configSet *con
 		client.MatchingLabelsSelector{Selector: selector},
 	}
 
-	targetList := &invv1alpha1.TargetList{}
+	targetList := &configv1alpha1.TargetList{}
 	if err := r.client.List(ctx, targetList, opts...); err != nil {
 		return nil, err
 	}
@@ -184,9 +198,9 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 
 	// TODO run in parallel and/or try 1 first to see if the validation works or not
-	TargetsStatus := make([]configv1alpha1.TargetStatus, len(targets))
+	TargetsStatus := make([]configv1alpha1.ConfigSetTargetStatus, len(targets))
 	for i, target := range targets {
-		TargetsStatus[i] = configv1alpha1.TargetStatus{Name: target.Name}
+		TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{Name: target.Name}
 
 		var oldConfig *configv1alpha1.Config
 		newConfig := buildConfig(ctx, configSet, target)
@@ -247,7 +261,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			}
 
 			if oldHash == newHash {
-				TargetsStatus[i] = configv1alpha1.TargetStatus{
+				TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{
 					Name:      target.Name,
 					Condition: oldConfig.GetCondition(condv1alpha1.ConditionTypeReady),
 				}
@@ -334,17 +348,25 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 
 func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet) error {
 	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status old", configSet.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(configSetOrig)
-	// update status
-	configSet.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
+	newCond := condv1alpha1.Ready()
+	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
 
-	log.Debug("handleSuccess", "key", configSet.GetNamespacedName(), "status new", configSet.Status)
+	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
+		log.Info("handleSuccess -> no change")
+		return nil
+	}
 
-	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	r.recorder.Eventf(configSet, nil, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready", "")
+
+	statusApply := configv1alpha1apply.ConfigSetStatus().
+		WithConditions(newCond).
+		WithTargets(targetStatusToApply(configSet.Status.Targets)...)
+
+	applyConfig := configv1alpha1apply.ConfigSet(configSet.Name, configSet.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
@@ -352,21 +374,34 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet
 
 func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
 	log := log.FromContext(ctx)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(configSetOrig.DeepCopy())
-
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	configSet.SetConditions(condv1alpha1.Failed(msg))
-	log.Error(msg)
-	r.recorder.Eventf(configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
-	return r.client.Status().Patch(ctx, configSet, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
+		log.Info("handleError -> no change")
+		return nil
+	}
+
+	log.Error(msg)
+	r.recorder.Eventf(configSet, nil, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg, "")
+
+	statusApply := configv1alpha1apply.ConfigSetStatus().
+		WithConditions(newCond).
+		WithTargets(targetStatusToApply(configSet.Status.Targets)...)
+
+	applyConfig := configv1alpha1apply.ConfigSet(configSet.Name, configSet.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
+
 }
 
 func (r *reconciler) determineOverallStatus(_ context.Context, configSet *configv1alpha1.ConfigSet) string {
@@ -377,4 +412,14 @@ func (r *reconciler) determineOverallStatus(_ context.Context, configSet *config
 		}
 	}
 	return sb.String()
+}
+
+func targetStatusToApply(targets []configv1alpha1.ConfigSetTargetStatus) []*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration {
+	result := make([]*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration, 0, len(targets))
+	for _, t := range targets {
+		result = append(result, configv1alpha1apply.ConfigSetTargetStatus().
+			WithName(t.Name),
+		)
+	}
+	return result
 }

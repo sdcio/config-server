@@ -40,18 +40,18 @@ type DiscoveryRuleConfig struct {
 }
 
 type DiscoveryProfile struct {
-	Secret                   string
-	SecretResourceVersion    string // used to validate a profile change
-	TLSSecret                string
-	TLSSecretResourceVersion string // used to validate a profile change
-	Connectionprofiles       []*invv1alpha1.TargetConnectionProfile
+	Secret                string
+	SecretResourceVersion string // used to validate a profile change (secrets only increment resourceVersion iso generation)
+	TLSSecret             string
+	TLSSecretGeneration   string // used to validate a profile change
+	Connectionprofiles    []*invv1alpha1.TargetConnectionProfile
 }
 
 type TargetConnectionProfile struct {
-	Secret                   string
-	SecretResourceVersion    string // used to validate a profile change + provide the version to the target if provisioned
-	TLSSecret                string
-	TLSSecretResourceVersion string // used to validate a profile change + provide the version to the target if provisioned
-	Connectionprofile        *invv1alpha1.TargetConnectionProfile
-	Syncprofile              *invv1alpha1.TargetSyncProfile
+	Secret                string
+	SecretResourceVersion string // used to validate a profile change + provide the version to the target if provisioned
+	TLSSecret             string
+	TLSSecretGeneration   string // used to validate a profile change + provide the version to the target if provisioned
+	Connectionprofile     *invv1alpha1.TargetConnectionProfile
+	Syncprofile           *invv1alpha1.TargetSyncProfile
 }

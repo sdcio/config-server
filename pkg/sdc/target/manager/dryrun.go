@@ -22,7 +22,7 @@ import (
 
 	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/apis/config"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +37,7 @@ func RunDryRunTransaction(
 	ctx context.Context,
 	key types.NamespacedName,
 	c *config.Config,
-	target *invv1alpha1.Target,
+	target *configv1alpha1.Target,
 	intents []*sdcpb.TransactionIntent,
 	dryrun bool,
 ) (runtime.Object, error) {

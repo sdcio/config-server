@@ -63,6 +63,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&DeviationList{},
 		&ConfigBlame{},
 		&ConfigBlameList{},
+		&Target{},
+		&TargetList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

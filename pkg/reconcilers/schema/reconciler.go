@@ -28,6 +28,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth/secret"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
@@ -38,8 +39,9 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,15 +54,14 @@ func init() {
 }
 
 const (
-	crName         = "schema"
-	reconcilerName = "SchemaController"
-	finalizer      = "schema.inv.sdcio.dev/finalizer"
+	crName                = "schema"
+	fieldmanagerfinalizer = "SchemaController-finalizer"
+	reconcilerName        = "SchemaController"
+	finalizer             = "schema.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateStatus    = "cannot update status"
+	errGetCr        = "cannot get cr"
+	errUpdateStatus = "cannot update status"
 )
-
-
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -71,7 +72,18 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.Schema(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	// initializes the directory
 	r.schemaBasePath = cfg.SchemaDir
 	r.schemaLoader, err = schemaloader.NewLoader(
@@ -84,7 +96,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if err != nil {
 		return nil, pkgerrors.Wrap(err, "cannot initialize schemaloader")
 	}
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -94,12 +106,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
 
 	schemaLoader   *schemaloader.Loader
 	schemaBasePath string
-	recorder       record.EventRecorder
+	recorder       events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -137,7 +149,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				fmt.Printf("failed to close connection: %v\n", err)
 			}
 		}()
-
 
 		// check if the schema exists; this is == nil check; in case of err it does not exist
 		if _, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
@@ -177,14 +188,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !dirExists {
-		// we set the loading condition to know loading started
-		schema.SetConditions(invv1alpha1.Loading())
-		if err := r.client.Status().Update(ctx, schema); err != nil {
-			// we always retry when status fails -> optimistic concurrency
+		// SSA apply for loading condition
+		loadingApply := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+			WithStatus(invv1alpha1apply.SchemaStatus().
+				WithConditions(invv1alpha1.Loading()),
+			)
+		if err := r.client.Status().Apply(ctx, loadingApply, &client.SubResourceApplyOptions{
+			ApplyOptions: client.ApplyOptions{
+				FieldManager: reconcilerName,
+			},
+		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
-		r.recorder.Eventf(schema, corev1.EventTypeNormal,
-			"schema", "loading")
+		r.recorder.Eventf(schema, nil, corev1.EventTypeNormal,
+			"schema", "loading", "")
 		repoStatuses, err := r.schemaLoader.Load(ctx, spec.GetKey())
 		if err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
@@ -249,18 +266,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
-	// take a snapshot of the current object
-	patch := client.MergeFrom(schema.DeepCopy())
-	// update status
-	schema.Status = *updatedStatus
-	//schema.ManagedFields = nil
-	schema.SetConditions(condv1alpha1.Ready())
-	r.recorder.Eventf(schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 
-	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status new", schema.Status)
+	newCond := condv1alpha1.Ready()
+	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	// no-change guard includes both condition and repositories
+	if newCond.Equal(oldCond) && reflect.DeepEqual(updatedStatus.Repositories, schema.Status.Repositories) {
+		log.Info("handleSuccess -> no change")
+		return ctrl.Result{}, nil
+	}
+
+	r.recorder.Eventf(schema, nil, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready", "")
+
+	statusApply := invv1alpha1apply.SchemaStatus().
+		WithConditions(newCond)
+
+	// only set repositories if populated
+	if len(updatedStatus.Repositories) > 0 {
+		statusApply = statusApply.WithRepositories(repoStatusToApply(updatedStatus.Repositories)...)
+	}
+
+	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+		WithStatus(statusApply)
+
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
@@ -269,26 +299,50 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	// take a snapshot of the current object
-	patch := client.MergeFrom(schema.DeepCopy())
-
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	schema.ManagedFields = nil
-	schema.SetConditions(condv1alpha1.Failed(msg))
+
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) {
+		log.Info("handleError -> no change")
+		return ctrl.Result{}, nil
+	}
+
 	log.Error(msg)
-	r.recorder.Eventf(schema, corev1.EventTypeWarning, crName, msg)
+	r.recorder.Eventf(schema, nil, corev1.EventTypeWarning, crName, msg, "")
+
+	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
+		WithStatus(invv1alpha1apply.SchemaStatus().
+			WithConditions(newCond),
+		)
 
 	var unrecoverableError *sdcerrors.UnrecoverableError
 	result := ctrl.Result{}
 	if errors.As(err, &unrecoverableError) {
-		result = ctrl.Result{Requeue: false} // unrecoverable error - setting an error here would result in ignoring a request to not requeue
+		result = ctrl.Result{Requeue: false}
 	}
 
-	return result, pkgerrors.Wrap(r.client.Status().Patch(ctx, schema, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
+}
+
+func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
+	result := make([]*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration, 0, len(repos))
+	for _, r := range repos {
+		a := invv1alpha1apply.SchemaRepositoryStatus()
+		if r.RepoURL != "" {
+			a.WithRepoURL(r.RepoURL)
+		}
+		if r.Reference != "" {
+			a.WithReference(r.Reference)
+		}
+		result = append(result, a)
+	}
+	return result
 }

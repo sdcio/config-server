@@ -26,7 +26,7 @@ import (
 // ConfigSetSpec defines the desired state of Config
 type ConfigSetSpec struct {
 	// Targets defines the targets on which this configSet applies
-	Target Target `json:"target" protobuf:"bytes,1,opt,name=target"`
+	Target ConfigSetTarget `json:"target" protobuf:"bytes,1,opt,name=target"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
@@ -36,10 +36,11 @@ type ConfigSetSpec struct {
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
+	// +listType=atomic
 	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
 }
 
-type Target struct {
+type ConfigSetTarget struct {
 	// TargetSelector defines the selector used to select the targets to which the config applies
 	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty" protobuf:"bytes,1,opt,name=targetSelector"`
 }
@@ -50,10 +51,11 @@ type ConfigSetStatus struct {
 	// if the condition is true the other attributes in the status are meaningful
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the configSet resource on the respective target
-	Targets []TargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
+	// +listType=atomic
+	Targets []ConfigSetTargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 
-type TargetStatus struct {
+type ConfigSetTargetStatus struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// right now we assume the namespace of the config and target are aligned
 	//NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`

@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+/*
 import (
 	"reflect"
 
@@ -51,8 +52,8 @@ type DiscoveryInfo struct {
 	Provider string `json:"provider,omitempty" protobuf:"bytes,2,opt,name=provider"`
 	// Version associated with the target
 	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
-	// HostName associated with the target
-	HostName string `json:"hostname,omitempty" protobuf:"bytes,4,opt,name=hostname"`
+	// Hostname associated with the target
+	Hostname string `json:"hostname,omitempty" protobuf:"bytes,4,opt,name=hostname"`
 	// Platform associated with the target
 	Platform string `json:"platform,omitempty" protobuf:"bytes,5,opt,name=platform"`
 	// MacAddress associated with the target
@@ -60,6 +61,7 @@ type DiscoveryInfo struct {
 	// SerialNumber associated with the target
 	SerialNumber string `json:"serialNumber,omitempty" protobuf:"bytes,7,opt,name=serialNumber"`
 	// Supported Encodings of the target
+	// +listType=atomic
 	SupportedEncodings []string `json:"supportedEncodings,omitempty" protobuf:"bytes,8,rep,name=supportedEncodings"`
 	// Last discovery time
 	//LastSeen metav1.Time `json:"lastSeen,omitempty"`
@@ -106,7 +108,7 @@ type TargetList struct {
 }
 
 func init() {
-	localSchemeBuilder.Register(&Target{}, &TargetList{})
+	//localSchemeBuilder.Register(&Target{}, &TargetList{})
 }
 
 var (
@@ -115,3 +117,4 @@ var (
 	TargetKindAPIVersion   = TargetKind + "." + SchemeGroupVersion.String()
 	TargetGroupVersionKind = SchemeGroupVersion.WithKind(TargetKind)
 )
+*/

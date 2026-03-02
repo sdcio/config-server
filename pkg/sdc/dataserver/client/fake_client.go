@@ -30,16 +30,16 @@ func NewFakeClient() Client {
 
 type fakeclient struct{}
 
-func (r *fakeclient) IsConnectionReady() bool {return true}
+func (r *fakeclient) IsConnectionReady() bool { return true }
 
-func (r *fakeclient) IsConnected() bool {return true}
+func (r *fakeclient) IsConnected() bool { return true }
 
 func (r *fakeclient) ConnState() connectivity.State {
-    return connectivity.Ready
+	return connectivity.Ready
 }
 
 func (r *fakeclient) WaitForStateChange(ctx context.Context, s connectivity.State) bool {
-    return true
+	return true
 }
 func (r *fakeclient) Connect() {}
 

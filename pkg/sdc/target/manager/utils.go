@@ -18,18 +18,18 @@ package targetmanager
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func GetGVKNSN(obj client.Object) string {

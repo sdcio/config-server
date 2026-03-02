@@ -26,9 +26,9 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
 	"github.com/henderiw/logger/log"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"golang.org/x/sync/semaphore"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 type DiscoveryRule interface {
@@ -46,14 +46,13 @@ func New(client client.Client, cfg *DiscoveryRuleConfig) DiscoveryRule {
 }
 
 type dr struct {
-	client      client.Client
-	cfg         *DiscoveryRuleConfig
-	protocols   *protocols
-	children    storebackend.Storer[string]
-
+	client    client.Client
+	cfg       *DiscoveryRuleConfig
+	protocols *protocols
+	children  storebackend.Storer[string]
 
 	gnmiDiscoveryProfiles map[string]invv1alpha1.GnmiDiscoveryVendorProfileParameters
-	cancel context.CancelFunc
+	cancel                context.CancelFunc
 }
 
 func (r *dr) Stop(ctx context.Context) {
@@ -131,9 +130,9 @@ func (r *dr) run(ctx context.Context) error {
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context cancelled") {
-						log.Info("discovery cancelled")
+						log.Debug("discovery cancelled")
 					} else {
-						log.Info("discovery failed", "error", err)
+						log.Debug("discovery failed", "error", err)
 					}
 				}
 			}(h)
@@ -142,7 +141,6 @@ func (r *dr) run(ctx context.Context) error {
 	wg.Wait() // Wait for all goroutines to finish
 	return nil
 }
-
 
 func (r *dr) getVendorDiscoveryProfiles(ctx context.Context) error {
 	discoveryVendorProfiles := &invv1alpha1.DiscoveryVendorProfileList{}

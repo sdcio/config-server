@@ -158,6 +158,26 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*ConfigSetTarget)(nil), (*config.ConfigSetTarget)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget(a.(*ConfigSetTarget), b.(*config.ConfigSetTarget), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.ConfigSetTarget)(nil), (*ConfigSetTarget)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget(a.(*config.ConfigSetTarget), b.(*ConfigSetTarget), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*ConfigSetTargetStatus)(nil), (*config.ConfigSetTargetStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus(a.(*ConfigSetTargetStatus), b.(*config.ConfigSetTargetStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.ConfigSetTargetStatus)(nil), (*ConfigSetTargetStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus(a.(*config.ConfigSetTargetStatus), b.(*ConfigSetTargetStatus), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*ConfigSpec)(nil), (*config.ConfigSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_ConfigSpec_To_config_ConfigSpec(a.(*ConfigSpec), b.(*config.ConfigSpec), scope)
 	}); err != nil {
@@ -225,6 +245,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*config.DeviationStatus)(nil), (*DeviationStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus(a.(*config.DeviationStatus), b.(*DeviationStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*DiscoveryInfo)(nil), (*config.DiscoveryInfo)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_DiscoveryInfo_To_config_DiscoveryInfo(a.(*DiscoveryInfo), b.(*config.DiscoveryInfo), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.DiscoveryInfo)(nil), (*DiscoveryInfo)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_DiscoveryInfo_To_v1alpha1_DiscoveryInfo(a.(*config.DiscoveryInfo), b.(*DiscoveryInfo), scope)
 	}); err != nil {
 		return err
 	}
@@ -338,6 +368,36 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*TargetList)(nil), (*config.TargetList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_TargetList_To_config_TargetList(a.(*TargetList), b.(*config.TargetList), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.TargetList)(nil), (*TargetList)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_TargetList_To_v1alpha1_TargetList(a.(*config.TargetList), b.(*TargetList), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*TargetRunning)(nil), (*config.TargetRunning)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_TargetRunning_To_config_TargetRunning(a.(*TargetRunning), b.(*config.TargetRunning), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.TargetRunning)(nil), (*TargetRunning)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_TargetRunning_To_v1alpha1_TargetRunning(a.(*config.TargetRunning), b.(*TargetRunning), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*TargetSpec)(nil), (*config.TargetSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_TargetSpec_To_config_TargetSpec(a.(*TargetSpec), b.(*config.TargetSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.TargetSpec)(nil), (*TargetSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_TargetSpec_To_v1alpha1_TargetSpec(a.(*config.TargetSpec), b.(*TargetSpec), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*TargetStatus)(nil), (*config.TargetStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha1_TargetStatus_To_config_TargetStatus(a.(*TargetStatus), b.(*config.TargetStatus), scope)
 	}); err != nil {
@@ -345,6 +405,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*config.TargetStatus)(nil), (*TargetStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_config_TargetStatus_To_v1alpha1_TargetStatus(a.(*config.TargetStatus), b.(*TargetStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*TargetStatusUsedReferences)(nil), (*config.TargetStatusUsedReferences)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha1_TargetStatusUsedReferences_To_config_TargetStatusUsedReferences(a.(*TargetStatusUsedReferences), b.(*config.TargetStatusUsedReferences), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*config.TargetStatusUsedReferences)(nil), (*TargetStatusUsedReferences)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_config_TargetStatusUsedReferences_To_v1alpha1_TargetStatusUsedReferences(a.(*config.TargetStatusUsedReferences), b.(*TargetStatusUsedReferences), scope)
 	}); err != nil {
 		return err
 	}
@@ -520,7 +590,7 @@ func Convert_config_ConfigBlob_To_v1alpha1_ConfigBlob(in *config.ConfigBlob, out
 func autoConvert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviation, out *config.ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
 	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
-	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
+	out.ActualValue = (*string)(unsafe.Pointer(in.ActualValue))
 	out.Reason = in.Reason
 	return nil
 }
@@ -533,7 +603,7 @@ func Convert_v1alpha1_ConfigDeviation_To_config_ConfigDeviation(in *ConfigDeviat
 func autoConvert_config_ConfigDeviation_To_v1alpha1_ConfigDeviation(in *config.ConfigDeviation, out *ConfigDeviation, s conversion.Scope) error {
 	out.Path = in.Path
 	out.DesiredValue = (*string)(unsafe.Pointer(in.DesiredValue))
-	out.CurrentValue = (*string)(unsafe.Pointer(in.CurrentValue))
+	out.ActualValue = (*string)(unsafe.Pointer(in.ActualValue))
 	out.Reason = in.Reason
 	return nil
 }
@@ -660,7 +730,7 @@ func Convert_config_ConfigSetList_To_v1alpha1_ConfigSetList(in *config.ConfigSet
 }
 
 func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpec, out *config.ConfigSetSpec, s conversion.Scope) error {
-	if err := Convert_v1alpha1_Target_To_config_Target(&in.Target, &out.Target, s); err != nil {
+	if err := Convert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
 	out.Lifecycle = (*config.Lifecycle)(unsafe.Pointer(in.Lifecycle))
@@ -676,7 +746,7 @@ func Convert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpec, o
 }
 
 func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.ConfigSetSpec, out *ConfigSetSpec, s conversion.Scope) error {
-	if err := Convert_config_Target_To_v1alpha1_Target(&in.Target, &out.Target, s); err != nil {
+	if err := Convert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget(&in.Target, &out.Target, s); err != nil {
 		return err
 	}
 	out.Lifecycle = (*Lifecycle)(unsafe.Pointer(in.Lifecycle))
@@ -697,9 +767,9 @@ func autoConvert_v1alpha1_ConfigSetStatus_To_config_ConfigSetStatus(in *ConfigSe
 	}
 	if in.Targets != nil {
 		in, out := &in.Targets, &out.Targets
-		*out = make([]config.TargetStatus, len(*in))
+		*out = make([]config.ConfigSetTargetStatus, len(*in))
 		for i := range *in {
-			if err := Convert_v1alpha1_TargetStatus_To_config_TargetStatus(&(*in)[i], &(*out)[i], s); err != nil {
+			if err := Convert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus(&(*in)[i], &(*out)[i], s); err != nil {
 				return err
 			}
 		}
@@ -720,9 +790,9 @@ func autoConvert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus(in *config.C
 	}
 	if in.Targets != nil {
 		in, out := &in.Targets, &out.Targets
-		*out = make([]TargetStatus, len(*in))
+		*out = make([]ConfigSetTargetStatus, len(*in))
 		for i := range *in {
-			if err := Convert_config_TargetStatus_To_v1alpha1_TargetStatus(&(*in)[i], &(*out)[i], s); err != nil {
+			if err := Convert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus(&(*in)[i], &(*out)[i], s); err != nil {
 				return err
 			}
 		}
@@ -735,6 +805,52 @@ func autoConvert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus(in *config.C
 // Convert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus is an autogenerated conversion function.
 func Convert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus(in *config.ConfigSetStatus, out *ConfigSetStatus, s conversion.Scope) error {
 	return autoConvert_config_ConfigSetStatus_To_v1alpha1_ConfigSetStatus(in, out, s)
+}
+
+func autoConvert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget(in *ConfigSetTarget, out *config.ConfigSetTarget, s conversion.Scope) error {
+	out.TargetSelector = (*v1.LabelSelector)(unsafe.Pointer(in.TargetSelector))
+	return nil
+}
+
+// Convert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget is an autogenerated conversion function.
+func Convert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget(in *ConfigSetTarget, out *config.ConfigSetTarget, s conversion.Scope) error {
+	return autoConvert_v1alpha1_ConfigSetTarget_To_config_ConfigSetTarget(in, out, s)
+}
+
+func autoConvert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget(in *config.ConfigSetTarget, out *ConfigSetTarget, s conversion.Scope) error {
+	out.TargetSelector = (*v1.LabelSelector)(unsafe.Pointer(in.TargetSelector))
+	return nil
+}
+
+// Convert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget is an autogenerated conversion function.
+func Convert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget(in *config.ConfigSetTarget, out *ConfigSetTarget, s conversion.Scope) error {
+	return autoConvert_config_ConfigSetTarget_To_v1alpha1_ConfigSetTarget(in, out, s)
+}
+
+func autoConvert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus(in *ConfigSetTargetStatus, out *config.ConfigSetTargetStatus, s conversion.Scope) error {
+	out.Name = in.Name
+	if err := Convert_v1alpha1_Condition_To_condition_Condition(&in.Condition, &out.Condition, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Convert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus is an autogenerated conversion function.
+func Convert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus(in *ConfigSetTargetStatus, out *config.ConfigSetTargetStatus, s conversion.Scope) error {
+	return autoConvert_v1alpha1_ConfigSetTargetStatus_To_config_ConfigSetTargetStatus(in, out, s)
+}
+
+func autoConvert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus(in *config.ConfigSetTargetStatus, out *ConfigSetTargetStatus, s conversion.Scope) error {
+	out.Name = in.Name
+	if err := Convert_condition_Condition_To_v1alpha1_Condition(&in.Condition, &out.Condition, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Convert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus is an autogenerated conversion function.
+func Convert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus(in *config.ConfigSetTargetStatus, out *ConfigSetTargetStatus, s conversion.Scope) error {
+	return autoConvert_config_ConfigSetTargetStatus_To_v1alpha1_ConfigSetTargetStatus(in, out, s)
 }
 
 func autoConvert_v1alpha1_ConfigSpec_To_config_ConfigSpec(in *ConfigSpec, out *config.ConfigSpec, s conversion.Scope) error {
@@ -935,6 +1051,40 @@ func autoConvert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in *config.D
 // Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus is an autogenerated conversion function.
 func Convert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in *config.DeviationStatus, out *DeviationStatus, s conversion.Scope) error {
 	return autoConvert_config_DeviationStatus_To_v1alpha1_DeviationStatus(in, out, s)
+}
+
+func autoConvert_v1alpha1_DiscoveryInfo_To_config_DiscoveryInfo(in *DiscoveryInfo, out *config.DiscoveryInfo, s conversion.Scope) error {
+	out.Protocol = in.Protocol
+	out.Provider = in.Provider
+	out.Version = in.Version
+	out.Hostname = in.Hostname
+	out.Platform = in.Platform
+	out.MacAddress = in.MacAddress
+	out.SerialNumber = in.SerialNumber
+	out.SupportedEncodings = *(*[]string)(unsafe.Pointer(&in.SupportedEncodings))
+	return nil
+}
+
+// Convert_v1alpha1_DiscoveryInfo_To_config_DiscoveryInfo is an autogenerated conversion function.
+func Convert_v1alpha1_DiscoveryInfo_To_config_DiscoveryInfo(in *DiscoveryInfo, out *config.DiscoveryInfo, s conversion.Scope) error {
+	return autoConvert_v1alpha1_DiscoveryInfo_To_config_DiscoveryInfo(in, out, s)
+}
+
+func autoConvert_config_DiscoveryInfo_To_v1alpha1_DiscoveryInfo(in *config.DiscoveryInfo, out *DiscoveryInfo, s conversion.Scope) error {
+	out.Protocol = in.Protocol
+	out.Provider = in.Provider
+	out.Version = in.Version
+	out.Hostname = in.Hostname
+	out.Platform = in.Platform
+	out.MacAddress = in.MacAddress
+	out.SerialNumber = in.SerialNumber
+	out.SupportedEncodings = *(*[]string)(unsafe.Pointer(&in.SupportedEncodings))
+	return nil
+}
+
+// Convert_config_DiscoveryInfo_To_v1alpha1_DiscoveryInfo is an autogenerated conversion function.
+func Convert_config_DiscoveryInfo_To_v1alpha1_DiscoveryInfo(in *config.DiscoveryInfo, out *DiscoveryInfo, s conversion.Scope) error {
+	return autoConvert_config_DiscoveryInfo_To_v1alpha1_DiscoveryInfo(in, out, s)
 }
 
 func autoConvert_v1alpha1_Lifecycle_To_config_Lifecycle(in *Lifecycle, out *config.Lifecycle, s conversion.Scope) error {
@@ -1202,7 +1352,16 @@ func Convert_config_SensitiveConfigStatus_To_v1alpha1_SensitiveConfigStatus(in *
 }
 
 func autoConvert_v1alpha1_Target_To_config_Target(in *Target, out *config.Target, s conversion.Scope) error {
-	out.TargetSelector = (*v1.LabelSelector)(unsafe.Pointer(in.TargetSelector))
+	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_v1alpha1_TargetSpec_To_config_TargetSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := Convert_v1alpha1_TargetStatus_To_config_TargetStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	if err := Convert_v1alpha1_TargetRunning_To_config_TargetRunning(&in.Running, &out.Running, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1212,7 +1371,16 @@ func Convert_v1alpha1_Target_To_config_Target(in *Target, out *config.Target, s 
 }
 
 func autoConvert_config_Target_To_v1alpha1_Target(in *config.Target, out *Target, s conversion.Scope) error {
-	out.TargetSelector = (*v1.LabelSelector)(unsafe.Pointer(in.TargetSelector))
+	out.ObjectMeta = in.ObjectMeta
+	if err := Convert_config_TargetSpec_To_v1alpha1_TargetSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := Convert_config_TargetStatus_To_v1alpha1_TargetStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	if err := Convert_config_TargetRunning_To_v1alpha1_TargetRunning(&in.Running, &out.Running, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1221,11 +1389,98 @@ func Convert_config_Target_To_v1alpha1_Target(in *config.Target, out *Target, s 
 	return autoConvert_config_Target_To_v1alpha1_Target(in, out, s)
 }
 
+func autoConvert_v1alpha1_TargetList_To_config_TargetList(in *TargetList, out *config.TargetList, s conversion.Scope) error {
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]config.Target, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha1_Target_To_config_Target(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+// Convert_v1alpha1_TargetList_To_config_TargetList is an autogenerated conversion function.
+func Convert_v1alpha1_TargetList_To_config_TargetList(in *TargetList, out *config.TargetList, s conversion.Scope) error {
+	return autoConvert_v1alpha1_TargetList_To_config_TargetList(in, out, s)
+}
+
+func autoConvert_config_TargetList_To_v1alpha1_TargetList(in *config.TargetList, out *TargetList, s conversion.Scope) error {
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Target, len(*in))
+		for i := range *in {
+			if err := Convert_config_Target_To_v1alpha1_Target(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+// Convert_config_TargetList_To_v1alpha1_TargetList is an autogenerated conversion function.
+func Convert_config_TargetList_To_v1alpha1_TargetList(in *config.TargetList, out *TargetList, s conversion.Scope) error {
+	return autoConvert_config_TargetList_To_v1alpha1_TargetList(in, out, s)
+}
+
+func autoConvert_v1alpha1_TargetRunning_To_config_TargetRunning(in *TargetRunning, out *config.TargetRunning, s conversion.Scope) error {
+	out.Value = in.Value
+	return nil
+}
+
+// Convert_v1alpha1_TargetRunning_To_config_TargetRunning is an autogenerated conversion function.
+func Convert_v1alpha1_TargetRunning_To_config_TargetRunning(in *TargetRunning, out *config.TargetRunning, s conversion.Scope) error {
+	return autoConvert_v1alpha1_TargetRunning_To_config_TargetRunning(in, out, s)
+}
+
+func autoConvert_config_TargetRunning_To_v1alpha1_TargetRunning(in *config.TargetRunning, out *TargetRunning, s conversion.Scope) error {
+	out.Value = in.Value
+	return nil
+}
+
+// Convert_config_TargetRunning_To_v1alpha1_TargetRunning is an autogenerated conversion function.
+func Convert_config_TargetRunning_To_v1alpha1_TargetRunning(in *config.TargetRunning, out *TargetRunning, s conversion.Scope) error {
+	return autoConvert_config_TargetRunning_To_v1alpha1_TargetRunning(in, out, s)
+}
+
+func autoConvert_v1alpha1_TargetSpec_To_config_TargetSpec(in *TargetSpec, out *config.TargetSpec, s conversion.Scope) error {
+	out.Provider = in.Provider
+	out.Address = in.Address
+	out.TargetProfile = in.TargetProfile
+	return nil
+}
+
+// Convert_v1alpha1_TargetSpec_To_config_TargetSpec is an autogenerated conversion function.
+func Convert_v1alpha1_TargetSpec_To_config_TargetSpec(in *TargetSpec, out *config.TargetSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha1_TargetSpec_To_config_TargetSpec(in, out, s)
+}
+
+func autoConvert_config_TargetSpec_To_v1alpha1_TargetSpec(in *config.TargetSpec, out *TargetSpec, s conversion.Scope) error {
+	out.Provider = in.Provider
+	out.Address = in.Address
+	out.TargetProfile = in.TargetProfile
+	return nil
+}
+
+// Convert_config_TargetSpec_To_v1alpha1_TargetSpec is an autogenerated conversion function.
+func Convert_config_TargetSpec_To_v1alpha1_TargetSpec(in *config.TargetSpec, out *TargetSpec, s conversion.Scope) error {
+	return autoConvert_config_TargetSpec_To_v1alpha1_TargetSpec(in, out, s)
+}
+
 func autoConvert_v1alpha1_TargetStatus_To_config_TargetStatus(in *TargetStatus, out *config.TargetStatus, s conversion.Scope) error {
-	out.Name = in.Name
-	if err := Convert_v1alpha1_Condition_To_condition_Condition(&in.Condition, &out.Condition, s); err != nil {
+	if err := Convert_v1alpha1_ConditionedStatus_To_condition_ConditionedStatus(&in.ConditionedStatus, &out.ConditionedStatus, s); err != nil {
 		return err
 	}
+	out.DiscoveryInfo = (*config.DiscoveryInfo)(unsafe.Pointer(in.DiscoveryInfo))
+	out.UsedReferences = (*config.TargetStatusUsedReferences)(unsafe.Pointer(in.UsedReferences))
 	return nil
 }
 
@@ -1235,14 +1490,41 @@ func Convert_v1alpha1_TargetStatus_To_config_TargetStatus(in *TargetStatus, out 
 }
 
 func autoConvert_config_TargetStatus_To_v1alpha1_TargetStatus(in *config.TargetStatus, out *TargetStatus, s conversion.Scope) error {
-	out.Name = in.Name
-	if err := Convert_condition_Condition_To_v1alpha1_Condition(&in.Condition, &out.Condition, s); err != nil {
+	if err := Convert_condition_ConditionedStatus_To_v1alpha1_ConditionedStatus(&in.ConditionedStatus, &out.ConditionedStatus, s); err != nil {
 		return err
 	}
+	out.DiscoveryInfo = (*DiscoveryInfo)(unsafe.Pointer(in.DiscoveryInfo))
+	out.UsedReferences = (*TargetStatusUsedReferences)(unsafe.Pointer(in.UsedReferences))
 	return nil
 }
 
 // Convert_config_TargetStatus_To_v1alpha1_TargetStatus is an autogenerated conversion function.
 func Convert_config_TargetStatus_To_v1alpha1_TargetStatus(in *config.TargetStatus, out *TargetStatus, s conversion.Scope) error {
 	return autoConvert_config_TargetStatus_To_v1alpha1_TargetStatus(in, out, s)
+}
+
+func autoConvert_v1alpha1_TargetStatusUsedReferences_To_config_TargetStatusUsedReferences(in *TargetStatusUsedReferences, out *config.TargetStatusUsedReferences, s conversion.Scope) error {
+	out.SecretResourceVersion = in.SecretResourceVersion
+	out.TLSSecretResourceVersion = in.TLSSecretResourceVersion
+	out.ConnectionProfileResourceVersion = in.ConnectionProfileResourceVersion
+	out.SyncProfileResourceVersion = in.SyncProfileResourceVersion
+	return nil
+}
+
+// Convert_v1alpha1_TargetStatusUsedReferences_To_config_TargetStatusUsedReferences is an autogenerated conversion function.
+func Convert_v1alpha1_TargetStatusUsedReferences_To_config_TargetStatusUsedReferences(in *TargetStatusUsedReferences, out *config.TargetStatusUsedReferences, s conversion.Scope) error {
+	return autoConvert_v1alpha1_TargetStatusUsedReferences_To_config_TargetStatusUsedReferences(in, out, s)
+}
+
+func autoConvert_config_TargetStatusUsedReferences_To_v1alpha1_TargetStatusUsedReferences(in *config.TargetStatusUsedReferences, out *TargetStatusUsedReferences, s conversion.Scope) error {
+	out.SecretResourceVersion = in.SecretResourceVersion
+	out.TLSSecretResourceVersion = in.TLSSecretResourceVersion
+	out.ConnectionProfileResourceVersion = in.ConnectionProfileResourceVersion
+	out.SyncProfileResourceVersion = in.SyncProfileResourceVersion
+	return nil
+}
+
+// Convert_config_TargetStatusUsedReferences_To_v1alpha1_TargetStatusUsedReferences is an autogenerated conversion function.
+func Convert_config_TargetStatusUsedReferences_To_v1alpha1_TargetStatusUsedReferences(in *config.TargetStatusUsedReferences, out *TargetStatusUsedReferences, s conversion.Scope) error {
+	return autoConvert_config_TargetStatusUsedReferences_To_v1alpha1_TargetStatusUsedReferences(in, out, s)
 }

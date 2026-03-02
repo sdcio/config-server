@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/storage/names"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
 
 // NewStatusStrategy creates and returns a sttaus strategy instance
@@ -91,6 +91,12 @@ func (r *statusStrategy) InvokeUpdate(ctx context.Context, obj, old runtime.Obje
 }
 
 func (r *statusStrategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
+
+	if shouldLog(obj) {
+		logObject(ctx, "Update Status New", key, obj)
+		logObject(ctx, "Update Status Old", key, old)
+	}
+
 	// check if there is a change
 	if r.obj.IsStatusEqual(ctx, obj, old) {
 		return obj, nil

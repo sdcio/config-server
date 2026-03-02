@@ -23,7 +23,7 @@ func BuildRunningConfig(meta metav1.ObjectMeta, spec RunningConfigSpec, status R
 	return &RunningConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind: RunningConfigKind,
+			Kind:       RunningConfigKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,

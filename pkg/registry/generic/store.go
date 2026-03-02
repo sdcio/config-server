@@ -19,6 +19,7 @@ package generic
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	builderrest "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -44,9 +45,21 @@ func NewStorageProvider(ctx context.Context, obj resource.InternalObject, opts *
 			return NewREST(obj, scheme, watcherManager, optsGetter, opts)
 		},
 	}
+	// status subresources
 	if statusobj, ok := obj.(resource.ObjectWithStatusSubResource); ok {
 		sp.StatusSubResourceStorageProviderFn = func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error) {
 			return NewStatusREST(statusobj, scheme, watcherManager, opts, store)
+		}
+	}
+
+	// arbitrary subresources
+	if arb, ok := obj.(resource.ObjectWithArbitrarySubResource); ok {
+		sp.ArbitrarySubresourceHandlerProviders = make(map[string]builderrest.SubResourceStorageProviderFn)
+		for _, sub := range arb.GetArbitrarySubResources() {
+			sub := sub
+			sp.ArbitrarySubresourceHandlerProviders[sub.SubResourceName()] = func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error) {
+				return sub.NewStorage(scheme, store)
+			}
 		}
 	}
 	// Add addtional subresources
@@ -108,12 +121,14 @@ func NewREST(
 		CategoryList:              obj.GetCategories(),
 		ShortNameList:             obj.GetShortNames(),
 		Storage:                   storage,
+		KeyLocks:                  &sync.Map{},
 	}
-	options := &generic.StoreOptions{
+	storeOptions := &generic.StoreOptions{
 		RESTOptions: optsGetter,
 		AttrFunc:    utils.GetAttrs,
 	}
-	if err := store.CompleteWithOptions(options); err != nil {
+
+	if err := store.CompleteWithOptions(storeOptions); err != nil {
 		return nil, err
 	}
 	return store, nil
@@ -135,6 +150,8 @@ func NewStatusREST(
 	statusStore := *registryStore
 	statusStore.CreateStrategy = nil
 	statusStore.DeleteStrategy = nil
+	statusStore.CategoryList = nil
+	statusStore.ShortNameList = nil
 	statusStrategy := NewStatusStrategy(obj, scheme, registryStore.Storage, watcherManager, opts)
 	statusStore.UpdateStrategy = statusStrategy
 	statusStore.ResetFieldsStrategy = statusStrategy

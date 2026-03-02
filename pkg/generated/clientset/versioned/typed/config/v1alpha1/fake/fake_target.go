@@ -18,18 +18,18 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/inv/v1alpha1"
+	v1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/pkg/generated/clientset/versioned/typed/config/v1alpha1"
 	gentype "k8s.io/client-go/gentype"
 )
 
 // fakeTargets implements TargetInterface
 type fakeTargets struct {
 	*gentype.FakeClientWithList[*v1alpha1.Target, *v1alpha1.TargetList]
-	Fake *FakeInvV1alpha1
+	Fake *FakeConfigV1alpha1
 }
 
-func newFakeTargets(fake *FakeInvV1alpha1, namespace string) invv1alpha1.TargetInterface {
+func newFakeTargets(fake *FakeConfigV1alpha1, namespace string) configv1alpha1.TargetInterface {
 	return &fakeTargets{
 		gentype.NewFakeClientWithList[*v1alpha1.Target, *v1alpha1.TargetList](
 			fake.Fake,
