@@ -17,18 +17,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:openapi-gen=true
-
-// TargetBlame is the Schema for the TargetBlame API
-type TargetBlame struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-
-	//+kubebuilder:pruning:PreserveUnknownFields
-	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
+func (TargetConfigBlame) SubResourceName() string { return "configblame" }
+func (TargetConfigBlame) New() runtime.Object     { return &TargetConfigBlame{} }
+func (TargetConfigBlame) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
+	return nil, fmt.Errorf("not implemented on versioned type")
 }

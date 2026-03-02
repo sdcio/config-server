@@ -34,32 +34,32 @@ import (
 
 var _ resource.ArbitrarySubResource = &TargetClearDeviation{}
 
-func (TargetBlame) SubResourceName() string {
-	return "blame"
+func (TargetConfigBlame) SubResourceName() string {
+	return "configblame"
 }
 
-func (TargetBlame) New() runtime.Object {
-	return &TargetBlame{} // returns parent type — GET returns the full Target
+func (TargetConfigBlame) New() runtime.Object {
+	return &TargetConfigBlame{} // returns parent type — GET returns the full Target
 }
 
-func (TargetBlame) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
-	return &targetRunningREST{
+func (TargetConfigBlame) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
+	return &targetConfigBlameREST{
 		parentStore: parentStorage,
 	}, nil
 }
 
 // targetBlameREST implements rest.Storage + rest.Getter
-type targetBlameREST struct {
+type targetConfigBlameREST struct {
 	parentStore rest.Storage
 }
 
-func (r *targetBlameREST) New() runtime.Object {
-	return &TargetBlame{}
+func (r *targetConfigBlameREST) New() runtime.Object {
+	return &TargetConfigBlame{}
 }
 
-func (r *targetBlameREST) Destroy() {}
+func (r *targetConfigBlameREST) Destroy() {}
 
-func (r *targetBlameREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (r *targetConfigBlameREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	// Get the parent Target from the parent store
 	getter := r.parentStore.(rest.Getter)
 
@@ -101,7 +101,7 @@ func (r *targetBlameREST) Get(ctx context.Context, name string, options *metav1.
 	}
 
 	if rsp == nil || rsp.ConfigTree == nil {
-		return &TargetBlame{
+		return &TargetConfigBlame{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      target.Name,
 				Namespace: target.Namespace,
@@ -115,7 +115,7 @@ func (r *targetBlameREST) Get(ctx context.Context, name string, options *metav1.
 		return nil, err
 	}
 
-	return &TargetBlame{
+	return &TargetConfigBlame{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      target.Name,
 			Namespace: target.Namespace,

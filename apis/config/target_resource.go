@@ -56,9 +56,9 @@ var _ resource.ObjectWithArbitrarySubResource = &Target{}
 
 func (r *Target) GetArbitrarySubResources() []resource.ArbitrarySubResource {
 	return []resource.ArbitrarySubResource{
-		&TargetRunning{},
+		&TargetRunningConfig{},
 		&TargetClearDeviation{},
-		&TargetBlame{},
+		&TargetConfigBlame{},
 	}
 }
 

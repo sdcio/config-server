@@ -33,32 +33,32 @@ import (
 
 var _ resource.ArbitrarySubResource = &TargetClearDeviation{}
 
-func (TargetRunning) SubResourceName() string {
-	return "running"
+func (TargetRunningConfig) SubResourceName() string {
+	return "runningconfig"
 }
 
-func (TargetRunning) New() runtime.Object {
-	return &TargetRunning{} // returns parent type — GET returns the full Target
+func (TargetRunningConfig) New() runtime.Object {
+	return &TargetRunningConfig{} // returns parent type — GET returns the full Target
 }
 
-func (TargetRunning) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
-	return &targetRunningREST{
+func (TargetRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
+	return &targetRunningConfigREST{
 		parentStore: parentStorage,
 	}, nil
 }
 
 // targetRunningREST implements rest.Storage + rest.Getter
-type targetRunningREST struct {
+type targetRunningConfigREST struct {
 	parentStore rest.Storage
 }
 
-func (r *targetRunningREST) New() runtime.Object {
-	return &TargetRunning{}
+func (r *targetRunningConfigREST) New() runtime.Object {
+	return &TargetRunningConfig{}
 }
 
-func (r *targetRunningREST) Destroy() {}
+func (r *targetRunningConfigREST) Destroy() {}
 
-func (r *targetRunningREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	// Get the parent Target from the parent store
 	getter := r.parentStore.(rest.Getter)
 	obj, err := getter.Get(ctx, name, options)
@@ -100,7 +100,7 @@ func (r *targetRunningREST) Get(ctx context.Context, name string, options *metav
 		return nil, err
 	}
 
-	return &TargetRunning{
+	return &TargetRunningConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      target.Name,
 			Namespace: target.Namespace,
