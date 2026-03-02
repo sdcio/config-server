@@ -152,6 +152,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot add finalizer", err), errUpdateStatus)
 	}
+
 	// check if the discovery rule is running
 	isDRRunning := false
 	dr, err := r.discoveryStore.Get(ctx, key)
@@ -210,9 +211,9 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 
 	if newDRConfig.DiscoveryProfile != nil {
 		log.Info("HasChanged",
-			"CR RV", fmt.Sprintf("%s/%s",
-				newDRConfig.CR.GetResourceVersion(),
-				currentDRConfig.CR.GetResourceVersion(),
+			"CR Generation", fmt.Sprintf("%d/%d",
+				newDRConfig.CR.GetGeneration(),
+				currentDRConfig.CR.GetGeneration(),
 			),
 			"DiscoveryProfile Secret RV", fmt.Sprintf("%s/%s",
 				newDRConfig.DiscoveryProfile.SecretResourceVersion,
@@ -225,13 +226,14 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		)
 	} else {
 		log.Info("HasChanged",
-			"CR RV", fmt.Sprintf("%s/%s",
-				newDRConfig.CR.GetResourceVersion(),
-				currentDRConfig.CR.GetResourceVersion(),
+			"CR Generation", fmt.Sprintf("%d/%d",
+				newDRConfig.CR.GetGeneration(),
+				currentDRConfig.CR.GetGeneration(),
 			),
 		)
 	}
-	if newDRConfig.CR.GetResourceVersion() != currentDRConfig.CR.GetResourceVersion() {
+
+	if newDRConfig.CR.GetGeneration() != currentDRConfig.CR.GetGeneration() {
 		return true
 	}
 
@@ -259,10 +261,10 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		if newDRConfig.TargetConnectionProfiles[i].SecretResourceVersion != currentDRConfig.TargetConnectionProfiles[i].SecretResourceVersion {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion {
+		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion {
+		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation {
 			return true
 		}
 	}
