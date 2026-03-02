@@ -353,7 +353,8 @@ func (r *targetRunningREST) Get(ctx context.Context, name string, options *metav
 	target := obj.(*Target)
 
 	if !target.IsReady() {
-		return nil, apierrors.NewNotFound(target.GetGroupVersionResource().GroupResource(), name)
+		return nil, apierrors.NewServiceUnavailable(
+        	fmt.Sprintf("target %s is not ready: %s", name, target.GetCondition(condition.ConditionTypeReady).Message))
 	}
 
 	cfg := &dsclient.Config{
