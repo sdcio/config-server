@@ -384,6 +384,8 @@ func (r *targetRunningREST) Get(ctx context.Context, name string, options *metav
 		return nil, err
 	}
 
+	fmt.Println("runnning config: %s", rsp.GetBlob())
+
 	target.Running.Value.Raw = rsp.GetBlob()
 
 	return target, nil
