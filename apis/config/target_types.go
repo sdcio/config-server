@@ -74,10 +74,10 @@ type TargetRunning struct {
 }
 
 type TargetStatusUsedReferences struct {
-	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" yaml:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
-	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" yaml:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
-	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" yaml:"connectionProfileResourceVersion" protobuf:"bytes,3,opt,name=connectionProfileResourceVersion"`
-	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" yaml:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
+	SecretResourceVersion            string `json:"secretResourceVersion,omitempty" protobuf:"bytes,1,opt,name=secretResourceVersion"`
+	TLSSecretResourceVersion         string `json:"tlsSecretResourceVersion,omitempty" protobuf:"bytes,2,opt,name=tlsSecretResourceVersion"`
+	ConnectionProfileResourceVersion string `json:"connectionProfileResourceVersion" protobuf:"bytes,3,opt,name=connectionProfileResourceVersion"`
+	SyncProfileResourceVersion       string `json:"syncProfileResourceVersion" protobuf:"bytes,4,opt,name=syncProfileResourceVersion"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -89,7 +89,7 @@ type TargetStatusUsedReferences struct {
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true
 type Target struct {
-	metav1.TypeMeta   `json:",inline" yaml:",inline"`
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
 	Spec    TargetSpec    `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
@@ -102,7 +102,7 @@ type Target struct {
 
 // TargetList contains a list of Targets
 type TargetList struct {
-	metav1.TypeMeta `json:",inline" yaml:",inline"`
+	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Target `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
