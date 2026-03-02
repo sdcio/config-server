@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/henderiw/apiserver-builder v0.0.6
-	github.com/henderiw/apiserver-store v0.0.4-0.20260302074715-6f0b5dce6f79
+	github.com/henderiw/apiserver-store v0.0.4-0.20260302080324-b86cbaad3048
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/henderiw/store v0.0.2-0.20241030044529-f6baff74eab3
