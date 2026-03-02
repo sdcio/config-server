@@ -64,7 +64,8 @@ genclients:
 		-g defaulter-gen \
 		-g conversion-gen \
 		-g applyconfiguration-gen \
-		--module $(REPO) \
+		--module $(REPO)
+	$(MAKE) fix-openapi-gvk
 
 .PHONY: genproto
 genproto:
@@ -82,6 +83,7 @@ fix-openapi-gvk:
 .PHONY: generate
 generate: controller-gen 
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/inv/..."
+	$(MAKE) genclients
 
 .PHONY: manifests
 manifests: controller-gen crds artifacts ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
