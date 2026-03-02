@@ -130,9 +130,9 @@ func (r *dr) run(ctx context.Context) error {
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context cancelled") {
-						log.Info("discovery cancelled")
+						log.Debug("discovery cancelled")
 					} else {
-						log.Info("discovery failed", "error", err)
+						log.Debug("discovery failed", "error", err)
 					}
 				}
 			}(h)

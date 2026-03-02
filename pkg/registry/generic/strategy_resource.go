@@ -26,6 +26,7 @@ import (
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	"go.yaml.in/yaml/v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -88,12 +89,12 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 	accessor, _ := meta.Accessor(obj)
-    log.FromContext(ctx).Info("strategy.Get",
-        "key", key,
-        "managedFieldsCount", len(accessor.GetManagedFields()),
-        "labelsCount", len(accessor.GetLabels()),
-        "finalizersCount", len(accessor.GetFinalizers()),
-    )
+	log.FromContext(ctx).Info("strategy.Get",
+		"key", key,
+		"managedFieldsCount", len(accessor.GetManagedFields()),
+		"labelsCount", len(accessor.GetLabels()),
+		"finalizersCount", len(accessor.GetFinalizers()),
+	)
 	return obj, nil
 }
 
@@ -112,6 +113,11 @@ func (r *strategy) InvokeCreate(ctx context.Context, obj runtime.Object, recursi
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	b, err := yaml.Marshal(&obj)
+	if err == nil {
+		log.FromContext(ctx).Info("update strategy", "key", key, "data", string(b))
+	}
+	
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunCreateFn != nil {
 			return r.opts.DryRunCreateFn(ctx, key, obj, dryrun)
@@ -151,6 +157,18 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
+
+	objNew, err := yaml.Marshal(&obj)
+	if err == nil {
+		log.FromContext(ctx).Info("update strategy", "key", key, "data", string(objNew))
+	}
+
+	objOld, err := yaml.Marshal(&old)
+	if err == nil {
+		log.FromContext(ctx).Info("update strategy", "key", key, "data", string(objOld))
+	}
+
+
 	if r.obj.IsEqual(ctx, obj, old) {
 		return obj, nil
 	}
