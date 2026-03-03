@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -27,6 +28,7 @@ import (
 	"github.com/sdcio/sdc-protos/sdcpb"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -50,7 +52,19 @@ func (TargetRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest
 var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
 
 func (TargetRunningConfig) NewGetOptions() runtime.Object {
-    return &TargetRunningOptions{}
+	return &TargetRunningOptions{}
+}
+
+var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
+
+func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error {
+	return func(a, b interface{}, scope conversion.Scope) error {
+		values := a.(*url.Values)
+		out := b.(*TargetRunningOptions)
+		out.Path = values.Get("path")
+		out.Format = values.Get("format")
+		return nil
+	}
 }
 
 // targetRunningREST implements rest.Storage + rest.Getter
