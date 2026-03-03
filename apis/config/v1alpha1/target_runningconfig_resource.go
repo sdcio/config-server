@@ -19,13 +19,21 @@ package v1alpha1
 import (
 	"fmt"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-// Minimal interface implementations for v1alpha1 types
+var _ resource.ArbitrarySubResource = &TargetRunningConfig{}
+
 func (TargetRunningConfig) SubResourceName() string { return "runningconfig" }
 func (TargetRunningConfig) New() runtime.Object     { return &TargetRunningConfig{} }
 func (TargetRunningConfig) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
 	return nil, fmt.Errorf("not implemented on versioned type")
+}
+
+var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
+
+func (TargetRunningConfig) NewGetOptions() runtime.Object {
+	return &TargetRunningOptions{}
 }

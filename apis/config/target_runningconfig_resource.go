@@ -31,7 +31,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-var _ resource.ArbitrarySubResource = &TargetClearDeviation{}
+var _ resource.ArbitrarySubResource = &TargetRunningConfig{}
 
 func (TargetRunningConfig) SubResourceName() string {
 	return "runningconfig"
@@ -45,6 +45,12 @@ func (TargetRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest
 	return &targetRunningConfigREST{
 		parentStore: parentStorage,
 	}, nil
+}
+
+var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
+
+func (TargetRunningConfig) NewGetOptions() runtime.Object {
+    return &TargetRunningOptions{}
 }
 
 // targetRunningREST implements rest.Storage + rest.Getter

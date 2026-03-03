@@ -19,9 +19,12 @@ package v1alpha1
 import (
 	"fmt"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
+
+var _ resource.ArbitrarySubResource = &TargetConfigBlame{}
 
 func (TargetConfigBlame) SubResourceName() string { return "configblame" }
 func (TargetConfigBlame) New() runtime.Object     { return &TargetConfigBlame{} }

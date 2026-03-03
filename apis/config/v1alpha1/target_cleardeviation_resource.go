@@ -19,11 +19,13 @@ package v1alpha1
 import (
 	"fmt"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-// Minimal interface implementations for v1alpha1 types
+var _ resource.ArbitrarySubResource = &TargetClearDeviation{}
+
 func (TargetClearDeviation) SubResourceName() string { return "cleardeviation" }
 func (TargetClearDeviation) New() runtime.Object     { return &TargetClearDeviation{} }
 func (TargetClearDeviation) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.Storage, error) {
