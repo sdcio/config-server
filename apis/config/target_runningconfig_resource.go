@@ -116,18 +116,3 @@ func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options 
 		Value: runtime.RawExtension{Raw: rsp.GetBlob()},
 	}, nil
 }
-
-// Define your options type
-type TargetRunningOptions struct {
-	metav1.TypeMeta `json:",inline"`
-
-	// Path filters the running config to a subtree
-	Path string `json:"path,omitempty"`
-	// Format controls output format
-	Format string `json:"format,omitempty"`
-}
-
-func (o *TargetRunningOptions) DeepCopyObject() runtime.Object {
-	out := *o
-	return &out
-}

@@ -32,3 +32,17 @@ type TargetRunningConfig struct {
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
+
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:openapi-gen=true
+// TargetRunningOptions is the Option Parametsrs for the TargetRunningOptions QueryParamters
+type TargetRunningOptions struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Path filters the running config to a subtree
+	Path string `json:"path,omitempty"`
+	// Format controls output format
+	Format string `json:"format,omitempty"`
+}
+
