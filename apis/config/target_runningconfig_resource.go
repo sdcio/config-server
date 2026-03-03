@@ -58,10 +58,18 @@ func (r *targetRunningConfigREST) New() runtime.Object {
 
 func (r *targetRunningConfigREST) Destroy() {}
 
-func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (r *targetRunningConfigREST) NewGetOptions() (runtime.Object, bool, string) {
+	// Returns: (options object, decode from body?, single query param name)
+	return &TargetRunningOptions{}, false, ""
+}
+
+func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options runtime.Object) (runtime.Object, error) {
+	opts := options.(*TargetRunningOptions)
+	fmt.Printf("path=%s format=%s\n", opts.Path, opts.Format)
+
 	// Get the parent Target from the parent store
 	getter := r.parentStore.(rest.Getter)
-	obj, err := getter.Get(ctx, name, options)
+	obj, err := getter.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -107,4 +115,19 @@ func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options 
 		},
 		Value: runtime.RawExtension{Raw: rsp.GetBlob()},
 	}, nil
+}
+
+// Define your options type
+type TargetRunningOptions struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Path filters the running config to a subtree
+	Path string `json:"path,omitempty"`
+	// Format controls output format
+	Format string `json:"format,omitempty"`
+}
+
+func (o *TargetRunningOptions) DeepCopyObject() runtime.Object {
+	out := *o
+	return &out
 }
