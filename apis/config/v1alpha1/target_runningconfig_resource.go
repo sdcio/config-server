@@ -21,6 +21,7 @@ import (
 	"net/url"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/sdcio/config-server/apis/config"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -37,7 +38,7 @@ func (TargetRunningConfig) NewStorage(_ *runtime.Scheme, _ rest.Storage) (rest.S
 var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
 
 func (TargetRunningConfig) NewGetOptions() runtime.Object {
-	return &TargetRunningOptions{}
+	return &TargetRunningConfigOptions{}
 }
 
 var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
@@ -45,9 +46,36 @@ var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
 func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error {
 	return func(a, b interface{}, scope conversion.Scope) error {
 		values := a.(*url.Values)
-		out := b.(*TargetRunningOptions)
+		out := b.(*TargetRunningConfigOptions)
 		out.Path = values.Get("path")
 		out.Format = values.Get("format")
 		return nil
+	}
+}
+
+var _ resource.ArbitrarySubResourceWithVersionConverter = &TargetRunningConfig{}
+
+func (TargetRunningConfig) ParameterSchemeConversions() []func(*runtime.Scheme) error {
+	return []func(*runtime.Scheme) error{
+		func(s *runtime.Scheme) error {
+			return s.AddConversionFunc((*TargetRunningConfigOptions)(nil), (*config.TargetRunningConfigOptions)(nil),
+				func(a, b interface{}, scope conversion.Scope) error {
+					in := a.(*TargetRunningConfigOptions)
+					out := b.(*config.TargetRunningConfigOptions)
+					out.Path = in.Path
+					out.Format = in.Format
+					return nil
+				})
+		},
+		func(s *runtime.Scheme) error {
+			return s.AddConversionFunc((*config.TargetRunningConfigOptions)(nil), (*TargetRunningConfigOptions)(nil),
+				func(a, b interface{}, scope conversion.Scope) error {
+					in := a.(*config.TargetRunningConfigOptions)
+					out := b.(*TargetRunningConfigOptions)
+					out.Path = in.Path
+					out.Format = in.Format
+					return nil
+				})
+		},
 	}
 }

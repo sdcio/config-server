@@ -74,7 +74,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetConfigBlame":                 schema_config_server_apis_config_v1alpha1_TargetConfigBlame(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfig":               schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningOptions":              schema_config_server_apis_config_v1alpha1_TargetRunningOptions(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfigOptions":        schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec":                        schema_config_server_apis_config_v1alpha1_TargetSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences":        schema_config_server_apis_config_v1alpha1_TargetStatusUsedReferences(ref),
@@ -2269,7 +2269,7 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref common.Re
 	}
 }
 
-func schema_config_server_apis_config_v1alpha1_TargetRunningOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{

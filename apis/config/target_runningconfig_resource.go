@@ -52,7 +52,7 @@ func (TargetRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest
 var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
 
 func (TargetRunningConfig) NewGetOptions() runtime.Object {
-	return &TargetRunningOptions{}
+	return &TargetRunningConfigOptions{}
 }
 
 var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
@@ -60,7 +60,7 @@ var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
 func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error {
 	return func(a, b interface{}, scope conversion.Scope) error {
 		values := a.(*url.Values)
-		out := b.(*TargetRunningOptions)
+		out := b.(*TargetRunningConfigOptions)
 		out.Path = values.Get("path")
 		out.Format = values.Get("format")
 		return nil
@@ -80,11 +80,11 @@ func (r *targetRunningConfigREST) Destroy() {}
 
 func (r *targetRunningConfigREST) NewGetOptions() (runtime.Object, bool, string) {
 	// Returns: (options object, decode from body?, single query param name)
-	return &TargetRunningOptions{}, false, ""
+	return &TargetRunningConfigOptions{}, false, ""
 }
 
 func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options runtime.Object) (runtime.Object, error) {
-	opts := options.(*TargetRunningOptions)
+	opts := options.(*TargetRunningConfigOptions)
 	fmt.Printf("path=%s format=%s\n", opts.Path, opts.Format)
 
 	// Get the parent Target from the parent store
