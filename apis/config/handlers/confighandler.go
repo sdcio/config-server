@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
@@ -25,14 +24,14 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := targetmanager.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
+	updates, err := config.GetIntentUpdate(c, true)
 	if err != nil {
 		return nil, err
 	}
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   targetmanager.GetGVKNSN(c),
+			Intent:   config.GetGVKNSN(c),
 			Priority: int32(c.Spec.Priority),
 			Update:   updates,
 		},
@@ -46,14 +45,14 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := targetmanager.GetIntentUpdate(ctx, storebackend.KeyFromNSN(key), c, true)
+	updates, err := config.GetIntentUpdate(c, true)
 	if err != nil {
 		return nil, err
 	}
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   targetmanager.GetGVKNSN(c),
+			Intent:   config.GetGVKNSN(c),
 			Priority: int32(c.Spec.Priority),
 			Update:   updates,
 		},
@@ -69,7 +68,7 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent: targetmanager.GetGVKNSN(c),
+			Intent: config.GetGVKNSN(c),
 			Delete: true,
 		},
 	}

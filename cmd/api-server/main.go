@@ -28,9 +28,11 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/config"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+
 	//invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -124,10 +126,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	config.SetSubResourceClient(mgr.GetClient())
+
 	registryOptions := &options.Options{
 		Prefix: configDir,
 		Type:   options.StorageType_KV,
 		DB:     db,
+		Client: mgr.GetClient(),
 	}
 
 	configHandler := handlers.ConfigStoreHandler{

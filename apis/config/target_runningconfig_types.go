@@ -33,7 +33,6 @@ type TargetRunningConfig struct {
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
-
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
 // TargetRunningOptions is the Option Parametsrs for the TargetRunningOptions QueryParamters
@@ -42,7 +41,19 @@ type TargetRunningConfigOptions struct {
 
 	// Path filters the running config to a subtree
 	Path string `json:"path,omitempty"`
-	// Format controls output format
-	Format string `json:"format,omitempty"`
+	// Format controls output format (json, json_ietf, xml, proto)
+	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
+	// +kubebuilder:default=json
+	Format TargetFormat `json:"format,omitempty"`
 }
 
+// Format defines the output encoding format for running config
+// +enum
+type TargetFormat string
+
+const (
+	Format_JSON      TargetFormat = "json"
+	Format_JSON_IETF TargetFormat = "json_ietf"
+	Format_XML       TargetFormat = "xml"
+	Format_PROTO     TargetFormat = "proto"
+)

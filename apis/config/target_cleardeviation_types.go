@@ -22,13 +22,41 @@ import (
 
 // TargetClearDeviationSpec defines the desired state of Target
 type TargetClearDeviationSpec struct {
+	// IncludeConfigs when true includes all existing configs in the transaction,
+	// not just the ones referenced by Config.
+	// +kubebuilder:default=false
+	IncludeAllConfigs *bool `json:"includeAllConfigs,omitempty" protobuf:"bytes,1,opt,name=includeAllConfigs"`
+	// Config defines the clear deviations configs to applied on the taget
+	Config []TargetClearDeviationConfig `json:"config" protobuf:"bytes,2,rep,name=config"`
+}
+
+type TargetClearDeviationConfig struct {
+	// Name of the config on which the paths should be cleared
+	Name string `json:"name" protobuf:"bytes,1,opt,name=paths"`
 	// Paths provide the path of the deviation to be cleared
-	Paths []string `json:"paths" protobuf:"bytes,1,rep,name=paths"`
+	Paths []string `json:"paths" protobuf:"bytes,2,rep,name=paths"`
 }
 
 type TargetClearDeviationStatus struct {
-	Cleared int    `json:"cleared" protobuf:"bytes,1,opt,name=cleared"`
-	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// Message is a global message for the transaction
+	Message string `json:"message,omitempty" protobuf:"bytes,1,opt,name=message"`
+	// Warnings are global warnings from the transaction
+	Warnings []string `json:"warnings,omitempty" protobuf:"bytes,2,rep,name=warnings"`
+	// Results holds per-config outcomes, keyed by intent name
+	Results []TargetClearDeviationConfigResult `json:"results,omitempty" protobuf:"bytes,3,rep,name=results"`
+}
+
+type TargetClearDeviationConfigResult struct {
+	// Name of the config on which the paths should be cleared
+	Name string `json:"name" protobuf:"bytes,1,rep,name=paths"`
+	// Success indicates whether the clear deviation was successful
+	Success bool `json:"success"`
+	// Message provides detail on the outcome
+	Message string `json:"message,omitempty"`
+	// Errors lists any errors for this specific config
+	Errors []string `json:"errors,omitempty"`
+	// Warnings lists any warnings for this specific config
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -39,6 +67,6 @@ type TargetClearDeviation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Spec   TargetClearDeviationSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
-	Status TargetClearDeviationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Spec   *TargetClearDeviationSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+	Status *TargetClearDeviationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }

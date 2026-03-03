@@ -58,7 +58,7 @@ func RunDryRunTransaction(
 	}()
 
 	req := &sdcpb.TransactionSetRequest{
-		TransactionId: GetGVKNSN(c),
+		TransactionId: config.GetGVKNSN(c),
 		DatastoreName: key.String(),
 		DryRun:        dryrun,
 		Timeout:       ptr.To(int32(60)),

@@ -17,9 +17,22 @@ limitations under the License.
 package config
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	"github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/protobuf/encoding/protojson"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetCondition returns the condition based on the condition kind
@@ -79,4 +92,402 @@ func (r *Target) IsReady() bool {
 
 func (r *Target) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+}
+
+func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfigOptions) (runtime.Object, error) {
+	targetKey := r.GetNamespacedName()
+	if !r.IsReady() {
+		return nil, apierrors.NewServiceUnavailable(
+			fmt.Sprintf("target %s is not ready: %s", targetKey,
+				r.GetCondition(condition.ConditionTypeReady).Message))
+	}
+
+	var format TargetFormat
+	if opts != nil {
+		format = opts.Format
+	}
+
+	cfg := &dsclient.Config{
+		Address:  dsclient.GetDataServerAddress(),
+		Insecure: true,
+	}
+
+	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := closeFn(); err != nil {
+			log.FromContext(ctx).Error("failed to close connection", "Error", err)
+		}
+	}()
+
+	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
+		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+		Intent:        "running",
+		Format:        FormatToProto(format),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &TargetRunningConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.Name,
+			Namespace: r.Namespace,
+		},
+		Value: runtime.RawExtension{Raw: rsp.GetBlob()},
+	}, nil
+}
+
+func FormatToProto(f TargetFormat) sdcpb.Format {
+	switch f {
+	case Format_JSON_IETF:
+		return sdcpb.Format_Intent_Format_JSON_IETF
+	case Format_XML:
+		return sdcpb.Format_Intent_Format_XML
+	case Format_PROTO:
+		return sdcpb.Format_Intent_Format_PROTO
+	default:
+		return sdcpb.Format_Intent_Format_JSON
+	}
+}
+
+func (r *Target) GetConfigBlame(ctx context.Context) (runtime.Object, error) {
+	targetKey := r.GetNamespacedName()
+	if !r.IsReady() {
+		return nil, apierrors.NewServiceUnavailable(
+			fmt.Sprintf("target %s is not ready: %s", targetKey,
+				r.GetCondition(condition.ConditionTypeReady).Message))
+	}
+
+	cfg := &dsclient.Config{
+		Address:  dsclient.GetDataServerAddress(),
+		Insecure: true,
+	}
+
+	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := closeFn(); err != nil {
+			// You can use your preferred logging framework here
+			log.FromContext(ctx).Error("failed to close connection", "Error", err)
+		}
+	}()
+
+	rsp, err := dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
+		DatastoreName:   storebackend.KeyFromNSN(targetKey).String(),
+		IncludeDefaults: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if rsp == nil || rsp.ConfigTree == nil {
+		return &TargetConfigBlame{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      r.Name,
+				Namespace: r.Namespace,
+			},
+			Value: runtime.RawExtension{Raw: nil},
+		}, nil
+	}
+
+	json, err := protojson.Marshal(rsp.ConfigTree)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TargetConfigBlame{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      targetKey.Name,
+			Namespace: targetKey.Namespace,
+		},
+		Value: runtime.RawExtension{Raw: json},
+	}, nil
+}
+
+func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *TargetClearDeviation) (runtime.Object, error) {
+	targetKey := r.GetNamespacedName()
+	if !r.IsReady() {
+		return nil, apierrors.NewServiceUnavailable(
+			fmt.Sprintf("target %s is not ready: %s", targetKey,
+				r.GetCondition(condition.ConditionTypeReady).Message))
+	}
+
+	spec := req.Spec
+	if spec == nil {
+		return nil, apierrors.NewBadRequest("spec is required")
+	}
+
+	// Fetch existing configs for the target
+	configsByName, err := listConfigsByTarget(ctx, c, r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the TransactionSetRequest
+	txReq, validationErrors := buildClearDeviationTxRequest(targetKey, spec, configsByName)
+	if len(validationErrors) > 0 {
+		return &TargetClearDeviation{
+			ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
+			Status: &TargetClearDeviationStatus{
+				Message: "validation failed: unknown config names",
+				Results: validationErrors,
+			},
+		}, nil
+	}
+	if len(txReq.Intents) == 0 {
+		return &TargetClearDeviation{
+			ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
+			Status: &TargetClearDeviationStatus{
+				Message: "no configs to process",
+			},
+		}, nil
+	}
+
+	// Execute the transaction
+	rsp, txErr := executeClearDeviationTx(ctx, txReq)
+
+	// Build the response
+	return &TargetClearDeviation{
+		ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
+		Status:     buildClearDeviationStatus(spec.Config, configsByName, rsp, txErr),
+	}, nil
+}
+
+// listConfigsByIntent fetches all configs for a target and indexes them
+// by their intent name (GetGVKNSN). This is the same key the dataserver uses.
+func listConfigsByTarget(ctx context.Context, c client.Client, target *Target) (map[string]*Config, error) {
+	configList := &ConfigList{}
+	if err := c.List(ctx, configList,
+		client.InNamespace(target.Namespace),
+		client.MatchingLabels{
+			TargetNamespaceKey: target.Namespace,
+			TargetNameKey:      target.Name,
+		},
+	); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]*Config, len(configList.Items))
+	for i := range configList.Items {
+		cfg := &configList.Items[i]
+		result[cfg.Name] = cfg
+	}
+	return result, nil
+}
+
+// buildClearDeviationTxRequest constructs the TransactionSetRequest from
+// the clear deviation configs. It validates that every requested config name
+// exists as a known intent. Unknown names are returned as validation errors.
+func buildClearDeviationTxRequest(
+	targetKey types.NamespacedName,
+	spec *TargetClearDeviationSpec,
+	configsByName map[string]*Config,
+) (*sdcpb.TransactionSetRequest, []TargetClearDeviationConfigResult) {
+
+	var validationErrors []TargetClearDeviationConfigResult
+	intents := make([]*sdcpb.TransactionIntent, 0, len(spec.Config))
+	for _, clearCfg := range spec.Config {
+		cfg, found := configsByName[clearCfg.Name]
+		if !found {
+			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
+				Name:    clearCfg.Name,
+				Success: false,
+				Errors:  []string{fmt.Sprintf("config %q not found for target %s", clearCfg.Name, targetKey.Name)},
+			})
+			continue
+		}
+
+		revertPaths := make([]*sdcpb.Path, 0, len(clearCfg.Paths))
+		var pathErrors []string
+		for _, p := range clearCfg.Paths {
+			path, err := sdcpb.ParsePath(p)
+			if err != nil {
+				pathErrors = append(pathErrors, fmt.Sprintf("invalid path %q: %v", p, err))
+				continue
+			}
+			revertPaths = append(revertPaths, path)
+		}
+
+		if len(pathErrors) > 0 {
+			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
+				Name:    clearCfg.Name,
+				Success: false,
+				Errors:  pathErrors,
+			})
+			continue
+		}
+
+		intents = append(intents, &sdcpb.TransactionIntent{
+			Intent:      GetGVKNSN(cfg),
+			Priority:    int32(cfg.Spec.Priority),
+			RevertPaths: revertPaths,
+		})
+	}
+
+	// Early exit on validation errors
+	if len(validationErrors) > 0 {
+		return nil, validationErrors
+	}
+
+	// If IncludeAllConfigs, add configs as no-op intents
+	// so the dataserver evaluates reverts in the full context
+	if spec.IncludeAllConfigs != nil && *spec.IncludeAllConfigs {
+		for name, cfg := range configsByName {
+			update, err := GetIntentUpdate(cfg, true)
+			if err != nil {
+				validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
+					Name:    name,
+					Success: false,
+					Errors:  []string{fmt.Sprintf("failed to build intent update for config %q: %v", name, err)},
+				})
+				continue
+			}
+			intents = append(intents, &sdcpb.TransactionIntent{
+				Intent:       GetGVKNSN(cfg),
+				Priority:     int32(cfg.Spec.Priority),
+				Update:       update,
+				NonRevertive: !cfg.IsRevertive(),
+			})
+		}
+	}
+
+	return &sdcpb.TransactionSetRequest{
+		TransactionId: uuid.New().String(),
+		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+		DryRun:        false,
+		Timeout:       ptr.To(int32(60)),
+		Intents:       intents,
+	}, nil
+}
+
+func GetGVKNSN(obj client.Object) string {
+	return fmt.Sprintf("%s.%s", obj.GetNamespace(), obj.GetName())
+}
+
+// executeClearDeviationTx opens a connection to the dataserver,
+// sends the TransactionSetRequest, and confirms on success.
+func executeClearDeviationTx(
+	ctx context.Context,
+	txReq *sdcpb.TransactionSetRequest,
+) (*sdcpb.TransactionSetResponse, error) {
+	cfg := &dsclient.Config{
+		Address:  dsclient.GetDataServerAddress(),
+		Insecure: true,
+	}
+	dsClient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := closeFn(); err != nil {
+			log.FromContext(ctx).Error("failed to close connection", "error", err)
+		}
+	}()
+
+	rsp, err := dsClient.TransactionSet(ctx, txReq)
+	if err != nil {
+		return rsp, err
+	}
+
+	// Confirm the transaction
+	if _, err := dsClient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: txReq.DatastoreName,
+		TransactionId: txReq.TransactionId,
+	}); err != nil {
+		return rsp, fmt.Errorf("transaction confirm failed: %w", err)
+	}
+
+	return rsp, nil
+}
+
+// buildClearDeviationStatus assembles the response status from the
+// transaction response and any error.
+func buildClearDeviationStatus(
+	clearConfigs []TargetClearDeviationConfig,
+	configsByName map[string]*Config,
+	rsp *sdcpb.TransactionSetResponse,
+	err error,
+) *TargetClearDeviationStatus {
+	status := &TargetClearDeviationStatus{}
+
+	if err != nil {
+		status.Message = err.Error()
+	}
+
+	if rsp == nil {
+		for _, cfg := range clearConfigs {
+			status.Results = append(status.Results, TargetClearDeviationConfigResult{
+				Name:    cfg.Name,
+				Success: false,
+				Errors:  []string{status.Message},
+			})
+		}
+		return status
+	}
+
+	status.Warnings = rsp.Warnings
+
+	// Map intent names (GVKNSN) back to config names for the response
+	intentToName := make(map[string]string, len(configsByName))
+	for name, cfg := range configsByName {
+		intentToName[GetGVKNSN(cfg)] = name
+	}
+
+	responded := make(map[string]bool, len(rsp.Intents))
+	for intentKey, intent := range rsp.Intents {
+		name := intentKey
+		if mapped, ok := intentToName[intentKey]; ok {
+			name = mapped
+		}
+		responded[name] = true
+		status.Results = append(status.Results, TargetClearDeviationConfigResult{
+			Name:    name,
+			Success: len(intent.Errors) == 0,
+			Errors:  intent.Errors,
+		})
+	}
+
+	// Configs not in response succeeded silently
+	for _, cfg := range clearConfigs {
+		if !responded[cfg.Name] {
+			status.Results = append(status.Results, TargetClearDeviationConfigResult{
+				Name:    cfg.Name,
+				Success: err == nil,
+			})
+		}
+	}
+
+	return status
+}
+
+// useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
+// the config
+func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
+	update := make([]*sdcpb.Update, 0, len(config.Spec.Config))
+	configSpec := config.Spec.Config
+	if !useSpec && config.Status.AppliedConfig != nil {
+		update = make([]*sdcpb.Update, 0, len(config.Status.AppliedConfig.Config))
+		configSpec = config.Status.AppliedConfig.Config
+	}
+
+	for _, config := range configSpec {
+		path, err := sdcpb.ParsePath(config.Path)
+		if err != nil {
+			return nil, err
+		}
+		update = append(update, &sdcpb.Update{
+			Path: path,
+			Value: &sdcpb.TypedValue{
+				Value: &sdcpb.TypedValue_JsonVal{
+					JsonVal: config.Value.Raw,
+				},
+			},
+		})
+	}
+	return update, nil
 }

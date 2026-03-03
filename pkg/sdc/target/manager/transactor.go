@@ -123,16 +123,16 @@ func (r *Transactor) recoverIntents(
 	}
 
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
-	for _, config := range configs {
-		update, err := GetIntentUpdate(ctx, key, config, false)
+	for _, cfg := range configs {
+		update, err := config.GetIntentUpdate(cfg, false)
 		if err != nil {
 			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:            GetGVKNSN(config),
-			Priority:          int32(config.Spec.Priority),
+			Intent:            config.GetGVKNSN(cfg),
+			Priority:          int32(cfg.Spec.Priority),
 			Update:            update,
-			NonRevertive:      !config.IsRevertive(),
+			NonRevertive:      !cfg.IsRevertive(),
 			PreviouslyApplied: true,
 		})
 	}
@@ -289,28 +289,28 @@ func (r *Transactor) setIntents(
 
 	intents := make([]*sdcpb.TransactionIntent, 0)
 
-	for key, config := range configsToUpdate {
+	for key, cfg := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
-		update, err := GetIntentUpdate(ctx, targetKey, config, true)
+		update, err := config.GetIntentUpdate(cfg, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
 			return nil, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:       GetGVKNSN(config),
-			Priority:     int32(config.Spec.Priority),
+			Intent:       config.GetGVKNSN(cfg),
+			Priority:     int32(cfg.Spec.Priority),
 			Update:       update,
-			NonRevertive: !config.IsRevertive(),
+			NonRevertive: !cfg.IsRevertive(),
 		})
 	}
-	for key, config := range configsToDelete {
+	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent: GetGVKNSN(config),
+			Intent: config.GetGVKNSN(cfg),
 			//Priority: int32(config.Spec.Priority),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
-			Orphan:              config.Orphan(),
+			Orphan:              cfg.Orphan(),
 		})
 	}
 
@@ -525,7 +525,7 @@ func getConfigsToTransact(
 	// Classify configs: update / delete / non-recoverable / noop
 	for i := range configList.Items {
 		cfg := &configList.Items[i]
-		key := GetGVKNSN(cfg)
+		key := config.GetGVKNSN(cfg)
 
 		switch {
 		case !cfg.IsRecoverable(ctx):

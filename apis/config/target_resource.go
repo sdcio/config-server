@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -46,6 +47,13 @@ var (
 	TargetCategories = []string{"sdc", "knet"}
 )
 
+var subResourceClient client.Client
+
+// SetSubResourceClient is called once during server init to inject the client
+func SetSubResourceClient(c client.Client) {
+	subResourceClient = c
+}
+
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &Target{}
 var _ resource.ObjectList = &TargetList{}
@@ -57,7 +65,7 @@ var _ resource.ObjectWithArbitrarySubResource = &Target{}
 func (r *Target) GetArbitrarySubResources() []resource.ArbitrarySubResource {
 	return []resource.ArbitrarySubResource{
 		&TargetRunningConfig{},
-		&TargetClearDeviation{},
+		NewTargetClearDeviationSubResource(subResourceClient),
 		&TargetConfigBlame{},
 	}
 }

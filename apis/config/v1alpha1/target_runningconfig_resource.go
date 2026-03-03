@@ -48,7 +48,7 @@ func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope c
 		values := a.(*url.Values)
 		out := b.(*TargetRunningConfigOptions)
 		out.Path = values.Get("path")
-		out.Format = values.Get("format")
+		out.Format = TargetFormat(values.Get("format"))
 		return nil
 	}
 }
@@ -60,21 +60,15 @@ func (TargetRunningConfig) ParameterSchemeConversions() []func(*runtime.Scheme) 
 		func(s *runtime.Scheme) error {
 			return s.AddConversionFunc((*TargetRunningConfigOptions)(nil), (*config.TargetRunningConfigOptions)(nil),
 				func(a, b interface{}, scope conversion.Scope) error {
-					in := a.(*TargetRunningConfigOptions)
-					out := b.(*config.TargetRunningConfigOptions)
-					out.Path = in.Path
-					out.Format = in.Format
-					return nil
+					return Convert_v1alpha1_TargetRunningConfigOptions_To_config_TargetRunningConfigOptions(
+						a.(*TargetRunningConfigOptions), b.(*config.TargetRunningConfigOptions), scope)
 				})
 		},
 		func(s *runtime.Scheme) error {
 			return s.AddConversionFunc((*config.TargetRunningConfigOptions)(nil), (*TargetRunningConfigOptions)(nil),
 				func(a, b interface{}, scope conversion.Scope) error {
-					in := a.(*config.TargetRunningConfigOptions)
-					out := b.(*TargetRunningConfigOptions)
-					out.Path = in.Path
-					out.Format = in.Format
-					return nil
+					return Convert_config_TargetRunningConfigOptions_To_v1alpha1_TargetRunningConfigOptions(
+						a.(*config.TargetRunningConfigOptions), b.(*TargetRunningConfigOptions), scope)
 				})
 		},
 	}

@@ -69,6 +69,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviation":              schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfig":        schema_config_server_apis_config_v1alpha1_TargetClearDeviationConfig(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfigResult":  schema_config_server_apis_config_v1alpha1_TargetClearDeviationConfigResult(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec":          schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus":        schema_config_server_apis_config_v1alpha1_TargetClearDeviationStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetConfigBlame":                 schema_config_server_apis_config_v1alpha1_TargetConfigBlame(ref),
@@ -2043,14 +2045,12 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref common.R
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec"),
+							Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus"),
+							Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus"),
 						},
 					},
 				},
@@ -2068,13 +2068,20 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref common.R
 	}
 }
 
-func schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "TargetClearDeviationSpec defines the desired state of Target",
-				Type:        []string{"object"},
+				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the config on which the paths should be cleared",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"paths": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Paths provide the path of the deviation to be cleared",
@@ -2091,9 +2098,112 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref comm
 						},
 					},
 				},
-				Required: []string{"paths"},
+				Required: []string{"name", "paths"},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviationConfigResult(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the config on which the paths should be cleared",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"success": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Success indicates whether the clear deviation was successful",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message provides detail on the outcome",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"errors": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Errors lists any errors for this specific config",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"warnings": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Warnings lists any warnings for this specific config",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name", "success"},
+			},
+		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetClearDeviationSpec defines the desired state of Target",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"includeAllConfigs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IncludeConfigs when true includes all existing configs in the transaction, not just the ones referenced by Config.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"config": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config defines the clear deviations configs to applied on the taget",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"config"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfig"},
 	}
 }
 
@@ -2103,24 +2213,47 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviationStatus(ref co
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"cleared": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Message is a global message for the transaction",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"warnings": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Warnings are global warnings from the transaction",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"results": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Results holds per-config outcomes, keyed by intent name",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfigResult"),
+									},
+								},
+							},
 						},
 					},
 				},
-				Required: []string{"cleared", "message"},
 			},
 		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfigResult"},
 	}
 }
 
@@ -2299,9 +2432,10 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref co
 					},
 					"format": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Format controls output format",
+							Description: "Format controls output format (json, json_ietf, xml, proto)\n\nPossible enum values:\n - `\"json\"`\n - `\"json_ietf\"`\n - `\"proto\"`\n - `\"xml\"`",
 							Type:        []string{"string"},
 							Format:      "",
+							Enum:        []interface{}{"json", "json_ietf", "proto", "xml"},
 						},
 					},
 				},

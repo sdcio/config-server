@@ -22,10 +22,6 @@ import (
 	"net/url"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/sdcio/config-server/apis/condition"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	"github.com/sdcio/sdc-protos/sdcpb"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
@@ -62,7 +58,7 @@ func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope c
 		values := a.(*url.Values)
 		out := b.(*TargetRunningConfigOptions)
 		out.Path = values.Get("path")
-		out.Format = values.Get("format")
+		out.Format = TargetFormat(values.Get("format"))
 		return nil
 	}
 }
@@ -84,55 +80,29 @@ func (r *targetRunningConfigREST) NewGetOptions() (runtime.Object, bool, string)
 }
 
 func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options runtime.Object) (runtime.Object, error) {
-	opts := options.(*TargetRunningConfigOptions)
-	fmt.Printf("path=%s format=%s\n", opts.Path, opts.Format)
+	opts, ok := options.(*TargetRunningConfigOptions)
+	if !ok {
+		return nil, apierrors.NewBadRequest(
+			fmt.Sprintf("expected TargetRunningConfigOptions, got %T", options))
+	}
 
 	// Get the parent Target from the parent store
-	getter := r.parentStore.(rest.Getter)
+	// Get the parent Target from the parent store
+	getter, ok := r.parentStore.(rest.Getter)
+	if !ok {
+		return nil, apierrors.NewInternalError(
+			fmt.Errorf("parent store %T does not implement rest.Getter", r.parentStore))
+	}
 	obj, err := getter.Get(ctx, name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	target := obj.(*Target)
-
-	if !target.IsReady() {
-		return nil, apierrors.NewServiceUnavailable(
-			fmt.Sprintf("target %s is not ready: %s", name,
-				target.GetCondition(condition.ConditionTypeReady).Message))
+	target, ok := obj.(*Target)
+	if !ok {
+		return nil, apierrors.NewInternalError(
+			fmt.Errorf("expected *Target, got %T", obj))
 	}
 
-	cfg := &dsclient.Config{
-		Address:  dsclient.GetDataServerAddress(),
-		Insecure: true,
-	}
+	return target.GetRunningConfig(ctx, opts)
 
-	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := closeFn(); err != nil {
-			// You can use your preferred logging framework here
-			fmt.Printf("failed to close connection: %v\n", err)
-		}
-	}()
-
-	// check if the schema exists; this is == nil check; in case of err it does not exist
-	key := target.GetNamespacedName()
-	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
-		DatastoreName: storebackend.KeyFromNSN(key).String(),
-		Intent:        "running",
-		Format:        sdcpb.Format_Intent_Format_JSON,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &TargetRunningConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      target.Name,
-			Namespace: target.Namespace,
-		},
-		Value: runtime.RawExtension{Raw: rsp.GetBlob()},
-	}, nil
 }

@@ -7,7 +7,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/henderiw/apiserver-builder v0.0.8-0.20260303101118-65b82049cc85
+	github.com/henderiw/apiserver-builder v0.0.8
 	github.com/henderiw/apiserver-store v0.0.4
 	github.com/henderiw/iputil v0.0.0-20231218081610-37f78ad9c81c
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/prometheus v0.309.1
-	github.com/sdcio/sdc-protos v0.0.50
+	github.com/sdcio/sdc-protos v0.0.51-0.20260224122709-ca10362f11ba
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.39.0

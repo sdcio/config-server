@@ -21,32 +21,43 @@ import (
 	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ resource.ArbitrarySubResource = &TargetClearDeviation{}
+var _ resource.ArbitrarySubResource = &targetClearDeviationSubResource{}
 
-func (TargetClearDeviation) SubResourceName() string {
+type targetClearDeviationSubResource struct {
+	client client.Client
+}
+
+func NewTargetClearDeviationSubResource(c client.Client) *targetClearDeviationSubResource {
+	return &targetClearDeviationSubResource{client: c}
+}
+
+func (r *targetClearDeviationSubResource) SubResourceName() string {
 	return "cleardeviation"
 }
 
-func (TargetClearDeviation) New() runtime.Object {
+func (r *targetClearDeviationSubResource) New() runtime.Object {
 	return &TargetClearDeviation{}
 }
 
-func (TargetClearDeviation) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
+func (r *targetClearDeviationSubResource) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
 	return &targetClearDeviationREST{
 		parentStore: parentStorage,
+		client:      r.client,
 	}, nil
 }
 
-// storage
+// --- REST handler ---
+
 type targetClearDeviationREST struct {
 	parentStore rest.Storage
+	client      client.Client
 }
 
 func (r *targetClearDeviationREST) New() runtime.Object {
@@ -62,52 +73,30 @@ func (r *targetClearDeviationREST) Create(
 	createValidation rest.ValidateObjectFunc,
 	options *metav1.CreateOptions,
 ) (runtime.Object, error) {
-	req := obj.(*TargetClearDeviation)
+	req, ok := obj.(*TargetClearDeviation)
+	if !ok {
+		return nil, apierrors.NewBadRequest(
+			fmt.Sprintf("expected *TargetClearDeviation, got %T", obj))
+	}
 
-	// Get parent target name from the request object's name
-	name := req.Name
+	// Get the parent target
+	getter, ok := r.parentStore.(rest.Getter)
+	if !ok {
+		return nil, apierrors.NewInternalError(
+			fmt.Errorf("parent store %T does not implement rest.Getter", r.parentStore))
+	}
 
 	// Get the parent target to validate it exists and is ready
-	getter := r.parentStore.(rest.Getter)
-	parentObj, err := getter.Get(ctx, name, &metav1.GetOptions{})
+	parentObj, err := getter.Get(ctx, req.Name, &metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	target := parentObj.(*Target)
-
-	if !target.IsReady() {
-		return nil, apierrors.NewServiceUnavailable(
-			fmt.Sprintf("target %s is not ready", name))
+	target, ok := parentObj.(*Target)
+	if !ok {
+		return nil, apierrors.NewInternalError(
+			fmt.Errorf("expected *Target, got %T", parentObj))
 	}
 
-	// Do the actual clear deviation work
-	// e.g. call dataserver to clear deviations
-	key := target.GetNamespacedName()
-	cfg := &dsclient.Config{
-		Address:  dsclient.GetDataServerAddress(),
-		Insecure: true,
-	}
-	client, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := closeFn(); err != nil {
-			// You can use your preferred logging framework here
-			fmt.Printf("failed to close connection: %v\n", err)
-		}
-	}()
+	return target.ClearDeviations(ctx, r.client, req)
 
-	// Your actual clear deviation RPC call here
-	_ = client
-	_ = key
-	_ = req.Spec
-
-	// TODO update status
-	req.Status = TargetClearDeviationStatus{
-        Cleared: 3,
-        Message: "successfully cleared deviations",
-    }
-
-	return req, nil
 }
