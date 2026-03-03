@@ -44,7 +44,7 @@ type TargetRunningConfigOptions struct {
 	// Format controls output format (json, json_ietf, xml, proto)
 	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
 	// +kubebuilder:default=json
-	Format TargetFormat `json:"format,omitempty"`
+	Format string `json:"format,omitempty"`
 }
 
 // Format defines the output encoding format for running config
@@ -57,3 +57,13 @@ const (
 	Format_XML       TargetFormat = "xml"
 	Format_PROTO     TargetFormat = "proto"
 )
+
+// ParseTargetFormat converts a string to TargetFormat, defaulting to JSON for unknown values.
+func ParseTargetFormat(s string) TargetFormat {
+	switch TargetFormat(s) {
+	case Format_JSON, Format_JSON_IETF, Format_XML, Format_PROTO:
+		return TargetFormat(s)
+	default:
+		return Format_JSON
+	}
+}

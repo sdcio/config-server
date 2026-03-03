@@ -104,7 +104,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 
 	var format TargetFormat
 	if opts != nil {
-		format = opts.Format
+		format = ParseTargetFormat(opts.Format)
 	}
 
 	cfg := &dsclient.Config{

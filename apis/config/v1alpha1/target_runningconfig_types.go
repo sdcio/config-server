@@ -44,7 +44,7 @@ type TargetRunningConfigOptions struct {
 	// Format controls output format (json, json_ietf, xml, proto)
 	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
 	// +kubebuilder:default=json
-	Format TargetFormat `json:"format,omitempty"`
+	Format string `json:"format,omitempty"`
 }
 
 // Format defines the output encoding format for running config

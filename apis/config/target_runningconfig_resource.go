@@ -58,7 +58,7 @@ func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope c
 		values := a.(*url.Values)
 		out := b.(*TargetRunningConfigOptions)
 		out.Path = values.Get("path")
-		out.Format = TargetFormat(values.Get("format"))
+		out.Format = values.Get("format")
 		return nil
 	}
 }

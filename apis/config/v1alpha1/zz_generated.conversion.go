@@ -1661,7 +1661,7 @@ func Convert_config_TargetRunningConfig_To_v1alpha1_TargetRunningConfig(in *conf
 
 func autoConvert_v1alpha1_TargetRunningConfigOptions_To_config_TargetRunningConfigOptions(in *TargetRunningConfigOptions, out *config.TargetRunningConfigOptions, s conversion.Scope) error {
 	out.Path = in.Path
-	out.Format = config.TargetFormat(in.Format)
+	out.Format = in.Format
 	return nil
 }
 
@@ -1672,7 +1672,7 @@ func Convert_v1alpha1_TargetRunningConfigOptions_To_config_TargetRunningConfigOp
 
 func autoConvert_config_TargetRunningConfigOptions_To_v1alpha1_TargetRunningConfigOptions(in *config.TargetRunningConfigOptions, out *TargetRunningConfigOptions, s conversion.Scope) error {
 	out.Path = in.Path
-	out.Format = TargetFormat(in.Format)
+	out.Format = in.Format
 	return nil
 }
 

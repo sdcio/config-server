@@ -2432,10 +2432,9 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref co
 					},
 					"format": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Format controls output format (json, json_ietf, xml, proto)\n\nPossible enum values:\n - `\"json\"`\n - `\"json_ietf\"`\n - `\"proto\"`\n - `\"xml\"`",
+							Description: "Format controls output format (json, json_ietf, xml, proto)",
 							Type:        []string{"string"},
 							Format:      "",
-							Enum:        []interface{}{"json", "json_ietf", "proto", "xml"},
 						},
 					},
 				},
