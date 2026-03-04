@@ -222,8 +222,15 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		return nil, apierrors.NewBadRequest("spec is required")
 	}
 
+	// Use spec namespace if provided, otherwise target's namespace
+	lookupNamespace := r.Namespace
+
+	if configLister == nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("config lister not initialized"))
+	}
+
 	// Fetch existing configs for the target
-	configsByName, err := listConfigsByTarget(ctx, c, r)
+	configsByName, err := configLister(ctx, c, r.Namespace, r.Name, lookupNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -256,28 +263,6 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
 		Status:     buildClearDeviationStatus(spec.Config, configsByName, rsp, txErr),
 	}, nil
-}
-
-// listConfigsByIntent fetches all configs for a target and indexes them
-// by their intent name (GetGVKNSN). This is the same key the dataserver uses.
-func listConfigsByTarget(ctx context.Context, c client.Client, target *Target) (map[string]*Config, error) {
-	configList := &ConfigList{}
-	if err := c.List(ctx, configList,
-		client.InNamespace(target.Namespace),
-		client.MatchingLabels{
-			TargetNamespaceKey: target.Namespace,
-			TargetNameKey:      target.Name,
-		},
-	); err != nil {
-		return nil, err
-	}
-
-	result := make(map[string]*Config, len(configList.Items))
-	for i := range configList.Items {
-		cfg := &configList.Items[i]
-		result[cfg.Name] = cfg
-	}
-	return result, nil
 }
 
 // buildClearDeviationTxRequest constructs the TransactionSetRequest from
@@ -491,3 +476,4 @@ func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
 	}
 	return update, nil
 }
+

@@ -32,8 +32,6 @@ import (
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-
-	//invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
@@ -126,7 +124,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// setting client for subresources
 	config.SetSubResourceClient(mgr.GetClient())
+	config.SetConfigLister(handlers.ListConfigsByTarget)
 
 	registryOptions := &options.Options{
 		Prefix: configDir,

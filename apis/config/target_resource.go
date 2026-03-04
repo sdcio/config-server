@@ -54,6 +54,15 @@ func SetSubResourceClient(c client.Client) {
 	subResourceClient = c
 }
 
+// ConfigListerFn lists configs for a target, returning them indexed by name.
+type ConfigListerFn func(ctx context.Context, c client.Client, targetNamespace, targetName, lookupNamespace string) (map[string]*Config, error)
+
+var configLister ConfigListerFn
+
+func SetConfigLister(fn ConfigListerFn) {
+	configLister = fn
+}
+
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &Target{}
 var _ resource.ObjectList = &TargetList{}
