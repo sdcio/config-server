@@ -28,7 +28,6 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/apis/config"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -125,8 +124,8 @@ func main() {
 	}
 
 	// setting client for subresources
-	config.SetSubResourceClient(mgr.GetClient())
-	config.SetConfigLister(handlers.ListConfigsByTarget)
+	sdcconfig.SetSubResourceClient(mgr.GetClient())
+	sdcconfig.SetConfigLister(handlers.ListConfigsByTarget)
 
 	registryOptions := &options.Options{
 		Prefix: configDir,
