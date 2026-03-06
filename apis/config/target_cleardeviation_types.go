@@ -24,12 +24,8 @@ import (
 
 // TargetClearDeviationSpec defines the desired state of Target
 type TargetClearDeviationSpec struct {
-	// IncludeConfigs when true includes all existing configs in the transaction,
-	// not just the ones referenced by Config.
-	// +kubebuilder:default=false
-	IncludeAllConfigs *bool `json:"includeAllConfigs,omitempty" protobuf:"bytes,2,opt,name=includeAllConfigs"`
 	// Config defines the clear deviations configs to applied on the taget
-	Config []TargetClearDeviationConfig `json:"config" protobuf:"bytes,3,rep,name=config"`
+	Config []TargetClearDeviationConfig `json:"config" protobuf:"bytes,1,rep,name=config"`
 }
 
 type TargetClearDeviationConfig struct {

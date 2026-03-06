@@ -2177,13 +2177,6 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviationSpec(ref comm
 				Description: "TargetClearDeviationSpec defines the desired state of Target",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"includeAllConfigs": {
-						SchemaProps: spec.SchemaProps{
-							Description: "IncludeConfigs when true includes all existing configs in the transaction, not just the ones referenced by Config.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config defines the clear deviations configs to applied on the taget",

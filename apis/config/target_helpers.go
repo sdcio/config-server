@@ -287,6 +287,15 @@ func buildClearDeviationTxRequest(
 			continue
 		}
 
+		if cfg.IsRevertive() {
+			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
+				Name:    clearCfg.Name,
+				Success: false,
+				Errors:  []string{fmt.Sprintf("config %q is revertive for target %s, not expecting clearDeviations", clearCfg.Name, targetKey.Name)},
+			})
+			continue
+		}
+
 		revertPaths := make([]*sdcpb.Path, 0, len(clearCfg.Paths))
 		var pathErrors []string
 		for _, p := range clearCfg.Paths {
@@ -306,39 +315,28 @@ func buildClearDeviationTxRequest(
 			})
 			continue
 		}
+		update, err := GetIntentUpdate(cfg, true)
+		if err != nil {
+			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
+				Name:    clearCfg.Name,
+				Success: false,
+				Errors:  []string{fmt.Sprintf("failed to build intent update for config %q: %v", clearCfg.Name, err)},
+			})
+			continue
+		}
 
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:      GetGVKNSN(cfg),
-			Priority:    int32(cfg.Spec.Priority),
-			RevertPaths: revertPaths,
+			Intent:       GetGVKNSN(cfg),
+			Priority:     int32(cfg.Spec.Priority),
+			RevertPaths:  revertPaths,
+			Update:       update,
+			NonRevertive: !cfg.IsRevertive(),
 		})
 	}
 
 	// Early exit on validation errors
 	if len(validationErrors) > 0 {
 		return nil, validationErrors
-	}
-
-	// If IncludeAllConfigs, add configs as no-op intents
-	// so the dataserver evaluates reverts in the full context
-	if spec.IncludeAllConfigs != nil && *spec.IncludeAllConfigs {
-		for name, cfg := range configsByName {
-			update, err := GetIntentUpdate(cfg, true)
-			if err != nil {
-				validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
-					Name:    name,
-					Success: false,
-					Errors:  []string{fmt.Sprintf("failed to build intent update for config %q: %v", name, err)},
-				})
-				continue
-			}
-			intents = append(intents, &sdcpb.TransactionIntent{
-				Intent:       GetGVKNSN(cfg),
-				Priority:     int32(cfg.Spec.Priority),
-				Update:       update,
-				NonRevertive: !cfg.IsRevertive(),
-			})
-		}
 	}
 
 	return &sdcpb.TransactionSetRequest{
@@ -476,4 +474,3 @@ func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
 	}
 	return update, nil
 }
-
