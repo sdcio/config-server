@@ -333,7 +333,7 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 					Kind:       configSet.Kind,
 					Name:       configSet.Name,
 					UID:        configSet.UID,
-					Controller: ptr.To[bool](true),
+					Controller: ptr.To(true),
 				},
 			},
 		},
@@ -341,6 +341,7 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 			Lifecycle: configSet.Spec.Lifecycle,
 			Priority:  configSet.Spec.Priority,
 			Config:    configSet.Spec.Config,
+			Revertive: configSet.Spec.Revertive,
 		},
 		configv1alpha1.ConfigStatus{},
 	)

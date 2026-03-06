@@ -26,6 +26,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
@@ -244,6 +245,10 @@ func (r *DeviationWatcher) processConfigDeviations(
 	})
 
 	applyConfig := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
+		WithLabels(map[string]string{
+			config.TargetNameKey:      r.key.Name,
+			config.TargetNamespaceKey: r.key.Namespace,
+		}).
 		WithSpec(configv1alpha1apply.DeviationSpec().
 			WithDeviationType(configv1alpha1.DeviationType_CONFIG).
 			WithDeviations(configDeviationsToApply(deviations)...),

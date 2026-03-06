@@ -307,10 +307,10 @@ func (r *Transactor) setIntents(
 		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent: config.GetGVKNSN(cfg),
-			//Priority: int32(config.Spec.Priority),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
 			Orphan:              cfg.Orphan(),
+			// Dont set priority, dont set non revertive
 		})
 	}
 

@@ -47,9 +47,10 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   config.GetGVKNSN(c),
-			Priority: int32(c.Spec.Priority),
-			Update:   updates,
+			Intent:       config.GetGVKNSN(c),
+			Priority:     int32(c.Spec.Priority),
+			Update:       updates,
+			// Dont set not Revertive
 		},
 	}
 
@@ -68,9 +69,10 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:   config.GetGVKNSN(c),
-			Priority: int32(c.Spec.Priority),
-			Update:   updates,
+			Intent:       config.GetGVKNSN(c),
+			Priority:     int32(c.Spec.Priority),
+			Update:       updates,
+			// Dont set not Revertive
 		},
 	}
 
