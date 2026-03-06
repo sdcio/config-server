@@ -245,6 +245,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	applyConfig := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
 		WithSpec(configv1alpha1apply.DeviationSpec().
+			WithDeviationType(configv1alpha1.DeviationType_CONFIG).
 			WithDeviations(configDeviationsToApply(deviations)...),
 		)
 
