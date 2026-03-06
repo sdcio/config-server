@@ -253,6 +253,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	if err := r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
+		Force:        ptr.To(true),
 	}); err != nil {
 		log.Error("cannot update intent for received deviation", "config", nsn, "err", err)
 	}
