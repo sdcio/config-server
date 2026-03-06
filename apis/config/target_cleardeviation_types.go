@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -70,3 +72,7 @@ type TargetClearDeviation struct {
 	Spec   *TargetClearDeviationSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status *TargetClearDeviationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
+
+var (
+	TargetClearDeviationKind = reflect.TypeOf(TargetClearDeviation{}).Name()
+)

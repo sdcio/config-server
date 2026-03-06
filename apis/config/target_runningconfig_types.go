@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -67,3 +69,7 @@ func ParseTargetFormat(s string) TargetFormat {
 		return Format_JSON
 	}
 }
+
+var (
+	TargetRunningConfigKind = reflect.TypeOf(TargetRunningConfig{}).Name()
+)

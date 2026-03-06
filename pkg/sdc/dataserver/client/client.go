@@ -55,7 +55,7 @@ func getDataServerAddress(local bool) string {
     port := envOrDefault("SDC_DATA_SERVER_PORT", defaultDataServerPort)
 
 	if local {
-		fmt.Sprintf("localhost:%s", port)
+		return fmt.Sprintf("localhost:%s", port)
 	}
    	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
 }

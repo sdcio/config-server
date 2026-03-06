@@ -17,6 +17,8 @@ limitations under the License.
 package config
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -32,3 +34,7 @@ type TargetConfigBlame struct {
 	//+kubebuilder:pruning:PreserveUnknownFields
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
+
+var (
+	TargetConfigBlameKind = reflect.TypeOf(TargetConfigBlame{}).Name()
+)

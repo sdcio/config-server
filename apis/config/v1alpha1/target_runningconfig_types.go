@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -56,4 +58,8 @@ const (
 	Format_JSON_IETF TargetFormat = "json_ietf"
 	Format_XML       TargetFormat = "xml"
 	Format_PROTO     TargetFormat = "proto"
+)
+
+var (
+	TargetRunningConfigKind = reflect.TypeOf(TargetRunningConfig{}).Name()
 )
