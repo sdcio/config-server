@@ -31,21 +31,40 @@ import (
 	//"google.golang.org/grpc/keepalive"
 )
 
-const dataServerAddress = "data-server.sdc-system.svc.cluster.local:56000"
-const localDataServerAddress = "localhost:56000"
+const (
+	defaultDataServerService = "data-server"
+    defaultDataServerPort    = "56000"
+    defaultNamespace         = "sdc-system"
+)
 
 func GetDataServerAddress() string {
-	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-		return address
-	}
-	return dataServerAddress
+	return getDataServerAddress(false)
 }
 
 func GetLocalDataServerAddress() string {
+	return getDataServerAddress(true)
+}
+
+func getDataServerAddress(local bool) string {
 	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-		return address
+        return address
+    }
+
+    ns := envOrDefault("POD_NAMESPACE", defaultNamespace)
+    svc := envOrDefault("SDC_DATA_SERVER_SERVICE", defaultDataServerService)
+    port := envOrDefault("SDC_DATA_SERVER_PORT", defaultDataServerPort)
+
+	if local {
+		fmt.Sprintf("localhost:%s", port)
 	}
-	return localDataServerAddress
+   	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
+}
+
+func envOrDefault(key, fallback string) string {
+    if v, ok := os.LookupEnv(key); ok && v != "" {
+        return v
+    }
+    return fallback
 }
 
 type Config struct {
@@ -62,7 +81,7 @@ type Config struct {
 	MaxMsgSize int
 }
 
-func defaukltConfig(cfg *Config) {
+func defaultConfig(cfg *Config) {
 	if cfg == nil {
 		cfg = &Config{Address: GetDataServerAddress()}
 	}
@@ -99,7 +118,7 @@ func OneShot(
 	cfg *Config,
 	fn func(ctx context.Context, c sdcpb.DataServerClient) error,
 ) error {
-	defaukltConfig(cfg)
+	defaultConfig(cfg)
 	conn, err := dial(ctx, cfg)
 	if err != nil {
 		return err
@@ -144,7 +163,7 @@ func NewEphemeral(
 	ctx context.Context,
 	cfg *Config,
 ) (sdcpb.DataServerClient, func() error, error) {
-	defaukltConfig(cfg)
+	defaultConfig(cfg)
 	conn, err := dial(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
@@ -171,7 +190,7 @@ type Client interface {
 }
 
 func New(cfg *Config) (Client, error) {
-	defaukltConfig(cfg)
+	defaultConfig(cfg)
 	// default cancel is a no-op so Stop() is always safe
 	return &client{cfg: cfg, cancel: func() {}}, nil
 }
@@ -188,7 +207,7 @@ const DSConnectionStatusNotConnected = "DATASERVER_NOT_CONNECTED"
 // dial creates a gRPC connection with a timeout and proper options,
 // using the modern grpc.NewClient API.
 func dial(ctx context.Context, cfg *Config) (*grpc.ClientConn, error) {
-	defaukltConfig(cfg)
+	defaultConfig(cfg)
 
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
