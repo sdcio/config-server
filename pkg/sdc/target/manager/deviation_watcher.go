@@ -215,8 +215,10 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		configDevs := ConvertSdcpbDeviations2ConfigDeviations(ctx, devs)
 
 		nsn := r.key.NamespacedName
+		typ := configv1alpha1.DeviationType_CONFIG
 		if configName == unManagedConfigDeviation {
 			log.Info("target device deviations", "devs", len(configDevs))
+			typ = configv1alpha1.DeviationType_TARGET
 		} else {
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
@@ -229,7 +231,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			}
 			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
 		}
-		r.processConfigDeviations(ctx, nsn, configDevs)
+		r.processConfigDeviations(ctx, nsn, configDevs, typ)
 	}
 }
 
@@ -237,6 +239,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 	ctx context.Context,
 	nsn types.NamespacedName,
 	deviations []configv1alpha1.ConfigDeviation,
+	typ configv1alpha1.DeviationType,
 ) {
 	log := log.FromContext(ctx)
 
@@ -250,7 +253,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 			config.TargetNamespaceKey: r.key.Namespace,
 		}).
 		WithSpec(configv1alpha1apply.DeviationSpec().
-			WithDeviationType(configv1alpha1.DeviationType_CONFIG).
+			WithDeviationType(typ).
 			WithDeviations(configDeviationsToApply(deviations)...),
 		)
 
