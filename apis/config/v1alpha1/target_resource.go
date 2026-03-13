@@ -53,7 +53,7 @@ func (Target) IsStorageVersion() bool {
 	return false
 }
 
-// NamespaceScoped returns true to indicate Fortune is a namespaced resource.
+// NamespaceScoped returns true to indicate Target is a namespaced resource.
 // NamespaceScoped implements resource.Object
 func (Target) NamespaceScoped() bool {
 	return true
