@@ -132,7 +132,7 @@ func TargetDatastoreReady() condv1alpha1.Condition {
 	}}
 }
 
-// DatastoreFailed returns a condition that indicates the datastore
+// TargetDatastoreFailed returns a condition that indicates the datastore
 // failed to get reconciled.
 func TargetDatastoreFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
