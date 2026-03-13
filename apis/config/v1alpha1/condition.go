@@ -40,12 +40,8 @@ const (
 
 // Reasons a resource is ready or not
 const (
-	//ConditionReasonDeleting       condv1alpha1.ConditionReason = "deleting"
 	ConditionReasonCreating condv1alpha1.ConditionReason = "creating"
 	ConditionReasonUpdating condv1alpha1.ConditionReason = "updating"
-	//ConditionReasonTargetDeleted  condv1alpha1.ConditionReason = "target Deleted"
-	//ConditionReasonTargetNotReady condv1alpha1.ConditionReason = "target not ready"
-	//ConditionReasonTargetNotFound condv1alpha1.ConditionReason = "target not found"
 )
 
 // Creating returns a condition that indicates a create transaction

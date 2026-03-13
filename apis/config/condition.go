@@ -36,13 +36,6 @@ const (
 	ConditionTypeTargetConfigRecoveryReady cond.ConditionType = "TargetConfigRecoveryReady"
 	// ConditionTypeTargetConnectionReady represents the resource target ready condition
 	ConditionTypeTargetConnectionReady cond.ConditionType = "TargetConnectionReady"
-
-	//ConditionTypeConfigApply   cond.ConditionType = "ConfigApply"
-	//ConditionTypeConfigConfirm cond.ConditionType = "ConfigConfirm"
-	//ConditionTypeConfigCancel  cond.ConditionType = "ConfigCancel"
-
-	//ConditionTypeSchemaServerReady cond.ConditionType = "SchemaServerReady"
-
 )
 
 // A ConditionReason represents the reason a resource is in a condition.

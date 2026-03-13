@@ -47,7 +47,7 @@ func (Target) GetGroupVersionResource() schema.GroupVersionResource {
 	}
 }
 
-// IsStorageVersion returns true -- Target is used as the internal version.
+// IsStorageVersion returns false -- Target is used as the internal version.
 // IsStorageVersion implements resource.Object
 func (Target) IsStorageVersion() bool {
 	return false
