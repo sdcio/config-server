@@ -108,7 +108,7 @@ func TargetForConfigReady(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// ConfigFailed returns a condition that indicates the config
+// TargetForConfigFailed returns a condition that indicates the config
 // is in failed condition due to a dependency
 func TargetForConfigFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
