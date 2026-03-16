@@ -69,7 +69,7 @@ func BuildTarget(meta metav1.ObjectMeta, spec TargetSpec) *Target {
 	return &Target{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
-			Kind:       ConfigKind,
+			Kind:       TargetKind,
 		},
 		ObjectMeta: meta,
 		Spec:       spec,
