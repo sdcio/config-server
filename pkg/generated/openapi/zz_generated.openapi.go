@@ -978,7 +978,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Description: "Priority defines the priority of this config",
 							Type:        []string{"integer"},
-							Format:      "int64",
+							Format:      "int32",
 						},
 					},
 					"revertive": {
@@ -1176,7 +1176,7 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "Priority defines the priority of this config",
 							Type:        []string{"integer"},
-							Format:      "int64",
+							Format:      "int32",
 						},
 					},
 					"revertive": {

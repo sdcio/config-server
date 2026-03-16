@@ -28,7 +28,7 @@ type ConfigSetSpecApplyConfiguration struct {
 	// will follow
 	Lifecycle *LifecycleApplyConfiguration `json:"lifecycle,omitempty"`
 	// Priority defines the priority of this config
-	Priority *int64 `json:"priority,omitempty"`
+	Priority *int32 `json:"priority,omitempty"`
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty"`
 	// Config defines the configuration to be applied to a target device
@@ -60,7 +60,7 @@ func (b *ConfigSetSpecApplyConfiguration) WithLifecycle(value *LifecycleApplyCon
 // WithPriority sets the Priority field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Priority field is set to the value of the last call.
-func (b *ConfigSetSpecApplyConfiguration) WithPriority(value int64) *ConfigSetSpecApplyConfiguration {
+func (b *ConfigSetSpecApplyConfiguration) WithPriority(value int32) *ConfigSetSpecApplyConfiguration {
 	b.Priority = &value
 	return b
 }

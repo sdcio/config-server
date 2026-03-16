@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const RunningIntentName = "running"
+
 // GetCondition returns the condition based on the condition kind
 func (r *Target) GetConditions() []condition.Condition {
 	return r.Status.GetConditions()
@@ -124,7 +126,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 
 	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
 		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
-		Intent:        "running",
+		Intent:        RunningIntentName,
 		Format:        FormatToProto(format),
 	})
 	if err != nil {
@@ -235,7 +237,7 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		return nil, err
 	}
 
-	// Build the TransactionSetRequest
+	// Build the learDeviationTxRequest
 	txReq, validationErrors := buildClearDeviationTxRequest(targetKey, spec, configsByName)
 	if len(validationErrors) > 0 {
 		return &TargetClearDeviation{
@@ -327,7 +329,7 @@ func buildClearDeviationTxRequest(
 
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:       GetGVKNSN(cfg),
-			Priority:     int32(cfg.Spec.Priority),
+			Priority:     cfg.Spec.Priority,
 			RevertPaths:  revertPaths,
 			Update:       update,
 			NonRevertive: !cfg.IsRevertive(),
