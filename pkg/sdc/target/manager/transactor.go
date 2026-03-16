@@ -39,7 +39,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -189,7 +188,7 @@ func (r *Transactor) Transact(
 		return true, err
 	}
 	// reapply deviations for each config snippet
-	// This ensure the eviations are applied
+	// This ensure the deviations are applied
 	for _, config := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &config); err != nil {
 			return true, err
@@ -438,18 +437,17 @@ func (r *Transactor) updateConfigWithSuccess(
 }
 
 func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
-	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
-
-	opts := []client.ListOption{
+	v1alpha1configList := &configv1alpha1.ConfigList{}
+	if err := r.client.List(ctx, v1alpha1configList,
+		client.InNamespace(target.GetNamespace()),
 		client.MatchingLabels{
 			config.TargetNamespaceKey: target.GetNamespace(),
 			config.TargetNameKey:      target.GetName(),
 		},
-	}
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, v1alpha1configList, opts...); err != nil {
+	); err != nil {
 		return nil, err
 	}
+
 	configList := &config.ConfigList{}
 	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
 		return nil, err
@@ -537,10 +535,10 @@ func getConfigsToTransact(
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
 
-		case cfg.Status.AppliedConfig != nil &&
-			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+		//case cfg.Status.AppliedConfig != nil &&
+		//	cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
 			// no change, skip
-			continue
+		//	continue
 
 		default:
 			configsToUpdate[key] = cfg

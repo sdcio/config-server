@@ -25,8 +25,8 @@ import (
 )
 
 func ListConfigsByTarget(ctx context.Context, c client.Client, targetNamespace, targetName, lookupNamespace string) (map[string]*config.Config, error) {
-	v1alpha1List := &configv1alpha1.ConfigList{}
-	if err := c.List(ctx, v1alpha1List,
+	v1alpha1configList := &configv1alpha1.ConfigList{}
+	if err := c.List(ctx, v1alpha1configList,
 		client.InNamespace(lookupNamespace),
 		client.MatchingLabels{
 			config.TargetNamespaceKey: targetNamespace,
@@ -37,7 +37,7 @@ func ListConfigsByTarget(ctx context.Context, c client.Client, targetNamespace, 
 	}
 
 	configList := &config.ConfigList{}
-	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1List, configList, nil); err != nil {
+	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
 		return nil, err
 	}
 
