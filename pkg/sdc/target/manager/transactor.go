@@ -305,7 +305,7 @@ func (r *Transactor) setIntents(
 	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent: config.GetGVKNSN(cfg),
+			Intent:              config.GetGVKNSN(cfg),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
 			Orphan:              cfg.Orphan(),
@@ -519,6 +519,7 @@ func getConfigsToTransact(
 	configsToUpdate := make(map[string]*config.Config)
 	configsToDelete := make(map[string]*config.Config)
 	nonRecoverable := make(map[string]*config.Config)
+	configsNoChnge := make(map[string]*config.Config)
 
 	// Classify configs: update / delete / non-recoverable / noop
 	for i := range configList.Items {
@@ -535,10 +536,10 @@ func getConfigsToTransact(
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
 
-		//case cfg.Status.AppliedConfig != nil &&
-		//	cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
-			// no change, skip
-		//	continue
+		case cfg.Status.AppliedConfig != nil &&
+			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+			configsNoChnge[key] = cfg
+			continue
 
 		default:
 			configsToUpdate[key] = cfg
@@ -549,12 +550,20 @@ func getConfigsToTransact(
 		"configsToUpdate", mapKeys(configsToUpdate),
 		"configsToDelete", mapKeys(configsToDelete),
 		"nonRecoverable", mapKeys(nonRecoverable),
+		"configsNoChange", mapKeys(configsNoChnge),
 	)
 
-	// --- 5) If we have changes, retry non-recoverables
+	// --- 5) If we have changes, retry non-recoverables + add configs that did not change
 
 	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
 		for key, cfg := range nonRecoverable {
+			if cfg.GetDeletionTimestamp() != nil {
+				configsToDelete[key] = cfg
+			} else {
+				configsToUpdate[key] = cfg
+			}
+		}
+		for key, cfg := range configsNoChnge {
 			if cfg.GetDeletionTimestamp() != nil {
 				configsToDelete[key] = cfg
 			} else {
