@@ -97,6 +97,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if !target.GetDeletionTimestamp().IsZero() {
+		deviation := &configv1alpha1.Deviation{}
+		deviation.Name = target.Name
+		deviation.Namespace = target.Namespace
+		if err := r.client.Delete(ctx, deviation); err != nil {
+			if resource.IgnoreNotFound(err) != nil {
+				return ctrl.Result{RequeueAfter: 5 * time.Second}, err
+			}
+		}
 		return ctrl.Result{}, nil
 	}
 
