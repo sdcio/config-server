@@ -261,11 +261,17 @@ func (r *Transactor) Transact(
 	}
 
 	for _, configOrig := range configsToDelete {
+
+
+
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
 			return true, err
 		}
 		if err := r.deleteFinalizer(ctx, config); err != nil {
+			return true, err
+		}
+		if err := r.deleteDeviation(ctx, config); err != nil {
 			return true, err
 		}
 	}
@@ -290,6 +296,7 @@ func (r *Transactor) setIntents(
 
 	for key, cfg := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
+		log.Info("Transaction intent update", "config", key, "revertive", cfg.IsRevertive())
 		update, err := config.GetIntentUpdate(cfg, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
@@ -304,6 +311,7 @@ func (r *Transactor) setIntents(
 	}
 	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
+		log.Info("Transaction intent delete", "config", key, "revertive", cfg.IsRevertive())
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:              config.GetGVKNSN(cfg),
 			Delete:              true,
@@ -390,6 +398,18 @@ func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1
 	return r.patchMetadata(ctx, config, func() {
 		config.SetFinalizers([]string{})
 	})
+}
+
+func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
+	deviation := &configv1alpha1.Deviation{}
+	deviation.Name = cfg.Name
+	deviation.Namespace = cfg.Namespace
+	if err := r.client.Delete(ctx, deviation); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Transactor) updateConfigWithSuccess(
