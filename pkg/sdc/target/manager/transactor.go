@@ -341,38 +341,70 @@ func (r *Transactor) setIntents(
 	return rsp, err
 }
 
-func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", "config", config.GetName(), "recoverable", recoverable, "msg", msg, "err", err)
+	log.Warn("updateConfigWithError", 
+		"config", cfg.GetName(), 
+		"recoverable", recoverable, 
+		"msg", msg, 
+		"err", err,
+	)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	config.SetFinalizers([]string{finalizer})
-	var cond condv1alpha1.Condition
+	current := &configv1alpha1.Config{}
+	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
+	if err := r.client.Get(ctx, key, current); err != nil {
+		return err
+	}
+	if current.GetDeletionTimestamp() != nil {
+		log.Debug("skip error update: config is deleting")
+		return nil
+	}
+
+	var newConfigCond condv1alpha1.Condition
 	if recoverable {
-		cond = configv1alpha1.ConfigFailed(msg)
+		newConfigCond = configv1alpha1.ConfigFailed(msg)
 	} else {
 		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: config.GetResourceVersion(),
+			ResourceVersion: current.GetResourceVersion(),
 			Message:         msg,
 		}
 		newmsg, err := json.Marshal(newMessage)
 		if err != nil {
 			return err
 		}
-		cond = condv1alpha1.FailedUnRecoverable(string(newmsg))
+		newConfigCond = condv1alpha1.FailedUnRecoverable(string(newmsg))
+	}
+
+	// Recompute overall from current + the config condition this phase owns.
+	tmp := current.DeepCopy()
+	tmp.SetConditions(newConfigCond)
+	tmp.SetOverallStatus()
+	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
+	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// No-op check for fields owned by this path.
+	if newConfigCond.Equal(curConfigCond) &&
+		newOverallCond.Equal(curOverallCond) &&
+		(recoverable ||
+			(current.Status.DeviationGeneration != nil &&
+				*current.Status.DeviationGeneration == 0)) {
+		return nil
 	}
 
 	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(cond)
+		WithConditions(newConfigCond, newOverallCond)
 
 	if !recoverable {
 		statusApply = statusApply.WithDeviationGeneration(0)
 	}
 
-	applyConfig := configv1alpha1apply.Config(config.Name, config.Namespace).
+	applyConfig := configv1alpha1apply.Config(current.Name, current.Namespace).
 		WithStatus(statusApply)
 
 	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
@@ -422,27 +454,44 @@ func (r *Transactor) updateConfigWithSuccess(
 	log := log.FromContext(ctx)
 	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
-	configCond := configv1alpha1.ConfigReady(msg)
+	// Always re-read the latest object after the transaction was confirmed.
+	current := &configv1alpha1.Config{}
+	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
+	if err := r.client.Get(ctx, key, current); err != nil {
+		return err
+	}
 
-	// capture
-	oldConfigCond := cfg.GetCondition(condv1alpha1.ConditionType(configCond.Type))
-	oldTargetCond := cfg.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+	// If the object is being deleted, do not write a success status anymore.
+	if current.GetDeletionTimestamp() != nil {
+		log.Debug("skip success update: config is deleting")
+		return nil
+	}
+	
 
-	// compute overall from both conditions
-	cfg.SetConditions(configCond, targetCond)
-	cfg.SetOverallStatus()
-	overallCond := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+	newConfigCond := configv1alpha1.ConfigReady(msg)
 
-	// check against OLD state
-	if configCond.Equal(oldConfigCond) &&
-		targetCond.Equal(oldTargetCond) &&
-		reflect.DeepEqual(schema, cfg.Status.LastKnownGoodSchema) &&
-		reflect.DeepEqual(&cfg.Spec, cfg.Status.AppliedConfig) {
+	// Compute overall from the condition set we want to own.
+	tmp := current.DeepCopy()
+	tmp.SetConditions(newConfigCond, targetCond)
+	tmp.SetOverallStatus()
+	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// Read only the condition types we own from current.
+	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
+	curTargetCond := current.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// Skip if the fields we own are already what we want.
+	if newConfigCond.Equal(curConfigCond) &&
+		targetCond.Equal(curTargetCond) &&
+		newOverallCond.Equal(curOverallCond) &&
+		reflect.DeepEqual(schema, current.Status.LastKnownGoodSchema) &&
+		reflect.DeepEqual(&cfg.Spec, current.Status.AppliedConfig) {
 		return nil
 	}
 
 	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(configCond, targetCond, overallCond).
+		WithConditions(newConfigCond, targetCond, newOverallCond).
 		WithLastKnownGoodSchema(schemaToApply(schema)).
 		WithAppliedConfig(configSpecToApply(&cfg.Spec))
 
@@ -543,7 +592,7 @@ func getConfigsToTransact(
 
 	// Classify configs: update / delete / non-recoverable / noop
 	for i := range configList.Items {
-		cfg := &configList.Items[i]
+		cfg := configList.Items[i].DeepCopy()
 		key := config.GetGVKNSN(cfg)
 
 		switch {
