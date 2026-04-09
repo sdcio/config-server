@@ -884,11 +884,12 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 	if s == nil {
 		return nil
 	}
+	// converting revrtive to value because WithRevertive requires a value
+	// dont use the revertive fn as this will change the intent and can change the semntic meaning of the value
 	revertive := false
 	if s.Revertive != nil {
 		revertive = *s.Revertive
 	}
-
 	a := configv1alpha1apply.ConfigSpec().
 		WithPriority(s.Priority).
 		WithRevertive(revertive)
