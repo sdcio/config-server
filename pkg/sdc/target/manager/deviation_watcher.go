@@ -247,7 +247,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 		return deviations[i].Path < deviations[j].Path
 	})
 
-	applyConfig := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
+	applyDeviation := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
 		WithLabels(map[string]string{
 			config.TargetNameKey:      r.key.Name,
 			config.TargetNamespaceKey: r.key.Namespace,
@@ -259,7 +259,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 
 	log.Info("patch deviations", "nsn", nsn, "devs", len(deviations))
 
-	if err := r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+	if err := r.client.Apply(ctx, applyDeviation, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
 		Force:        ptr.To(true),
 	}); err != nil {
@@ -285,11 +285,11 @@ func (r *DeviationWatcher) clearTargetDeviation(
 
 	log.Info("clear deviations", "nsn", nsn)
 
-	applyConfig := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
+	applyDeviation := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
 		WithSpec(configv1alpha1apply.DeviationSpec())
 		// empty spec with no deviations — SSA with Force will clear the field
 
-	if err := r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
+	if err := r.client.Apply(ctx, applyDeviation, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
 	}); err != nil {
 		log.Error("cannot clear deviation", "config", nsn, "err", err)

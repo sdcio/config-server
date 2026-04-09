@@ -251,19 +251,18 @@ func (r *Transactor) Transact(
 		if err != nil {
 			return false, err
 		}
+		// We need to deepcopy the config object we transacted since the applyFinalizer
+		// can transform it using patched data
+		transactedConfig := config.DeepCopy()
 		if err := r.applyFinalizer(ctx, config); err != nil {
 			return true, err
 		}
-
-		if err := r.updateConfigWithSuccess(ctx, config, dsctx.Schema, targetCond, ""); err != nil {
+		if err := r.updateConfigWithSuccess(ctx, transactedConfig, dsctx.Schema, targetCond, ""); err != nil {
 			return true, err
 		}
 	}
 
 	for _, configOrig := range configsToDelete {
-
-
-
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
 			return true, err

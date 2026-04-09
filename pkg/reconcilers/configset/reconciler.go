@@ -63,7 +63,6 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
-
 	r.client = mgr.GetClient()
 	r.finalizer = resource.NewAPIFinalizer(
 		mgr.GetClient(),
