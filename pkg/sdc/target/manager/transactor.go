@@ -569,9 +569,7 @@ func (r *Transactor) patchMetadata(
 	orig := obj.DeepCopyObject().(client.Object)
 	mutate()
 	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
-		&client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
-		},
+		&client.PatchOptions{FieldManager: r.fieldManager},
 	)
 }
 
