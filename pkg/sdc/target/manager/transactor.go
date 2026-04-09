@@ -885,7 +885,7 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 		return nil
 	}
 	// converting revrtive to value because WithRevertive requires a value
-	// dont use the revertive fn as this will change the intent and can change the semntic meaning of the value
+	// dont use the IsRevertive fn as this will change the intent and can change the semantic meaning of the value
 	revertive := false
 	if s.Revertive != nil {
 		revertive = *s.Revertive
