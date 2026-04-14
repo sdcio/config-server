@@ -889,7 +889,7 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 			WithPriority(s.Priority)
 	
 	if s.Revertive != nil {	
-			a.WithRevertive(*s.Revertive)
+		a.WithRevertive(*s.Revertive)
 	}
 
 	if s.Lifecycle != nil {
