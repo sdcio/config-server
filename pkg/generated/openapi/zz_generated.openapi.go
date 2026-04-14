@@ -2376,7 +2376,9 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref common.Re
 					},
 					"value": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 				},
@@ -2391,7 +2393,7 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref common.Re
 			},
 		},
 		Dependencies: []string{
-			metav1.ObjectMeta{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+			metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 

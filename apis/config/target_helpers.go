@@ -138,7 +138,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 			Name:      r.Name,
 			Namespace: r.Namespace,
 		},
-		Value: runtime.RawExtension{Raw: rsp.GetBlob()},
+		Value: string(rsp.GetBlob()),
 	}, nil
 }
 

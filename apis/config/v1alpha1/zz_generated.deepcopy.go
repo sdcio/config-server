@@ -1068,7 +1068,6 @@ func (in *TargetRunningConfig) DeepCopyInto(out *TargetRunningConfig) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	in.Value.DeepCopyInto(&out.Value)
 	return
 }
 
