@@ -28,6 +28,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	SubResource_ClearDeviation = "cleardeviation"
+)
+
 var _ resource.ArbitrarySubResource = &targetClearDeviationSubResource{}
 
 type targetClearDeviationSubResource struct {
@@ -39,7 +43,7 @@ func NewTargetClearDeviationSubResource(c client.Client) *targetClearDeviationSu
 }
 
 func (r *targetClearDeviationSubResource) SubResourceName() string {
-	return "cleardeviation"
+	return SubResource_ClearDeviation
 }
 
 func (r *targetClearDeviationSubResource) New() runtime.Object {

@@ -27,10 +27,14 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
+const (
+	SubResource_ConfigBlame = "configblame"
+)
+
 var _ resource.ArbitrarySubResource = &TargetConfigBlame{}
 
 func (TargetConfigBlame) SubResourceName() string {
-	return "configblame"
+	return SubResource_ConfigBlame
 }
 
 func (TargetConfigBlame) New() runtime.Object {
