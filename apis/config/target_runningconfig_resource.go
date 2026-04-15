@@ -29,10 +29,14 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
+const (
+	SubResource_RunningConfig = "runningconfig"
+)
+
 var _ resource.ArbitrarySubResource = &TargetRunningConfig{}
 
 func (TargetRunningConfig) SubResourceName() string {
-	return "runningconfig"
+	return SubResource_RunningConfig
 }
 
 func (TargetRunningConfig) New() runtime.Object {
