@@ -18,3 +18,6 @@ rules:
 - apiGroups: ["config.sdcio.dev"]
   resources: ["targets", "targets/status"]
   verbs: ["get", "watch", "list"]
+- apiGroups: ["config.sdcio.dev"]
+  resources: ["configs", "configs/status"]
+  verbs: ["get", "watch", "list"]
