@@ -139,6 +139,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 			Namespace: r.Namespace,
 		},
 		Value: string(rsp.GetBlob()),
+		Format: string(format),
 	}, nil
 }
 

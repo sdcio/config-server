@@ -30,7 +30,8 @@ type TargetRunningConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Value  string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Format string `json:"format" protobuf:"bytes,3,opt,name=format"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

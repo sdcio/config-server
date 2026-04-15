@@ -91,7 +91,6 @@ func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options 
 	}
 
 	// Get the parent Target from the parent store
-	// Get the parent Target from the parent store
 	getter, ok := r.parentStore.(rest.Getter)
 	if !ok {
 		return nil, apierrors.NewInternalError(
