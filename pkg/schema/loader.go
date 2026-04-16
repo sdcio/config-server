@@ -144,7 +144,7 @@ func (r *Loader) Load(ctx context.Context, key string) ([]invv1alpha1.SchemaRepo
 		if err != nil {
 			errs = append(errs, err)
 		}
-		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{RepoURL: schemaRepo.RepositoryURL, Reference: reference})
+		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{RepoURL: schemaRepo.RepoURL, Reference: reference})
 	}
 
 	err = errors.Join(errs...)
@@ -160,10 +160,10 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
 	downloader := newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)
 
-	sem := r.repoMgr.GetOrAdd(schemaRepo.RepositoryURL)
+	sem := r.repoMgr.GetOrAdd(schemaRepo.RepoURL)
 	// Attempt to acquire the semaphore
 	if err := sem.Acquire(ctx, 1); err != nil {
-		return "", fmt.Errorf("failed to acquire semaphore for %s: %w", schemaRepo.RepositoryURL, err)
+		return "", fmt.Errorf("failed to acquire semaphore for %s: %w", schemaRepo.RepoURL, err)
 	}
 	defer sem.Release(1)
 
@@ -172,7 +172,7 @@ func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schem
 		return "", err
 	}
 
-	localPath, err := downloader.LocalPath(schemaRepo.RepositoryURL)
+	localPath, err := downloader.LocalPath(schemaRepo.RepoURL)
 	if err != nil {
 		return "", err
 	}

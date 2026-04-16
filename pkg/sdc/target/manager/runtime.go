@@ -23,17 +23,17 @@ import (
 	"sync"
 	"time"
 
-	//"github.com/henderiw/logger/log"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -59,7 +59,7 @@ type TargetRuntime struct {
 	// desired (from reconciler)
 	desiredMu   sync.RWMutex
 	desired     *sdcpb.CreateDataStoreRequest
-	desiredRefs *invv1alpha1.TargetStatusUsedReferences
+	desiredRefs *configv1alpha1.TargetStatusUsedReferences
 	desiredHash string
 
 	// running state
@@ -104,7 +104,7 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 	}
 }
 
-func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *invv1alpha1.TargetStatusUsedReferences, hash string) {
+func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *configv1alpha1.TargetStatusUsedReferences, hash string) {
 	r.desiredMu.Lock()
 	r.desired = req
 	r.desiredRefs = refs
@@ -583,62 +583,70 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 	log.Info("pushConnIfChanged entry")
 
 	r.statusMu.Lock()
-	// throttle flaps
 	if r.lastConnValid && r.lastConn == connected && time.Since(r.lastPushed) < 2*time.Second {
 		r.statusMu.Unlock()
 		return
 	}
-	r.lastPushed = time.Now()
-	r.lastConnValid = true
-	r.lastConn = connected
+	//we're about to push, but don't mark as "done" yet unless apply succeeds
+	pushing := connected
+	pushingMsg := msg
 	r.statusMu.Unlock()
 
-	// get from informer cache
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
 		log.Error("target fetch failed", "error", err)
 		return
 	}
 
-	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: target.Namespace,
-			Name:      target.Name,
-		},
-		invv1alpha1.TargetSpec{},
-		invv1alpha1.TargetStatus{},
-	)
-
-	// mutate only what you own in status
-	// (use your existing helpers, but mutate `target`, not a separate object)
+	var newCond condv1alpha1.Condition
 	if connected {
-		newTarget.SetConditions(invv1alpha1.TargetConnectionReady())
+		newCond = configv1alpha1.TargetConnectionReady()
 	} else {
-		newTarget.SetConditions(invv1alpha1.TargetConnectionFailed(msg))
+		newCond = configv1alpha1.TargetConnectionFailed(msg)
 	}
 
-	// if no effective status change, skip write
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeTargetConnectionReady)
-	changed := !newCond.Equal(oldCond)
-	if !changed {
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConnectionReady)
+	if newCond.Equal(oldCond) {
 		log.Info("pushConnIfChanged -> no change",
 			"connected", connected,
 			"phase", r.Status().Phase,
 			"msg", msg,
 		)
+		// Already correct in storage — mark as pushed so we don't retry needlessly
+		r.statusMu.Lock()
+		r.lastConnValid = true
+		r.lastConn = pushing
+		r.lastPushed = time.Now()
+		r.statusMu.Unlock()
 		return
 	}
 
-	// PATCH /status using MergeFrom
-	if err := r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	log.Info("pushConnIfChanged -> applying",
+		"connected", pushing,
+		"phase", r.Status().Phase,
+		"msg", pushingMsg,
+	)
+
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
+			WithConditions(newCond),
+		)
+
+	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: fieldManagerTargetRuntime,
 		},
 	}); err != nil {
 		log.Error("target status patch failed", "error", err)
 		return
 	}
+
+	// Only mark as successfully pushed AFTER Apply succeeds
+	r.statusMu.Lock()
+	r.lastConnValid = true
+	r.lastConn = pushing
+	r.lastPushed = time.Now()
+	r.statusMu.Unlock()
 
 	log.Info("pushConnIfChanged -> updated",
 		"connected", connected,

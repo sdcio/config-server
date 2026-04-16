@@ -69,17 +69,17 @@ spec:
                 description: Proxy defines the HTTP/HTTPS proxy to be used to connect
                   to the repo.
                 properties:
-                  URL:
-                    description: URL specifies the base URL of the HTTP/HTTPS proxy
-                      server.
-                    type: string
                   credentials:
                     description: Credentials defines the name of the secret that holds
                       the credentials to connect to the proxy server
                     type: string
+                  url:
+                    description: URL specifies the base URL of the HTTP/HTTPS proxy
+                      server.
+                    type: string
                 required:
-                - URL
                 - credentials
+                - url
                 type: object
               ref:
                 description: |-
@@ -87,7 +87,7 @@ spec:
                   provider schema version
                 type: string
               repoURL:
-                description: RepositoryURL specifies the base URL for a given repository
+                description: RepoURL specifies the base URL for a given repository
                 type: string
               skipUnavailableTarget:
                 type: boolean
@@ -230,6 +230,7 @@ spec:
                   - name
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
             type: object
         type: object
     served: true

@@ -50,4 +50,3 @@ func (t *TargetRuntime) PromLabels() []prompb.Label {
 	}
 	return labels
 }
-

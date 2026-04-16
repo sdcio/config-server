@@ -19,8 +19,7 @@ spec:
   - name: config
     schema:
       openAPIV3Schema:
-        description: "\tSensitiveConfig defines the Schema for the SensitiveConfig
-          API"
+        description: SensitiveConfig defines the Schema for the SensitiveConfig API
         properties:
           apiVersion:
             description: |-
@@ -320,6 +319,7 @@ spec:
                   - secretKeyRef
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -393,6 +393,7 @@ spec:
                       - secretKeyRef
                       type: object
                     type: array
+                    x-kubernetes-list-type: atomic
                   lifecycle:
                     description: |-
                       Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete

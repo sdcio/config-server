@@ -19,19 +19,19 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ConfigSetSpec defines the desired state of Config
 type ConfigSetSpec struct {
 	// Targets defines the targets on which this configSet applies
-	Target Target `json:"target" protobuf:"bytes,1,opt,name=target"`
+	Target ConfigSetTarget `json:"target" protobuf:"bytes,1,opt,name=target"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,2,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int64 `json:"priority,omitempty" protobuf:"varint,3,opt,name=priority"`
+	Priority int32 `json:"priority,omitempty" protobuf:"varint,3,opt,name=priority"`
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
@@ -39,7 +39,7 @@ type ConfigSetSpec struct {
 	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
 }
 
-type Target struct {
+type ConfigSetTarget struct {
 	// TargetSelector defines the selector used to select the targets to which the config applies
 	TargetSelector *metav1.LabelSelector `json:"targetSelector,omitempty" protobuf:"bytes,1,opt,name=targetSelector"`
 }
@@ -50,10 +50,10 @@ type ConfigSetStatus struct {
 	// if the condition is true the other attributes in the status are meaningful
 	condition.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the configSet resource on the respective target
-	Targets []TargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
+	Targets []ConfigSetTargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 
-type TargetStatus struct {
+type ConfigSetTargetStatus struct {
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// right now we assume the namespace of the config and target are aligned
 	//NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
@@ -61,7 +61,6 @@ type TargetStatus struct {
 	condition.Condition `json:",inline" protobuf:"bytes,3,opt,name=condition"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
@@ -76,7 +75,6 @@ type ConfigSet struct {
 	Spec   ConfigSetSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status ConfigSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
-
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

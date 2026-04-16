@@ -56,7 +56,7 @@ func NewRolloutInformer(client versioned.Interface, namespace string, resyncPeri
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredRolloutInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
@@ -81,7 +81,7 @@ func NewFilteredRolloutInformer(client versioned.Interface, namespace string, re
 				}
 				return client.InvV1alpha1().Rollouts(namespace).Watch(ctx, options)
 			},
-		},
+		}, client),
 		&apisinvv1alpha1.Rollout{},
 		resyncPeriod,
 		indexers,

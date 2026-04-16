@@ -52,6 +52,12 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&DeviationList{},
 		&ConfigBlame{},
 		&ConfigBlameList{},
+		&Target{},
+		&TargetList{},
+		&TargetConfigBlame{},
+		&TargetRunningConfig{},
+		&TargetClearDeviation{},
+		&TargetRunningConfigOptions{},
 	)
 	return nil
 }

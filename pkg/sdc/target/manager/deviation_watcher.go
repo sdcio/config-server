@@ -26,7 +26,9 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
@@ -39,27 +41,27 @@ import (
 
 const (
 	unManagedConfigDeviation = "__"
-	fieldManagerDeviation = "ConfigController"
+	fieldManagerDeviation    = "ConfigController"
 )
 
 type DeviationWatcher struct {
-	key 		storebackend.Key  // target key
-	client    	client.Client     // k8 client
-	dsclient  	dsclient.Client   // datastore client
+	key      storebackend.Key // target key
+	client   client.Client    // k8 client
+	dsclient dsclient.Client  // datastore client
 
 	m      sync.RWMutex
 	cancel context.CancelFunc
 }
 
 func NewDeviationWatcher(
-	key storebackend.Key, 
-	client client.Client, 
+	key storebackend.Key,
+	client client.Client,
 	dsclient dsclient.Client,
 ) *DeviationWatcher {
 	return &DeviationWatcher{
-		key: key,
-		client:    client,
-		dsclient:  dsclient,
+		key:      key,
+		client:   client,
+		dsclient: dsclient,
 	}
 }
 
@@ -137,11 +139,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if started {
 				log.Error("protocol violation start on start")
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -154,11 +156,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			if !started {
 				log.Error("protocol violation update without start")
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -182,11 +184,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				log.Error("protocol violation end without start")
 
 				/*
-				if err := stream.CloseSend(); err != nil {
-					log.Error("stream failed", "err", err)
-				} // to check if this works on the client side to inform the server to stop sending
-				stream = nil
-				time.Sleep(time.Second * 1) //- resilience for server crash
+					if err := stream.CloseSend(); err != nil {
+						log.Error("stream failed", "err", err)
+					} // to check if this works on the client side to inform the server to stop sending
+					stream = nil
+					time.Sleep(time.Second * 1) //- resilience for server crash
 				*/
 				continue
 			}
@@ -213,8 +215,10 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		configDevs := ConvertSdcpbDeviations2ConfigDeviations(ctx, devs)
 
 		nsn := r.key.NamespacedName
+		typ := configv1alpha1.DeviationType_CONFIG
 		if configName == unManagedConfigDeviation {
 			log.Info("target device deviations", "devs", len(configDevs))
+			typ = configv1alpha1.DeviationType_TARGET
 		} else {
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
@@ -227,7 +231,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			}
 			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
 		}
-		r.processConfigDeviations(ctx, nsn, configDevs)
+		r.processConfigDeviations(ctx, nsn, configDevs, typ)
 	}
 }
 
@@ -235,6 +239,7 @@ func (r *DeviationWatcher) processConfigDeviations(
 	ctx context.Context,
 	nsn types.NamespacedName,
 	deviations []configv1alpha1.ConfigDeviation,
+	typ configv1alpha1.DeviationType,
 ) {
 	log := log.FromContext(ctx)
 
@@ -242,25 +247,25 @@ func (r *DeviationWatcher) processConfigDeviations(
 		return deviations[i].Path < deviations[j].Path
 	})
 
-	deviation := &configv1alpha1.Deviation{}
-	if err := r.client.Get(ctx, nsn, deviation); err != nil {
-		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
-		return
-	}
+	applyDeviation := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
+		WithLabels(map[string]string{
+			config.TargetNameKey:      r.key.Name,
+			config.TargetNamespaceKey: r.key.Namespace,
+		}).
+		WithSpec(configv1alpha1apply.DeviationSpec().
+			WithDeviationType(typ).
+			WithDeviations(configDeviationsToApply(deviations)...),
+		)
 
 	log.Info("patch deviations", "nsn", nsn, "devs", len(deviations))
 
-	patch := client.MergeFrom(deviation.DeepObjectCopy())
-
-	deviation.Spec.Deviations = deviations
-
-	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+	if err := r.client.Apply(ctx, applyDeviation, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
+		Force:        ptr.To(true),
 	}); err != nil {
-		log.Error("cannot update intent for recieved deviation", "config", nsn)
+		log.Error("cannot update intent for received deviation", "config", nsn, "err", err)
 	}
 }
-
 
 func (r *DeviationWatcher) clearTargetDeviation(
 	ctx context.Context,
@@ -274,19 +279,20 @@ func (r *DeviationWatcher) clearTargetDeviation(
 		return
 	}
 	// If already clear, do nothing (avoids useless writes)
-    if len(deviation.Spec.Deviations) == 0 {
-        return
-    }
+	if len(deviation.Spec.Deviations) == 0 {
+		return
+	}
 
 	log.Info("clear deviations", "nsn", nsn)
 
-	patch := client.MergeFrom(deviation.DeepObjectCopy())
-	deviation.Spec.Deviations = nil
+	applyDeviation := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
+		WithSpec(configv1alpha1apply.DeviationSpec())
+		// empty spec with no deviations — SSA with Force will clear the field
 
-	if err := r.client.Patch(ctx, deviation, patch, &client.PatchOptions{
+	if err := r.client.Apply(ctx, applyDeviation, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
 	}); err != nil {
-		log.Error("cannot update intent for recieved deviation", "config", nsn)
+		log.Error("cannot clear deviation", "config", nsn, "err", err)
 	}
 }
 
@@ -308,7 +314,7 @@ func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{
 			Path:         dev.GetPath().ToXPath(false),
 			DesiredValue: desiredValue,
-			CurrentValue: currentValue,
+			ActualValue:  currentValue,
 			Reason:       dev.GetReason().String(),
 		})
 
@@ -326,4 +332,21 @@ func getDeviationString(val *sdcpb.TypedValue) (*string, error) {
 		v = ptr.To(string(b))
 	}
 	return v, nil
+}
+
+func configDeviationsToApply(devs []configv1alpha1.ConfigDeviation) []*configv1alpha1apply.ConfigDeviationApplyConfiguration {
+	result := make([]*configv1alpha1apply.ConfigDeviationApplyConfiguration, 0, len(devs))
+	for _, d := range devs {
+		a := configv1alpha1apply.ConfigDeviation().
+			WithPath(d.Path).
+			WithReason(d.Reason)
+		if d.DesiredValue != nil {
+			a = a.WithDesiredValue(*d.DesiredValue)
+		}
+		if d.ActualValue != nil {
+			a = a.WithActualValue(*d.ActualValue)
+		}
+		result = append(result, a)
+	}
+	return result
 }

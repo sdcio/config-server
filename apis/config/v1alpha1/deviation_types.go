@@ -27,6 +27,7 @@ import (
 type DeviationSpec struct {
 	DeviationType *DeviationType `json:"deviationType,omitempty" protobuf:"bytes,1,opt,name=deviationType"`
 	// Deviations identify the configuration deviation based on the last applied config CR
+	// +listType=atomic
 	Deviations []ConfigDeviation `json:"deviations,omitempty" protobuf:"bytes,2,rep,name=deviations"`
 }
 
@@ -53,9 +54,9 @@ type ConfigDeviation struct {
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue *string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
-	// CurrentValue defines the current value of the config belonging to the path
+	// ActualValue defines the current value of the config belonging to the path
 	// that is currently configured on the target
-	CurrentValue *string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
+	ActualValue *string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
 	// Reason defines the reason of the deviation
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }

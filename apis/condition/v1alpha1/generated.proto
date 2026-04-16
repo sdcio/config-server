@@ -19,13 +19,23 @@ syntax = "proto2";
 
 package github.com.sdcio.config_server.apis.condition.v1alpha1;
 
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 
 // Package-wide variables from generator "generated".
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.stable_marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_unrecognized_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
+option (gogoproto.goproto_getters_all) = false;
 option go_package = "github.com/sdcio/config-server/apis/condition/v1alpha1";
 
 message Condition {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Condition condition = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Condition condition = 1 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
 }
 
 // A ConditionedStatus reflects the observed status of a resource. Only
@@ -35,12 +45,12 @@ message ConditionedStatus {
   // +optional
   // +listType=map
   // +listMapKey=type
-  repeated Condition conditions = 1;
+  repeated Condition conditions = 1 [(gogoproto.customname) = "Conditions", (gogoproto.nullable) = false];
 }
 
 message UnrecoverableMessage {
-  optional string resourceVersion = 1;
+  optional string resourceVersion = 1 [(gogoproto.customname) = "ResourceVersion", (gogoproto.nullable) = false];
 
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 }
 

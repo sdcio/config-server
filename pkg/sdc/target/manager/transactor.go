@@ -30,7 +30,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
@@ -39,7 +39,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -61,7 +60,7 @@ func NewTransactor(client client.Client, fieldManager string) *Transactor {
 	}
 }
 
-func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
+func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
 	log := log.FromContext(ctx)
 	log.Debug("RecoverConfigs")
 	configList, err := r.ListConfigsPerTarget(ctx, target)
@@ -100,13 +99,13 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *invv1alpha1.Tar
 	log.Debug("recovered configs", "count", len(configs))
 
 	if err := r.SetConfigsTargetConditionForTarget(
-        ctx,
-        target,
-        configv1alpha1.ConfigReady("target recovered"),
-    ); err != nil {
-        // recovery succeeded but we failed to patch status -> surface it
-        return ptr.To("recovered, but failed to update config status"), err
-    }
+		ctx,
+		target,
+		configv1alpha1.ConfigReady("target recovered"),
+	); err != nil {
+		// recovery succeeded but we failed to patch status -> surface it
+		return ptr.To("recovered, but failed to update config status"), err
+	}
 	return nil, nil
 }
 
@@ -123,16 +122,16 @@ func (r *Transactor) recoverIntents(
 	}
 
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
-	for _, config := range configs {
-		update, err := GetIntentUpdate(ctx, key, config, false)
+	for _, cfg := range configs {
+		update, err := config.GetIntentUpdate(cfg, false)
 		if err != nil {
 			return "", err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
-			Update:   update,
-			NonRevertive: !config.IsRevertive(),
+			Intent:            config.GetGVKNSN(cfg),
+			Priority:          int32(cfg.Spec.Priority),
+			Update:            update,
+			NonRevertive:      !cfg.IsRevertive(),
 			PreviouslyApplied: true,
 		})
 	}
@@ -175,7 +174,12 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
-func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, dsctx *DatastoreHandle) (bool, error) {
+func (r *Transactor) Transact(
+	ctx context.Context,
+	target *configv1alpha1.Target,
+	dsctx *DatastoreHandle,
+	targetCond condv1alpha1.Condition,
+) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
 	// get all configs for the target
@@ -184,7 +188,7 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 		return true, err
 	}
 	// reapply deviations for each config snippet
-	// This ensure the eviations are applied
+	// This ensure the deviations are applied
 	for _, config := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &config); err != nil {
 			return true, err
@@ -247,11 +251,13 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 		if err != nil {
 			return false, err
 		}
+		// We need to deepcopy the config object we transacted since the applyFinalizer
+		// can transform it using patched data
+		transactedConfig := config.DeepCopy()
 		if err := r.applyFinalizer(ctx, config); err != nil {
 			return true, err
 		}
-
-		if err := r.updateConfigWithSuccess(ctx, config, dsctx.Schema, ""); err != nil {
+		if err := r.updateConfigWithSuccess(ctx, transactedConfig, dsctx.Schema, targetCond, ""); err != nil {
 			return true, err
 		}
 	}
@@ -262,6 +268,9 @@ func (r *Transactor) Transact(ctx context.Context, target *invv1alpha1.Target, d
 			return true, err
 		}
 		if err := r.deleteFinalizer(ctx, config); err != nil {
+			return true, err
+		}
+		if err := r.deleteDeviation(ctx, config); err != nil {
 			return true, err
 		}
 	}
@@ -284,28 +293,30 @@ func (r *Transactor) setIntents(
 
 	intents := make([]*sdcpb.TransactionIntent, 0)
 
-	for key, config := range configsToUpdate {
+	for key, cfg := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
-		update, err := GetIntentUpdate(ctx, targetKey, config, true)
+		log.Info("Transaction intent update", "config", key, "revertive", cfg.IsRevertive())
+		update, err := config.GetIntentUpdate(cfg, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
 			return nil, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:   GetGVKNSN(config),
-			Priority: int32(config.Spec.Priority),
-			Update:   update,
-			NonRevertive: !config.IsRevertive(),
+			Intent:       config.GetGVKNSN(cfg),
+			Priority:     int32(cfg.Spec.Priority),
+			Update:       update,
+			NonRevertive: !cfg.IsRevertive(),
 		})
 	}
-	for key, config := range configsToDelete {
+	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
+		log.Info("Transaction intent delete", "config", key, "revertive", cfg.IsRevertive())
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent: GetGVKNSN(config),
-			//Priority: int32(config.Spec.Priority),
+			Intent:              config.GetGVKNSN(cfg),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
-			Orphan:              config.Orphan(),
+			Orphan:              cfg.Orphan(),
+			// Dont set priority, dont set non revertive
 		})
 	}
 
@@ -329,36 +340,74 @@ func (r *Transactor) setIntents(
 	return rsp, err
 }
 
-func (r *Transactor) updateConfigWithError(ctx context.Context, config *configv1alpha1.Config, msg string, err error, recoverable bool) error {
+func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", "config", config.GetName(), "recoverable", recoverable, "msg", msg, "err", err)
-
-	configOrig := config.DeepCopy()
-	patch := client.MergeFrom(configOrig)
+	log.Warn("updateConfigWithError", 
+		"config", cfg.GetName(), 
+		"recoverable", recoverable, 
+		"msg", msg, 
+		"err", err,
+	)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
 
-	config.SetFinalizers([]string{finalizer})
+	current := &configv1alpha1.Config{}
+	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
+	if err := r.client.Get(ctx, key, current); err != nil {
+		return err
+	}
+	if current.GetDeletionTimestamp() != nil {
+		log.Debug("skip error update: config is deleting")
+		return nil
+	}
+
+	var newConfigCond condv1alpha1.Condition
 	if recoverable {
-		// IMPRTANT TO USE THIS TYPE
-		config.SetConditions(configv1alpha1.ConfigFailed(msg))
+		newConfigCond = configv1alpha1.ConfigFailed(msg)
 	} else {
 		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: config.GetResourceVersion(),
+			ResourceVersion: current.GetResourceVersion(),
 			Message:         msg,
 		}
 		newmsg, err := json.Marshal(newMessage)
 		if err != nil {
 			return err
 		}
-		config.Status.DeviationGeneration = nil
-		config.SetConditions(condv1alpha1.FailedUnRecoverable(string(newmsg)))
+		newConfigCond = condv1alpha1.FailedUnRecoverable(string(newmsg))
 	}
 
-	return r.client.Status().Patch(ctx, config, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	// Recompute overall from current + the config condition this phase owns.
+	tmp := current.DeepCopy()
+	tmp.SetConditions(newConfigCond)
+	tmp.SetOverallStatus()
+	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
+	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// No-op check for fields owned by this path.
+	if newConfigCond.Equal(curConfigCond) &&
+		newOverallCond.Equal(curOverallCond) &&
+		(recoverable ||
+			(current.Status.DeviationGeneration != nil &&
+				*current.Status.DeviationGeneration == 0)) {
+		return nil
+	}
+
+	statusApply := configv1alpha1apply.ConfigStatus().
+		WithConditions(newConfigCond, newOverallCond)
+
+	if !recoverable {
+		statusApply = statusApply.WithDeviationGeneration(0)
+	}
+
+	applyConfig := configv1alpha1apply.Config(current.Name, current.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: r.fieldManager,
 		},
 	})
@@ -382,51 +431,91 @@ func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1
 	})
 }
 
+func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
+	deviation := &configv1alpha1.Deviation{}
+	deviation.Name = cfg.Name
+	deviation.Namespace = cfg.Namespace
+	if err := r.client.Delete(ctx, deviation); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *Transactor) updateConfigWithSuccess(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
+	targetCond condv1alpha1.Condition,
 	msg string,
 ) error {
 	log := log.FromContext(ctx)
 	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
 
-	// THE TYPE IS IMPORTANT here
-	cond := configv1alpha1.ConfigReady(msg)
+	// Always re-read the latest object after the transaction was confirmed.
+	current := &configv1alpha1.Config{}
+	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
+	if err := r.client.Get(ctx, key, current); err != nil {
+		return err
+	}
 
-	return r.patchStatusIfChanged(ctx, cfg, func(c *configv1alpha1.Config) {
-		c.SetConditions(cond)
-		c.Status.LastKnownGoodSchema = schema
-		c.Status.AppliedConfig = &c.Spec
-		c.SetOverallStatus()
-	}, func(old, new *configv1alpha1.Config) bool {
-		// only write if the ready condition or these fields changed
-		if !new.GetCondition(condv1alpha1.ConditionTypeReady).Equal(old.GetCondition(condv1alpha1.ConditionTypeReady)) {
-			return true
-		}
-		if !reflect.DeepEqual(old.Status.LastKnownGoodSchema, new.Status.LastKnownGoodSchema) {
-			return true
-		}
-		if !reflect.DeepEqual(old.Status.AppliedConfig, new.Status.AppliedConfig) {
-			return true
-		}
-		return false
+	// If the object is being deleted, do not write a success status anymore.
+	if current.GetDeletionTimestamp() != nil {
+		log.Debug("skip success update: config is deleting")
+		return nil
+	}
+	
+
+	newConfigCond := configv1alpha1.ConfigReady(msg)
+
+	// Compute overall from the condition set we want to own.
+	tmp := current.DeepCopy()
+	tmp.SetConditions(newConfigCond, targetCond)
+	tmp.SetOverallStatus()
+	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// Read only the condition types we own from current.
+	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
+	curTargetCond := current.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// Skip if the fields we own are already what we want.
+	if newConfigCond.Equal(curConfigCond) &&
+		targetCond.Equal(curTargetCond) &&
+		newOverallCond.Equal(curOverallCond) &&
+		reflect.DeepEqual(schema, current.Status.LastKnownGoodSchema) &&
+		reflect.DeepEqual(&cfg.Spec, current.Status.AppliedConfig) {
+		return nil
+	}
+
+	statusApply := configv1alpha1apply.ConfigStatus().
+		WithConditions(newConfigCond, targetCond, newOverallCond).
+		WithLastKnownGoodSchema(schemaToApply(schema)).
+		WithAppliedConfig(configSpecToApply(&cfg.Spec))
+
+	applyConfig := configv1alpha1apply.Config(cfg.Name, cfg.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
+			FieldManager: r.fieldManager,
+		},
 	})
 }
 
-func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *invv1alpha1.Target) (*config.ConfigList, error) {
-	ctx = genericapirequest.WithNamespace(ctx, target.GetNamespace())
-
-	opts := []client.ListOption{
+func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
+	v1alpha1configList := &configv1alpha1.ConfigList{}
+	if err := r.client.List(ctx, v1alpha1configList,
+		client.InNamespace(target.GetNamespace()),
 		client.MatchingLabels{
 			config.TargetNamespaceKey: target.GetNamespace(),
 			config.TargetNameKey:      target.GetName(),
 		},
-	}
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, v1alpha1configList, opts...); err != nil {
+	); err != nil {
 		return nil, err
 	}
+
 	configList := &config.ConfigList{}
 	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
 		return nil, err
@@ -472,22 +561,6 @@ func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
 	return out, nil
 }
 
-/*
-func (r *Transactor) patchStatus(
-	ctx context.Context,
-	obj client.Object,
-	mutate func(),
-) error {
-	orig := obj.DeepCopyObject().(client.Object)
-	mutate()
-	return r.client.Status().Patch(ctx, obj, client.MergeFrom(orig),
-		&client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
-		},
-	)
-}
-*/
-
 func (r *Transactor) patchMetadata(
 	ctx context.Context,
 	obj client.Object,
@@ -496,9 +569,7 @@ func (r *Transactor) patchMetadata(
 	orig := obj.DeepCopyObject().(client.Object)
 	mutate()
 	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
-		&client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
-		},
+		&client.PatchOptions{FieldManager: r.fieldManager},
 	)
 }
 
@@ -514,11 +585,12 @@ func getConfigsToTransact(
 	configsToUpdate := make(map[string]*config.Config)
 	configsToDelete := make(map[string]*config.Config)
 	nonRecoverable := make(map[string]*config.Config)
+	configsNoChnge := make(map[string]*config.Config)
 
 	// Classify configs: update / delete / non-recoverable / noop
 	for i := range configList.Items {
-		cfg := &configList.Items[i]
-		key := GetGVKNSN(cfg)
+		cfg := configList.Items[i].DeepCopy()
+		key := config.GetGVKNSN(cfg)
 
 		switch {
 		case !cfg.IsRecoverable(ctx):
@@ -532,7 +604,7 @@ func getConfigsToTransact(
 
 		case cfg.Status.AppliedConfig != nil &&
 			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
-			// no change, skip
+			configsNoChnge[key] = cfg
 			continue
 
 		default:
@@ -544,12 +616,20 @@ func getConfigsToTransact(
 		"configsToUpdate", mapKeys(configsToUpdate),
 		"configsToDelete", mapKeys(configsToDelete),
 		"nonRecoverable", mapKeys(nonRecoverable),
+		"configsNoChange", mapKeys(configsNoChnge),
 	)
 
-	// --- 5) If we have changes, retry non-recoverables
+	// --- 5) If we have changes, retry non-recoverables + add configs that did not change
 
 	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
 		for key, cfg := range nonRecoverable {
+			if cfg.GetDeletionTimestamp() != nil {
+				configsToDelete[key] = cfg
+			} else {
+				configsToUpdate[key] = cfg
+			}
+		}
+		for key, cfg := range configsNoChnge {
 			if cfg.GetDeletionTimestamp() != nil {
 				configsToDelete[key] = cfg
 			} else {
@@ -720,30 +800,9 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 	return result
 }
 
-func (r *Transactor) patchStatusIfChanged(
-	ctx context.Context,
-	cfg *configv1alpha1.Config,
-	mutate func(c *configv1alpha1.Config),
-	changed func(old, new *configv1alpha1.Config) bool,
-) error {
-	orig := cfg.DeepCopy()
-
-	mutate(cfg)
-
-	if changed != nil && !changed(orig, cfg) {
-		return nil
-	}
-
-	return r.client.Status().Patch(ctx, cfg, client.MergeFrom(orig),
-		&client.SubResourcePatchOptions{
-			PatchOptions: client.PatchOptions{FieldManager: r.fieldManager},
-		},
-	)
-}
-
 func (r *Transactor) SetConfigsTargetConditionForTarget(
 	ctx context.Context,
-	target *invv1alpha1.Target,
+	target *configv1alpha1.Target,
 	targetCond condv1alpha1.Condition,
 ) error {
 	//log := log.FromContext(ctx)
@@ -755,34 +814,112 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 	}
 
 	for i := range cfgList.Items {
-		// convert to v1alpha1 for patching
 		v1cfg, err := toV1Alpha1Config(&cfgList.Items[i])
 		if err != nil {
 			return err
 		}
 
-		err = r.patchStatusIfChanged(ctx, v1cfg, func(c *configv1alpha1.Config) {
-			// 1) set TargetReady condition
-			c.SetConditions(targetCond)
-			// 2) derive overall Ready from ConfigReady + TargetReady
-			c.SetOverallStatus()
-		}, func(old, new *configv1alpha1.Config) bool {
-			// compare the two condition types you may change
-			oldT := old.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
-			newT := new.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
-			if !newT.Equal(oldT) {
-				return true
-			}
+		oldTargetCond := v1cfg.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
+		oldReadyCond := v1cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 
-			// 2) did overall Ready change?
-			oldR := old.GetCondition(condv1alpha1.ConditionTypeReady)
-			newR := new.GetCondition(condv1alpha1.ConditionTypeReady)
-			return !newR.Equal(oldR) 
-		})
-		if err != nil {
+		// compute new overall ready
+		v1cfg.SetConditions(targetCond)
+		v1cfg.SetOverallStatus()
+		newReadyCond := v1cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+
+		if targetCond.Equal(oldTargetCond) && newReadyCond.Equal(oldReadyCond) {
+			continue
+		}
+
+		// Preserve ALL existing status fields to avoid stripping them
+		configCond := v1cfg.GetCondition(condv1alpha1.ConditionType(
+			configv1alpha1.ConfigReady("").Type,
+		))
+
+		statusApply := configv1alpha1apply.ConfigStatus().
+			WithConditions(targetCond, configCond, newReadyCond)
+
+		// preserve schema + appliedConfig so SSA doesn't strip them
+		if v1cfg.Status.LastKnownGoodSchema != nil {
+			statusApply = statusApply.WithLastKnownGoodSchema(
+				schemaToApply(v1cfg.Status.LastKnownGoodSchema))
+		}
+		if v1cfg.Status.AppliedConfig != nil {
+			statusApply = statusApply.WithAppliedConfig(
+				configSpecToApply(v1cfg.Status.AppliedConfig))
+		}
+
+		applyConfig := configv1alpha1apply.Config(v1cfg.Name, v1cfg.Namespace).
+			WithStatus(statusApply)
+
+		if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+			ApplyOptions: client.ApplyOptions{
+				FieldManager: r.fieldManager,
+			},
+		}); err != nil {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func schemaToApply(s *configv1alpha1.ConfigStatusLastKnownGoodSchema) *configv1alpha1apply.ConfigStatusLastKnownGoodSchemaApplyConfiguration {
+	if s == nil {
+		return nil
+	}
+	a := configv1alpha1apply.ConfigStatusLastKnownGoodSchema()
+	if s.Type != "" {
+		a.WithType(s.Type)
+	}
+	if s.Vendor != "" {
+		a.WithVendor(s.Vendor)
+	}
+	if s.Version != "" {
+		a.WithVersion(s.Version)
+	}
+	return a
+}
+
+func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.ConfigSpecApplyConfiguration {
+	if s == nil {
+		return nil
+	}
+	
+	a := configv1alpha1apply.ConfigSpec().
+			WithPriority(s.Priority)
+	
+	if s.Revertive != nil {	
+		a.WithRevertive(*s.Revertive)
+	}
+
+	if s.Lifecycle != nil {
+		a.WithLifecycle(lifecycleToApply(s.Lifecycle))
+	}
+
+	for i := range s.Config {
+		a.WithConfig(configBlobToApply(&s.Config[i]))
+	}
+	return a
+}
+
+func lifecycleToApply(l *configv1alpha1.Lifecycle) *configv1alpha1apply.LifecycleApplyConfiguration {
+	if l == nil {
+		return nil
+	}
+	a := configv1alpha1apply.Lifecycle()
+	a.WithDeletionPolicy(l.DeletionPolicy)
+
+	return a
+}
+
+func configBlobToApply(b *configv1alpha1.ConfigBlob) *configv1alpha1apply.ConfigBlobApplyConfiguration {
+	if b == nil {
+		return nil
+	}
+	a := configv1alpha1apply.ConfigBlob()
+	if b.Path != "" {
+		a.WithPath(b.Path)
+	}
+	a.WithValue(b.Value)
+	return a
 }

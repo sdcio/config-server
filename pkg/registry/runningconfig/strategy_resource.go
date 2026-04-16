@@ -27,7 +27,7 @@ import (
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -39,10 +39,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
 
 // NewStrategy creates and returns a strategy instance
@@ -149,7 +148,7 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return obj, nil
 }
 
-func (r *strategy) getRunningConfig(ctx context.Context, target *invv1alpha1.Target, key types.NamespacedName) (*config.RunningConfig, error) {
+func (r *strategy) getRunningConfig(ctx context.Context, target *configv1alpha1.Target, key types.NamespacedName) (*config.RunningConfig, error) {
 	if !target.IsReady() {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
@@ -201,30 +200,19 @@ func (r *strategy) getRunningConfig(ctx context.Context, target *invv1alpha1.Tar
 }
 
 func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, key, target); err != nil {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 	return r.getRunningConfig(ctx, target, key)
 }
 
-func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
+func (r *strategy) List(ctx context.Context, opts *metainternalversion.ListOptions) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 
-	filter, err := parseFieldSelector(ctx, options.FieldSelector)
+	filter, err := options.ParseFieldSelector(ctx, opts.FieldSelector)
 	if err != nil {
 		return nil, err
-	}
-
-	namespace, ok := genericapirequest.NamespaceFrom(ctx)
-	if ok {
-		if filter != nil {
-			filter.Namespace = namespace
-		} else {
-			filter = &Filter{
-				Namespace: namespace,
-			}
-		}
 	}
 
 	newListObj := r.obj.NewList()
@@ -233,8 +221,8 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		return nil, err
 	}
 
-	targets := &invv1alpha1.TargetList{}
-	if err := r.client.List(ctx, targets); err != nil {
+	targets := &configv1alpha1.TargetList{}
+	if err := r.client.List(ctx, targets, options.ListOptsFromInternal(filter, opts)...); err != nil {
 		return nil, err
 	}
 
@@ -260,6 +248,7 @@ func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListO
 		cancel:         cancel,
 		resultChan:     make(chan watch.Event),
 		watcherManager: r.watcherManager,
+		obj:            r.obj,
 	}
 
 	go w.listAndWatch(ctx, r, options)

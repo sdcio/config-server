@@ -61,6 +61,7 @@ spec:
                   - address
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               concurrentScans:
                 description: number of concurrent IP scan
                 format: int64
@@ -91,6 +92,7 @@ spec:
                     items:
                       type: string
                     type: array
+                    x-kubernetes-list-type: atomic
                   credentials:
                     description: Credentials defines the name of the secret that holds
                       the credentials to connect to the target
@@ -163,6 +165,7 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: atomic
                     prefix:
                       description: Prefix of the target/target(s)
                       type: string
@@ -170,6 +173,7 @@ spec:
                   - prefix
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               serviceDomain:
                 description: |-
                   ServiceDomain defines the service domain of the cluster, used by svc discovery to identify the
@@ -249,6 +253,7 @@ spec:
                   - credentials
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
               targetTemplate:
                 description: TargetTemplate defines the template the discovery controller
                   uses to create the targets as a result of the discovery

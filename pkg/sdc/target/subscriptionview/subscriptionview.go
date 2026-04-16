@@ -16,15 +16,14 @@ limitations under the License.
 
 package subscriptionview
 
-
 import (
-  "context"
+	"context"
 
-  invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 )
 
 // Only what the reconciler needs.
 type TargetSubscriptionManager interface {
-  ApplySubscription(ctx context.Context, sub *invv1alpha1.Subscription) error
-  RemoveSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error
+	ApplySubscription(ctx context.Context, sub *invv1alpha1.Subscription) error
+	RemoveSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error
 }

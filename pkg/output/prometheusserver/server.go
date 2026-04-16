@@ -29,7 +29,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	targetruntimeview "github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 	certutil "k8s.io/client-go/util/cert"
-
 )
 
 type Config struct {

@@ -18,6 +18,7 @@ package generic
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -25,6 +26,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -35,9 +37,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
+	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/storage/names"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
+
+type conditionsGetter interface {
+	GetConditions() []condition.Condition
+}
 
 // NewStrategy creates and returns a strategy instance
 func NewStrategy(
@@ -86,6 +93,15 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 	if err != nil {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
+	/*
+		accessor, _ := meta.Accessor(obj)
+		log.FromContext(ctx).Info("strategy.Get",
+			"key", key,
+			"managedFieldsCount", len(accessor.GetManagedFields()),
+			"labelsCount", len(accessor.GetLabels()),
+			"finalizersCount", len(accessor.GetFinalizers()),
+		)
+	*/
 	return obj, nil
 }
 
@@ -104,6 +120,10 @@ func (r *strategy) InvokeCreate(ctx context.Context, obj runtime.Object, recursi
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
+	if shouldLog(obj) {
+		logObject(ctx, "Create", key, obj)
+	}
+
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunCreateFn != nil {
 			return r.opts.DryRunCreateFn(ctx, key, obj, dryrun)
@@ -130,7 +150,7 @@ func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object
 	r.obj.PrepareForUpdate(ctx, obj, old)
 }
 
-func (r *strategy) AllowCreateOnUpdate() bool { return false }
+func (r *strategy) AllowCreateOnUpdate() bool { return true }
 
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 
@@ -143,6 +163,11 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
+	if shouldLog(obj) {
+		logObject(ctx, "Update New", key, obj)
+		logObject(ctx, "Update Old", key, old)
+	}
+
 	if r.obj.IsEqual(ctx, obj, old) {
 		return obj, nil
 	}
@@ -232,6 +257,14 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 			return
 		}
 
+		// Always enforce namespace scoping for namespace-scoped resources
+		if r.obj.NamespaceScoped() {
+			ns, ok := genericapirequest.NamespaceFrom(ctx)
+			if ok && ns != "" && accessor.GetNamespace() != ns {
+				return
+			}
+		}
+
 		if options.LabelSelector != nil || filter != nil {
 			f := true
 			if options.LabelSelector != nil {
@@ -295,4 +328,31 @@ func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
 	log.Debug("notify watcherManager")
 
 	r.watcherManager.WatchChan() <- event
+}
+
+func shouldLog(obj runtime.Object) bool {
+	return true
+	//return obj.GetObjectKind().GroupVersionKind().Kind == "Target"
+}
+
+func logObject(ctx context.Context, op string, key types.NamespacedName, obj runtime.Object) {
+	accessor, _ := meta.Accessor(obj)
+	l := log.FromContext(ctx).With(
+		"op", op,
+		"key", key,
+		"kind", obj.GetObjectKind().GroupVersionKind().Kind,
+		"resourceVersion", accessor.GetResourceVersion(),
+		"generation", accessor.GetGeneration(),
+		"managedFields", len(accessor.GetManagedFields()),
+		"finalizers", accessor.GetFinalizers(),
+	)
+	if cg, ok := obj.(conditionsGetter); ok {
+		conditions := cg.GetConditions()
+		condSummary := make([]string, 0, len(conditions))
+		for _, c := range conditions {
+			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
+		}
+		l = l.With("conditions", condSummary)
+	}
+	l.Info("strategy")
 }

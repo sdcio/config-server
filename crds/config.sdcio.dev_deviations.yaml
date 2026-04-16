@@ -19,7 +19,7 @@ spec:
   - name: config
     schema:
       openAPIV3Schema:
-        description: "\tDeviation is the Schema for the Deviation API"
+        description: Deviation is the Schema for the Deviation API
         properties:
           apiVersion:
             description: |-
@@ -50,7 +50,7 @@ spec:
                   properties:
                     actualValue:
                       description: |-
-                        CurrentValue defines the current value of the config belonging to the path
+                        ActualValue defines the current value of the config belonging to the path
                         that is currently configured on the target
                       type: string
                     desiredValue:
@@ -167,7 +167,7 @@ spec:
                   properties:
                     actualValue:
                       description: |-
-                        CurrentValue defines the current value of the config belonging to the path
+                        ActualValue defines the current value of the config belonging to the path
                         that is currently configured on the target
                       type: string
                     desiredValue:
@@ -182,6 +182,7 @@ spec:
                       type: string
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
             type: object
           status:
             description: DeviationStatus defines the observed state of Deviation

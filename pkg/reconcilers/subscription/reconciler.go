@@ -24,18 +24,21 @@ import (
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 )
 
 func init() {
@@ -43,9 +46,10 @@ func init() {
 }
 
 const (
-	crName         = "subscription"
-	reconcilerName = "SubscriptionController"
-	finalizer      = "subscription.inv.sdcio.dev/finalizer"
+	crName                = "subscription"
+	fieldmanagerfinalizer = "SubscriptionController-finalizer"
+	reconcilerName        = "SubscriptionController"
+	finalizer             = "subscription.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -60,22 +64,33 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.Subscription(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.targetMgr = cfg.TargetManager
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		For(&invv1alpha1.Subscription{}).
-		Watches(&invv1alpha1.Target{}, &eventhandler.TargetForSubscriptionEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Target{}, &eventhandler.TargetForSubscriptionEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
 
 type reconciler struct {
-	client client.Client
-	finalizer       *resource.APIFinalizer
-	targetMgr       *targetmanager.TargetManager
-	recorder        record.EventRecorder
+	client    client.Client
+	finalizer *resource.APIFinalizer
+	targetMgr *targetmanager.TargetManager
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -95,9 +110,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	subscriptionOrig := subscription.DeepCopy()
 
-
 	if !subscription.GetDeletionTimestamp().IsZero() {
-		
+
 		if err := r.targetMgr.RemoveSubscription(ctx, subscription); err != nil {
 			return r.handleError(ctx, subscription, "cannot delete state from target collector", err)
 		}
@@ -125,17 +139,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subscription, targets []string) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
-	// take a snapshot of the current object
-	//patch := client.MergeFrom(state.DeepCopy())
-	// update status
-	state.SetConditions(condv1alpha1.Ready())
-	state.SetTargets(targets)
-	r.recorder.Eventf(state, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready")
 
-	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status new", state.Status)
+	newCond := condv1alpha1.Ready()
+	oldCond := state.GetCondition(condv1alpha1.ConditionTypeReady)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	// no-change guard
+	if newCond.Equal(oldCond) && reflect.DeepEqual(targets, state.Status.Targets) {
+		log.Info("handleSuccess -> no change")
+		return ctrl.Result{}, nil
+	}
+
+	r.recorder.Eventf(state, nil, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready", "")
+
+	applyConfig := invv1alpha1apply.Subscription(state.Name, state.Namespace).
+		WithStatus(invv1alpha1apply.SubscriptionStatus().
+			WithConditions(newCond).
+			WithTargets(targets...),
+		)
+
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
@@ -144,19 +167,28 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscription, msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	// take a snapshot of the current object
-	patch := client.MergeFrom(state.DeepCopy())
-
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	state.ManagedFields = nil
-	state.SetConditions(condv1alpha1.Failed(msg))
-	log.Error(msg)
-	r.recorder.Eventf(state, corev1.EventTypeWarning, crName, msg)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Patch(ctx, state, patch, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := state.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) {
+		log.Info("handleError -> no change")
+		return ctrl.Result{}, nil
+	}
+
+	log.Error(msg)
+	r.recorder.Eventf(state, nil, corev1.EventTypeWarning, crName, msg, "")
+
+	applyConfig := invv1alpha1apply.Subscription(state.Name, state.Namespace).
+		WithStatus(invv1alpha1apply.SubscriptionStatus().
+			WithConditions(newCond),
+		)
+
+	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)

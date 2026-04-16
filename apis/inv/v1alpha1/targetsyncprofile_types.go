@@ -48,6 +48,7 @@ type TargetSyncProfileSpec struct {
 	// +kubebuilder:validation:MaxItems=10
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="oldSelf.all(x, x in self)",message="sync may only be added"
+	// +listType=atomic
 	Sync []TargetSyncProfileSync `json:"sync" yaml:"sync" protobuf:"bytes,4,rep,name=sync"`
 }
 
@@ -61,6 +62,7 @@ type TargetSyncProfileSync struct {
 	// Port defines the port on which the scan runs
 	Port uint32 `json:"port" yaml:"port" protobuf:"varint,3,opt,name=port"`
 	// +kubebuilder:validation:MaxItems=10
+	// +listType=atomic
 	Paths []string `json:"paths" yaml:"paths" protobuf:"bytes,4,rep,name=paths"`
 	// +kubebuilder:validation:Enum=unknown;onChange;sample;once;get;
 	// +kubebuilder:default:="get"
@@ -109,6 +111,6 @@ func init() {
 var (
 	TargetSyncProfileKind             = reflect.TypeOf(TargetSyncProfile{}).Name()
 	TargetSyncProfileGroupKind        = schema.GroupKind{Group: SchemeGroupVersion.Group, Kind: TargetSyncProfileKind}.String()
-	TargetSyncProfileKindAPIVersion   = TargetKind + "." + SchemeGroupVersion.String()
+	TargetSyncProfileKindAPIVersion   = TargetSyncProfileKind + "." + SchemeGroupVersion.String()
 	TargetSyncProfileGroupVersionKind = SchemeGroupVersion.WithKind(TargetSyncProfileKind)
 )

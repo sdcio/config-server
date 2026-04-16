@@ -32,7 +32,6 @@ type InvV1alpha1Interface interface {
 	RolloutsGetter
 	SchemasGetter
 	SubscriptionsGetter
-	TargetsGetter
 	TargetConnectionProfilesGetter
 	TargetSyncProfilesGetter
 	WorkspacesGetter
@@ -61,10 +60,6 @@ func (c *InvV1alpha1Client) Schemas(namespace string) SchemaInterface {
 
 func (c *InvV1alpha1Client) Subscriptions(namespace string) SubscriptionInterface {
 	return newSubscriptions(c, namespace)
-}
-
-func (c *InvV1alpha1Client) Targets(namespace string) TargetInterface {
-	return newTargets(c, namespace)
 }
 
 func (c *InvV1alpha1Client) TargetConnectionProfiles(namespace string) TargetConnectionProfileInterface {

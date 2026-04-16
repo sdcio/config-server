@@ -28,3 +28,5 @@ type DeviationExpansion interface{}
 type RunningConfigExpansion interface{}
 
 type SensitiveConfigExpansion interface{}
+
+type TargetExpansion interface{}

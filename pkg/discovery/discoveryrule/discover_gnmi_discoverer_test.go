@@ -35,24 +35,24 @@ const (
 
 func TestGetDiscovererGNMI(t *testing.T) {
 	cases := map[string]struct {
-		capabilityFile  string
+		capabilityFile   string
 		expectedProvider string
 		expectError      bool
 	}{
 		"NokiaSROS": {
-			capabilityFile:  "data/nokia-sros-capabilities.json",
+			capabilityFile:   "data/nokia-sros-capabilities.json",
 			expectedProvider: "sros.nokia.sdcio.dev",
 		},
 		"NokiaSRL": {
-			capabilityFile:  "data/nokia-srl-capabilities.json",
+			capabilityFile:   "data/nokia-srl-capabilities.json",
 			expectedProvider: "srl.nokia.sdcio.dev",
 		},
 		"Arista": {
-			capabilityFile:  "data/arista-capabilities.json",
+			capabilityFile:   "data/arista-capabilities.json",
 			expectedProvider: "eos.arista.sdcio.dev",
 		},
 		"Unknown": {
-			capabilityFile:  "data/unknown-capabilities.json",
+			capabilityFile:   "data/unknown-capabilities.json",
 			expectedProvider: "eos.arista.sdcio.dev",
 			expectError:      true,
 		},

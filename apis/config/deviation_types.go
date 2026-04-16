@@ -19,8 +19,8 @@ package config
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/sdcio/config-server/apis/condition"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeviationSpec defines the desired state of Deviation
@@ -33,8 +33,8 @@ type DeviationSpec struct {
 type DeviationType string
 
 const (
-	DeviationType_TARGET   DeviationType = "target"
-	DeviationType_CONFIG   DeviationType = "config"
+	DeviationType_TARGET DeviationType = "target"
+	DeviationType_CONFIG DeviationType = "config"
 )
 
 func (r DeviationType) String() string {
@@ -53,9 +53,9 @@ type ConfigDeviation struct {
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// DesiredValue is the desired value of the config belonging to the path
 	DesiredValue *string `json:"desiredValue,omitempty" protobuf:"bytes,2,opt,name=desiredValue"`
-	// CurrentValue defines the current value of the config belonging to the path
+	// ActualValue defines the current value of the config belonging to the path
 	// that is currently configured on the target
-	CurrentValue *string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
+	ActualValue *string `json:"actualValue,omitempty" protobuf:"bytes,3,opt,name=actualValue"`
 	// Reason defines the reason of the deviation
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 }
@@ -67,14 +67,13 @@ type DeviationStatus struct {
 	condition.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	Deviation is the Schema for the Deviation API
+// Deviation is the Schema for the Deviation API
 type Deviation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
@@ -82,7 +81,6 @@ type Deviation struct {
 	Spec   DeviationSpec   `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	Status DeviationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
-
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true

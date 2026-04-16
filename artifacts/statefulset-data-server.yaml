@@ -48,6 +48,8 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.hostIP
+        - name: KUBE_FEATURE_WatchListClient
+          value: "false"
         - name: LOCAL_DATASERVER
           value: "true"
         - name: METRIC_PORT

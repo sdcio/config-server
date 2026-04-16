@@ -61,6 +61,8 @@ spec:
               fieldPath: status.hostIP
         - name: METRIC_PORT
           value: "8443"
+        - name: KUBE_FEATURE_WatchListClient
+          value: "false"
         volumeMounts:
         - name: api-server-certs
           mountPath: /apiserver.local.config/certificates

@@ -43,6 +43,7 @@ type RolloutStatus struct {
 	// ConditionedStatus provides the status of the Rollout using conditions
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
 	// Targets defines the status of the rollout on the respective target
+	// +listType=atomic
 	Targets []RolloutTargetStatus `json:"targets,omitempty" protobuf:"bytes,2,rep,name=targets"`
 }
 

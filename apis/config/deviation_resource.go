@@ -256,26 +256,17 @@ type DeviationFilter struct {
 }
 
 func (r *DeviationFilter) Filter(ctx context.Context, obj runtime.Object) bool {
-	f := false // result of the previous filter
 	o, ok := obj.(*Deviation)
 	if !ok {
-		return f
+		return true
 	}
-	if r.Name != "" {
-		if o.GetName() == r.Name {
-			f = false
-		} else {
-			f = true
-		}
+	if r.Name != "" && o.GetName() != r.Name {
+		return true
 	}
-	if r.Namespace != "" {
-		if o.GetNamespace() == r.Namespace {
-			f = false
-		} else {
-			f = true
-		}
+	if r.Namespace != "" && o.GetNamespace() != r.Namespace {
+		return true
 	}
-	return f
+	return false
 }
 
 func (r *Deviation) PrepareForCreate(ctx context.Context, obj runtime.Object) {

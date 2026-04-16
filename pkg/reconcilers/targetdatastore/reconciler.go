@@ -26,7 +26,9 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
@@ -36,9 +38,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -49,9 +52,10 @@ func init() {
 }
 
 const (
-	crName         = "targetdatastore"
-	reconcilerName = "TargetDataStoreController"
-	finalizer      = "targetdatastore.inv.sdcio.dev/finalizer"
+	crName                = "targetdatastore"
+	fieldmanagerfinalizer = "TargetDataStoreController-finalizer"
+	reconcilerName        = "TargetDataStoreController"
+	finalizer             = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
@@ -73,13 +77,24 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := configv1alpha1apply.Target(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.targetMgr = cfg.TargetManager
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
-		For(&invv1alpha1.Target{}).
+		For(&configv1alpha1.Target{}).
 		Watches(&invv1alpha1.TargetConnectionProfile{}, &eventhandler.TargetConnProfileForTargetEventHandler{Client: mgr.GetClient()}).
 		Watches(&invv1alpha1.TargetSyncProfile{}, &eventhandler.TargetSyncProfileForTargetEventHandler{Client: mgr.GetClient()}).
 		Watches(&corev1.Secret{}, &eventhandler.SecretForTargetEventHandler{Client: mgr.GetClient()}).
@@ -88,10 +103,10 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client          client.Client
-	finalizer       *resource.APIFinalizer
-	targetMgr       *targetmanager.TargetManager
-	recorder        record.EventRecorder
+	client    client.Client
+	finalizer *resource.APIFinalizer
+	targetMgr *targetmanager.TargetManager
+	recorder  events.EventRecorder
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -101,7 +116,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
-	target := &invv1alpha1.Target{}
+	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
@@ -113,16 +128,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetOrig := target.DeepCopy()
 
-	if !target.GetDeletionTimestamp().IsZero() {
+	if !targetOrig.GetDeletionTimestamp().IsZero() {
 		if len(target.GetFinalizers()) > 1 {
 			// this should be the last finalizer to be removed as this deletes the target from the targetStore
-			log.Debug("requeue delete, not all finalizers removed", "finalizers", target.GetFinalizers())
+			log.Debug("requeue delete, not all finalizers removed", "finalizers", targetOrig.GetFinalizers())
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, targetOrig, "deleting target, not all finalizers removed", nil, true), errUpdateStatus)
 		}
 		log.Debug("deleting targetstore...")
 		// check if this is the last one -> if so stop the client to the dataserver
-		
+
 		if r.targetMgr != nil {
 			r.targetMgr.ClearDesired(ctx, targetKey)
 			r.targetMgr.Delete(ctx, targetKey)
@@ -145,8 +160,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// We dont act as long the target is not discoveredReady (ready state is handled by the discovery controller)
 	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Info("target discovery ready condition", "status", target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status)
-	if target.Status.GetCondition(invv1alpha1.ConditionTypeDiscoveryReady).Status != metav1.ConditionTrue {
+	log.Info("target discovery ready condition", "status", targetOrig.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status)
+	if target.Status.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status != metav1.ConditionTrue {
 		if r.targetMgr != nil {
 			r.targetMgr.ClearDesired(ctx, targetKey)
 		}
@@ -175,129 +190,110 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Compute desired hash (must be stable)
-	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs) 
+	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs)
 
 	// Drive runtime
 	r.targetMgr.ApplyDesired(ctx, targetKey, dsReq, usedRefs, hash)
-	
+
 	// Read runtime status
 	rt := r.targetMgr.GetOrCreate(targetKey)
 	st := rt.Status()
 
 	switch st.Phase {
-		case targetmanager.PhaseRunning:
-			return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
+	case targetmanager.PhaseRunning:
+		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
 
-		case targetmanager.PhaseWaitingForDS, targetmanager.PhaseEnsuringDatastore, targetmanager.PhasePending:
-			// not ready yet; update status as failed/degraded but requeue soon
-			msg := fmt.Sprintf("runtime phase=%s dsReady=%t dsStoreReady=%t err=%s",
-				st.Phase, st.DSReady, st.DSStoreReady, st.LastError)
+	case targetmanager.PhaseWaitingForDS, targetmanager.PhaseEnsuringDatastore, targetmanager.PhasePending:
+		// not ready yet; update status as failed/degraded but requeue soon
+		msg := fmt.Sprintf("runtime phase=%s dsReady=%t dsStoreReady=%t err=%s",
+			st.Phase, st.DSReady, st.DSStoreReady, st.LastError)
 
-			_ = r.handleError(ctx, targetOrig, msg, nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		_ = r.handleError(ctx, targetOrig, msg, nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 
-		case targetmanager.PhaseDegraded:
-			msg := fmt.Sprintf("runtime degraded: %s", st.LastError)
-			_ = r.handleError(ctx, targetOrig, msg, nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	case targetmanager.PhaseDegraded:
+		msg := fmt.Sprintf("runtime degraded: %s", st.LastError)
+		_ = r.handleError(ctx, targetOrig, msg, nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 
-		default:
-			_ = r.handleError(ctx, targetOrig, "runtime unknown phase", nil, false)
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
-		}
+	default:
+		_ = r.handleError(ctx, targetOrig, "runtime unknown phase", nil, false)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
 }
 
-
-func (r *reconciler) handleSuccess(ctx context.Context, target *invv1alpha1.Target, usedRefs *invv1alpha1.TargetStatusUsedReferences) error {
+func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
 	//log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
 	// take a snapshot of the current object
-	//patch := client.MergeFrom(target.DeepCopy())
-	// update status
-	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: target.Namespace,
-			Name:      target.Name,
-		},
-		invv1alpha1.TargetSpec{},
-		invv1alpha1.TargetStatus{},
-	)
-	// set new conditions
-	newTarget.SetConditions(invv1alpha1.DatastoreReady())
-	newTarget.Status.UsedReferences = usedRefs
-
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
-
-	changed := !newCond.Equal(oldCond)
+	newCond := configv1alpha1.TargetDatastoreReady()
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDatastoreReady)
 
 	// we don't update the resource if no condition changed
-	if !changed &&
-		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences) {
+	if newCond.Equal(oldCond) &&
+		equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
 		log.Info("handleSuccess -> no change")
 		return nil
 	}
 	log.Info("handleSuccess",
-		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
-		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+		"condition change", !newCond.Equal(oldCond),
+		"usedRefs change", !equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences),
 	)
 
-	r.recorder.Eventf(newTarget, corev1.EventTypeNormal, invv1alpha1.TargetKind, "datastore ready")
+	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "datastore ready", "")
 
-	log.Debug("handleSuccess", "key", newTarget.GetNamespacedName(), "status new", target.Status)
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
+			WithConditions(newCond).
+			WithUsedReferences(usedRefsToApply(usedRefs)),
+		)
 
-	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *invv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
+func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
 	log := log.FromContext(ctx)
-	// take a snapshot of the current object
-	//patch := client.MergeFrom(target.DeepCopy())
 
 	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
+		msg = fmt.Sprintf("%q err %q", msg, err.Error())
 	}
-	newTarget := invv1alpha1.BuildTarget(
-		metav1.ObjectMeta{
-			Namespace: target.Namespace,
-			Name:      target.Name,
-		},
-		invv1alpha1.TargetSpec{},
-		invv1alpha1.TargetStatus{},
-	)
-
-	// set new conditions
-	newTarget.SetConditions(invv1alpha1.DatastoreFailed(msg))
-	//target.SetOverallStatus()
-	if resetUsedRefs {
-		newTarget.Status.UsedReferences = nil
+	if len(msg) > 128 {
+		msg = msg[:128]
 	}
 
-	oldCond := target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
-	newCond := newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)
+	newCond := configv1alpha1.TargetDatastoreFailed(msg)
+	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDatastoreReady)
 
-	changed := !newCond.Equal(oldCond)
+	var newUsedRefs *configv1alpha1.TargetStatusUsedReferences
+	if !resetUsedRefs {
+		newUsedRefs = target.Status.UsedReferences
+	}
 
-	// we don't update the resource if no condition changed
-	if !changed &&
-		equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences) {
+	if newCond.Equal(oldCond) &&
+		equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences) {
 		log.Info("handleError -> no change")
 		return nil
 	}
+
 	log.Info("handleError",
-		"condition change", newTarget.GetCondition(invv1alpha1.ConditionTypeDatastoreReady).Equal(target.GetCondition(invv1alpha1.ConditionTypeDatastoreReady)),
-		"shared ref change", equality.Semantic.DeepEqual(newTarget.Status.UsedReferences, target.Status.UsedReferences),
+		"condition change", !newCond.Equal(oldCond),
+		"usedRefs change", !equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences),
 	)
-
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(newTarget, corev1.EventTypeWarning, invv1alpha1.TargetKind, msg)
+	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
 
-	return r.client.Status().Patch(ctx, newTarget, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().
+			WithConditions(newCond).
+			WithUsedReferences(usedRefsToApply(newUsedRefs)),
+		)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
@@ -333,7 +329,7 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 	return secret, nil
 }
 
-func (r *reconciler) isSchemaReady(ctx context.Context, target *invv1alpha1.Target) (bool, string, error) {
+func (r *reconciler) isSchemaReady(ctx context.Context, target *configv1alpha1.Target) (bool, string, error) {
 	//log := log.FromContext(ctx)
 	schemaList := &invv1alpha1.SchemaList{}
 	opts := []client.ListOption{
@@ -358,8 +354,8 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *invv1alpha1.Targ
 
 }
 
-func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *invv1alpha1.TargetStatusUsedReferences, error) {
-	usedReferences := &invv1alpha1.TargetStatusUsedReferences{}
+func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *configv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *configv1alpha1.TargetStatusUsedReferences, error) {
+	usedReferences := &configv1alpha1.TargetStatusUsedReferences{}
 
 	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: target.GetNamespace(), Name: *target.Spec.SyncProfile})
 	if err != nil {
@@ -425,13 +421,13 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	}
 
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_GNMI {
-		targetName:= ""
+		targetName := ""
 		if connProfile.Spec.TargetName != nil {
 			targetName = *connProfile.Spec.TargetName
 		}
 		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
 			GnmiOpts: &sdcpb.GnmiOptions{
-				Encoding: string(connProfile.Encoding()),
+				Encoding:   string(connProfile.Encoding()),
 				TargetName: targetName,
 			},
 		}
@@ -454,4 +450,24 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *invv
 	req.Sync = invv1alpha1.GetSyncProfile(syncProfile, req.Target)
 
 	return req, usedReferences, nil
+}
+
+func usedRefsToApply(refs *configv1alpha1.TargetStatusUsedReferences) *configv1alpha1apply.TargetStatusUsedReferencesApplyConfiguration {
+	if refs == nil {
+		return nil
+	}
+	a := configv1alpha1apply.TargetStatusUsedReferences()
+	if refs.SecretResourceVersion != "" {
+		a.WithSecretResourceVersion(refs.SecretResourceVersion)
+	}
+	if refs.TLSSecretResourceVersion != "" {
+		a.WithTLSSecretResourceVersion(refs.TLSSecretResourceVersion)
+	}
+	if refs.ConnectionProfileResourceVersion != "" {
+		a.WithConnectionProfileResourceVersion(refs.ConnectionProfileResourceVersion)
+	}
+	if refs.SyncProfileResourceVersion != "" {
+		a.WithSyncProfileResourceVersion(refs.SyncProfileResourceVersion)
+	}
+	return a
 }

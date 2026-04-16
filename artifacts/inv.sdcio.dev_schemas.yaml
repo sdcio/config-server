@@ -96,6 +96,7 @@ spec:
                         type: object
                       maxItems: 10
                       type: array
+                      x-kubernetes-list-type: atomic
                     kind:
                       default: tag
                       description: Kind defines the that the BranchOrTag string is
@@ -109,17 +110,17 @@ spec:
                       description: Proxy defines the HTTP/HTTPS proxy to be used to
                         connect to the repo.
                       properties:
-                        URL:
-                          description: URL specifies the base URL of the HTTP/HTTPS
-                            proxy server.
-                          type: string
                         credentials:
                           description: Credentials defines the name of the secret
                             that holds the credentials to connect to the proxy server
                           type: string
+                        url:
+                          description: URL specifies the base URL of the HTTP/HTTPS
+                            proxy server.
+                          type: string
                       required:
-                      - URL
                       - credentials
+                      - url
                       type: object
                     ref:
                       description: |-
@@ -127,8 +128,7 @@ spec:
                         provider schema version
                       type: string
                     repoURL:
-                      description: RepositoryURL specifies the base URL for a given
-                        repository
+                      description: RepoURL specifies the base URL for a given repository
                       type: string
                     schema:
                       description: |-
@@ -142,6 +142,7 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
+                          x-kubernetes-list-type: atomic
                         includes:
                           description: Excludes defines the list of files/directories
                             to be excluded
@@ -149,6 +150,7 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
+                          x-kubernetes-list-type: atomic
                         models:
                           description: Models defines the list of files/directories
                             to be used as a model
@@ -156,6 +158,7 @@ spec:
                             type: string
                           maxItems: 64
                           type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                   required:
                   - kind
@@ -166,6 +169,7 @@ spec:
                 maxItems: 10
                 minItems: 1
                 type: array
+                x-kubernetes-list-type: atomic
               version:
                 description: Version defines the version of the schema
                 type: string
@@ -252,6 +256,7 @@ spec:
                       type: string
                   type: object
                 type: array
+                x-kubernetes-list-type: atomic
             type: object
         type: object
     served: true

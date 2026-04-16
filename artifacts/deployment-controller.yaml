@@ -52,6 +52,8 @@ spec:
           value: "8443"
         - name: PPROF_PORT
           value: "8081"
+        - name: KUBE_FEATURE_WatchListClient
+          value: "false"
         #- name: REVERTIVE
         #  value: "true"
         #- name: ENABLE_SUBSCRIPTION

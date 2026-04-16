@@ -21,7 +21,6 @@ import (
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -60,14 +59,14 @@ func (r *TargetForConfigSet) Generic(ctx context.Context, evt event.GenericEvent
 }
 
 func (r *TargetForConfigSet) add(ctx context.Context, obj runtime.Object, queue adder) {
-	target, ok := obj.(*invv1alpha1.Target)
+	target, ok := obj.(*configv1alpha1.Target)
 	if !ok {
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
 	log := log.FromContext(ctx)
 
-	log.Debug("event", "gvk", invv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.Debug("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list the configsets and see
 	opts := []client.ListOption{

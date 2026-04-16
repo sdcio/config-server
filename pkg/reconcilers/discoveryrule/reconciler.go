@@ -28,15 +28,16 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/discovery/discoveryrule"
+	invv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -47,9 +48,10 @@ func init() {
 }
 
 const (
-	crName         = "discoveryrule"
-	reconcilerName = "DiscoveryRuleController"
-	finalizer      = "discoveryrule.inv.sdcio.dev/finalizer"
+	crName                = "discoveryrule"
+	fieldmanagerfinalizer = "DiscoveryRuleController-finalizer"
+	reconcilerName        = "DiscoveryRuleController"
+	finalizer             = "discoveryrule.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -63,9 +65,21 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	r.client = mgr.GetClient()
-	r.finalizer = resource.NewAPIFinalizer(mgr.GetClient(), finalizer, reconcilerName)
+	r.finalizer = resource.NewAPIFinalizer(
+		mgr.GetClient(),
+		finalizer,
+		fieldmanagerfinalizer,
+		func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+			ac := invv1alpha1apply.DiscoveryRule(name, namespace)
+			if len(finalizers) > 0 {
+				ac.WithFinalizers(finalizers...)
+			}
+			return ac
+		},
+	)
 	r.discoveryStore = memstore.NewStore[discoveryrule.DiscoveryRule]()
-	r.recorder = mgr.GetEventRecorderFor(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
+	r.baseCtx = ctx
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -77,11 +91,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 }
 
 type reconciler struct {
-	client client.Client
+	client    client.Client
 	finalizer *resource.APIFinalizer
 
 	discoveryStore storebackend.Storer[discoveryrule.DiscoveryRule]
-	recorder       record.EventRecorder
+	recorder       events.EventRecorder
+	baseCtx        context.Context // manager-scoped, lives until shutdown
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -115,7 +130,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// stop and delete the discovery rule
-		dr.Stop(ctx)
+		dr.Stop(r.baseCtx)
 		if err := r.discoveryStore.Delete(ctx, key); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot delete discoveryRule from store", err), errUpdateStatus)
@@ -137,6 +152,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot add finalizer", err), errUpdateStatus)
 	}
+
 	// check if the discovery rule is running
 	isDRRunning := false
 	dr, err := r.discoveryStore.Get(ctx, key)
@@ -175,12 +191,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// new discovery initialization -> create or update (we deleted the DRConfig before)
 	if err := r.discoveryStore.Create(ctx, key, dr); err != nil {
 		// given this is a ummutable field this means the CR will have to be deleted/recreated
-		return ctrl.Result{Requeue: true}, 
+		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "cannot get normalized discoveryRule", err), errUpdateStatus)
 	}
 
 	go func() {
-		if err := dr.Run(ctx); err != nil {
+		if err := dr.Run(r.baseCtx); err != nil {
 			log.Error("run error", "err", err)
 		}
 	}()
@@ -195,9 +211,9 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 
 	if newDRConfig.DiscoveryProfile != nil {
 		log.Info("HasChanged",
-			"CR RV", fmt.Sprintf("%s/%s",
-				newDRConfig.CR.GetResourceVersion(),
-				currentDRConfig.CR.GetResourceVersion(),
+			"CR Generation", fmt.Sprintf("%d/%d",
+				newDRConfig.CR.GetGeneration(),
+				currentDRConfig.CR.GetGeneration(),
 			),
 			"DiscoveryProfile Secret RV", fmt.Sprintf("%s/%s",
 				newDRConfig.DiscoveryProfile.SecretResourceVersion,
@@ -210,13 +226,14 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		)
 	} else {
 		log.Info("HasChanged",
-			"CR RV", fmt.Sprintf("%s/%s",
-				newDRConfig.CR.GetResourceVersion(),
-				currentDRConfig.CR.GetResourceVersion(),
+			"CR Generation", fmt.Sprintf("%d/%d",
+				newDRConfig.CR.GetGeneration(),
+				currentDRConfig.CR.GetGeneration(),
 			),
 		)
 	}
-	if newDRConfig.CR.GetResourceVersion() != currentDRConfig.CR.GetResourceVersion() {
+
+	if newDRConfig.CR.GetGeneration() != currentDRConfig.CR.GetGeneration() {
 		return true
 	}
 
@@ -244,10 +261,10 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		if newDRConfig.TargetConnectionProfiles[i].SecretResourceVersion != currentDRConfig.TargetConnectionProfiles[i].SecretResourceVersion {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.ResourceVersion {
+		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.ResourceVersion {
+		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation {
 			return true
 		}
 	}
@@ -258,20 +275,28 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, changed bool) error {
 	log := log.FromContext(ctx)
 	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
-	// take a snapshot of the current object
-	//patch := client.MergeFrom(discoveryRule.DeepCopy())
-	// update status
-	discoveryRule.ManagedFields = nil
-	discoveryRule.SetConditions(condv1alpha1.Ready())
-	if changed {
-		discoveryRule.Status.StartTime = ptr.To(metav1.Now())
-		r.recorder.Eventf(discoveryRule, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready")
+
+	newCond := condv1alpha1.Ready()
+	oldCond := discoveryRule.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	if newCond.Equal(oldCond) && !changed {
+		log.Info("handleSuccess -> no change")
+		return nil
 	}
 
-	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status new", discoveryRule.Status)
+	statusApply := invv1alpha1apply.DiscoveryRuleStatus().
+		WithConditions(newCond)
 
-	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	if changed {
+		statusApply = statusApply.WithStartTime(metav1.Now())
+		r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready", "")
+	}
+
+	applyConfig := invv1alpha1apply.DiscoveryRule(discoveryRule.Name, discoveryRule.Namespace).
+		WithStatus(statusApply)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})
@@ -279,20 +304,28 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 
 func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, msg string, err error) error {
 	log := log.FromContext(ctx)
-	// take a snapshot of the current object
-	//patch := client.MergeFrom(discoveryRule.DeepCopy())
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	discoveryRule.ManagedFields = nil
-	discoveryRule.Status.StartTime = ptr.To(metav1.Now())
-	discoveryRule.SetConditions(condv1alpha1.Failed(msg))
-	log.Error(msg)
-	r.recorder.Eventf(discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
 
-	return r.client.Status().Patch(ctx, discoveryRule, client.Apply, &client.SubResourcePatchOptions{
-		PatchOptions: client.PatchOptions{
+	newCond := condv1alpha1.Failed(msg)
+	oldCond := discoveryRule.GetCondition(condv1alpha1.ConditionTypeReady)
+
+	// always update on error since StartTime changes
+	_ = oldCond
+
+	log.Error(msg)
+	r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg, "")
+
+	applyConfig := invv1alpha1apply.DiscoveryRule(discoveryRule.Name, discoveryRule.Namespace).
+		WithStatus(invv1alpha1apply.DiscoveryRuleStatus().
+			WithConditions(newCond).
+			WithStartTime(metav1.Now()),
+		)
+
+	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	})

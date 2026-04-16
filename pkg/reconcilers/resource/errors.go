@@ -20,10 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-const (
-	errUpdateObject = "cannot update k8s resource"
-)
-
 type ErrorIs func(err error) bool
 
 func Ignore(is ErrorIs, err error) error {

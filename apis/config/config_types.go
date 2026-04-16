@@ -19,9 +19,9 @@ package config
 import (
 	"reflect"
 
+	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"github.com/sdcio/config-server/apis/condition"
 )
 
 // ConfigSpec defines the desired state of Config
@@ -30,7 +30,7 @@ type ConfigSpec struct {
 	// will follow
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty" protobuf:"bytes,1,opt,name=lifecycle"`
 	// Priority defines the priority of this config
-	Priority int64 `json:"priority,omitempty" protobuf:"varint,2,opt,name=priority"`
+	Priority int32 `json:"priority,omitempty" protobuf:"varint,2,opt,name=priority"`
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,3,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
@@ -67,14 +67,13 @@ type ConfigStatusLastKnownGoodSchema struct {
 	Version string `json:"version,omitempty" protobuf:"bytes,3,opt,name=version"`
 }
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories={sdc}
 
-//	Config defines the Schema for the Config API
+// Config defines the Schema for the Config API
 type Config struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

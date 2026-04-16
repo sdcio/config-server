@@ -85,6 +85,11 @@ func NewConditionedStatus(c ...Condition) *ConditionedStatus {
 }
 
 // HasCondition returns if the condition is set
+func (r *ConditionedStatus) GetConditions() []Condition {
+	return r.Conditions
+}
+
+// HasCondition returns if the condition is set
 func (r *ConditionedStatus) HasCondition(t ConditionType) bool {
 	for _, c := range r.Conditions {
 		if c.Type == string(t) {

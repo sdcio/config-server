@@ -31,7 +31,6 @@ import (
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/generated/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
@@ -45,14 +44,14 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
-	configDir     = "/config"
+	configDir = "/config"
 )
 
 func main() {
@@ -76,7 +75,7 @@ func main() {
 	for _, api := range (runtime.SchemeBuilder{
 		clientgoscheme.AddToScheme,
 		configv1alpha1.AddToScheme,
-		invv1alpha1.AddToScheme,
+		//invv1alpha1.AddToScheme,
 	}) {
 		if err := api(runScheme); err != nil {
 			log.Error("cannot add scheme", "err", err)
@@ -84,7 +83,6 @@ func main() {
 		}
 	}
 
-	
 	var tlsOpts []func(*tls.Config)
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   MetricBindAddress(),
@@ -99,7 +97,6 @@ func main() {
 		// this setup is not recommended for production.
 		TLSOpts: tlsOpts,
 	}
-		
 
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
@@ -126,14 +123,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// setting client for subresources
+	sdcconfig.SetSubResourceClient(mgr.GetClient())
+	sdcconfig.SetConfigLister(handlers.ListConfigsByTarget)
+
 	registryOptions := &options.Options{
 		Prefix: configDir,
 		Type:   options.StorageType_KV,
 		DB:     db,
+		Client: mgr.GetClient(),
 	}
 
 	configHandler := handlers.ConfigStoreHandler{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 	}
 
 	configregistryOptions := *registryOptions
@@ -141,27 +143,29 @@ func main() {
 	configregistryOptions.DryRunUpdateFn = configHandler.DryRunUpdateFn
 	configregistryOptions.DryRunDeleteFn = configHandler.DryRunDeleteFn
 
+	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
-
 	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 		//TargetStore: targetStore,
 	})
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
-		Client:      mgr.GetClient(),
+		Client: mgr.GetClient(),
 		//TargetStore: targetStore,
 	})
-	
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
 			WithOpenAPIDefinitions("Config", "v1alpha1", openapi.GetOpenAPIDefinitions).
+			WithResourceAndHandler(&sdcconfig.Target{}, targetStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.Target{}, targetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Config{}, configStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&sdcconfig.SensitiveConfig{}, sensitiveconfigStorageProvider).
@@ -206,7 +210,6 @@ func IsPProfEnabled() *string {
 	}
 	return nil
 }
-
 
 func MetricBindAddress() string {
 	if val, found := os.LookupEnv("METRIC_PORT"); found {
