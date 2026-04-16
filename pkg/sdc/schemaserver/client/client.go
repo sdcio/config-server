@@ -29,7 +29,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const schemServerAddress = "schema-server.sdc-system.svc.cluster.local:56000"
+const (
+    defaultSchemaServerService = "schema-server"
+    defaultSchemaServerPort    = "56000"
+    defaultNamespace           = "sdc-system"
+)
 
 func GetSchemaServerAddress() string {
 	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
@@ -38,7 +42,19 @@ func GetSchemaServerAddress() string {
 	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
 		return address
 	}
-	return schemServerAddress
+	// Build from components
+    ns := envOrDefault("POD_NAMESPACE", defaultNamespace)
+    svc := envOrDefault("SDC_SCHEMA_SERVER_SERVICE", defaultSchemaServerService)
+    port := envOrDefault("SDC_SCHEMA_SERVER_PORT", defaultSchemaServerPort)
+
+    return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
+}
+
+func envOrDefault(key, fallback string) string {
+    if v, ok := os.LookupEnv(key); ok && v != "" {
+        return v
+    }
+    return fallback
 }
 
 type Config struct {
