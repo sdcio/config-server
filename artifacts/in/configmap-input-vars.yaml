@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: context
 data: 
-  sdcApiServerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/sdc-apiserver:latest
-  sdcControllerImage: europe-docker.pkg.dev/srlinux/eu.gcr.io/sdc-controller:latest
-  dataServerImage: ghcr.io/sdcio/data-server:v0.0.66
+  sdcApiServerImage: ghcr.io/sdcio/config-server-api-server:latest
+  sdcControllerImage: ghcr.io/sdcio/config-server-controller:latest
+  dataServerImage: ghcr.io/sdcio/data-server:latest
 
