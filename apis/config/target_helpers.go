@@ -138,7 +138,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 			Name:      r.Name,
 			Namespace: r.Namespace,
 		},
-		Value: string(rsp.GetBlob()),
+		Value:  string(rsp.GetBlob()),
 		Format: string(format),
 	}, nil
 }
@@ -151,6 +151,8 @@ func FormatToProto(f TargetFormat) sdcpb.Format {
 		return sdcpb.Format_Intent_Format_XML
 	case Format_PROTO:
 		return sdcpb.Format_Intent_Format_PROTO
+	case Format_XPATH:
+		return sdcpb.Format_Intent_Format_XPATH
 	default:
 		return sdcpb.Format_Intent_Format_JSON
 	}
