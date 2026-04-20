@@ -42,8 +42,8 @@ type TargetRunningConfigOptions struct {
 
 	// Path filters the running config to a subtree
 	Path string `json:"path,omitempty"`
-	// Format controls output format (json, json_ietf, xml, proto)
-	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
+	// Format controls output format (json, json_ietf, xml, proto, xpath)
+	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto;xpath
 	// +kubebuilder:default=json
 	Format string `json:"format,omitempty"`
 }
@@ -57,12 +57,13 @@ const (
 	Format_JSON_IETF TargetFormat = "json_ietf"
 	Format_XML       TargetFormat = "xml"
 	Format_PROTO     TargetFormat = "proto"
+	Format_XPATH     TargetFormat = "xpath"
 )
 
 // ParseTargetFormat converts a string to TargetFormat, defaulting to JSON for unknown values.
 func ParseTargetFormat(s string) TargetFormat {
 	switch TargetFormat(s) {
-	case Format_JSON, Format_JSON_IETF, Format_XML, Format_PROTO:
+	case Format_JSON, Format_JSON_IETF, Format_XML, Format_PROTO, Format_XPATH:
 		return TargetFormat(s)
 	default:
 		return Format_JSON

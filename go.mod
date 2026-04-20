@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/prometheus v0.309.1
-	github.com/sdcio/sdc-protos v0.0.51
+	github.com/sdcio/sdc-protos v0.0.52-0.20260420093658-100270c40f0c
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.39.0
