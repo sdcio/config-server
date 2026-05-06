@@ -30,22 +30,22 @@ import (
 )
 
 func (r *dr) applyTargetDeviationCR(ctx context.Context, target *configv1alpha1.Target) error {
-	newUnManagedConfigCR, err := r.newDeviationCR(ctx, target)
+	deviationCR, err := r.newDeviationCR(ctx, target)
 	if err != nil {
 		return err
 	}
-	log := log.FromContext(ctx).With("targetName", newUnManagedConfigCR.Name)
+	log := log.FromContext(ctx).With("targetName", deviationCR.Name)
 	// check if the target already exists
 	curDeviationCR := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, types.NamespacedName{
-		Namespace: newUnManagedConfigCR.Namespace,
-		Name:      newUnManagedConfigCR.Name,
+		Namespace: deviationCR.Namespace,
+		Name:      deviationCR.Name,
 	}, curDeviationCR); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
 			return err
 		}
-		if err := r.client.Create(ctx, newUnManagedConfigCR); err != nil {
-			log.Error("cannot create target deviation", "name", newUnManagedConfigCR.Name, "error", err)
+		if err := r.client.Create(ctx, deviationCR); err != nil {
+			log.Error("cannot create target deviation", "name", deviationCR.Name, "error", err)
 			return err
 		}
 		return nil
@@ -67,7 +67,7 @@ func (r *dr) newDeviationCR(_ context.Context, target *configv1alpha1.Target) (*
 
 	return &configv1alpha1.Deviation{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        target.Name,
+			Name:        configv1alpha1.DeviationName(configv1alpha1.DeviationType_TARGET, target.Name),
 			Namespace:   target.Namespace,
 			Labels:      labels,
 			Annotations: anno,

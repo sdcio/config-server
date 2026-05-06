@@ -65,6 +65,19 @@ func NewDeviationWatcher(
 	}
 }
 
+// We prefix the deviation with a prefix to avoid collision between config deviation names
+// and target deviation names
+func (r *DeviationWatcher) getTargetDeviationName() string {
+	return configv1alpha1.DeviationName(configv1alpha1.DeviationType_TARGET, r.key.Name)
+}
+
+func (r *DeviationWatcher) getTargetDeviationKey() types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: r.key.Namespace,
+		Name:      r.getTargetDeviationName(),
+	}
+}
+
 func (r *DeviationWatcher) Stop(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -212,9 +225,9 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 		if configName == "default" {
 			continue
 		}
-		configDevs := ConvertSdcpbDeviations2ConfigDeviations(ctx, devs)
+		configDevs := ConvertSdcpbDeviations2Deviations(ctx, devs)
 
-		nsn := r.key.NamespacedName
+		nsn := r.getTargetDeviationKey()
 		typ := configv1alpha1.DeviationType_CONFIG
 		if configName == unManagedConfigDeviation {
 			log.Info("target device deviations", "devs", len(configDevs))
@@ -223,7 +236,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			parts := strings.SplitN(configName, ".", 2)
 			nsn = types.NamespacedName{
 				Namespace: parts[0],
-				Name:      parts[1],
+				Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, parts[1]),
 			}
 			if len(parts) != 2 {
 				log.Error("unexpected configName", "got", configName)
@@ -231,11 +244,11 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			}
 			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
 		}
-		r.processConfigDeviations(ctx, nsn, configDevs, typ)
+		r.processDSDeviations(ctx, nsn, configDevs, typ)
 	}
 }
 
-func (r *DeviationWatcher) processConfigDeviations(
+func (r *DeviationWatcher) processDSDeviations(
 	ctx context.Context,
 	nsn types.NamespacedName,
 	deviations []configv1alpha1.ConfigDeviation,
@@ -267,12 +280,14 @@ func (r *DeviationWatcher) processConfigDeviations(
 	}
 }
 
+// Clear the Config deviation when we stop the discovery
+// use the Deviation name with prefix to avoid name collision with the config type
 func (r *DeviationWatcher) clearTargetDeviation(
 	ctx context.Context,
 ) {
 	log := log.FromContext(ctx)
 
-	nsn := r.key.NamespacedName
+	nsn := r.getTargetDeviationKey()
 	deviation := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, nsn, deviation); err != nil {
 		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
@@ -296,7 +311,7 @@ func (r *DeviationWatcher) clearTargetDeviation(
 	}
 }
 
-func ConvertSdcpbDeviations2ConfigDeviations(ctx context.Context, devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
+func ConvertSdcpbDeviations2Deviations(ctx context.Context, devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
 	log := log.FromContext(ctx)
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
