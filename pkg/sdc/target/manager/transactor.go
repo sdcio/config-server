@@ -378,39 +378,32 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 		newConfigCond = condv1alpha1.FailedUnRecoverable(string(newmsg))
 	}
 
-	// Recompute overall from current + the config condition this phase owns.
+	// Compute the new overall Ready without mutating current.
 	tmp := current.DeepCopy()
 	tmp.SetConditions(newConfigCond)
-	tmp.SetOverallStatus()
-	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
+	newOverallCond := configv1alpha1.GetOverallCondition(tmp)
 
-	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
-	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
-
-	// No-op check for fields owned by this path.
-	if newConfigCond.Equal(curConfigCond) &&
-		newOverallCond.Equal(curOverallCond) &&
-		(recoverable ||
-			(current.Status.DeviationGeneration != nil &&
-				*current.Status.DeviationGeneration == 0)) {
+	// No-op check.
+	if newConfigCond.Equal(current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))) &&
+		newOverallCond.Equal(current.GetCondition(condv1alpha1.ConditionTypeReady)) &&
+		(recoverable || ptr.Deref(current.Status.DeviationGeneration, -1) == 0) {
 		return nil
 	}
 
+	// dedupeConditions prevents duplicate type="Ready" entries that would
+	// cause the SSA list-map key rejection (issue #431).
 	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(newConfigCond, newOverallCond)
-
+		WithConditions(condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)...)
 	if !recoverable {
 		statusApply = statusApply.WithDeviationGeneration(0)
 	}
 
-	applyConfig := configv1alpha1apply.Config(current.Name, current.Namespace).
-		WithStatus(statusApply)
-
-	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: r.fieldManager,
+	return r.client.Status().Apply(ctx,
+		configv1alpha1apply.Config(current.Name, current.Namespace).WithStatus(statusApply),
+		&client.SubResourceApplyOptions{
+			ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
 		},
-	})
+	)
 }
 
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
