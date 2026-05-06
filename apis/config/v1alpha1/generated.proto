@@ -19,7 +19,6 @@ syntax = "proto2";
 
 package github.com.sdcio.config_server.apis.config.v1alpha1;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "github.com/sdcio/config-server/apis/condition/v1alpha1/generated.proto";
 import "github.com/sdcio/config-server/apis/inv/v1alpha1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
@@ -27,65 +26,31 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option (gogoproto.marshaler_all) = true;
-option (gogoproto.stable_marshaler_all) = true;
-option (gogoproto.sizer_all) = true;
-option (gogoproto.goproto_stringer_all) = false;
-option (gogoproto.stringer_all) = true;
-option (gogoproto.unmarshaler_all) = true;
-option (gogoproto.goproto_unrecognized_all) = false;
-option (gogoproto.goproto_enum_prefix_all) = false;
-option (gogoproto.goproto_getters_all) = false;
 option go_package = "github.com/sdcio/config-server/apis/config/v1alpha1";
-
-message LocalObjectReference {
-  // Name of the referent.
-  // This field is effectively required, but due to backwards compatibility is
-  // allowed to be empty. Instances of this type with an empty value here are
-  // almost certainly wrong.
-  // More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-  // +optional
-  // +default=""
-  // +kubebuilder:default=""
-  // TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
-  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
-}
-
-message SecretKeySelector {
-  // The name of the secret in the pod's namespace to select from.
-  optional LocalObjectReference localObjectReference = 1 [(gogoproto.customname) = "LocalObjectReference", (gogoproto.nullable) = false];
-
-  // The key of the secret to select from.  Must be a valid secret key.
-  optional string key = 2 [(gogoproto.customname) = "Key", (gogoproto.nullable) = false];
-
-  // Specify whether the Secret or its key must be defined
-  // +optional
-  optional bool optional = 3 [(gogoproto.customname) = "Optional"];
-}
 
 // Config defines the Schema for the Config API
 message Config {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional ConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional ConfigSpec spec = 2;
 
-  optional ConfigStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional ConfigStatus status = 3;
 }
 
 // ConfigBlame is the Schema for the ConfigBlame API
 message ConfigBlame {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional ConfigBlameSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional ConfigBlameSpec spec = 2;
 
-  optional ConfigBlameStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional ConfigBlameStatus status = 3;
 }
 
 // ConfigBlameList contains a list of ConfigBlames
 message ConfigBlameList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated ConfigBlame items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated ConfigBlame items = 2;
 }
 
 // ConfigBlameSpec defines the desired state of ConfigBlame
@@ -95,203 +60,209 @@ message ConfigBlameSpec {
 // ConfigBlameStatus defines the observed state of ConfigBlame
 message ConfigBlameStatus {
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
 message ConfigBlob {
   // Path defines the path relative to which the value is applicable
-  optional string config = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
+  optional string config = 1;
 
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
 message ConfigDeviation {
   // Path of the config this deviation belongs to
-  optional string path = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
+  optional string path = 1;
 
   // DesiredValue is the desired value of the config belonging to the path
-  optional string desiredValue = 2 [(gogoproto.customname) = "DesiredValue"];
+  optional string desiredValue = 2;
 
   // ActualValue defines the current value of the config belonging to the path
   // that is currently configured on the target
-  optional string actualValue = 3 [(gogoproto.customname) = "ActualValue"];
+  optional string actualValue = 3;
 
   // Reason defines the reason of the deviation
-  optional string reason = 4 [(gogoproto.customname) = "Reason", (gogoproto.nullable) = false];
+  optional string reason = 4;
 }
 
 // ConfigList contains a list of Configs
 message ConfigList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated Config items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated Config items = 2;
 }
 
 // ConfigSet is the Schema for the ConfigSet API
 message ConfigSet {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional ConfigSetSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional ConfigSetSpec spec = 2;
 
-  optional ConfigSetStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional ConfigSetStatus status = 3;
 }
 
 // ConfigSetList contains a list of ConfigSets
 message ConfigSetList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated ConfigSet items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated ConfigSet items = 2;
 }
 
 // ConfigSetSpec defines the desired state of Config
 message ConfigSetSpec {
   // Targets defines the targets on which this configSet applies
-  optional ConfigSetTarget target = 1 [(gogoproto.customname) = "Target", (gogoproto.nullable) = false];
+  optional ConfigSetTarget target = 1;
 
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
-  optional Lifecycle lifecycle = 2 [(gogoproto.customname) = "Lifecycle"];
+  optional Lifecycle lifecycle = 2;
 
   // Priority defines the priority of this config
-  optional int64 priority = 3 [(gogoproto.customname) = "Priority", (gogoproto.nullable) = false];
+  optional int32 priority = 3;
 
   // Revertive defines if this CR is enabled for revertive or non revertve operation
-  optional bool revertive = 4 [(gogoproto.customname) = "Revertive"];
+  optional bool revertive = 4;
 
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
-  repeated ConfigBlob config = 5 [(gogoproto.customname) = "Config", (gogoproto.nullable) = false];
+  repeated ConfigBlob config = 5;
 }
 
 // ConfigSetStatus defines the observed state of Config
 message ConfigSetStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Targets defines the status of the configSet resource on the respective target
   // +listType=atomic
-  repeated ConfigSetTargetStatus targets = 2 [(gogoproto.customname) = "Targets", (gogoproto.nullable) = false];
+  repeated ConfigSetTargetStatus targets = 2;
 }
 
 message ConfigSetTarget {
   // TargetSelector defines the selector used to select the targets to which the config applies
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1 [(gogoproto.customname) = "TargetSelector"];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector targetSelector = 1;
 }
 
 message ConfigSetTargetStatus {
-  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
+  optional string name = 1;
 
   // right now we assume the namespace of the config and target are aligned
   // NameSpace string `json:"namespace" protobuf:"bytes,2,opt,name=name"`
   // Condition of the configCR status
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3 [(gogoproto.customname) = "Condition", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.Condition condition = 3;
 }
 
 // ConfigSpec defines the desired state of Config
 message ConfigSpec {
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
-  optional Lifecycle lifecycle = 1 [(gogoproto.customname) = "Lifecycle"];
+  optional Lifecycle lifecycle = 1;
 
   // Priority defines the priority of this config
-  optional int32 priority = 2 [(gogoproto.customname) = "Priority", (gogoproto.nullable) = false];
+  optional int32 priority = 2;
 
   // Revertive defines if this CR is enabled for revertive or non revertve operation
-  optional bool revertive = 3 [(gogoproto.customname) = "Revertive"];
+  optional bool revertive = 3;
 
   // Config defines the configuration to be applied to a target device
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
-  repeated ConfigBlob config = 4 [(gogoproto.customname) = "Config", (gogoproto.nullable) = false];
+  repeated ConfigBlob config = 4;
 }
 
 // ConfigStatus defines the observed state of Config
 message ConfigStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
-
-  // LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
-  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2 [(gogoproto.customname) = "LastKnownGoodSchema"];
-
-  // AppliedConfig defines the config applied to the target
-  optional ConfigSpec appliedConfig = 3 [(gogoproto.customname) = "AppliedConfig"];
-
-  // Deviations generation used for the latest config apply
-  optional int64 deviationGeneration = 4 [(gogoproto.customname) = "DeviationGeneration"];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 }
 
 message ConfigStatusLastKnownGoodSchema {
   // Schema Type
-  optional string type = 1 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
+  optional string type = 1;
 
   // Schema Vendor
-  optional string vendor = 2 [(gogoproto.customname) = "Vendor", (gogoproto.nullable) = false];
+  optional string vendor = 2;
 
   // Schema Version
-  optional string version = 3 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
+  optional string version = 3;
 }
 
 // Deviation is the Schema for the Deviation API
 message Deviation {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional DeviationSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional DeviationSpec spec = 2;
 
-  optional DeviationStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional DeviationStatus status = 3;
 }
 
 // DeviationList contains a list of Deviations
 message DeviationList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated Deviation items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated Deviation items = 2;
 }
 
 // DeviationSpec defines the desired state of Deviation
 message DeviationSpec {
-  optional string deviationType = 1 [(gogoproto.casttype) = "DeviationType", (gogoproto.customname) = "DeviationType"];
+  optional string deviationType = 1;
 
   // Deviations identify the configuration deviation based on the last applied config CR
   // +listType=atomic
-  repeated ConfigDeviation deviations = 2 [(gogoproto.customname) = "Deviations", (gogoproto.nullable) = false];
+  repeated ConfigDeviation deviations = 2;
 }
 
 // DeviationStatus defines the observed state of Deviation
 message DeviationStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 }
 
 message DiscoveryInfo {
   // Protocol used for discovery
-  optional string protocol = 1 [(gogoproto.customname) = "Protocol", (gogoproto.nullable) = false];
+  optional string protocol = 1;
 
   // Type associated with the target
-  optional string provider = 2 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 2;
 
   // Version associated with the target
-  optional string version = 3 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
+  optional string version = 3;
 
   // Hostname associated with the target
-  optional string hostname = 4 [(gogoproto.customname) = "Hostname", (gogoproto.nullable) = false];
+  optional string hostname = 4;
 
   // Platform associated with the target
-  optional string platform = 5 [(gogoproto.customname) = "Platform", (gogoproto.nullable) = false];
+  optional string platform = 5;
 
   // MacAddress associated with the target
-  optional string macAddress = 6 [(gogoproto.customname) = "MacAddress", (gogoproto.nullable) = false];
+  optional string macAddress = 6;
 
   // SerialNumber associated with the target
-  optional string serialNumber = 7 [(gogoproto.customname) = "SerialNumber", (gogoproto.nullable) = false];
+  optional string serialNumber = 7;
 
   // Supported Encodings of the target
   // +listType=atomic
-  repeated string supportedEncodings = 8 [(gogoproto.customname) = "SupportedEncodings"];
+  repeated string supportedEncodings = 8;
+}
+
+// EncryptedPayload is the common encrypted structure used by both
+// SensitiveConfig and TargetSnapshot.
+message EncryptedPayload {
+  // KeyID identifies which key in the keyring was used for encryption.
+  // Used to detect key rotation without decryption.
+  optional string keyID = 1;
+
+  // PlainHash is a SHA-256 hash of the plaintext before encryption.
+  // Stored in clear for efficient change detection without decryption.
+  optional string plainHash = 2;
+
+  // Data contains the AES-GCM encrypted, JSON-marshaled payload.
+  optional bytes data = 3;
 }
 
 message Lifecycle {
@@ -300,23 +271,23 @@ message Lifecycle {
   // resource.
   // +kubebuilder:validation:Enum=`delete`;`orphan`
   // +kubebuilder:default=delete
-  optional string deletionPolicy = 1 [(gogoproto.casttype) = "DeletionPolicy", (gogoproto.customname) = "DeletionPolicy", (gogoproto.nullable) = false];
+  optional string deletionPolicy = 1;
 }
 
 // RunningConfig is the Schema for the RunningConfig API
 message RunningConfig {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional RunningConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional RunningConfigSpec spec = 2;
 
-  optional RunningConfigStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional RunningConfigStatus status = 3;
 }
 
 // RunningConfigList contains a list of RunningConfigs
 message RunningConfigList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated RunningConfig items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated RunningConfig items = 2;
 }
 
 // RunningConfigSpec defines the desired state of RunningConfig
@@ -326,149 +297,135 @@ message RunningConfigSpec {
 // RunningConfigStatus defines the observed state of RunningConfig
 message RunningConfigStatus {
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
 // SensitiveConfig defines the Schema for the SensitiveConfig API
 message SensitiveConfig {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional SensitiveConfigSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
-
-  optional SensitiveConfigStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
-}
-
-message SensitiveConfigData {
-  // Path defines the path relative to which the value is applicable
-  optional string SensitiveConfig = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
-
-  // SecretKeyRef refers to a secret in the same namesapce as the config
-  optional SecretKeySelector secretKeyRef = 2 [(gogoproto.customname) = "SecretKeyRef", (gogoproto.nullable) = false];
+  optional SensitiveConfigSpec spec = 2;
 }
 
 // SensitiveConfigList contains a list of SensitiveConfigs
 message SensitiveConfigList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated SensitiveConfig items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated SensitiveConfig items = 2;
 }
 
 // SensitiveConfigSpec defines the desired state of SensitiveConfig
 message SensitiveConfigSpec {
+  // Generation is the Config CR generation this was resolved from.
+  // Used during recovery to detect if the spec changed since last apply.
+  optional int64 generation = 1;
+
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
-  optional Lifecycle lifecycle = 1 [(gogoproto.customname) = "Lifecycle"];
+  optional Lifecycle lifecycle = 2;
 
   // Priority defines the priority of this SensitiveConfig
-  optional int64 priority = 2 [(gogoproto.customname) = "Priority", (gogoproto.nullable) = false];
+  optional int64 priority = 3;
 
   // Revertive defines if this CR is enabled for revertive or non revertve operation
-  optional bool revertive = 3 [(gogoproto.customname) = "Revertive"];
+  optional bool revertive = 4;
 
-  // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
-  // +listType=atomic
-  repeated SensitiveConfigData config = 4 [(gogoproto.customname) = "Config", (gogoproto.nullable) = false];
-}
+  // ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config blobs.
+  optional string configHash = 5;
 
-// SensitiveConfigStatus defines the observed state of SensitiveConfig
-message SensitiveConfigStatus {
-  // ConditionedStatus provides the status of the Readiness using conditions
-  // if the condition is true the other attributes in the status are meaningful
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  // SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
+  // Tracks only the specific key value — not the whole Secret object.
+  map<string, string> secretKeyHashes = 6;
 
-  // LastKnownGoodSchema identifies the last known good schema used to apply the SensitiveConfig successfully
-  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2 [(gogoproto.customname) = "LastKnownGoodSchema"];
-
-  // AppliedSensitiveConfig defines the SensitiveConfig applied to the target
-  optional SensitiveConfigSpec appliedSensitiveConfig = 3 [(gogoproto.customname) = "AppliedSensitiveConfig"];
-
-  // Deviations generation used for the latest SensitiveConfig apply
-  optional int64 deviationGeneration = 4 [(gogoproto.customname) = "DeviationGeneration"];
+  // Payload contains the encrypted resolved []ConfigBlob.
+  // Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
+  optional EncryptedPayload payload = 7;
 }
 
 // Target is the Schema for the Target API
 // +k8s:openapi-gen=true
 message Target {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional TargetSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
+  optional TargetSpec spec = 2;
 
-  optional TargetStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
+  optional TargetStatus status = 3;
 }
 
 // TargetClearDeviation is the Schema for the TargetClearDeviation API
 // +k8s:openapi-gen=true
 message TargetClearDeviation {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  optional TargetClearDeviationSpec spec = 2 [(gogoproto.customname) = "Spec"];
+  optional TargetClearDeviationSpec spec = 2;
 
-  optional TargetClearDeviationStatus status = 3 [(gogoproto.customname) = "Status"];
+  optional TargetClearDeviationStatus status = 3;
 }
 
 message TargetClearDeviationConfig {
   // Name of the config on which the paths should be cleared
-  optional string paths = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
+  optional string name = 1;
 
   // Paths provide the path of the deviation to be cleared
-  repeated string paths = 2 [(gogoproto.customname) = "Paths"];
+  repeated string paths = 2;
 }
 
 message TargetClearDeviationConfigResult {
   // Name of the config on which the paths should be cleared
-  optional string paths = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
+  optional string paths = 1;
 
   // Success indicates whether the clear deviation was successful
-  optional bool success = 2 [(gogoproto.customname) = "Success", (gogoproto.nullable) = false];
+  optional bool success = 2;
 
   // Message provides detail on the outcome
-  optional string message = 3 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
+  optional string message = 3;
 
   // Errors lists any errors for this specific config
-  repeated string errors = 4 [(gogoproto.customname) = "Errors"];
+  repeated string errors = 4;
 
   // Warnings lists any warnings for this specific config
-  repeated string warnings = 5 [(gogoproto.customname) = "Warnings"];
+  repeated string warnings = 5;
 }
 
 // TargetClearDeviationSpec defines the desired state of Target
 message TargetClearDeviationSpec {
   // Config defines the clear deviations configs to applied on the taget
-  repeated TargetClearDeviationConfig config = 1 [(gogoproto.customname) = "Config", (gogoproto.nullable) = false];
+  repeated TargetClearDeviationConfig config = 1;
 }
 
 message TargetClearDeviationStatus {
   // Message is a global message for the transaction
-  optional string message = 1 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
+  optional string message = 1;
 
   // Warnings are global warnings from the transaction
-  repeated string warnings = 2 [(gogoproto.customname) = "Warnings"];
+  repeated string warnings = 2;
 
   // Results holds per-config outcomes, keyed by intent name
-  repeated TargetClearDeviationConfigResult results = 3 [(gogoproto.customname) = "Results", (gogoproto.nullable) = false];
+  repeated TargetClearDeviationConfigResult results = 3;
 }
 
 // TargetConfigBlame is the Schema for the TargetConfigBlame API
 message TargetConfigBlame {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
 // TargetList contains a list of Targets
 message TargetList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
-  repeated Target items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
+  repeated Target items = 2;
 }
 
 // TargetRunningConfig is the Schema for the TargetRunningConfig API
 message TargetRunningConfig {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
+  optional string value = 2;
+
+  optional string format = 3;
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -476,45 +433,71 @@ message TargetRunningConfig {
 // TargetRunningOptions is the Option Parametsrs for the TargetRunningOptions QueryParamters
 message TargetRunningConfigOptions {
   // Path filters the running config to a subtree
-  optional string path = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
+  optional string path = 1;
 
   // Format controls output format (json, json_ietf, xml, proto)
   // +kubebuilder:validation:Enum=json;json_ietf;xml;proto
   // +kubebuilder:default=json
-  optional string format = 2 [(gogoproto.customname) = "Format", (gogoproto.nullable) = false];
+  optional string format = 2;
+}
+
+// TargetSnapshot defines the Schema for the SensitiveConfig API
+message TargetSnapshot {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional TargetSnapshotSpec spec = 2;
+}
+
+// SensitiveConfigList contains a list of SensitiveConfigs
+message TargetSnapshotList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated TargetSnapshot items = 2;
+}
+
+// SensitiveConfigSpec defines the desired state of SensitiveConfig
+message TargetSnapshotSpec {
+  // Configs maps Config name to the last successfully applied resolved state.
+  // Key is the Config CR name within the same namespace as the TargetSnapshot.
+  // Each entry is independently encrypted — change detection via Payload.PlainHash
+  // without decryption.
+  map<string, SensitiveConfigSpec> configs = 1;
+
+  // LastKnownGoodSchema identifies the last known good schema
+  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2;
 }
 
 // TargetSpec defines the desired state of Target
 message TargetSpec {
   // Provider specifies the provider using this target.
-  optional string provider = 1 [(gogoproto.customname) = "Provider", (gogoproto.nullable) = false];
+  optional string provider = 1;
 
   // Address defines the address to connect to the target
-  optional string address = 2 [(gogoproto.customname) = "Address", (gogoproto.nullable) = false];
+  optional string address = 2;
 
   // TargetProfile defines the Credentials/TLSSecret and sync/connectivity profile to connect to the target
-  optional .github.com.sdcio.config_server.apis.inv.v1alpha1.TargetProfile targetProfile = 3 [(gogoproto.customname) = "TargetProfile", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.inv.v1alpha1.TargetProfile targetProfile = 3;
 }
 
 // TargetStatus defines the observed state of Target
 message TargetStatus {
   // ConditionedStatus provides the status of the Target using conditions
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1 [(gogoproto.customname) = "ConditionedStatus", (gogoproto.nullable) = false];
+  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
 
   // Discovery info defines the information retrieved during discovery
-  optional DiscoveryInfo discoveryInfo = 2 [(gogoproto.customname) = "DiscoveryInfo"];
+  optional DiscoveryInfo discoveryInfo = 2;
 
   // UsedReferences track the resource used to reconcile the cr
-  optional TargetStatusUsedReferences usedReferences = 3 [(gogoproto.customname) = "UsedReferences"];
+  optional TargetStatusUsedReferences usedReferences = 3;
 }
 
 message TargetStatusUsedReferences {
-  optional string secretResourceVersion = 1 [(gogoproto.customname) = "SecretResourceVersion", (gogoproto.nullable) = false];
+  optional string secretResourceVersion = 1;
 
-  optional string tlsSecretResourceVersion = 2 [(gogoproto.customname) = "TLSSecretResourceVersion", (gogoproto.nullable) = false];
+  optional string tlsSecretResourceVersion = 2;
 
-  optional string connectionProfileResourceVersion = 3 [(gogoproto.customname) = "ConnectionProfileResourceVersion", (gogoproto.nullable) = false];
+  optional string connectionProfileResourceVersion = 3;
 
-  optional string syncProfileResourceVersion = 4 [(gogoproto.customname) = "SyncProfileResourceVersion", (gogoproto.nullable) = false];
+  optional string syncProfileResourceVersion = 4;
 }
 

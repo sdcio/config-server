@@ -23,7 +23,6 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
-	"github.com/sdcio/config-server/apis/condition"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -50,8 +49,6 @@ var (
 // +k8s:deepcopy-gen=false
 var _ resource.InternalObject = &SensitiveConfig{}
 var _ resource.ObjectList = &SensitiveConfigList{}
-var _ resource.ObjectWithStatusSubResource = &SensitiveConfig{}
-var _ resource.StatusSubResource = &SensitiveConfigStatus{}
 
 func (SensitiveConfig) GetGroupVersionResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
@@ -121,49 +118,6 @@ func (r *SensitiveConfig) IsEqual(ctx context.Context, obj, old runtime.Object) 
 	return apiequality.Semantic.DeepEqual(oldobj.Spec, newobj.Spec)
 }
 
-// GetStatus return the resource.StatusSubResource interface
-func (r *SensitiveConfig) GetStatus() resource.StatusSubResource {
-	return r.Status
-}
-
-// IsStatusEqual returns a bool indicating if the status of both resources is equal or not
-func (r *SensitiveConfig) IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool {
-	newobj := obj.(*SensitiveConfig)
-	oldobj := old.(*SensitiveConfig)
-	return apiequality.Semantic.DeepEqual(oldobj.Status, newobj.Status)
-}
-
-// PrepareForStatusUpdate prepares the status update
-func (r *SensitiveConfig) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object) {
-	newObj := obj.(*SensitiveConfig)
-	oldObj := old.(*SensitiveConfig)
-	newObj.Spec = oldObj.Spec
-
-	// Status updates are for only for updating status, not objectmeta.
-	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
-}
-
-// ValidateStatusUpdate validates status updates
-func (r *SensitiveConfig) ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	var allErrs field.ErrorList
-	return allErrs
-}
-
-// SubResourceName resturns the name of the subresource
-// SubResourceName implements the resource.StatusSubResource
-func (SensitiveConfigStatus) SubResourceName() string {
-	return fmt.Sprintf("%s/%s", SensitiveConfigPlural, "status")
-}
-
-// CopyTo copies the content of the status subresource to a parent resource.
-// CopyTo implements the resource.StatusSubResource
-func (r SensitiveConfigStatus) CopyTo(obj resource.ObjectWithStatusSubResource) {
-	parent, ok := obj.(*SensitiveConfig)
-	if ok {
-		parent.Status = r
-	}
-}
-
 // GetListMeta returns the ListMeta
 // GetListMeta implements the resource.ObjectList
 func (r *SensitiveConfigList) GetListMeta() *metav1.ListMeta {
@@ -182,11 +136,8 @@ func (r *SensitiveConfig) TableConvertor() func(gr schema.GroupResource) rest.Ta
 				}
 				return []interface{}{
 					fmt.Sprintf("%s.%s/%s", strings.ToLower(SensitiveConfigKind), GroupName, sensitiveConfig.Name),
-					sensitiveConfig.GetCondition(condition.ConditionTypeReady).Status,
-					sensitiveConfig.GetCondition(condition.ConditionTypeReady).Reason,
 					sensitiveConfig.Spec.Priority,
 					sensitiveConfig.GetTarget(),
-					sensitiveConfig.GetLastKnownGoodSchema().FileString(),
 				}
 			},
 			[]metav1.TableColumnDefinition{
@@ -276,9 +227,6 @@ func (r *SensitiveConfigFilter) Filter(ctx context.Context, obj runtime.Object) 
 }
 
 func (r *SensitiveConfig) PrepareForCreate(ctx context.Context, obj runtime.Object) {
-	// status cannot be set upon create -> reset it
-	newobj := obj.(*SensitiveConfig)
-	newobj.Status = SensitiveConfigStatus{}
 }
 
 // ValidateCreate statically validates
@@ -314,10 +262,6 @@ func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object
 }
 
 func (r *SensitiveConfig) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
-	// ensure the sttaus dont get updated
-	newobj := obj.(*SensitiveConfig)
-	oldObj := old.(*SensitiveConfig)
-	newobj.Status = oldObj.Status
 }
 
 func (r *SensitiveConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {

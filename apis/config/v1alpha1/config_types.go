@@ -51,12 +51,6 @@ type ConfigStatus struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
 	condv1alpha1.ConditionedStatus `json:",inline" protobuf:"bytes,1,opt,name=conditionedStatus"`
-	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
-	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchema `json:"lastKnownGoodSchema,omitempty" protobuf:"bytes,2,opt,name=lastKnownGoodSchema"`
-	// AppliedConfig defines the config applied to the target
-	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
-	// Deviations generation used for the latest config apply
-	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {

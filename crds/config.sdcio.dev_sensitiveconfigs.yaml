@@ -41,45 +41,16 @@ spec:
           spec:
             description: SensitiveConfigSpec defines the desired state of SensitiveConfig
             properties:
-              config:
-                description: SensitiveConfig defines the SensitiveConfiguration to
-                  be applied to a target device
-                items:
-                  properties:
-                    path:
-                      description: Path defines the path relative to which the value
-                        is applicable
-                      type: string
-                    secretKeyRef:
-                      description: SecretKeyRef refers to a secret in the same namesapce
-                        as the config
-                      properties:
-                        key:
-                          description: The key of the secret to select from.  Must
-                            be a valid secret key.
-                          type: string
-                        name:
-                          default: ""
-                          description: |-
-                            Name of the referent.
-                            This field is effectively required, but due to backwards compatibility is
-                            allowed to be empty. Instances of this type with an empty value here are
-                            almost certainly wrong.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                          type: string
-                        optional:
-                          description: Specify whether the Secret or its key must
-                            be defined
-                          type: boolean
-                      required:
-                      - key
-                      type: object
-                      x-kubernetes-map-type: atomic
-                  required:
-                  - path
-                  - secretKeyRef
-                  type: object
-                type: array
+              configHash:
+                description: ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config
+                  blobs.
+                type: string
+              generation:
+                description: |-
+                  Generation is the Config CR generation this was resolved from.
+                  Used during recovery to detect if the spec changed since last apply.
+                format: int64
+                type: integer
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -92,6 +63,31 @@ spec:
                       resource.
                     type: string
                 type: object
+              payload:
+                description: |-
+                  Payload contains the encrypted resolved []ConfigBlob.
+                  Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
+                properties:
+                  data:
+                    description: Data contains the AES-GCM encrypted, JSON-marshaled
+                      payload.
+                    format: byte
+                    type: string
+                  keyID:
+                    description: |-
+                      KeyID identifies which key in the keyring was used for encryption.
+                      Used to detect key rotation without decryption.
+                    type: string
+                  plainHash:
+                    description: |-
+                      PlainHash is a SHA-256 hash of the plaintext before encryption.
+                      Stored in clear for efficient change detection without decryption.
+                    type: string
+                required:
+                - data
+                - keyID
+                - plainHash
+                type: object
               priority:
                 description: Priority defines the priority of this SensitiveConfig
                 format: int64
@@ -100,161 +96,19 @@ spec:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
+              secretKeyHashes:
+                additionalProperties:
+                  type: string
+                description: |-
+                  SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
+                  Tracks only the specific key value — not the whole Secret object.
+                type: object
             required:
-            - config
-            type: object
-          status:
-            description: SensitiveConfigStatus defines the observed state of SensitiveConfig
-            properties:
-              appliedSensitiveConfig:
-                description: AppliedSensitiveConfig defines the SensitiveConfig applied
-                  to the target
-                properties:
-                  config:
-                    description: SensitiveConfig defines the SensitiveConfiguration
-                      to be applied to a target device
-                    items:
-                      properties:
-                        path:
-                          description: Path defines the path relative to which the
-                            value is applicable
-                          type: string
-                        secretKeyRef:
-                          description: SecretKeyRef refers to a secret in the same
-                            namesapce as the config
-                          properties:
-                            key:
-                              description: The key of the secret to select from.  Must
-                                be a valid secret key.
-                              type: string
-                            name:
-                              default: ""
-                              description: |-
-                                Name of the referent.
-                                This field is effectively required, but due to backwards compatibility is
-                                allowed to be empty. Instances of this type with an empty value here are
-                                almost certainly wrong.
-                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                              type: string
-                            optional:
-                              description: Specify whether the Secret or its key must
-                                be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                          x-kubernetes-map-type: atomic
-                      required:
-                      - path
-                      - secretKeyRef
-                      type: object
-                    type: array
-                  lifecycle:
-                    description: |-
-                      Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
-                      will follow
-                    properties:
-                      deletionPolicy:
-                        description: |-
-                          DeletionPolicy specifies what will happen to the underlying resource
-                          when this resource is deleted - either "delete" or "orphan" the
-                          resource.
-                        type: string
-                    type: object
-                  priority:
-                    description: Priority defines the priority of this SensitiveConfig
-                    format: int64
-                    type: integer
-                  revertive:
-                    description: Revertive defines if this CR is enabled for revertive
-                      or non revertve operation
-                    type: boolean
-                required:
-                - config
-                type: object
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  properties:
-                    lastTransitionTime:
-                      description: |-
-                        lastTransitionTime is the last time the condition transitioned from one status to another.
-                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
-                      format: date-time
-                      type: string
-                    message:
-                      description: |-
-                        message is a human readable message indicating details about the transition.
-                        This may be an empty string.
-                      maxLength: 32768
-                      type: string
-                    observedGeneration:
-                      description: |-
-                        observedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
-                      format: int64
-                      minimum: 0
-                      type: integer
-                    reason:
-                      description: |-
-                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
-                        Producers of specific condition types may define expected values and meanings for this field,
-                        and whether the values are considered a guaranteed API.
-                        The value should be a CamelCase string.
-                        This field may not be empty.
-                      maxLength: 1024
-                      minLength: 1
-                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
-                      type: string
-                    status:
-                      description: status of the condition, one of True, False, Unknown.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
-                      maxLength: 316
-                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - message
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - type
-                x-kubernetes-list-type: map
-              deviationGeneration:
-                description: Deviations generation used for the latest SensitiveConfig
-                  apply
-                format: int64
-                type: integer
-              lastKnownGoodSchema:
-                description: LastKnownGoodSchema identifies the last known good schema
-                  used to apply the SensitiveConfig successfully
-                properties:
-                  type:
-                    description: Schema Type
-                    type: string
-                  vendor:
-                    description: Schema Vendor
-                    type: string
-                  version:
-                    description: Schema Version
-                    type: string
-                type: object
+            - payload
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
   - name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -280,46 +134,16 @@ spec:
           spec:
             description: SensitiveConfigSpec defines the desired state of SensitiveConfig
             properties:
-              config:
-                description: SensitiveConfig defines the SensitiveConfiguration to
-                  be applied to a target device
-                items:
-                  properties:
-                    path:
-                      description: Path defines the path relative to which the value
-                        is applicable
-                      type: string
-                    secretKeyRef:
-                      description: SecretKeyRef refers to a secret in the same namesapce
-                        as the config
-                      properties:
-                        key:
-                          description: The key of the secret to select from.  Must
-                            be a valid secret key.
-                          type: string
-                        name:
-                          default: ""
-                          description: |-
-                            Name of the referent.
-                            This field is effectively required, but due to backwards compatibility is
-                            allowed to be empty. Instances of this type with an empty value here are
-                            almost certainly wrong.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                          type: string
-                        optional:
-                          description: Specify whether the Secret or its key must
-                            be defined
-                          type: boolean
-                      required:
-                      - key
-                      type: object
-                      x-kubernetes-map-type: atomic
-                  required:
-                  - path
-                  - secretKeyRef
-                  type: object
-                type: array
-                x-kubernetes-list-type: atomic
+              configHash:
+                description: ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config
+                  blobs.
+                type: string
+              generation:
+                description: |-
+                  Generation is the Config CR generation this was resolved from.
+                  Used during recovery to detect if the spec changed since last apply.
+                format: int64
+                type: integer
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -336,6 +160,31 @@ spec:
                     - orphan
                     type: string
                 type: object
+              payload:
+                description: |-
+                  Payload contains the encrypted resolved []ConfigBlob.
+                  Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
+                properties:
+                  data:
+                    description: Data contains the AES-GCM encrypted, JSON-marshaled
+                      payload.
+                    format: byte
+                    type: string
+                  keyID:
+                    description: |-
+                      KeyID identifies which key in the keyring was used for encryption.
+                      Used to detect key rotation without decryption.
+                    type: string
+                  plainHash:
+                    description: |-
+                      PlainHash is a SHA-256 hash of the plaintext before encryption.
+                      Stored in clear for efficient change detection without decryption.
+                    type: string
+                required:
+                - data
+                - keyID
+                - plainHash
+                type: object
               priority:
                 description: Priority defines the priority of this SensitiveConfig
                 format: int64
@@ -344,163 +193,16 @@ spec:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
+              secretKeyHashes:
+                additionalProperties:
+                  type: string
+                description: |-
+                  SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
+                  Tracks only the specific key value — not the whole Secret object.
+                type: object
             required:
-            - config
-            type: object
-          status:
-            description: SensitiveConfigStatus defines the observed state of SensitiveConfig
-            properties:
-              appliedSensitiveConfig:
-                description: AppliedSensitiveConfig defines the SensitiveConfig applied
-                  to the target
-                properties:
-                  config:
-                    description: SensitiveConfig defines the SensitiveConfiguration
-                      to be applied to a target device
-                    items:
-                      properties:
-                        path:
-                          description: Path defines the path relative to which the
-                            value is applicable
-                          type: string
-                        secretKeyRef:
-                          description: SecretKeyRef refers to a secret in the same
-                            namesapce as the config
-                          properties:
-                            key:
-                              description: The key of the secret to select from.  Must
-                                be a valid secret key.
-                              type: string
-                            name:
-                              default: ""
-                              description: |-
-                                Name of the referent.
-                                This field is effectively required, but due to backwards compatibility is
-                                allowed to be empty. Instances of this type with an empty value here are
-                                almost certainly wrong.
-                                More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                              type: string
-                            optional:
-                              description: Specify whether the Secret or its key must
-                                be defined
-                              type: boolean
-                          required:
-                          - key
-                          type: object
-                          x-kubernetes-map-type: atomic
-                      required:
-                      - path
-                      - secretKeyRef
-                      type: object
-                    type: array
-                    x-kubernetes-list-type: atomic
-                  lifecycle:
-                    description: |-
-                      Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
-                      will follow
-                    properties:
-                      deletionPolicy:
-                        default: delete
-                        description: |-
-                          DeletionPolicy specifies what will happen to the underlying resource
-                          when this resource is deleted - either "delete" or "orphan" the
-                          resource.
-                        enum:
-                        - delete
-                        - orphan
-                        type: string
-                    type: object
-                  priority:
-                    description: Priority defines the priority of this SensitiveConfig
-                    format: int64
-                    type: integer
-                  revertive:
-                    description: Revertive defines if this CR is enabled for revertive
-                      or non revertve operation
-                    type: boolean
-                required:
-                - config
-                type: object
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  properties:
-                    lastTransitionTime:
-                      description: |-
-                        lastTransitionTime is the last time the condition transitioned from one status to another.
-                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
-                      format: date-time
-                      type: string
-                    message:
-                      description: |-
-                        message is a human readable message indicating details about the transition.
-                        This may be an empty string.
-                      maxLength: 32768
-                      type: string
-                    observedGeneration:
-                      description: |-
-                        observedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
-                      format: int64
-                      minimum: 0
-                      type: integer
-                    reason:
-                      description: |-
-                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
-                        Producers of specific condition types may define expected values and meanings for this field,
-                        and whether the values are considered a guaranteed API.
-                        The value should be a CamelCase string.
-                        This field may not be empty.
-                      maxLength: 1024
-                      minLength: 1
-                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
-                      type: string
-                    status:
-                      description: status of the condition, one of True, False, Unknown.
-                      enum:
-                      - "True"
-                      - "False"
-                      - Unknown
-                      type: string
-                    type:
-                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
-                      maxLength: 316
-                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - message
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - type
-                x-kubernetes-list-type: map
-              deviationGeneration:
-                description: Deviations generation used for the latest SensitiveConfig
-                  apply
-                format: int64
-                type: integer
-              lastKnownGoodSchema:
-                description: LastKnownGoodSchema identifies the last known good schema
-                  used to apply the SensitiveConfig successfully
-                properties:
-                  type:
-                    description: Schema Type
-                    type: string
-                  vendor:
-                    description: Schema Vendor
-                    type: string
-                  version:
-                    description: Schema Version
-                    type: string
-                type: object
+            - payload
             type: object
         type: object
     served: true
     storage: false
-    subresources:
-      status: {}

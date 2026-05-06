@@ -30,8 +30,7 @@ import (
 type SensitiveConfigApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *SensitiveConfigSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *SensitiveConfigStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                             *SensitiveConfigSpecApplyConfiguration `json:"spec,omitempty"`
 }
 
 // SensitiveConfig constructs a declarative configuration of the SensitiveConfig type for use with
@@ -210,14 +209,6 @@ func (b *SensitiveConfigApplyConfiguration) ensureObjectMetaApplyConfigurationEx
 // If called multiple times, the Spec field is set to the value of the last call.
 func (b *SensitiveConfigApplyConfiguration) WithSpec(value *SensitiveConfigSpecApplyConfiguration) *SensitiveConfigApplyConfiguration {
 	b.Spec = value
-	return b
-}
-
-// WithStatus sets the Status field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the Status field is set to the value of the last call.
-func (b *SensitiveConfigApplyConfiguration) WithStatus(value *SensitiveConfigStatusApplyConfiguration) *SensitiveConfigApplyConfiguration {
-	b.Status = value
 	return b
 }
 

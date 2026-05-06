@@ -75,10 +75,5 @@ func RunDryRunTransaction(
 	}
 
 	c.SetConditions(condition.ReadyWithMsg(warnings))
-	c.Status.LastKnownGoodSchema = &config.ConfigStatusLastKnownGoodSchema{
-		Vendor:  target.Status.DiscoveryInfo.Provider,
-		Version: target.Status.DiscoveryInfo.Version,
-	}
-	c.Status.AppliedConfig = &c.Spec
 	return c, nil
 }

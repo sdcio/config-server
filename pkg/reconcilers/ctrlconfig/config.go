@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"github.com/sdcio/config-server/pkg/keyring"
 )
 
 type ControllerConfig struct {
@@ -34,6 +35,7 @@ type ControllerConfig struct {
 	WorkspaceDir      string
 	DataServerManager *dsmanager.DSConnManager
 	TargetManager     *targetmanager.TargetManager
+	KeyRing           *keyring.KeyRing
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

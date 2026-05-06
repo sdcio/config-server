@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
-	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +27,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
@@ -89,24 +88,8 @@ func (r *Config) IsRecoverable() bool {
 	return true
 }
 
-func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
-	}
-}
-
 func (r *Config) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
-}
-
-func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
-	if r.Status.LastKnownGoodSchema == nil {
-		return &ConfigStatusLastKnownGoodSchema{}
-	}
-	return r.Status.LastKnownGoodSchema
 }
 
 func (r *Config) GetTarget() string {
@@ -143,16 +126,6 @@ func (r *Config) GetTargetNamespaceName() (*types.NamespacedName, error) {
 		Namespace: targetNamespace,
 	}, nil
 }
-
-/*
-// IsTransacting return true if a create/update or delete is ongoing on the config object
-func (r *Config) IsTransacting() bool {
-	condition := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	return condition.Reason == string(condv1alpha1.ConditionReasonCreating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonUpdating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonDeleting)
-}
-*/
 
 func (r *Config) Validate() error {
 	var errm error
@@ -205,15 +178,14 @@ func GetConfigFromFile(path string) (*Config, error) {
 	return obj, nil
 }
 
-// GetShaSum calculates the shasum of the confgiSpec
-func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
-	log := log.FromContext(ctx)
-	appliedSpec, err := json.Marshal(r)
+// GetHash returns a SHA-256 hex hash.
+func (r *ConfigSpec) GetHash() (string, error) {
+	raw, err := json.Marshal(r)
 	if err != nil {
-		log.Error("cannot marshal appliedConfig", "error", err)
-		return [20]byte{}
+		return "", fmt.Errorf("marshal config blobs: %w", err)
 	}
-	return sha1.Sum(appliedSpec)
+	h := sha256.Sum256(raw)
+	return hex.EncodeToString(h[:]), nil
 }
 
 // ConvertConfigFieldSelector is the schema conversion function for normalizing the FieldSelector for Config
@@ -228,47 +200,15 @@ func ConvertConfigFieldSelector(label, value string) (internalLabel, internalVal
 	}
 }
 
-func (r *Config) CalculateHash() ([sha1.Size]byte, error) {
-	// Convert the struct to JSON
-	jsonData, err := json.Marshal(r)
+func (r *Config) GetHash() (string, error) {
+	raw, err := json.Marshal(r)
 	if err != nil {
-		return [sha1.Size]byte{}, err
+		return "", fmt.Errorf("marshal config blobs: %w", err)
 	}
-
-	// Calculate SHA-1 hash
-	return sha1.Sum(jsonData), nil
+	h := sha256.Sum256(raw)
+	return hex.EncodeToString(h[:]), nil
 }
 
-/*
-	func ConvertSdcpbDeviations2ConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
-		deviations := make([]Deviation, 0, len(devs))
-		for _, dev := range devs {
-			deviations = append(deviations, Deviation{
-				Path:         utils.ToXPath(dev.GetPath(), false),
-				DesiredValue: dev.GetExpectedValue().String(),
-				CurrentValue: dev.GetCurrentValue().String(),
-				Reason:       dev.GetReason().String(),
-			})
-		}
-		return deviations
-	}
-
-	func (r ConfigStatus) HasNotAppliedDeviation() bool {
-		for _, dev := range r.Deviations {
-			if dev.Reason == "NOT_APPLIED" {
-				return true
-			}
-		}
-		return false
-	}
-
-// +k8s:deepcopy-gen=false
-var _ ConfigDeviations = &Config{}
-
-	func (r *Config) SetDeviations(d []Deviation) {
-		r.Status.Deviations = d
-	}
-*/
 func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
@@ -276,6 +216,11 @@ func (r *Config) DeepObjectCopy() client.Object {
 func (r *Config) SetOverallStatus() {
 	cfgC := r.GetCondition(ConditionTypeConfigReady)
 	tgtC := r.GetCondition(ConditionTypeTargetForConfigReady)
+	resolverC := r.GetCondition(ConditionTypeResolver)
+
+	// Resolver condition only blocks ready if it has been explicitly set to False.
+	// An absent resolver condition (no secrets, or resolver hasn't run yet) is not a failure.
+	resolverOK := resolverC.Status == "" || resolverC.IsTrue()
 
 	ready := cfgC.IsTrue() && tgtC.IsTrue()
 
@@ -288,6 +233,11 @@ func (r *Config) SetOverallStatus() {
 	// pick a useful message
 	msg := ""
 	switch {
+	case !resolverOK:
+		msg = resolverC.Message
+		if msg == "" {
+			msg = "secret resolution failed"
+		}
 	case !cfgC.IsTrue():
 		if cfgC.Message != "" {
 			msg = cfgC.Message

@@ -38,8 +38,6 @@ type SensitiveConfigsGetter interface {
 type SensitiveConfigInterface interface {
 	Create(ctx context.Context, sensitiveConfig *configv1alpha1.SensitiveConfig, opts v1.CreateOptions) (*configv1alpha1.SensitiveConfig, error)
 	Update(ctx context.Context, sensitiveConfig *configv1alpha1.SensitiveConfig, opts v1.UpdateOptions) (*configv1alpha1.SensitiveConfig, error)
-	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, sensitiveConfig *configv1alpha1.SensitiveConfig, opts v1.UpdateOptions) (*configv1alpha1.SensitiveConfig, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*configv1alpha1.SensitiveConfig, error)

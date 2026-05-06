@@ -72,7 +72,7 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
@@ -84,49 +84,6 @@ spec:
           status:
             description: ConfigStatus defines the observed state of Config
             properties:
-              appliedConfig:
-                description: AppliedConfig defines the config applied to the target
-                properties:
-                  config:
-                    description: Config defines the configuration to be applied to
-                      a target device
-                    items:
-                      properties:
-                        path:
-                          description: Path defines the path relative to which the
-                            value is applicable
-                          type: string
-                        value:
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                      required:
-                      - value
-                      type: object
-                    type: array
-                    x-kubernetes-preserve-unknown-fields: true
-                  lifecycle:
-                    description: |-
-                      Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
-                      will follow
-                    properties:
-                      deletionPolicy:
-                        description: |-
-                          DeletionPolicy specifies what will happen to the underlying resource
-                          when this resource is deleted - either "delete" or "orphan" the
-                          resource.
-                        type: string
-                    type: object
-                  priority:
-                    description: Priority defines the priority of this config
-                    format: int64
-                    type: integer
-                  revertive:
-                    description: Revertive defines if this CR is enabled for revertive
-                      or non revertve operation
-                    type: boolean
-                required:
-                - config
-                type: object
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -185,24 +142,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              deviationGeneration:
-                description: Deviations generation used for the latest config apply
-                format: int64
-                type: integer
-              lastKnownGoodSchema:
-                description: LastKnownGoodSchema identifies the last known good schema
-                  used to apply the config successfully
-                properties:
-                  type:
-                    description: Schema Type
-                    type: string
-                  vendor:
-                    description: Schema Vendor
-                    type: string
-                  version:
-                    description: Schema Version
-                    type: string
-                type: object
             type: object
         type: object
     served: true
@@ -270,7 +209,7 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
@@ -282,54 +221,6 @@ spec:
           status:
             description: ConfigStatus defines the observed state of Config
             properties:
-              appliedConfig:
-                description: AppliedConfig defines the config applied to the target
-                properties:
-                  config:
-                    description: Config defines the configuration to be applied to
-                      a target device
-                    items:
-                      properties:
-                        path:
-                          description: Path defines the path relative to which the
-                            value is applicable
-                          type: string
-                        value:
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                      required:
-                      - value
-                      type: object
-                    type: array
-                    x-kubernetes-list-type: atomic
-                    x-kubernetes-preserve-unknown-fields: true
-                  lifecycle:
-                    description: |-
-                      Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
-                      will follow
-                    properties:
-                      deletionPolicy:
-                        default: delete
-                        description: |-
-                          DeletionPolicy specifies what will happen to the underlying resource
-                          when this resource is deleted - either "delete" or "orphan" the
-                          resource.
-                        enum:
-                        - delete
-                        - orphan
-                        type: string
-                    type: object
-                  priority:
-                    description: Priority defines the priority of this config
-                    format: int64
-                    type: integer
-                  revertive:
-                    description: Revertive defines if this CR is enabled for revertive
-                      or non revertve operation
-                    type: boolean
-                required:
-                - config
-                type: object
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -388,24 +279,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              deviationGeneration:
-                description: Deviations generation used for the latest config apply
-                format: int64
-                type: integer
-              lastKnownGoodSchema:
-                description: LastKnownGoodSchema identifies the last known good schema
-                  used to apply the config successfully
-                properties:
-                  type:
-                    description: Schema Type
-                    type: string
-                  vendor:
-                    description: Schema Vendor
-                    type: string
-                  version:
-                    description: Schema Version
-                    type: string
-                type: object
             type: object
         type: object
     served: true

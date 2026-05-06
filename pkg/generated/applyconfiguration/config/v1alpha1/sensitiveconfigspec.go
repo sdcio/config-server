@@ -22,6 +22,9 @@ package v1alpha1
 //
 // SensitiveConfigSpec defines the desired state of SensitiveConfig
 type SensitiveConfigSpecApplyConfiguration struct {
+	// Generation is the Config CR generation this was resolved from.
+	// Used during recovery to detect if the spec changed since last apply.
+	Generation *int64 `json:"generation,omitempty"`
 	// Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
 	// will follow
 	Lifecycle *LifecycleApplyConfiguration `json:"lifecycle,omitempty"`
@@ -29,14 +32,28 @@ type SensitiveConfigSpecApplyConfiguration struct {
 	Priority *int64 `json:"priority,omitempty"`
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty"`
-	// SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
-	Config []SensitiveConfigDataApplyConfiguration `json:"config,omitempty"`
+	// ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config blobs.
+	ConfigHash *string `json:"configHash,omitempty"`
+	// SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
+	// Tracks only the specific key value — not the whole Secret object.
+	SecretKeyHashes map[string]string `json:"secretKeyHashes,omitempty"`
+	// Payload contains the encrypted resolved []ConfigBlob.
+	// Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
+	Payload *EncryptedPayloadApplyConfiguration `json:"payload,omitempty"`
 }
 
 // SensitiveConfigSpecApplyConfiguration constructs a declarative configuration of the SensitiveConfigSpec type for use with
 // apply.
 func SensitiveConfigSpec() *SensitiveConfigSpecApplyConfiguration {
 	return &SensitiveConfigSpecApplyConfiguration{}
+}
+
+// WithGeneration sets the Generation field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Generation field is set to the value of the last call.
+func (b *SensitiveConfigSpecApplyConfiguration) WithGeneration(value int64) *SensitiveConfigSpecApplyConfiguration {
+	b.Generation = &value
+	return b
 }
 
 // WithLifecycle sets the Lifecycle field in the declarative configuration to the given value
@@ -63,15 +80,32 @@ func (b *SensitiveConfigSpecApplyConfiguration) WithRevertive(value bool) *Sensi
 	return b
 }
 
-// WithConfig adds the given value to the Config field in the declarative configuration
+// WithConfigHash sets the ConfigHash field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ConfigHash field is set to the value of the last call.
+func (b *SensitiveConfigSpecApplyConfiguration) WithConfigHash(value string) *SensitiveConfigSpecApplyConfiguration {
+	b.ConfigHash = &value
+	return b
+}
+
+// WithSecretKeyHashes puts the entries into the SecretKeyHashes field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
-// If called multiple times, values provided by each call will be appended to the Config field.
-func (b *SensitiveConfigSpecApplyConfiguration) WithConfig(values ...*SensitiveConfigDataApplyConfiguration) *SensitiveConfigSpecApplyConfiguration {
-	for i := range values {
-		if values[i] == nil {
-			panic("nil value passed to WithConfig")
-		}
-		b.Config = append(b.Config, *values[i])
+// If called multiple times, the entries provided by each call will be put on the SecretKeyHashes field,
+// overwriting an existing map entries in SecretKeyHashes field with the same key.
+func (b *SensitiveConfigSpecApplyConfiguration) WithSecretKeyHashes(entries map[string]string) *SensitiveConfigSpecApplyConfiguration {
+	if b.SecretKeyHashes == nil && len(entries) > 0 {
+		b.SecretKeyHashes = make(map[string]string, len(entries))
 	}
+	for k, v := range entries {
+		b.SecretKeyHashes[k] = v
+	}
+	return b
+}
+
+// WithPayload sets the Payload field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Payload field is set to the value of the last call.
+func (b *SensitiveConfigSpecApplyConfiguration) WithPayload(value *EncryptedPayloadApplyConfiguration) *SensitiveConfigSpecApplyConfiguration {
+	b.Payload = value
 	return b
 }

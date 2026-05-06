@@ -186,7 +186,6 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 					config.GetCondition(condition.ConditionTypeReady).Message,
 					config.Spec.Priority,
 					config.GetTarget(),
-					config.GetLastKnownGoodSchema().FileString(),
 				}
 			},
 			[]metav1.TableColumnDefinition{
@@ -195,7 +194,6 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 				{Name: "Reason", Type: "string"},
 				{Name: "Priority", Type: "integer"},
 				{Name: "Target", Type: "string"},
-				{Name: "Schema", Type: "string"},
 			},
 		)
 	}
