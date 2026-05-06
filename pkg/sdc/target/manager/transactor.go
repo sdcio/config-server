@@ -32,6 +32,7 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	"github.com/sdcio/data-server/pkg/tree/ops"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -342,10 +343,10 @@ func (r *Transactor) setIntents(
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", 
-		"config", cfg.GetName(), 
-		"recoverable", recoverable, 
-		"msg", msg, 
+	log.Warn("updateConfigWithError",
+		"config", cfg.GetName(),
+		"recoverable", recoverable,
+		"msg", msg,
 		"err", err,
 	)
 
@@ -465,7 +466,6 @@ func (r *Transactor) updateConfigWithSuccess(
 		log.Debug("skip success update: config is deleting")
 		return nil
 	}
-	
 
 	newConfigCond := configv1alpha1.ConfigReady(msg)
 
@@ -704,6 +704,25 @@ func (r *Transactor) handleTransactionErrors(
 			continue
 		}
 		if cfg, ok := deletedConfigsToTransact[intentName]; ok {
+			// "path not found" on a delete is idempotent success: the path is
+			// already absent, so proceed with normal cleanup rather than
+			// marking the config as failed (issue #433).
+			if isDeleteNotFoundError(intent.Errors) {
+				log.Debug("delete intent: path not found treated as idempotent success",
+					"intent", intentName)
+				v1cfg, convErr := toV1Alpha1Config(cfg)
+				if convErr != nil {
+					return true, convErr
+				}
+				if err := r.deleteFinalizer(ctx, v1cfg); err != nil {
+					return true, err
+				}
+				if err := r.deleteDeviation(ctx, v1cfg); err != nil {
+					return true, err
+				}
+				continue
+			}
+
 			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
 				return true, err
 			}
@@ -884,11 +903,11 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 	if s == nil {
 		return nil
 	}
-	
+
 	a := configv1alpha1apply.ConfigSpec().
-			WithPriority(s.Priority)
-	
-	if s.Revertive != nil {	
+		WithPriority(s.Priority)
+
+	if s.Revertive != nil {
 		a.WithRevertive(*s.Revertive)
 	}
 
@@ -922,4 +941,21 @@ func configBlobToApply(b *configv1alpha1.ConfigBlob) *configv1alpha1apply.Config
 	}
 	a.WithValue(b.Value)
 	return a
+}
+
+// isDeleteNotFoundError returns true when every error string in the slice
+// is a "path not found" condition, making the delete effectively a no-op.
+// We match against the sentinel defined in data-server so the two repos
+// stay in sync without duplicating the message string (issue #433).
+func isDeleteNotFoundError(intentErrors []string) bool {
+	if len(intentErrors) == 0 {
+		return false
+	}
+	needle := ops.ErrNavigateSdcpbPathNotFound.Error() 
+	for _, e := range intentErrors {
+		if !strings.Contains(e, needle) {
+			return false // at least one error is NOT a not-found; treat as real failure
+		}
+	}
+	return true
 }
