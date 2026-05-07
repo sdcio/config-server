@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	"strings"
 
 	"github.com/henderiw/logger/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,23 +29,6 @@ import (
 
 func (r *TargetSnapshot) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Name: r.Name, Namespace: r.Namespace}
-}
-
-func (r *TargetSnapshot) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
 }
 
 // BuildTargetSnapshot returns a reource from a client Object a Spec/Status

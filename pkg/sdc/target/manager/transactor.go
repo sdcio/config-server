@@ -138,25 +138,32 @@ func BuildGRPCIntents(
 func AnalyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
 	result := TransactionResult{}
 
+	// ── Transport-level error ──────────────────────────────────────────────────
 	if err != nil {
-		result.GlobalError = fmt.Errorf("transaction error: %w", err)
-		if statusErr, ok := status.FromError(err); ok {
-			switch statusErr.Code() {
-			case codes.Aborted, codes.ResourceExhausted:
-				result.Recoverable = true
-			default:
-				result.Recoverable = false
-			}
-		}
+		result.Recoverable = isRecoverableGRPCError(err)
+		result.GlobalError = err
+		return result
 	}
 
-	if rsp != nil {
-		result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
-		for _, intent := range rsp.Intents {
-			for _, intentError := range intent.Errors {
-				result.IntentErrors = errors.Join(result.IntentErrors, fmt.Errorf("%s", intentError))
-				result.Recoverable = false
-			}
+	if rsp == nil {
+		return result
+	}
+
+	// ── Global warnings ────────────────────────────────────────────────────────
+	result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
+
+	// ── Per-intent results ─────────────────────────────────────────────────────
+	for intentName, intent := range rsp.Intents {
+		// Collect intent warnings into GlobalWarnings so callers have one place to look.
+		for _, w := range intent.Warnings {
+			result.GlobalWarnings = append(result.GlobalWarnings,
+				fmt.Sprintf("intent %q: %s", intentName, w))
+		}
+
+		// Any intent error → non-recoverable (datastore accepted the request).
+		for _, e := range intent.Errors {
+			result.IntentErrors = errors.Join(result.IntentErrors,
+				fmt.Errorf("intent %q: %s", intentName, e))
 		}
 	}
 
@@ -179,4 +186,23 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 		log.FromContext(ctx).Warn("transaction warnings", "warnings", rsp.Warnings)
 	}
 	return "", nil
+}
+
+// isRecoverableGRPCError returns true for transient gRPC errors that are
+// worth retrying (resource pressure, contention), false for permanent ones.
+func isRecoverableGRPCError(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		// Not a gRPC status error — treat as non-recoverable.
+		return false
+	}
+	switch st.Code() {
+	case codes.Aborted, codes.ResourceExhausted:
+		return true
+	default:
+		return false
+	}
 }

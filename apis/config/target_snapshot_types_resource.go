@@ -130,21 +130,16 @@ func (r *TargetSnapshot) TableConvertor() func(gr schema.GroupResource) rest.Tab
 		return registry.NewTableConverter(
 			gr,
 			func(obj runtime.Object) []interface{} {
-				sensitiveConfig, ok := obj.(*TargetSnapshot)
+				targetSnapshot, ok := obj.(*TargetSnapshot)
 				if !ok {
 					return nil
 				}
 				return []interface{}{
-					fmt.Sprintf("%s.%s/%s", strings.ToLower(TargetSnapshotKind), GroupName, sensitiveConfig.Name),
-					sensitiveConfig.GetTarget(),
+					fmt.Sprintf("%s.%s/%s", strings.ToLower(TargetSnapshotKind), GroupName, targetSnapshot.Name),
 				}
 			},
 			[]metav1.TableColumnDefinition{
 				{Name: "Name", Type: "string"},
-				{Name: "Ready", Type: "string"},
-				{Name: "Reason", Type: "string"},
-				{Name: "Target", Type: "string"},
-				{Name: "Schema", Type: "string"},
 			},
 		)
 	}

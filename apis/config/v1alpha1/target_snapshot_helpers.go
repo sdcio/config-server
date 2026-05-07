@@ -20,13 +20,10 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,50 +45,8 @@ func (r *TargetSnapshot) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-func (r *TargetSnapshot) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
-
-func (r *TargetSnapshot) GetTargetNamespaceName() (*types.NamespacedName, error) {
-	if len(r.GetLabels()) == 0 {
-		return nil, fmt.Errorf("no target information found in labels")
-	}
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	return &types.NamespacedName{
-		Name:      targetName,
-		Namespace: targetNamespace,
-	}, nil
-}
-
 func (r *TargetSnapshot) Validate() error {
-	var errm error
-	if _, ok := r.GetLabels()[config.TargetNameKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a TargetSnapshot cr always need a %s", config.TargetNameKey))
-	}
-	if _, ok := r.GetLabels()[config.TargetNamespaceKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a TargetSnapshot cr always need a %s", config.TargetNamespaceKey))
-	}
-	return errm
+	return nil
 }
 
 // BuildTargetSnapshot returns a reource from a client Object a Spec/Status
