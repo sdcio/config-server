@@ -16,99 +16,6 @@ spec:
     singular: sensitiveconfig
   scope: Namespaced
   versions:
-  - name: config
-    schema:
-      openAPIV3Schema:
-        description: SensitiveConfig defines the Schema for the SensitiveConfig API
-        properties:
-          apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-            type: string
-          kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: SensitiveConfigSpec defines the desired state of SensitiveConfig
-            properties:
-              configHash:
-                description: ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config
-                  blobs.
-                type: string
-              generation:
-                description: |-
-                  Generation is the Config CR generation this was resolved from.
-                  Used during recovery to detect if the spec changed since last apply.
-                format: int64
-                type: integer
-              lifecycle:
-                description: |-
-                  Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
-                  will follow
-                properties:
-                  deletionPolicy:
-                    description: |-
-                      DeletionPolicy specifies what will happen to the underlying resource
-                      when this resource is deleted - either "delete" or "orphan" the
-                      resource.
-                    type: string
-                type: object
-              payload:
-                description: |-
-                  Payload contains the encrypted resolved []ConfigBlob.
-                  Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
-                properties:
-                  data:
-                    description: Data contains the AES-GCM encrypted, JSON-marshaled
-                      payload.
-                    format: byte
-                    type: string
-                  keyID:
-                    description: |-
-                      KeyID identifies which key in the keyring was used for encryption.
-                      Used to detect key rotation without decryption.
-                    type: string
-                  plainHash:
-                    description: |-
-                      PlainHash is a SHA-256 hash of the plaintext before encryption.
-                      Stored in clear for efficient change detection without decryption.
-                    type: string
-                required:
-                - data
-                - keyID
-                - plainHash
-                type: object
-              priority:
-                description: Priority defines the priority of this SensitiveConfig
-                format: int64
-                type: integer
-              revertive:
-                description: Revertive defines if this CR is enabled for revertive
-                  or non revertve operation
-                type: boolean
-              secretKeyHashes:
-                additionalProperties:
-                  type: string
-                description: |-
-                  SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
-                  Tracks only the specific key value — not the whole Secret object.
-                type: object
-            required:
-            - payload
-            type: object
-        type: object
-    served: true
-    storage: true
   - name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -205,4 +112,4 @@ spec:
             type: object
         type: object
     served: true
-    storage: false
+    storage: true

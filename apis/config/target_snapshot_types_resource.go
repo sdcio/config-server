@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	TargetSnapshotPlural   = "sensitiveconfigs"
-	TargetSnapshotSingular = "sensitiveconfig"
+	TargetSnapshotPlural   = "targetsnapshots"
+	TargetSnapshotSingular = "targetsnapshot"
 )
 
 var (
