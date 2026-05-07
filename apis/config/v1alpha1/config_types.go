@@ -42,7 +42,8 @@ type ConfigSpec struct {
 type ConfigBlob struct {
 	// Path defines the path relative to which the value is applicable
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=config"`
-	//+kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +structType=atomic
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 

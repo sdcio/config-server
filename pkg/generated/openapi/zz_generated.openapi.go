@@ -751,6 +751,11 @@ func schema_config_server_apis_config_v1alpha1_ConfigBlob(ref common.ReferenceCa
 						},
 					},
 					"value": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-map-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
 						},

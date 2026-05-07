@@ -35,7 +35,7 @@ type ConfigSetSpec struct {
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
-	//+kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:pruning:PreserveUnknownFields
 	// +listType=atomic
 	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
 }

@@ -34,14 +34,14 @@ type ConfigSpec struct {
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,3,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
-	//+kubebuilder:pruning:PreserveUnknownFields
 	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
 }
 
 type ConfigBlob struct {
 	// Path defines the path relative to which the value is applicable
 	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=config"`
-	//+kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +structType=granular
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
 }
 
