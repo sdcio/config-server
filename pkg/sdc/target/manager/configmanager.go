@@ -154,7 +154,7 @@ func (m *ConfigManager) ProcessErrors(
 	for intentName, intent := range rsp.Intents {
 		log.Warn("intent failed", "name", intentName, "errors", intent.Errors)
 
-		var errs error = globalErr
+		var errs = globalErr
 		for _, e := range intent.Errors {
 			errs = errors.Join(errs, fmt.Errorf("%s", e))
 		}
