@@ -142,11 +142,8 @@ func (r *SensitiveConfig) TableConvertor() func(gr schema.GroupResource) rest.Ta
 			},
 			[]metav1.TableColumnDefinition{
 				{Name: "Name", Type: "string"},
-				{Name: "Ready", Type: "string"},
-				{Name: "Reason", Type: "string"},
 				{Name: "Priority", Type: "integer"},
 				{Name: "Target", Type: "string"},
-				{Name: "Schema", Type: "string"},
 			},
 		)
 	}
