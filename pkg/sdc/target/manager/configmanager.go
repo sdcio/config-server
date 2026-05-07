@@ -163,6 +163,25 @@ func (m *ConfigManager) ProcessErrors(
 			continue
 		}
 		if inp, ok := deleteByKey[intentName]; ok {
+			// "path not found in tree" for a delete intent is idempotent success —
+			// the path was already absent, which is exactly the desired state.
+			// Treat as success: clean up finalizer and deviation without marking
+			// the Config as failed. (issue #433)
+			if isDeletePathNotFound(intent.Errors) {
+				log.Info("delete intent: path already absent, treating as success",
+					"intent", intentName)
+				v1cfg, err := toV1Alpha1Config(inp.Config)
+				if err != nil {
+					return true, err
+				}
+				if err := m.deleteFinalizer(ctx, v1cfg); err != nil {
+					return true, err
+				}
+				if err := m.deleteDeviation(ctx, v1cfg); err != nil {
+					return true, err
+				}
+				continue
+			}
 			if err := m.processFailedInput(ctx, inp, msg, errs, false); err != nil {
 				return true, err
 			}
@@ -223,7 +242,7 @@ func (m *ConfigManager) SetConfigsTargetConditionForTarget(
 		configCond := v1cfg.GetCondition(condv1alpha1.ConditionType(configv1alpha1.ConfigReady("").Type))
 
 		statusApply := configv1alpha1apply.ConfigStatus().
-    		WithConditions(condv1alpha1.DedupeConditions(targetCond, configCond, newReadyCond)...)
+			WithConditions(condv1alpha1.DedupeConditions(targetCond, configCond, newReadyCond)...)
 
 		applyConfig := configv1alpha1apply.Config(v1cfg.Name, v1cfg.Namespace).WithStatus(statusApply)
 		if err := m.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
@@ -318,7 +337,7 @@ func (m *ConfigManager) updateConfigWithSuccess(
 	}
 
 	statusApply := configv1alpha1apply.ConfigStatus().
-    	WithConditions(condv1alpha1.DedupeConditions(newConfigCond, targetCond, newOverallCond)...)
+		WithConditions(condv1alpha1.DedupeConditions(newConfigCond, targetCond, newOverallCond)...)
 
 	applyConfig := configv1alpha1apply.Config(cfg.Name, cfg.Namespace).WithStatus(statusApply)
 	return m.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
@@ -377,7 +396,7 @@ func (m *ConfigManager) updateConfigWithError(
 	}
 
 	statusApply := configv1alpha1apply.ConfigStatus().
-    	WithConditions(condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)...)
+		WithConditions(condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)...)
 	applyConfig := configv1alpha1apply.Config(current.Name, current.Namespace).WithStatus(statusApply)
 	return m.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{FieldManager: m.fieldManager},
@@ -408,4 +427,20 @@ func (m *ConfigManager) patchMetadata(ctx context.Context, obj client.Object, mu
 	return m.client.Patch(ctx, obj, client.MergeFrom(orig),
 		&client.PatchOptions{FieldManager: m.fieldManager},
 	)
+}
+
+// isDeleteNotFoundError returns true when every error string in the slice
+// is a "path not found" condition, making the delete effectively a no-op.
+// We match against the sentinel defined in data-server so the two repos
+// stay in sync without duplicating the message string (issue #433).
+func isDeletePathNotFound(errs []string) bool {
+	if len(errs) == 0 {
+		return false
+	}
+	for _, e := range errs {
+		if !strings.Contains(strings.ToLower(e), "path not found") {
+			return false
+		}
+	}
+	return true
 }
