@@ -110,6 +110,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Watches(&configv1alpha1.SensitiveConfig{},
 			handler.EnqueueRequestsFromMapFunc(r.mapSensitiveConfigToTarget),
 		).
+		// Config watch needed for deletion: when Config gets deletionTimestamp,
+		// no SC event fires (SC is kept alive until datastore delete confirms).
+		// Without this watch, the targetconfig controller never sees the delete.
+		Watches(&configv1alpha1.Config{},
+			handler.EnqueueRequestsFromMapFunc(r.mapConfigToTarget),
+		).
 		Complete(r)
 }
 
@@ -530,6 +536,22 @@ func (r *reconciler) mapSensitiveConfigToTarget(_ context.Context, obj client.Ob
 			Namespace: targetNS,
 		},
 	}}
+}
+
+// mapConfigToTarget maps a Config event to its Target using the target labels.
+func (r *reconciler) mapConfigToTarget(_ context.Context, obj client.Object) []reconcile.Request {
+    labels := obj.GetLabels()
+    targetNS, ok1   := labels[config.TargetNamespaceKey]
+    targetName, ok2 := labels[config.TargetNameKey]
+    if !ok1 || !ok2 {
+        return nil
+    }
+    return []reconcile.Request{{
+        NamespacedName: types.NamespacedName{
+            Name:      targetName,
+            Namespace: targetNS,
+        },
+    }}
 }
 
 // ── Handlers ───────────────────────────────────────────────────────────────────
