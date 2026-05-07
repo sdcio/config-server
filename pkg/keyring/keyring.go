@@ -127,8 +127,9 @@ func (kr *KeyRing) PrimaryID() string {
 // Safe to call without decrypting.
 func (kr *KeyRing) NeedsReencryption(payload configv1alpha1.EncryptedPayload) bool {
     if payload.KeyID == "" {
-        // Empty KeyID means no encryption (no secret refs) — nothing to re-encrypt.
-        return false
+		// Empty KeyID = old payload with data: null.
+        // Force re-resolution so the Resolver writes a proper encrypted payload.
+        return true
     }
     kr.mu.RLock()
     defer kr.mu.RUnlock()
@@ -161,8 +162,7 @@ func (kr *KeyRing) Encrypt(plaintext []byte) (configv1alpha1.EncryptedPayload, e
 // Returns an error if the keyID is unknown (key was retired before rotation completed).
 func (kr *KeyRing) Decrypt(payload configv1alpha1.EncryptedPayload) ([]byte, error) {
     if payload.KeyID == "" || len(payload.Data) == 0 {
-        // No encryption — nothing to decrypt.
-        return nil, nil
+        return nil, fmt.Errorf("payload has no key ID or data — always-encrypt should be enforced?")
     }
 
     kr.mu.RLock()

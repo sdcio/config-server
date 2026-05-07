@@ -409,24 +409,6 @@ func (r *reconciler) buildIntentInputs(
 // getResolvedBlobs returns the resolved ConfigBlobs as the internal type
 // so they can be passed directly to config.GetIntentUpdateFromBlobs.
 func (r *reconciler) getResolvedBlobs(ctx context.Context, sc *configv1alpha1.SensitiveConfig) ([]config.ConfigBlob, error) {
-	if sc.Spec.Payload.KeyID == "" || len(sc.Spec.Payload.Data) == 0 {
-		// No secrets — fetch original blobs from Config and convert to internal type.
-		v1cfg := &configv1alpha1.Config{}
-		if err := r.client.Get(ctx,
-			types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace},
-			v1cfg,
-		); err != nil {
-			return nil, fmt.Errorf("get config for no-secret SC %s: %w", sc.Name, err)
-		}
-		// Convert []configv1alpha1.ConfigBlob → []config.ConfigBlob
-		// Both types have identical JSON structure (Path + Value).
-		blobs := make([]config.ConfigBlob, len(v1cfg.Spec.Config))
-		for i, b := range v1cfg.Spec.Config {
-			blobs[i] = config.ConfigBlob{Path: b.Path, Value: b.Value}
-		}
-		return blobs, nil
-	}
-
 	plain, err := r.keyring.Decrypt(sc.Spec.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("decrypt SC %s: %w", sc.Name, err)

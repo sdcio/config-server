@@ -123,20 +123,15 @@ func recoverIntents(
 
 		var blobs []config.ConfigBlob
 
-		if snapEntry.Payload.KeyID != "" && len(snapEntry.Payload.Data) > 0 {
-			// Encrypted blobs — decrypt and unmarshal as internal type.
-			plain, err := kr.Decrypt(snapEntry.Payload)
-			if err != nil {
-				log.Warn("cannot decrypt snapshot entry, skipping config", "config", cfg.Name, "err", err)
-				continue
-			}
-			if err := json.Unmarshal(plain, &blobs); err != nil {
-				log.Warn("cannot unmarshal snapshot blobs, skipping config", "config", cfg.Name, "err", err)
-				continue
-			}
-		} else {
-			// No-secret config (KeyID == "") — resolved blobs == original spec blobs.
-			blobs = cfg.Spec.Config
+		// Encrypted blobs — decrypt and unmarshal as internal type.
+		plain, err := kr.Decrypt(snapEntry.Payload)
+		if err != nil {
+			log.Warn("cannot decrypt snapshot entry, skipping config", "config", cfg.Name, "err", err)
+			continue
+		}
+		if err := json.Unmarshal(plain, &blobs); err != nil {
+			log.Warn("cannot unmarshal snapshot blobs, skipping config", "config", cfg.Name, "err", err)
+			continue
 		}
 
 		update, err := config.GetIntentUpdateFromBlobs(blobs)

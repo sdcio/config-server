@@ -387,17 +387,20 @@ func (r *reconciler) buildPayload(
 	fetched map[string]*corev1.Secret,
 ) (configv1alpha1.EncryptedPayload, map[string]string, error) {
 	if len(refs) == 0 {
-		// No secret refs — hash the original blobs for change detection.
-		// KeyID="" signals to the remote controller: no decryption needed.
+		// No secret refs, but we still encrypt so the snapshot is self-contained.
+		// Without this, recovery would fall back to cfg.Spec.Config which may
+		// have changed since the snapshot was taken (issue: stale recovery state).
 		raw, err := json.Marshal(cfg.Spec.Config)
 		if err != nil {
 			return configv1alpha1.EncryptedPayload{}, nil, err
 		}
-		return configv1alpha1.EncryptedPayload{
-			KeyID:     "",
-			PlainHash: sha256hex(raw),
-			Data:      nil,
-		}, nil, nil
+		plainHash := sha256hex(raw)
+		payload, err := r.keyring.Encrypt(raw)
+		if err != nil {
+			return configv1alpha1.EncryptedPayload{}, nil, err
+		}
+		payload.PlainHash = plainHash
+		return payload, nil, nil
 	}
 
 	resolvedData, plainHash, secretKeyHashes, err := r.resolve(ctx, cfg, refs, fetched)
