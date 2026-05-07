@@ -20,7 +20,7 @@ rules:
   verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
 - apiGroups: ["config.sdcio.dev"]
   resources: ["sensitiveconfigs"]
-  verbs: ["get", "watch", "list"]
+  verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]
 - apiGroups: ["config.sdcio.dev"]
   resources: ["targetsnapshots"]
   verbs: ["get", "watch", "list", "create", "update", "patch", "delete"]

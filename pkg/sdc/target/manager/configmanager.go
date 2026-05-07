@@ -106,6 +106,10 @@ func (m *ConfigManager) ProcessSuccess(
 		if err := m.deleteDeviation(ctx, v1cfg); err != nil {
 			return err
 		}
+
+		if err := m.deleteSensitiveConfig(ctx, v1cfg); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -416,6 +420,16 @@ func (m *ConfigManager) deleteDeviation(ctx context.Context, cfg *configv1alpha1
 		ObjectMeta: metav1.ObjectMeta{Name: cfg.Name, Namespace: cfg.Namespace},
 	}
 	if err := m.client.Delete(ctx, deviation); err != nil {
+		return resource.IgnoreNotFound(err)
+	}
+	return nil
+}
+
+func (m *ConfigManager) deleteSensitiveConfig(ctx context.Context, cfg *configv1alpha1.Config) error {
+	sc := &configv1alpha1.SensitiveConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: cfg.Name, Namespace: cfg.Namespace},
+	}
+	if err := m.client.Delete(ctx, sc); err != nil {
 		return resource.IgnoreNotFound(err)
 	}
 	return nil

@@ -386,14 +386,17 @@ func (r *reconciler) buildIntentInputs(
 		}
 	}
 
-	// Check for snapshot entries with no current SensitiveConfig → deleted configs.
+	// Snapshot entry exists but SC is gone → SC was deleted after confirmed delete,
+	// but snapshot wasn't updated (e.g. saveSnapshot failed).
+	// Re-send the delete so the snapshot gets cleaned up.
 	for name := range snapshot.Spec.Configs {
 		if _, hasSC := scByName[name]; !hasSC {
-			// SC was deleted (Config deleted → ownerRef GC removed SC).
-			// Find the Config to mark as delete intent if still exists.
+			// SC gone = delete was confirmed. If Config also gone, snapshot is stale.
+			// If Config still exists with deletionTimestamp, targetconfig handles it
+			// via the normal deletionTimestamp path above.
+			// If snapshot entry lingers after both are gone → hasChange=true forces
+			// a saveSnapshot which will exclude the stale entry.
 			hasChange = true
-			// The Config may already be in toDelete above if deletionTimestamp is set.
-			// If the SC is gone but Config is not, treat as no-op (GC handles cleanup).
 		}
 	}
 

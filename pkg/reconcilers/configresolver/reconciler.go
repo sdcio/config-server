@@ -195,21 +195,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// ── Deletion ──────────────────────────────────────────────────────────────
 	if !cfgOrig.GetDeletionTimestamp().IsZero() {
-		if isOnlyFinalizer(cfgOrig, finalizer) {
-			sc := &configv1alpha1.SensitiveConfig{}
-			if err := r.client.Get(ctx, req.NamespacedName, sc); err == nil {
-				if err := r.client.Delete(ctx, sc); resource.IgnoreNotFound(err) != nil {
-					return ctrl.Result{Requeue: true},
-						errors.Wrap(r.handleError(ctx, cfgOrig, "cannot delete SensitiveConfig", err), errUpdateStatus)
-				}
-			}
-		}
+		// Do NOT delete the SC here. It must remain alive until the targetconfig
+		// controller confirms the datastore deletion. It serves as:
+		//   - The record that this config was applied and must be removed from device
+		//   - The surface for failure conditions if the delete fails
+		// The targetconfig controller deletes it explicitly after TransactionConfirm.
 		if err := r.finalizer.RemoveFinalizer(ctx, cfgOrig); err != nil {
 			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot remove finalizer", err), errUpdateStatus)
-		}
-		log.Debug("successfully deleted resource")
-		return ctrl.Result{}, nil
+		errors.Wrap(r.handleError(ctx, cfgOrig, "cannot remove finalizer", err), errUpdateStatus)
+    }
+    log.Debug("removed resolver finalizer, SC retained until datastore deletion confirmed")
+    return ctrl.Result{}, nil
 	}
 
 	// ── Finalizer ─────────────────────────────────────────────────────────────
