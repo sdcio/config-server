@@ -184,6 +184,9 @@ func (m *ConfigManager) ProcessErrors(
 				if err := m.deleteDeviation(ctx, v1cfg); err != nil {
 					return true, err
 				}
+				if err := m.deleteSensitiveConfig(ctx, v1cfg); err != nil {
+					return true, err
+				}
 				continue
 			}
 			if err := m.processFailedInput(ctx, inp, msg, errs, false); err != nil {

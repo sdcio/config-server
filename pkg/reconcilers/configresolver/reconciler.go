@@ -624,11 +624,6 @@ func (r *reconciler) mapKeyRingToAllConfigs(ctx context.Context, obj client.Obje
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-func isOnlyFinalizer(obj client.Object, ourFinalizer string) bool {
-	f := obj.GetFinalizers()
-	return len(f) == 1 && f[0] == ourFinalizer
-}
-
 // splitRefKey splits a "secretName/keyName" composite key back into its parts.
 func splitRefKey(refKey string) (secretName, keyName string, err error) {
 	parts := strings.SplitN(refKey, "/", 2)
