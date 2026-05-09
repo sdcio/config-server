@@ -89,3 +89,8 @@ func (r *Deviation) GetTargetNamespaceName() (*types.NamespacedName, error) {
 		Namespace: targetNamespace,
 	}, nil
 }
+
+// DeviationName returns the canonical name for a Deviation CR.
+func DeviationName(typ DeviationType, resourceName string) string {
+	return fmt.Sprintf("%s-%s", typ, resourceName)
+}

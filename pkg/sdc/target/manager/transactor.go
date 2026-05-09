@@ -537,7 +537,7 @@ func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) 
 		}
 		// Not found: create new deviation
 		newDeviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
-			Name:            config.Name,
+			Name:            configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, config.Name),
 			Namespace:       config.Namespace,
 			OwnerReferences: []metav1.OwnerReference{config.GetOwnerReference()},
 			Labels:          config.Labels,
