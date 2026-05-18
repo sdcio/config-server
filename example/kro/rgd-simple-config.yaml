@@ -1,0 +1,53 @@
+# Simple KRO ResourceGraphDefinition that outputs a single SDC Config.
+#
+# Apply order:
+#   1. kubectl apply -f rgd-simple-config.yaml
+#   2. kubectl apply -f instance-simple-config.yaml  (see below)
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: simple-sdcio-config
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: SimpleSdcioConfig
+    spec:
+      targetName: string | required=true
+      targetNamespace: string | default="default"
+      interfaceName: string | default="system0"
+      adminState: string | default="enable"
+      description: string | default="kro-managed"
+      priority: integer | default=10
+  resources:
+    - id: config
+      template:
+        apiVersion: config.sdcio.dev/v1alpha1
+        kind: Config
+        metadata:
+          name: ${schema.metadata.name}
+          namespace: ${schema.spec.targetNamespace}
+          labels:
+            config.sdcio.dev/targetName: ${schema.spec.targetName}
+            config.sdcio.dev/targetNamespace: ${schema.spec.targetNamespace}
+        spec:
+          priority: ${schema.spec.priority}
+          config:
+            - path: /
+              value:
+                interface:
+                  - name: ${schema.spec.interfaceName}
+                    admin-state: ${schema.spec.adminState}
+                    description: ${schema.spec.description}
+---
+# Example instance of the RGD above. Save as instance-simple-config.yaml
+# (or apply directly together with --- separator).
+apiVersion: kro.run/v1alpha1
+kind: SimpleSdcioConfig
+metadata:
+  name: dev1-system0
+  namespace: default
+spec:
+  targetName: dev1
+  targetNamespace: default
+  interfaceName: system0
+  description: k8s-system0-dummy
