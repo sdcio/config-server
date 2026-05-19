@@ -33,7 +33,7 @@ soon as `sdc-ca` is Ready.
    applied, the `cainjector` and webhook controllers are required):
 
    ```bash
-   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
+   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.2/cert-manager.yaml
    ```
 
 2. Wait for cert-manager to be ready:
