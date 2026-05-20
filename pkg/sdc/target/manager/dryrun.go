@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -35,7 +36,6 @@ import (
 // and updates the Config status/conditions.
 func RunDryRunTransaction(
 	ctx context.Context,
-	key types.NamespacedName,
 	c *config.Config,
 	target *configv1alpha1.Target,
 	intents []*sdcpb.TransactionIntent,
@@ -57,9 +57,10 @@ func RunDryRunTransaction(
 		}
 	}()
 
+	targetKey := types.NamespacedName{Namespace: target.Namespace, Name: target.Name}
 	req := &sdcpb.TransactionSetRequest{
 		TransactionId: config.GetGVKNSN(c),
-		DatastoreName: key.String(),
+		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
 		DryRun:        dryrun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
