@@ -57,10 +57,11 @@ func RunDryRunTransaction(
 		}
 	}()
 
-	targetKey := types.NamespacedName{Namespace: target.Namespace, Name: target.Name}
+	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
+
 	req := &sdcpb.TransactionSetRequest{
 		TransactionId: config.GetGVKNSN(c),
-		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
+		DatastoreName: targetKey.String(),
 		DryRun:        dryrun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,

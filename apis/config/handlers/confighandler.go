@@ -94,13 +94,18 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
 
-// prepareConfigAndTarget validates labels, casts the object, resolves the
+// prepareConfigAndTarget validates labels, resolves the
 // Target reference from the config's labels and fetches that Target, ensuring
 // it's ready.
 func (r *ConfigStoreHandler) prepareConfigAndTarget(
 	ctx context.Context,
 	obj runtime.Object,
 ) (*config.Config, *configv1alpha1.Target, error) {
+	c, ok := obj.(*config.Config)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected *config.Config, got %T", obj)
+	}
+
 	accessor, err := meta.Accessor(obj)
 	if err != nil {
 		return nil, nil, err
@@ -109,11 +114,6 @@ func (r *ConfigStoreHandler) prepareConfigAndTarget(
 	targetKey, err := config.GetTargetKey(accessor.GetLabels())
 	if err != nil {
 		return nil, nil, err
-	}
-
-	c, ok := obj.(*config.Config)
-	if !ok {
-		return nil, nil, fmt.Errorf("expected *config.Config, got %T", obj)
 	}
 
 	target := &configv1alpha1.Target{}
