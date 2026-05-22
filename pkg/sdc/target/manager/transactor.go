@@ -519,7 +519,7 @@ func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1a
 
 func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) (configv1alpha1.Deviation, error) {
 	key := types.NamespacedName{
-		Name:      config.Name,
+		Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, config.Name),
 		Namespace: config.Namespace,
 	}
 
