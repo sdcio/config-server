@@ -90,7 +90,13 @@ func (r *Deviation) GetTargetNamespaceName() (*types.NamespacedName, error) {
 	}, nil
 }
 
-// DeviationName returns the canonical name for a Deviation CR.
+// DeviationName is the v1alpha1 alias for config.DeviationName.
 func DeviationName(typ DeviationType, resourceName string) string {
-	return fmt.Sprintf("%s-%s", typ, resourceName)
+	return config.DeviationName(config.DeviationType(typ), resourceName)
+}
+
+// ParseDeviationName is the v1alpha1 alias for config.ParseDeviationName.
+func ParseDeviationName(name string) (DeviationType, string, bool) {
+	typ, resource, ok := config.ParseDeviationName(name)
+	return DeviationType(typ), resource, ok
 }
