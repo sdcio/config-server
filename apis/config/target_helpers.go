@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -30,7 +31,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -240,16 +243,15 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		return nil, err
 	}
 
-	// Build the learDeviationTxRequest
+	// any invalid entry in the batch will be rejected with 422 so the failure can't be masked by
+	// a status-code-only client. If the batch is valid, the transaction will be executed.
 	txReq, validationErrors := buildClearDeviationTxRequest(targetKey, spec, configsByName)
 	if len(validationErrors) > 0 {
-		return &TargetClearDeviation{
-			ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
-			Status: &TargetClearDeviationStatus{
-				Message: "validation failed: unknown config names",
-				Results: validationErrors,
-			},
-		}, nil
+		return nil, apierrors.NewInvalid(
+			schema.GroupKind{Group: GroupName, Kind: TargetClearDeviationKind},
+			r.Name,
+			validationErrorsToFieldErrors(validationErrors),
+		)
 	}
 	if len(txReq.Intents) == 0 {
 		return &TargetClearDeviation{
@@ -260,19 +262,16 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		}, nil
 	}
 
-	// Execute the transaction
 	rsp, txErr := executeClearDeviationTx(ctx, txReq)
-
-	// Build the response
+	status := buildClearDeviationStatus(spec.Config, configsByName, rsp, txErr)
 	return &TargetClearDeviation{
 		ObjectMeta: metav1.ObjectMeta{Name: r.Name, Namespace: r.Namespace},
-		Status:     buildClearDeviationStatus(spec.Config, configsByName, rsp, txErr),
+		Status:     status,
 	}, nil
 }
 
-// buildClearDeviationTxRequest constructs the TransactionSetRequest from
-// the clear deviation configs. It validates that every requested config name
-// exists as a known intent. Unknown names are returned as validation errors.
+// buildClearDeviationTxRequest validates each entry, builds the transaction
+// intents for the valid ones, and returns the rejected entries separately
 func buildClearDeviationTxRequest(
 	targetKey types.NamespacedName,
 	spec *TargetClearDeviationSpec,
@@ -282,12 +281,12 @@ func buildClearDeviationTxRequest(
 	var validationErrors []TargetClearDeviationConfigResult
 	intents := make([]*sdcpb.TransactionIntent, 0, len(spec.Config))
 	for _, clearCfg := range spec.Config {
-		cfg, found := configsByName[clearCfg.Name]
-		if !found {
+		cfg, lookupErr := resolveClearDeviationConfig(clearCfg.Name, configsByName, targetKey)
+		if lookupErr != nil {
 			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
 				Name:    clearCfg.Name,
 				Success: false,
-				Errors:  []string{fmt.Sprintf("config %q not found for target %s", clearCfg.Name, targetKey.Name)},
+				Errors:  []string{lookupErr.Error()},
 			})
 			continue
 		}
@@ -339,9 +338,8 @@ func buildClearDeviationTxRequest(
 		})
 	}
 
-	// Early exit on validation errors
-	if len(validationErrors) > 0 {
-		return nil, validationErrors
+	if len(intents) == 0 {
+		return &sdcpb.TransactionSetRequest{}, validationErrors
 	}
 
 	return &sdcpb.TransactionSetRequest{
@@ -350,7 +348,55 @@ func buildClearDeviationTxRequest(
 		DryRun:        false,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
-	}, nil
+	}, validationErrors
+}
+
+// resolveClearDeviationConfig looks up a Config CR by either its own name
+// or by a Deviation CR name produced by DeviationName. Target-typed
+// deviation names are rejected because clearing target deviations is not
+// implemented on this path.
+func resolveClearDeviationConfig(
+	name string,
+	configsByName map[string]*Config,
+	targetKey types.NamespacedName,
+) (*Config, error) {
+	if cfg, ok := configsByName[name]; ok {
+		return cfg, nil
+	}
+	if typ, resource, ok := ParseDeviationName(name); ok {
+		switch typ {
+		case DeviationType_TARGET:
+			return nil, fmt.Errorf(
+				"deviation %q is target-scoped; clearing target deviations via cleardeviation is not supported",
+				name)
+		case DeviationType_CONFIG:
+			if cfg, ok := configsByName[resource]; ok {
+				return cfg, nil
+			}
+			return nil, fmt.Errorf(
+				"config %q (from deviation name %q) not found for target %s",
+				resource, name, targetKey.Name)
+		}
+	}
+	return nil, fmt.Errorf("config %q not found for target %s", name, targetKey.Name)
+}
+
+// validationErrorsToFieldErrors converts per-entry validation results into
+// the field.ErrorList shape that apierrors.NewInvalid expects.
+func validationErrorsToFieldErrors(results []TargetClearDeviationConfigResult) field.ErrorList {
+	errs := make(field.ErrorList, 0, len(results))
+	for i, r := range results {
+		msg := strings.Join(r.Errors, "; ")
+		if msg == "" {
+			msg = "validation failed"
+		}
+		errs = append(errs, field.Invalid(
+			field.NewPath("spec", "config").Index(i).Child("name"),
+			r.Name,
+			msg,
+		))
+	}
+	return errs
 }
 
 func GetGVKNSN(obj client.Object) string {
@@ -420,7 +466,6 @@ func buildClearDeviationStatus(
 
 	status.Warnings = rsp.Warnings
 
-	// Map intent names (GVKNSN) back to config names for the response
 	intentToName := make(map[string]string, len(configsByName))
 	for name, cfg := range configsByName {
 		intentToName[GetGVKNSN(cfg)] = name
@@ -440,14 +485,16 @@ func buildClearDeviationStatus(
 		})
 	}
 
-	// Configs not in response succeeded silently
+	// Inherit the overall transaction outcome for any config the
+	// data-server didn't explicitly report on.
 	for _, cfg := range clearConfigs {
-		if !responded[cfg.Name] {
-			status.Results = append(status.Results, TargetClearDeviationConfigResult{
-				Name:    cfg.Name,
-				Success: err == nil,
-			})
+		if responded[cfg.Name] {
+			continue
 		}
+		status.Results = append(status.Results, TargetClearDeviationConfigResult{
+			Name:    cfg.Name,
+			Success: err == nil,
+		})
 	}
 
 	return status
