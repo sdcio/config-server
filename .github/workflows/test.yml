@@ -39,8 +39,11 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
+          fetch-tags: true
 
-      - name: Fetch upstream tags
+      # Fork clones lack canonical release tags; GoReleaser still resolves {{.Version}} from git.
+      - name: Fetch upstream tags (fork PRs only)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
           git fetch --force --tags https://github.com/${{ github.repository }}.git '+refs/tags/*:refs/tags/*'
 
@@ -68,18 +71,10 @@ jobs:
           PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           MAIN_BRANCH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
 
-      # Must match image tags in .goreleaser.nightlies.yml (IS_PR / MAIN_BRANCH / ShortCommit).
       - name: Set image tag for integration tests
         id: image
         run: |
-          short=$(git rev-parse --short HEAD)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "version=v0.0.0-PR${{ github.event.pull_request.number }}-${short}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "version=main" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=v0.0.0-${short}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
   latest-versions:
     name: Fetch latest versions from GH API
