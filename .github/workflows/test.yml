@@ -71,10 +71,15 @@ jobs:
           PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           MAIN_BRANCH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
 
+      # Nightlies publish {{ .Commit }} as a tag (see .goreleaser.nightlies.yml); same string is the git ref for checkout.
       - name: Set image tag for integration tests
         id: image
         run: |
-          echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "version=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
 
   latest-versions:
     name: Fetch latest versions from GH API
