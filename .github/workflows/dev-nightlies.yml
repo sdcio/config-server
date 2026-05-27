@@ -43,7 +43,10 @@ jobs:
         with:
           # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean -f .goreleaser.nightlies.yml --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_PR: "false"
+          PR: ""
+          MAIN_BRANCH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}

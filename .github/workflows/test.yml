@@ -2,15 +2,13 @@
 # Licensed under the Apache License 2.0
 # SPDX-License-Identifier: Apache-2.0
 ---
-name: Test
+name: CI/CD (PR and main)
 on:
   workflow_dispatch:
   pull_request:
-  pull_request_target:
-    types: [labeled]
   push:
     branches:
-      - "main"
+      - main
       - "!releases/**"
 
 permissions:
@@ -21,25 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - run: go test -cover ./...
         env:
           CGO_ENABLED: 0
-      # run staticcheck
-      # - uses: reviewdog/action-staticcheck@v1
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     # Change reviewdog reporter if you need [github-pr-check,github-check,github-pr-review].
-      #     reporter: github-pr-review
-      #     # Report all results.
-      #     filter_mode: nofilter
-      #     # Exit with 1 when it find at least one finding.
-      #     fail_on_error: true
+
   pr-release:
-    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
     runs-on: ubuntu-latest
     needs: unittest
     outputs:
@@ -48,9 +36,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{github.event.pull_request.head.ref}}
-          repository: ${{github.event.pull_request.head.repo.full_name}}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
+
+      - name: Fetch upstream tags
+        run: |
+          git fetch --force --tags https://github.com/${{ github.repository }}.git '+refs/tags/*:refs/tags/*'
 
       - uses: actions/setup-go@v6
         with:
@@ -67,18 +59,19 @@ jobs:
         id: goreleaser
         uses: goreleaser/goreleaser-action@v7
         with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean -f .goreleaser.nightlies.yml --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
+          IS_PR: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          MAIN_BRANCH: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
 
       - name: Extract docker image build version from GoReleaser
         id: image
         run: |
-          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq -r 'limit(1; .[] | select(.type == "Published Docker Image" and (.name | contains("ghcr.io")) and (.name | contains("latest") | not))) | .name | split(":") | .[1]' )" >> $GITHUB_OUTPUT
+          echo "version=$( echo '${{ steps.goreleaser.outputs.artifacts }}' | jq -r '[.[] | select(.type == "Published Docker Image" and (.name | contains("ghcr.io")) and (.name | contains("latest") | not)) | .name | split(":") | last] | unique | (map(select(. == "main")) | first) // first' )" >> $GITHUB_OUTPUT
 
   latest-versions:
     name: Fetch latest versions from GH API
