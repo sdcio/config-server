@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
 
@@ -35,7 +35,6 @@ import (
 // and updates the Config status/conditions.
 func RunDryRunTransaction(
 	ctx context.Context,
-	key types.NamespacedName,
 	c *config.Config,
 	target *configv1alpha1.Target,
 	intents []*sdcpb.TransactionIntent,
@@ -57,9 +56,11 @@ func RunDryRunTransaction(
 		}
 	}()
 
+	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
+
 	req := &sdcpb.TransactionSetRequest{
 		TransactionId: config.GetGVKNSN(c),
-		DatastoreName: key.String(),
+		DatastoreName: targetKey.String(),
 		DryRun:        dryrun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,

@@ -35,7 +35,7 @@ type ConfigStoreHandler struct {
 }
 
 func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
+	c, target, err := r.prepareConfigAndTarget(ctx, obj)
 	if err != nil {
 		return obj, err
 	}
@@ -47,17 +47,17 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:       config.GetGVKNSN(c),
-			Priority:     int32(c.Spec.Priority),
-			Update:       updates,
+			Intent:   config.GetGVKNSN(c),
+			Priority: int32(c.Spec.Priority),
+			Update:   updates,
 			// Dont set not Revertive
 		},
 	}
 
-	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
+	c, target, err := r.prepareConfigAndTarget(ctx, obj)
 	if err != nil {
 		return obj, err
 	}
@@ -69,17 +69,17 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 
 	intents := []*sdcpb.TransactionIntent{
 		{
-			Intent:       config.GetGVKNSN(c),
-			Priority:     int32(c.Spec.Priority),
-			Update:       updates,
+			Intent:   config.GetGVKNSN(c),
+			Priority: int32(c.Spec.Priority),
+			Update:   updates,
 			// Dont set not Revertive
 		},
 	}
 
-	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
 func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	c, target, err := r.prepareConfigAndTarget(ctx, key, obj)
+	c, target, err := r.prepareConfigAndTarget(ctx, obj)
 	if err != nil {
 		return obj, err
 	}
@@ -91,37 +91,38 @@ func (r *ConfigStoreHandler) DryRunDeleteFn(ctx context.Context, key types.Names
 		},
 	}
 
-	return targetmanager.RunDryRunTransaction(ctx, key, c, target, intents, dryrun)
+	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
 
-// prepareConfigAndTarget validates labels, casts the object, fetches the Target
-// and ensures it's ready.
+// prepareConfigAndTarget validates labels, resolves the
+// Target reference from the config's labels and fetches that Target, ensuring
+// it's ready.
 func (r *ConfigStoreHandler) prepareConfigAndTarget(
 	ctx context.Context,
-	key types.NamespacedName,
 	obj runtime.Object,
 ) (*config.Config, *configv1alpha1.Target, error) {
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if _, err := config.GetTargetKey(accessor.GetLabels()); err != nil {
-		return nil, nil, err
-	}
-
 	c, ok := obj.(*config.Config)
 	if !ok {
 		return nil, nil, fmt.Errorf("expected *config.Config, got %T", obj)
 	}
 
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	targetKey, err := config.GetTargetKey(accessor.GetLabels())
+	if err != nil {
+		return nil, nil, err
+	}
+
 	target := &configv1alpha1.Target{}
-	if err := r.Client.Get(ctx, key, target); err != nil {
+	if err := r.Client.Get(ctx, targetKey, target); err != nil {
 		return nil, nil, err
 	}
 
 	if !target.IsReady() {
-		return nil, nil, fmt.Errorf("target not ready %s", key)
+		return nil, nil, fmt.Errorf("target not ready %s", targetKey)
 	}
 
 	return c, target, nil
