@@ -2,7 +2,7 @@ version: 2
 project_name: config-server
 builds:
   - id: api-server
-    binary:  api-server
+    binary: api-server
     main: ./cmd/api-server/main.go
     env:
       - CGO_ENABLED=0
@@ -21,41 +21,51 @@ builds:
     goarch:
       - amd64
       - arm64
-dockers:
+dockers_v2:
   - id: api-server-docker
-    goos: linux
-    goarch: amd64
     ids:
       - api-server
-    image_templates:
-      - "ghcr.io/sdcio/{{ .ProjectName }}-api-server:v{{ .Version }}"
-      - "ghcr.io/sdcio/{{ .ProjectName }}-api-server:latest"
     dockerfile: goreleaser.api-server.dockerfile
-    skip_push: false
-    build_flag_templates:
-      - "--pull"
-      - "--build-arg=USERID=10000"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}-api-server"
-      - "--label=org.opencontainers.image.source=https://github.com/sdcio/{{.ProjectName}}"
-      - "--label=org.opencontainers.image.version=v{{.Version}}"
+    images:
+      - ghcr.io/sdcio/config-server-api-server
+    tags:
+      - latest
+      - "v{{ .Version }}"
+    platforms:
+      - linux/amd64
+    sbom: false
+    flags:
+      - "--pull=true"
+      - "--provenance=false"
+    build_args:
+      USERID: "10000"
+    labels:
+      org.opencontainers.image.created: "{{.Date}}"
+      org.opencontainers.image.title: "{{.ProjectName}}-api-server"
+      org.opencontainers.image.source: "https://github.com/sdcio/{{.ProjectName}}"
+      org.opencontainers.image.version: "v{{.Version }}"
   - id: controller-docker
-    goos: linux
-    goarch: amd64
     ids:
       - controller
-    image_templates:
-      - "ghcr.io/sdcio/{{ .ProjectName }}-controller:v{{ .Version }}"
-      - "ghcr.io/sdcio/{{ .ProjectName }}-controller:latest"
     dockerfile: goreleaser.controller.dockerfile
-    skip_push: false
-    build_flag_templates:
-      - "--pull"
-      - "--build-arg=USERID=10000"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}-controller"
-      - "--label=org.opencontainers.image.source=https://github.com/sdcio/{{.ProjectName}}"
-      - "--label=org.opencontainers.image.version=v{{.Version}}"
+    images:
+      - ghcr.io/sdcio/config-server-controller
+    tags:
+      - latest
+      - "v{{ .Version }}"
+    platforms:
+      - linux/amd64
+    sbom: false
+    flags:
+      - "--pull=true"
+      - "--provenance=false"
+    build_args:
+      USERID: "10000"
+    labels:
+      org.opencontainers.image.created: "{{.Date}}"
+      org.opencontainers.image.title: "{{.ProjectName}}-controller"
+      org.opencontainers.image.source: "https://github.com/sdcio/{{.ProjectName}}"
+      org.opencontainers.image.version: "v{{.Version }}"
 archives:
   - name_template: >-
       {{ .ProjectName }}_
@@ -69,7 +79,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 snapshot:
-  name_template: "{{ .Tag }}"
+  version_template: "{{ .Tag }}"
 changelog:
   use: github
   sort: asc
