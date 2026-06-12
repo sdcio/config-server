@@ -9,7 +9,7 @@ on:
       dataserver_version:
         description: >
           Optional override for sdcio/data-server image tag (integration).
-          Empty = auto: main → DS main; else only if PR has label sdc-pair and same-named branch on DS → tip short SHA;
+          Empty = auto: main → DS main; else only if PR has label paired-test and same-named branch on DS → tip short SHA;
           else DS main. (Short SHA, v0.0.0-PR…, main.)
         required: false
         default: ""
@@ -91,7 +91,7 @@ jobs:
             echo "version=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
-  # Same-named branch on DS only when PR is labeled sdc-pair. workflow_dispatch override always wins.
+  # Same-named branch on DS only when PR is labeled paired-test. workflow_dispatch override always wins.
   resolve-dataserver-version:
     runs-on: ubuntu-latest
     outputs:
@@ -107,7 +107,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          PAIR_LABEL="sdc-pair"
+          PAIR_LABEL="paired-test"
           override="$(printf '%s' "${INPUT_OVERRIDE:-}" | tr -d '\r' | xargs || true)"
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$override" ]; then
             echo "dataversion=${override}" >> "$GITHUB_OUTPUT"
