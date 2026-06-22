@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +39,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -202,10 +204,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// The targetconfig controller deletes it explicitly after TransactionConfirm.
 		if err := r.finalizer.RemoveFinalizer(ctx, cfgOrig); err != nil {
 			return ctrl.Result{Requeue: true},
-		errors.Wrap(r.handleError(ctx, cfgOrig, "cannot remove finalizer", err), errUpdateStatus)
-    }
-    log.Debug("removed resolver finalizer, SC retained until datastore deletion confirmed")
-    return ctrl.Result{}, nil
+				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot remove finalizer", err), errUpdateStatus)
+		}
+		log.Debug("removed resolver finalizer, SC retained until datastore deletion confirmed")
+		return ctrl.Result{}, nil
 	}
 
 	// ── Finalizer ─────────────────────────────────────────────────────────────
@@ -241,6 +243,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// ── Keyring rotation only: re-encrypt, no secret fetch needed ─────────────
+	// SensitivePaths are untouched here — rotation moves no secrets.
 	if change.needsReencryptionOnly() {
 		if err := r.reencrypt(ctx, existingSC); err != nil {
 			return ctrl.Result{Requeue: true},
@@ -253,7 +256,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Covers: configChanged, secretChanged, or both (+ possible concurrent keyringChanged).
 	// r.keyring.Encrypt always uses the primary key, so a concurrent keyring
 	// rotation is handled automatically during resolution.
-	refs := parseSecretRefs(cfgOrig.Spec.Config)
+	//
+	// One walk yields both: the unique refs to fetch and the unique, sorted,
+	// keyless leaf paths to hand the dataserver as TransactionIntent.SensitivePaths.
+	locs, err := collectSecretLocations(cfgOrig.Spec.Config)
+	if err != nil {
+		return ctrl.Result{Requeue: true},
+			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot collect secret locations", err), errUpdateStatus)
+	}
+	refs, sensitivePaths := dedupe(locs)
 
 	// GetHash hashes only the ConfigSpec — defined in config_helpers.go
 	configHash, err := cfgOrig.Spec.GetHash()
@@ -275,7 +286,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: requeueOnResolutionFailure}, nil
 	}
 
-	if err := r.save(ctx, cfgOrig, payload, configHash, secretKeyHashes, refs, change); err != nil {
+	if err := r.save(ctx, cfgOrig, payload, configHash, secretKeyHashes, refs, sensitivePaths, change); err != nil {
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot save SensitiveConfig", err), errUpdateStatus)
 	}
@@ -360,8 +371,8 @@ func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.Sensitive
 	if err != nil {
 		return fmt.Errorf("encrypt: %w", err)
 	}
-	// PlainHash, ConfigHash, SecretKeyHashes are all unchanged — only the
-	// wrapping key changed, not the content.
+	// PlainHash, ConfigHash, SecretKeyHashes, SensitivePaths are all unchanged —
+	// only the wrapping key changed, not the content or its layout.
 	newPayload.PlainHash = sc.Spec.Payload.PlainHash
 	sc.Spec.Payload = newPayload
 
@@ -478,6 +489,7 @@ func (r *reconciler) save(
 	configHash string,
 	secretKeyHashes map[string]string,
 	refs []SecretRef,
+	sensitivePaths []string,
 	change changeResult,
 ) error {
 	labels := map[string]string{
@@ -512,6 +524,7 @@ func (r *reconciler) save(
 			ConfigHash:      configHash,
 			SecretKeyHashes: secretKeyHashes,
 			Payload:         payload,
+			SensitivePaths:  sensitivePaths,
 		},
 	}
 
@@ -683,38 +696,96 @@ type SecretRef struct {
 	SecretKey  string
 }
 
-func parseSecretRefs(blobs []configv1alpha1.ConfigBlob) []SecretRef {
-	seen := map[string]struct{}{}
-	var refs []SecretRef
-	for _, blob := range blobs {
-		var tree interface{}
-		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
-			continue
-		}
-		walkForRefs(tree, &refs, seen)
-	}
-	return refs
+// secretLocation is a secret ref found at a specific keyless leaf path.
+// Path is blob-prefixed and free of key predicates, e.g. "/interfaces/hash".
+type secretLocation struct {
+	Path string
+	Ref  SecretRef
 }
 
-func walkForRefs(node interface{}, refs *[]SecretRef, seen map[string]struct{}) {
+// collectSecretLocations walks every blob value tree and records each
+// secret::name::key reference together with the keyless XPath of the leaf
+// that holds it. The blob's own Path is stripped of key predicates and used as
+// the prefix; descending into an array contributes nothing to the path (list /
+// leaf-list keys are wildcarded), which is exactly the keyless form the
+// dataserver requires for TransactionIntent.SensitivePaths.
+func collectSecretLocations(blobs []configv1alpha1.ConfigBlob) ([]secretLocation, error) {
+	var locs []secretLocation
+	for i, blob := range blobs {
+		prefix, err := keylessXPath(blob.Path)
+		if err != nil {
+			return nil, fmt.Errorf("blob[%d] path %q: %w", i, blob.Path, err)
+		}
+		var tree interface{}
+		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
+			return nil, fmt.Errorf("blob[%d] unmarshal: %w", i, err)
+		}
+		walkLocations(tree, prefix, &locs)
+	}
+	return locs, nil
+}
+
+func walkLocations(node interface{}, path string, out *[]secretLocation) {
 	switch v := node.(type) {
 	case string:
 		if m := secretRefPattern.FindStringSubmatch(v); m != nil {
-			key := m[1] + "/" + m[2]
-			if _, ok := seen[key]; !ok {
-				seen[key] = struct{}{}
-				*refs = append(*refs, SecretRef{SecretName: m[1], SecretKey: m[2]})
-			}
+			*out = append(*out, secretLocation{
+				Path: path,
+				Ref:  SecretRef{SecretName: m[1], SecretKey: m[2]},
+			})
 		}
 	case map[string]interface{}:
-		for _, child := range v {
-			walkForRefs(child, refs, seen)
+		for k, child := range v {
+			walkLocations(child, path+"/"+k, out)
 		}
 	case []interface{}:
 		for _, child := range v {
-			walkForRefs(child, refs, seen)
+			walkLocations(child, path, out) // array level = keyless wildcard
 		}
 	}
+}
+
+// keylessXPath parses an xpath and re-renders it without any key predicates.
+// "/network-instance[name=default]/protocols" → "/network-instance/protocols".
+// An empty or root path resolves to "" so leaf paths stay rooted at the blob.
+func keylessXPath(p string) (string, error) {
+	if p == "" || p == "/" {
+		return "", nil
+	}
+	parsed, err := sdcpb.ParsePath(p)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, e := range parsed.GetElem() {
+		b.WriteString("/")
+		b.WriteString(e.GetName())
+	}
+	return b.String(), nil
+}
+
+// dedupe collapses locations into the unique secret refs (for fetching) and the
+// unique, sorted, keyless paths (for the intent). Sorting keeps the stored slice
+// stable across reconciles so it doesn't churn SSA / object diffs.
+func dedupe(locs []secretLocation) (refs []SecretRef, paths []string) {
+	seenRef := map[string]struct{}{}
+	seenPath := map[string]struct{}{}
+	for _, l := range locs {
+		rk := l.Ref.SecretName + "/" + l.Ref.SecretKey
+		if _, ok := seenRef[rk]; !ok {
+			seenRef[rk] = struct{}{}
+			refs = append(refs, l.Ref)
+		}
+		if l.Path == "" {
+			continue // root-level bare string: no meaningful leaf path
+		}
+		if _, ok := seenPath[l.Path]; !ok {
+			seenPath[l.Path] = struct{}{}
+			paths = append(paths, l.Path)
+		}
+	}
+	sort.Strings(paths)
+	return refs, paths
 }
 
 func substituteRefs(blobs []configv1alpha1.ConfigBlob, values map[string]string) ([]configv1alpha1.ConfigBlob, error) {
@@ -724,7 +795,7 @@ func substituteRefs(blobs []configv1alpha1.ConfigBlob, values map[string]string)
 		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
 			return nil, fmt.Errorf("blob[%d] unmarshal: %w", i, err)
 		}
-		substituteInTree(tree, values)
+		tree = substituteInTree(tree, values)
 		raw, err := json.Marshal(tree)
 		if err != nil {
 			return nil, fmt.Errorf("blob[%d] marshal: %w", i, err)
@@ -737,23 +808,31 @@ func substituteRefs(blobs []configv1alpha1.ConfigBlob, values map[string]string)
 	return result, nil
 }
 
-func substituteInTree(node interface{}, values map[string]string) {
+// substituteInTree replaces every secret::name::key string leaf with its
+// resolved value and returns the (possibly replaced) node. It is return-based
+// and symmetric with walkLocations: string leaves are handled at any depth —
+// map values, array elements, and the root — so refs inside arrays of strings
+// (leaf-lists) are substituted too.
+func substituteInTree(node interface{}, values map[string]string) interface{} {
 	switch v := node.(type) {
-	case map[string]interface{}:
-		for k, child := range v {
-			if s, ok := child.(string); ok {
-				if m := secretRefPattern.FindStringSubmatch(s); m != nil {
-					if resolved, ok := values[m[1]+"/"+m[2]]; ok {
-						v[k] = resolved
-					}
-				}
-			} else {
-				substituteInTree(child, values)
+	case string:
+		if m := secretRefPattern.FindStringSubmatch(v); m != nil {
+			if resolved, ok := values[m[1]+"/"+m[2]]; ok {
+				return resolved
 			}
 		}
-	case []interface{}:
-		for _, child := range v {
-			substituteInTree(child, values)
+		return v
+	case map[string]interface{}:
+		for k, child := range v {
+			v[k] = substituteInTree(child, values)
 		}
+		return v
+	case []interface{}:
+		for i, child := range v {
+			v[i] = substituteInTree(child, values)
+		}
+		return v
+	default:
+		return node
 	}
 }

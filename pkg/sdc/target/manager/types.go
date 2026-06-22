@@ -29,6 +29,7 @@ type IntentInput struct {
 	Priority      int32
 	NonRevertive  bool
 	Delete        bool
+	SensitivePaths []string // keyless XPath strings from sc.Spec.SensitivePaths
 }
 
 // TransactionResult holds the analysed outcome of a TransactionSet call.

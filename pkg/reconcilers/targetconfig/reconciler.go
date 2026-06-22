@@ -231,13 +231,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// ── Change detection + intent building ────────────────────────────────────
 
-	toUpdate, toDelete, hasChange, err := r.buildIntentInputs(ctx, scList, cfgList, snapshot)
+	toUpdate, toDelete, hasChanged, err := r.buildIntentInputs(ctx, scList, cfgList, snapshot)
 	if err != nil {
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot build intent inputs", err), errUpdateStatus)
 	}
 
-	if !hasChange {
+	if !hasChanged {
 		log.Info("Transact skip, nothing to update")
 		return ctrl.Result{}, nil
 	}
@@ -368,6 +368,7 @@ func (r *reconciler) buildIntentInputs(
 			ResolvedBlobs: blobs,
 			Priority:      int32(sc.Spec.Priority),
 			NonRevertive:  sc.Spec.Revertive != nil && !*sc.Spec.Revertive,
+			SensitivePaths: sc.Spec.SensitivePaths,
 		}
 
 		// Unrecoverable from past transaction: include only if other changes exist.

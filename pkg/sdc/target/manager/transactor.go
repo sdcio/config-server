@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
@@ -113,11 +114,17 @@ func BuildGRPCIntents(
 		if err != nil {
 			return nil, fmt.Errorf("build update intent for %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
+		sensitive, err := parseSensitivePaths(inp.SensitivePaths)
+		if err != nil {
+			return nil, fmt.Errorf("intent %s: %w", config.GetGVKNSN(inp.Config), err)
+		}
+
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:       config.GetGVKNSN(inp.Config),
 			Priority:     inp.Priority,
 			Update:       update,
 			NonRevertive: inp.NonRevertive,
+			SensitivePaths: sensitive,
 		})
 	}
 
@@ -205,4 +212,31 @@ func isRecoverableGRPCError(err error) bool {
 	default:
 		return false
 	}
+}
+
+
+// parseSensitivePaths converts keyless XPath strings into sdcpb.Paths.
+// Dedupes by string and rejects key predicates — the dataserver refuses keyed
+// paths, so a '[' here means a bug upstream; fail loudly rather than ship it.
+func parseSensitivePaths(paths []string) ([]*sdcpb.Path, error) {
+    if len(paths) == 0 {
+        return nil, nil
+    }
+    seen := make(map[string]struct{}, len(paths))
+    out := make([]*sdcpb.Path, 0, len(paths))
+    for _, p := range paths {
+        if _, ok := seen[p]; ok {
+            continue
+        }
+        seen[p] = struct{}{}
+        if strings.ContainsRune(p, '[') {
+            return nil, fmt.Errorf("sensitive path %q has a key predicate; must be keyless", p)
+        }
+        sp, err := sdcpb.ParsePath(p)
+        if err != nil {
+            return nil, fmt.Errorf("parse sensitive path %q: %w", p, err)
+        }
+        out = append(out, sp)
+    }
+    return out, nil
 }

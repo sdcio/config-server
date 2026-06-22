@@ -42,6 +42,11 @@ type SensitiveConfigSpec struct {
 	// Payload contains the encrypted resolved []ConfigBlob.
 	// Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
 	Payload EncryptedPayload `json:"payload" protobuf:"bytes,7,opt,name=payload"`
+	// SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every
+	// leaf resolved from a secret. Passed to the dataserver as
+	// TransactionIntent.SensitivePaths so values are redacted northbound.
+	// Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.
+	SensitivePaths []string `json:"sensitivePaths,omitempty" protobuf:"bytes,8,rep,name=sensitivePaths"`
 }
 
 // EncryptedPayload is the common encrypted structure used by both
