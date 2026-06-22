@@ -238,6 +238,10 @@ type UnrecoverableMessage struct {
 // DedupeConditions returns conditions deduplicated by type; last value wins.
 // Needed because WithConditions is a generated append-only method and
 // cannot protect against duplicate list-map keys itself (issue #431).
+
+// dedupeConditions returns conditions deduplicated by type; last value wins.
+// This is needed because WithConditions is a generated append-only method and
+// cannot protect against duplicate list-map keys itself.
 func DedupeConditions(conds ...Condition) []Condition {
 	index := make(map[string]int, len(conds))
 	out := make([]Condition, 0, len(conds))
@@ -250,4 +254,5 @@ func DedupeConditions(conds ...Condition) []Condition {
 		}
 	}
 	return out
+}
 }

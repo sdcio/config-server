@@ -1,0 +1,28 @@
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Schema
+metadata:
+  name: ocnos-sp.ipinfusion.sdcio.dev-7.0.0
+  namespace: default
+spec:
+  provider: ocnos-sp.ipinfusion.sdcio.dev
+  version: 7.0.0
+  repositories:
+  - repoURL: https://github.com/IPInfusion/OcNOS
+    kind: branch
+    ref: OcNOS-SP-7.0.0
+    dirs:
+    - src: yang-files/ipi
+      dst: ipi
+    schema:
+      models:
+      - ipi
+  - repoURL: https://github.com/YangModels/yang
+    kind: branch
+    ref: main
+    dirs:
+    - src: standard/ietf/RFC
+      dst: ietf
+    schema:
+      includes:
+      - ietf/ietf-inet-types.yang
+      - ietf/ietf-yang-types.yang

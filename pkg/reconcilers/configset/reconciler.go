@@ -417,10 +417,10 @@ func (r *reconciler) determineOverallStatus(_ context.Context, configSet *config
 func targetStatusToApply(targets []configv1alpha1.ConfigSetTargetStatus) []*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration {
 	result := make([]*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration, 0, len(targets))
 	for _, t := range targets {
-        ac := configv1alpha1apply.ConfigSetTargetStatus().
-            WithName(t.Name)
-        ac.Condition = t.Condition  // preserve the per-target condition
-        result = append(result, ac)
-    }
-    return result
+		ac := configv1alpha1apply.ConfigSetTargetStatus().
+			WithName(t.Name)
+		ac.Condition = t.Condition
+		result = append(result, ac)
+	}
+	return result
 }

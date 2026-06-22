@@ -17,12 +17,34 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+// DeviationName returns the canonical name for a Deviation CR.
+// The convention is "<type>-<resourceName>" so that config and target
+// deviations cannot collide on the same name (see issue #437).
+func DeviationName(typ DeviationType, resourceName string) string {
+	return fmt.Sprintf("%s-%s", typ, resourceName)
+}
+
+// ParseDeviationName is the inverse of DeviationName. It returns the parsed
+// DeviationType and underlying resource name if name matches the
+// "<type>-<resourceName>" convention. ok is false when the prefix doesn't
+// match a known DeviationType.
+func ParseDeviationName(name string) (DeviationType, string, bool) {
+	for _, typ := range []DeviationType{DeviationType_CONFIG, DeviationType_TARGET} {
+		prefix := string(typ) + "-"
+		if rest, found := strings.CutPrefix(name, prefix); found && rest != "" {
+			return typ, rest, true
+		}
+	}
+	return "", "", false
+}
 
 // GetCondition returns the condition based on the condition kind
 func (r *Deviation) GetCondition(t condition.ConditionType) condition.Condition {
