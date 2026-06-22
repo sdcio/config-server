@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -37,6 +38,18 @@ type ConfigSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +listType=atomic
 	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
+	// Vars declares named variables referenced from Config blob values via the
+	// ${vars.<name>} placeholder. The controller resolves each variable and
+	// substitutes its value into the rendered configuration before it is sent to
+	// the target. Variables are the supported mechanism for injecting sensitive
+	// material: the referenced Secret value is resolved, encrypted into the
+	// SensitiveConfig payload, and every leaf it lands on is recorded as a
+	// sensitive path so the datastore redacts it in northbound responses.
+	// A Config with no variables is rendered verbatim.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Vars []ConfigVar `json:"vars" protobuf:"bytes,5,rep,name=vars"`
 }
 
 type ConfigBlob struct {
@@ -45,6 +58,25 @@ type ConfigBlob struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +structType=atomic
 	Value runtime.RawExtension `json:"value" protobuf:"bytes,2,opt,name=value"`
+}
+
+// ConfigVar is a named variable referenced from Config blob values as
+// ${vars.<name>}. The name is the merge key for the Vars list and must be
+// unique within a single Config. Exactly one value source must be set; today
+// the only source is SecretRef.
+type ConfigVar struct {
+	// Name identifies the variable for reference as ${vars.<name>}.
+	// Must be unique within the Config's Vars list.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.-]+$`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+
+	// SecretRef resolves the variable's value from a key of a Secret in the
+	// same namespace as the Config. The resolved value is never stored in
+	// clear: it is encrypted into the SensitiveConfig payload, and the leaves
+	// it is substituted into are tracked as sensitive paths.
+	// +optional
+	SecretRef *corev1.SecretKeySelector `json:"secretRef,omitempty" protobuf:"bytes,2,opt,name=secretRef"`
 }
 
 // ConfigStatus defines the observed state of Config

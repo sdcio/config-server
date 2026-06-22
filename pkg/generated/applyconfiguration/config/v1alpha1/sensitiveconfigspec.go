@@ -40,6 +40,11 @@ type SensitiveConfigSpecApplyConfiguration struct {
 	// Payload contains the encrypted resolved []ConfigBlob.
 	// Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
 	Payload *EncryptedPayloadApplyConfiguration `json:"payload,omitempty"`
+	// SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every
+	// leaf resolved from a secret. Passed to the dataserver as
+	// TransactionIntent.SensitivePaths so values are redacted northbound.
+	// Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.
+	SensitivePaths []string `json:"sensitivePaths,omitempty"`
 }
 
 // SensitiveConfigSpecApplyConfiguration constructs a declarative configuration of the SensitiveConfigSpec type for use with
@@ -107,5 +112,15 @@ func (b *SensitiveConfigSpecApplyConfiguration) WithSecretKeyHashes(entries map[
 // If called multiple times, the Payload field is set to the value of the last call.
 func (b *SensitiveConfigSpecApplyConfiguration) WithPayload(value *EncryptedPayloadApplyConfiguration) *SensitiveConfigSpecApplyConfiguration {
 	b.Payload = value
+	return b
+}
+
+// WithSensitivePaths adds the given value to the SensitivePaths field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the SensitivePaths field.
+func (b *SensitiveConfigSpecApplyConfiguration) WithSensitivePaths(values ...string) *SensitiveConfigSpecApplyConfiguration {
+	for i := range values {
+		b.SensitivePaths = append(b.SensitivePaths, values[i])
+	}
 	return b
 }

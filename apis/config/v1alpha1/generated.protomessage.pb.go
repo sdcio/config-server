@@ -55,6 +55,8 @@ func (*ConfigStatus) ProtoMessage() {}
 
 func (*ConfigStatusLastKnownGoodSchema) ProtoMessage() {}
 
+func (*ConfigVar) ProtoMessage() {}
+
 func (*Deviation) ProtoMessage() {}
 
 func (*DeviationList) ProtoMessage() {}

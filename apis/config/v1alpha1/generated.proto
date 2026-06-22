@@ -21,6 +21,7 @@ package github.com.sdcio.config_server.apis.config.v1alpha1;
 
 import "github.com/sdcio/config-server/apis/condition/v1alpha1/generated.proto";
 import "github.com/sdcio/config-server/apis/inv/v1alpha1/generated.proto";
+import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -68,6 +69,7 @@ message ConfigBlob {
   optional string config = 1;
 
   // +kubebuilder:pruning:PreserveUnknownFields
+  // +structType=atomic
   optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
@@ -171,6 +173,19 @@ message ConfigSpec {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
   repeated ConfigBlob config = 4;
+
+  // Vars declares named variables referenced from Config blob values via the
+  // ${vars.<name>} placeholder. The controller resolves each variable and
+  // substitutes its value into the rendered configuration before it is sent to
+  // the target. Variables are the supported mechanism for injecting sensitive
+  // material: the referenced Secret value is resolved, encrypted into the
+  // SensitiveConfig payload, and every leaf it lands on is recorded as a
+  // sensitive path so the datastore redacts it in northbound responses.
+  // A Config with no variables is rendered verbatim.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated ConfigVar vars = 5;
 }
 
 // ConfigStatus defines the observed state of Config
@@ -189,6 +204,25 @@ message ConfigStatusLastKnownGoodSchema {
 
   // Schema Version
   optional string version = 3;
+}
+
+// ConfigVar is a named variable referenced from Config blob values as
+// ${vars.<name>}. The name is the merge key for the Vars list and must be
+// unique within a single Config. Exactly one value source must be set; today
+// the only source is SecretRef.
+message ConfigVar {
+  // Name identifies the variable for reference as ${vars.<name>}.
+  // Must be unique within the Config's Vars list.
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.-]+$`
+  optional string name = 1;
+
+  // SecretRef resolves the variable's value from a key of a Secret in the
+  // same namespace as the Config. The resolved value is never stored in
+  // clear: it is encrypted into the SensitiveConfig payload, and the leaves
+  // it is substituted into are tracked as sensitive paths.
+  // +optional
+  optional .k8s.io.api.core.v1.SecretKeySelector secretRef = 2;
 }
 
 // Deviation is the Schema for the Deviation API
@@ -340,6 +374,12 @@ message SensitiveConfigSpec {
   // Payload contains the encrypted resolved []ConfigBlob.
   // Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
   optional EncryptedPayload payload = 7;
+
+  // SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every
+  // leaf resolved from a secret. Passed to the dataserver as
+  // TransactionIntent.SensitivePaths so values are redacted northbound.
+  // Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.
+  repeated string sensitivePaths = 8;
 }
 
 // Target is the Schema for the Target API

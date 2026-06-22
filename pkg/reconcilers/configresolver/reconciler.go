@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -66,6 +65,11 @@ const (
 	reconcilerName        = "SensitiveResolverController"
 	finalizer             = "sensitiveresolver.config.sdcio.dev/finalizer"
 	refLabelPrefix        = "config.sdcio.dev/ref."
+	// varMarker is the opening token of a variable reference. A leaf value is a
+	// reference only when it is EXACTLY "${vars.<name>}" (exact-match mode); a
+	// value that merely contains the marker but is not an exact reference is
+	// rejected (see leafResolver.resolveLeaf) rather than shipped verbatim.
+	varMarker = "${vars."
 	// requeue delay when secrets are unavailable — Secret watch won't help
 	// if SensitiveConfig doesn't exist yet (no ref labels set)
 	requeueOnResolutionFailure = 30 * time.Second
@@ -73,8 +77,6 @@ const (
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
 )
-
-var secretRefPattern = regexp.MustCompile(`^secret::([^:]+)::(.+)$`)
 
 // ── Change detection ───────────────────────────────────────────────────────────
 
@@ -256,37 +258,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Covers: configChanged, secretChanged, or both (+ possible concurrent keyringChanged).
 	// r.keyring.Encrypt always uses the primary key, so a concurrent keyring
 	// rotation is handled automatically during resolution.
-	//
-	// One walk yields both: the unique refs to fetch and the unique, sorted,
-	// keyless leaf paths to hand the dataserver as TransactionIntent.SensitivePaths.
-	locs, err := collectSecretLocations(cfgOrig.Spec.Config)
-	if err != nil {
-		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot collect secret locations", err), errUpdateStatus)
-	}
-	refs, sensitivePaths := dedupe(locs)
 
-	// GetHash hashes only the ConfigSpec — defined in config_helpers.go
+	// GetHash hashes the ConfigSpec — defined in config_helpers.go.
+	// IMPORTANT: it MUST hash spec.Vars as well as spec.Config, otherwise a
+	// change to a var's secretRef (different secret/key) with unchanged blobs
+	// is invisible to change detection and the new secret is never picked up.
 	configHash, err := cfgOrig.Spec.GetHash()
 	if err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot hash config blobs", err), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot hash config", err), errUpdateStatus)
 	}
 
-	// Pre-fetched secrets from detectChange are reused here to avoid double-fetching.
-	payload, secretKeyHashes, err := r.buildPayload(ctx, cfgOrig, refs, fetched)
+	// Single pass: fetch the declared variables' secrets, then walk the blobs
+	// once — substituting ${vars.<name>} placeholders and capturing the keyless
+	// SensitivePaths in the same traversal. Pre-fetched secrets from detectChange
+	// are reused to avoid double-fetching.
+	out, err := r.resolveConfig(ctx, cfgOrig, fetched)
 	if err != nil {
-		// Resolution failed: secret missing, key missing, or encryption error.
-		// Set Resolver condition so the user sees the problem immediately.
-		// Do NOT update SensitiveConfig — preserve the last known good resolved state
-		// so the remote controller continues operating on valid data.
-		// RequeueAfter ensures retry even when no Secret event fires
-		// (e.g. the secret still needs to be created from scratch).
-		_ = r.handleError(ctx, cfgOrig, "cannot resolve secrets", err)
+		// Resolution failed: a referenced variable is undefined/unresolved, an
+		// interpolation was attempted (not yet supported), or encryption failed.
+		// Surface a Resolver condition and preserve the last good SC; the Config
+		// and Secret watches re-trigger, and the requeue is a safety net.
+		_ = r.handleError(ctx, cfgOrig, "cannot resolve config", err)
 		return ctrl.Result{RequeueAfter: requeueOnResolutionFailure}, nil
 	}
 
-	if err := r.save(ctx, cfgOrig, payload, configHash, secretKeyHashes, refs, sensitivePaths, change); err != nil {
+	if err := r.save(ctx, cfgOrig, out, configHash, change); err != nil {
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot save SensitiveConfig", err), errUpdateStatus)
 	}
@@ -298,7 +295,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // detectChange evaluates all three criteria without early exit.
 // Returns the full picture for accurate per-dimension annotations.
-// Also returns pre-fetched secrets to avoid double-fetching in buildPayload.
+// Also returns pre-fetched secrets to avoid double-fetching in resolveConfig.
 func (r *reconciler) detectChange(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
@@ -316,11 +313,12 @@ func (r *reconciler) detectChange(
 	// 1. Keyring: always check — no API call needed.
 	result.keyringChanged = r.keyring.NeedsReencryption(existing.Spec.Payload)
 
-	// 2. Config blobs hash: detects any structural change — new/removed refs,
-	//    changed paths, changed non-secret values.
+	// 2. Config hash: detects any structural change — added/removed/changed
+	//    placeholders, changed paths, changed non-secret values, and (provided
+	//    GetHash covers spec.Vars) any change to a variable's secretRef.
 	currentConfigHash, err := cfg.Spec.GetHash()
 	if err != nil {
-		return result, nil, fmt.Errorf("hash config blobs: %w", err)
+		return result, nil, fmt.Errorf("hash config: %w", err)
 	}
 	result.configChanged = currentConfigHash != existing.Spec.ConfigHash
 
@@ -360,7 +358,7 @@ func (r *reconciler) detectChange(
 
 func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.SensitiveConfig) error {
 	if len(sc.Spec.Payload.Data) == 0 {
-		// Nothing to re-encrypt (no-secret-refs entry).
+		// Nothing to re-encrypt (no-payload entry).
 		return nil
 	}
 	plain, err := r.keyring.Decrypt(sc.Spec.Payload)
@@ -382,102 +380,266 @@ func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.Sensitive
 	return r.client.Update(ctx, sc)
 }
 
-// ── buildPayload ──────────────────────────────────────────────────────────────
+// ── Resolution (fetch + single walk) ───────────────────────────────────────────
 
-// buildPayload resolves secrets and encrypts the result.
-// Accepts pre-fetched secrets from detectChange to avoid double-fetching.
-// Returns the encrypted payload and per-key hashes for future change detection.
-func (r *reconciler) buildPayload(
-	ctx context.Context,
-	cfg *configv1alpha1.Config,
-	refs []SecretRef,
-	fetched map[string]*corev1.Secret,
-) (configv1alpha1.EncryptedPayload, map[string]string, error) {
-	if len(refs) == 0 {
-		// No secret refs, but we still encrypt so the snapshot is self-contained.
-		// Without this, recovery would fall back to cfg.Spec.Config which may
-		// have changed since the snapshot was taken (issue: stale recovery state).
-		raw, err := json.Marshal(cfg.Spec.Config)
-		if err != nil {
-			return configv1alpha1.EncryptedPayload{}, nil, err
-		}
-		plainHash := sha256hex(raw)
-		payload, err := r.keyring.Encrypt(raw)
-		if err != nil {
-			return configv1alpha1.EncryptedPayload{}, nil, err
-		}
-		payload.PlainHash = plainHash
-		return payload, nil, nil
-	}
-
-	resolvedData, plainHash, secretKeyHashes, err := r.resolve(ctx, cfg, refs, fetched)
-	if err != nil {
-		return configv1alpha1.EncryptedPayload{}, nil, err
-	}
-
-	payload, err := r.keyring.Encrypt(resolvedData)
-	if err != nil {
-		return configv1alpha1.EncryptedPayload{}, nil, err
-	}
-	payload.PlainHash = plainHash
-	return payload, secretKeyHashes, nil
+// resolveOutput is everything a successful resolution produces.
+type resolveOutput struct {
+	payload         configv1alpha1.EncryptedPayload
+	secretKeyHashes map[string]string // secretName/keyName → hash (change detection)
+	sensitivePaths  []string          // keyless leaf paths handed to the dataserver
+	secretNames     []string          // declared secret deps (for ref labels / watch)
 }
 
-// ── resolve ───────────────────────────────────────────────────────────────────
-
-// resolve fetches any secrets not already in fetched, substitutes all refs,
-// and returns the marshaled resolved blobs, their hash, and per-key hashes.
-func (r *reconciler) resolve(
+// resolveConfig fetches the declared variables' secrets, walks the blobs once to
+// substitute ${vars.<name>} placeholders and capture the keyless SensitivePaths,
+// then encrypts the result. Pre-fetched secrets are reused.
+func (r *reconciler) resolveConfig(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
-	refs []SecretRef,
 	fetched map[string]*corev1.Secret,
-) (data []byte, plainHash string, secretKeyHashes map[string]string, err error) {
-	secretValues := make(map[string]string)
-	secretKeyHashes = make(map[string]string)
+) (resolveOutput, error) {
+	lr, secretKeyHashes, secretNames, err := r.buildLeafResolver(ctx, cfg, fetched)
+	if err != nil {
+		return resolveOutput{}, err
+	}
 
-	for _, ref := range refs {
-		if _, ok := fetched[ref.SecretName]; !ok {
-			secret := &corev1.Secret{}
-			if err = r.apiReader.Get(ctx,
-				types.NamespacedName{Name: ref.SecretName, Namespace: cfg.Namespace},
-				secret,
-			); err != nil {
-				if resource.IgnoreNotFound(err) == nil {
-					// Clear, actionable message for the user.
-					return nil, "", nil, fmt.Errorf(
-						"secret %q not found in namespace %q — create the secret to resolve this config",
-						ref.SecretName, cfg.Namespace,
-					)
-				}
-				return nil, "", nil, fmt.Errorf("fetch secret %q: %w", ref.SecretName, err)
-			}
-			fetched[ref.SecretName] = secret
+	resolvedBlobs, sensitivePaths, err := lr.substituteBlobs(cfg.Spec.Config)
+	if err != nil {
+		return resolveOutput{}, err
+	}
+
+	// Always encrypt the resolved blobs — even with no variables — so the
+	// payload is a self-contained snapshot for crash recovery.
+	data, err := json.Marshal(resolvedBlobs)
+	if err != nil {
+		return resolveOutput{}, err
+	}
+	plainHash := sha256hex(data)
+	payload, err := r.keyring.Encrypt(data)
+	if err != nil {
+		return resolveOutput{}, err
+	}
+	payload.PlainHash = plainHash
+
+	return resolveOutput{
+		payload:         payload,
+		secretKeyHashes: secretKeyHashes,
+		sensitivePaths:  sensitivePaths,
+		secretNames:     secretNames,
+	}, nil
+}
+
+// buildLeafResolver fetches the Secret behind every declared secret-backed
+// variable and returns a leafResolver, per-key hashes for change detection, and
+// the secret names for dependency labels.
+//
+// A missing secret or key is recorded per variable rather than failing here: an
+// unresolved variable only fails the reconcile if it is actually referenced
+// (decided during the walk via resolveLeaf). This lets a declared-but-unused
+// variable whose secret does not exist yet pass through. A non-NotFound API
+// error is fatal — it is transient and worth a requeue.
+func (r *reconciler) buildLeafResolver(
+	ctx context.Context,
+	cfg *configv1alpha1.Config,
+	fetched map[string]*corev1.Secret,
+) (*leafResolver, map[string]string, []string, error) {
+	lr := &leafResolver{
+		values:     map[string]string{},
+		unresolved: map[string]error{},
+	}
+	secretKeyHashes := map[string]string{}
+	var secretNames []string
+	seenSecret := map[string]struct{}{}
+
+	for i := range cfg.Spec.Vars {
+		v := cfg.Spec.Vars[i]
+		if v.SecretRef == nil {
+			lr.unresolved[v.Name] = fmt.Errorf("variable has no secretRef")
+			continue
+		}
+		sName, sKey := v.SecretRef.Name, v.SecretRef.Key
+		if _, ok := seenSecret[sName]; !ok {
+			seenSecret[sName] = struct{}{}
+			secretNames = append(secretNames, sName)
 		}
 
-		val, ok := fetched[ref.SecretName].Data[ref.SecretKey]
+		secret, ok := fetched[sName]
 		if !ok {
-			// Secret exists but the referenced key is absent.
-			return nil, "", nil, fmt.Errorf(
-				"secret %q exists but has no key %q — add the missing key to resolve this config",
-				ref.SecretName, ref.SecretKey,
-			)
+			secret = &corev1.Secret{}
+			if err := r.apiReader.Get(ctx,
+				types.NamespacedName{Name: sName, Namespace: cfg.Namespace}, secret); err != nil {
+				if resource.IgnoreNotFound(err) == nil {
+					lr.unresolved[v.Name] = fmt.Errorf(
+						"secret %q not found in namespace %q — create the secret to resolve this variable",
+						sName, cfg.Namespace)
+					continue
+				}
+				return nil, nil, nil, fmt.Errorf("variable %q: fetch secret %q: %w", v.Name, sName, err)
+			}
+			fetched[sName] = secret
 		}
 
-		refKey := ref.SecretName + "/" + ref.SecretKey
-		secretValues[refKey] = string(val)
-		secretKeyHashes[refKey] = sha256hex(val) // hash of the specific key value only
+		val, ok := secret.Data[sKey]
+		if !ok {
+			lr.unresolved[v.Name] = fmt.Errorf(
+				"secret %q has no key %q — add the missing key to resolve this variable", sName, sKey)
+			continue
+		}
+
+		lr.values[v.Name] = string(val)
+		secretKeyHashes[sName+"/"+sKey] = sha256hex(val)
 	}
 
-	resolved, err := substituteRefs(cfg.Spec.Config, secretValues)
-	if err != nil {
-		return nil, "", nil, err
+	return lr, secretKeyHashes, secretNames, nil
+}
+
+// leafResolver decides, for a single string leaf, what its resolved value is and
+// whether it is secret-derived. It is the seam between the exact-match engine and
+// the tree walk: swapping resolveLeaf (and exactVarName) for a CEL evaluator
+// later leaves the walk, path capture, and substitution plumbing untouched.
+type leafResolver struct {
+	values     map[string]string // varName → resolved value (successfully resolved only)
+	unresolved map[string]error  // varName → why it could not be resolved
+}
+
+// resolveLeaf returns the resolved value, whether the leaf is secret-derived
+// (→ sensitive path), and an error for an unresolved or invalid reference.
+//
+// Exact-match contract: a leaf is a reference only when it is EXACTLY
+// "${vars.<name>}". A value that merely contains the marker (interpolation
+// attempt, multiple placeholders, malformed) is rejected rather than shipped
+// verbatim — that is the guard that keeps exact-match from silently leaking
+// unresolved placeholders to the device.
+func (lr *leafResolver) resolveLeaf(s string) (string, bool, error) {
+	name := exactVarName(s)
+	if name == "" {
+		if strings.Contains(s, varMarker) {
+			return "", false, fmt.Errorf(
+				"value %q: only an exact %s<name>} reference is supported "+
+					"(interpolation and expressions are not yet available)", s, varMarker)
+		}
+		return s, false, nil // plain literal
 	}
-	data, err = json.Marshal(resolved)
-	if err != nil {
-		return nil, "", nil, err
+	if val, ok := lr.values[name]; ok {
+		return val, true, nil
 	}
-	return data, sha256hex(data), secretKeyHashes, nil
+	if reason, ok := lr.unresolved[name]; ok {
+		return "", false, fmt.Errorf("variable %q: %w", name, reason)
+	}
+	return "", false, fmt.Errorf("undefined variable %s%s}", varMarker, name)
+}
+
+// exactVarName returns the variable name when s is exactly "${vars.<name>}"
+// (whole value, single placeholder, valid name), else "".
+func exactVarName(s string) string {
+	if !strings.HasPrefix(s, varMarker) || !strings.HasSuffix(s, "}") {
+		return ""
+	}
+	name := s[len(varMarker) : len(s)-1]
+	if name == "" || !isValidVarName(name) {
+		return ""
+	}
+	return name
+}
+
+// isValidVarName matches the ConfigVar.Name CRD pattern ^[a-zA-Z0-9_.-]+$.
+// It also rejects names containing '}' or '$', so "${vars.a}${vars.b}" is not
+// mistaken for a single reference (it falls through to the interpolation guard).
+func isValidVarName(name string) bool {
+	for _, c := range name {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '_' || c == '.' || c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// substituteBlobs walks each blob value once, substituting placeholders and
+// capturing the unique, sorted, keyless sensitive paths.
+func (lr *leafResolver) substituteBlobs(blobs []configv1alpha1.ConfigBlob) ([]configv1alpha1.ConfigBlob, []string, error) {
+	out := make([]configv1alpha1.ConfigBlob, len(blobs))
+	seen := map[string]struct{}{}
+	var sensitivePaths []string
+
+	for i, blob := range blobs {
+		prefix, err := keylessXPath(blob.Path)
+		if err != nil {
+			return nil, nil, fmt.Errorf("blob[%d] path %q: %w", i, blob.Path, err)
+		}
+		var tree interface{}
+		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
+			return nil, nil, fmt.Errorf("blob[%d] unmarshal: %w", i, err)
+		}
+
+		var paths []string
+		newTree, err := substituteAndCapture(tree, prefix, lr, &paths)
+		if err != nil {
+			return nil, nil, fmt.Errorf("blob[%d]: %w", i, err)
+		}
+		for _, p := range paths {
+			if _, ok := seen[p]; !ok {
+				seen[p] = struct{}{}
+				sensitivePaths = append(sensitivePaths, p)
+			}
+		}
+
+		raw, err := json.Marshal(newTree)
+		if err != nil {
+			return nil, nil, fmt.Errorf("blob[%d] marshal: %w", i, err)
+		}
+		out[i] = configv1alpha1.ConfigBlob{Path: blob.Path, Value: runtime.RawExtension{Raw: raw}}
+	}
+
+	sort.Strings(sensitivePaths)
+	return out, sensitivePaths, nil
+}
+
+// substituteAndCapture is the single walk: it substitutes every string leaf via
+// resolveLeaf and records the keyless path of each secret-derived leaf, in one
+// pass. Descending into an array contributes nothing to the path (list /
+// leaf-list keys are wildcarded), the keyless form the dataserver requires.
+func substituteAndCapture(node interface{}, path string, lr *leafResolver, paths *[]string) (interface{}, error) {
+	switch v := node.(type) {
+	case string:
+		newVal, sensitive, err := lr.resolveLeaf(v)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", pathLabel(path), err)
+		}
+		if sensitive && path != "" {
+			*paths = append(*paths, path)
+		}
+		return newVal, nil
+	case map[string]interface{}:
+		for k, child := range v {
+			nv, err := substituteAndCapture(child, path+"/"+k, lr, paths)
+			if err != nil {
+				return nil, err
+			}
+			v[k] = nv
+		}
+		return v, nil
+	case []interface{}:
+		for i, child := range v {
+			nv, err := substituteAndCapture(child, path, lr, paths) // array level = keyless wildcard
+			if err != nil {
+				return nil, err
+			}
+			v[i] = nv
+		}
+		return v, nil
+	default:
+		return node, nil
+	}
+}
+
+func pathLabel(p string) string {
+	if p == "" {
+		return "(root)"
+	}
+	return p
 }
 
 // ── save ──────────────────────────────────────────────────────────────────────
@@ -485,19 +647,16 @@ func (r *reconciler) resolve(
 func (r *reconciler) save(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
-	payload configv1alpha1.EncryptedPayload,
+	out resolveOutput,
 	configHash string,
-	secretKeyHashes map[string]string,
-	refs []SecretRef,
-	sensitivePaths []string,
 	change changeResult,
 ) error {
 	labels := map[string]string{
 		config.TargetNamespaceKey: cfg.Labels[config.TargetNamespaceKey],
 		config.TargetNameKey:      cfg.Labels[config.TargetNameKey],
 	}
-	for _, ref := range refs {
-		labels[refLabelPrefix+ref.SecretName] = "true"
+	for _, sn := range out.secretNames {
+		labels[refLabelPrefix+sn] = "true"
 	}
 
 	desired := &configv1alpha1.SensitiveConfig{
@@ -522,9 +681,9 @@ func (r *reconciler) save(
 			Priority:        int64(cfg.Spec.Priority),
 			Revertive:       cfg.Spec.Revertive,
 			ConfigHash:      configHash,
-			SecretKeyHashes: secretKeyHashes,
-			Payload:         payload,
-			SensitivePaths:  sensitivePaths,
+			SecretKeyHashes: out.secretKeyHashes,
+			Payload:         out.payload,
+			SensitivePaths:  out.sensitivePaths,
 		},
 	}
 
@@ -601,7 +760,7 @@ func (r *reconciler) mapSecretToConfigs(ctx context.Context, obj client.Object) 
 		}, cfg); err != nil {
 			continue
 		}
-		if configReferencesSecret(cfg.Spec.Config, obj.GetName()) {
+		if configReferencesSecret(cfg, obj.GetName()) {
 			reqs = append(reqs, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      sc.Name,
@@ -646,38 +805,15 @@ func splitRefKey(refKey string) (secretName, keyName string, err error) {
 	return parts[0], parts[1], nil
 }
 
-// configReferencesSecret returns true when any blob contains a secret::name::*
-// reference for the given secretName. Used for stale-label detection.
-func configReferencesSecret(blobs []configv1alpha1.ConfigBlob, secretName string) bool {
-	for _, blob := range blobs {
-		var tree interface{}
-		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
-			continue
-		}
-		if treeReferencesSecret(tree, secretName) {
+// configReferencesSecret returns true when any variable's secretRef targets the
+// given Secret name. Used for stale-label detection on the Secret watch: if the
+// var (and thus the dependency) was removed from the spec, the SC is no longer
+// requeued for that Secret. Over-triggering (a defined-but-unreferenced var) is
+// harmless — the reconcile is a no-op.
+func configReferencesSecret(cfg *configv1alpha1.Config, secretName string) bool {
+	for i := range cfg.Spec.Vars {
+		if ref := cfg.Spec.Vars[i].SecretRef; ref != nil && ref.Name == secretName {
 			return true
-		}
-	}
-	return false
-}
-
-func treeReferencesSecret(node interface{}, secretName string) bool {
-	switch v := node.(type) {
-	case string:
-		if m := secretRefPattern.FindStringSubmatch(v); m != nil {
-			return m[1] == secretName
-		}
-	case map[string]interface{}:
-		for _, child := range v {
-			if treeReferencesSecret(child, secretName) {
-				return true
-			}
-		}
-	case []interface{}:
-		for _, child := range v {
-			if treeReferencesSecret(child, secretName) {
-				return true
-			}
 		}
 	}
 	return false
@@ -686,63 +822,6 @@ func treeReferencesSecret(node interface{}, secretName string) bool {
 func sha256hex(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
-}
-
-// ── Secret ref parsing + substitution ─────────────────────────────────────────
-
-// SecretRef is a parsed secret::name::key reference.
-type SecretRef struct {
-	SecretName string
-	SecretKey  string
-}
-
-// secretLocation is a secret ref found at a specific keyless leaf path.
-// Path is blob-prefixed and free of key predicates, e.g. "/interfaces/hash".
-type secretLocation struct {
-	Path string
-	Ref  SecretRef
-}
-
-// collectSecretLocations walks every blob value tree and records each
-// secret::name::key reference together with the keyless XPath of the leaf
-// that holds it. The blob's own Path is stripped of key predicates and used as
-// the prefix; descending into an array contributes nothing to the path (list /
-// leaf-list keys are wildcarded), which is exactly the keyless form the
-// dataserver requires for TransactionIntent.SensitivePaths.
-func collectSecretLocations(blobs []configv1alpha1.ConfigBlob) ([]secretLocation, error) {
-	var locs []secretLocation
-	for i, blob := range blobs {
-		prefix, err := keylessXPath(blob.Path)
-		if err != nil {
-			return nil, fmt.Errorf("blob[%d] path %q: %w", i, blob.Path, err)
-		}
-		var tree interface{}
-		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
-			return nil, fmt.Errorf("blob[%d] unmarshal: %w", i, err)
-		}
-		walkLocations(tree, prefix, &locs)
-	}
-	return locs, nil
-}
-
-func walkLocations(node interface{}, path string, out *[]secretLocation) {
-	switch v := node.(type) {
-	case string:
-		if m := secretRefPattern.FindStringSubmatch(v); m != nil {
-			*out = append(*out, secretLocation{
-				Path: path,
-				Ref:  SecretRef{SecretName: m[1], SecretKey: m[2]},
-			})
-		}
-	case map[string]interface{}:
-		for k, child := range v {
-			walkLocations(child, path+"/"+k, out)
-		}
-	case []interface{}:
-		for _, child := range v {
-			walkLocations(child, path, out) // array level = keyless wildcard
-		}
-	}
 }
 
 // keylessXPath parses an xpath and re-renders it without any key predicates.
@@ -762,77 +841,4 @@ func keylessXPath(p string) (string, error) {
 		b.WriteString(e.GetName())
 	}
 	return b.String(), nil
-}
-
-// dedupe collapses locations into the unique secret refs (for fetching) and the
-// unique, sorted, keyless paths (for the intent). Sorting keeps the stored slice
-// stable across reconciles so it doesn't churn SSA / object diffs.
-func dedupe(locs []secretLocation) (refs []SecretRef, paths []string) {
-	seenRef := map[string]struct{}{}
-	seenPath := map[string]struct{}{}
-	for _, l := range locs {
-		rk := l.Ref.SecretName + "/" + l.Ref.SecretKey
-		if _, ok := seenRef[rk]; !ok {
-			seenRef[rk] = struct{}{}
-			refs = append(refs, l.Ref)
-		}
-		if l.Path == "" {
-			continue // root-level bare string: no meaningful leaf path
-		}
-		if _, ok := seenPath[l.Path]; !ok {
-			seenPath[l.Path] = struct{}{}
-			paths = append(paths, l.Path)
-		}
-	}
-	sort.Strings(paths)
-	return refs, paths
-}
-
-func substituteRefs(blobs []configv1alpha1.ConfigBlob, values map[string]string) ([]configv1alpha1.ConfigBlob, error) {
-	result := make([]configv1alpha1.ConfigBlob, len(blobs))
-	for i, blob := range blobs {
-		var tree interface{}
-		if err := json.Unmarshal(blob.Value.Raw, &tree); err != nil {
-			return nil, fmt.Errorf("blob[%d] unmarshal: %w", i, err)
-		}
-		tree = substituteInTree(tree, values)
-		raw, err := json.Marshal(tree)
-		if err != nil {
-			return nil, fmt.Errorf("blob[%d] marshal: %w", i, err)
-		}
-		result[i] = configv1alpha1.ConfigBlob{
-			Path:  blob.Path,
-			Value: runtime.RawExtension{Raw: raw},
-		}
-	}
-	return result, nil
-}
-
-// substituteInTree replaces every secret::name::key string leaf with its
-// resolved value and returns the (possibly replaced) node. It is return-based
-// and symmetric with walkLocations: string leaves are handled at any depth —
-// map values, array elements, and the root — so refs inside arrays of strings
-// (leaf-lists) are substituted too.
-func substituteInTree(node interface{}, values map[string]string) interface{} {
-	switch v := node.(type) {
-	case string:
-		if m := secretRefPattern.FindStringSubmatch(v); m != nil {
-			if resolved, ok := values[m[1]+"/"+m[2]]; ok {
-				return resolved
-			}
-		}
-		return v
-	case map[string]interface{}:
-		for k, child := range v {
-			v[k] = substituteInTree(child, values)
-		}
-		return v
-	case []interface{}:
-		for i, child := range v {
-			v[i] = substituteInTree(child, values)
-		}
-		return v
-	default:
-		return node
-	}
 }

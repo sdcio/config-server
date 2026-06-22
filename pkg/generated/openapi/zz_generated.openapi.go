@@ -52,6 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                        schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                      schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema":   schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar":                         schema_config_server_apis_config_v1alpha1_ConfigVar(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation":                         schema_config_server_apis_config_v1alpha1_Deviation(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationList":                     schema_config_server_apis_config_v1alpha1_DeviationList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec":                     schema_config_server_apis_config_v1alpha1_DeviationSpec(ref),
@@ -1212,12 +1213,34 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"vars": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Vars declares named variables referenced from Config blob values via the ${vars.<name>} placeholder. The controller resolves each variable and substitutes its value into the rendered configuration before it is sent to the target. Variables are the supported mechanism for injecting sensitive material: the referenced Secret value is resolved, encrypted into the SensitiveConfig payload, and every leaf it lands on is recorded as a sensitive path so the datastore redacts it in northbound responses. A Config with no variables is rendered verbatim.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"config"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
 	}
 }
 
@@ -1288,6 +1311,36 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(r
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigVar(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigVar is a named variable referenced from Config blob values as ${vars.<name>}. The name is the merge key for the Vars list and must be unique within a single Config. Exactly one value source must be set; today the only source is SecretRef.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name identifies the variable for reference as ${vars.<name>}. Must be unique within the Config's Vars list.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretRef resolves the variable's value from a key of a Secret in the same namespace as the Config. The resolved value is never stored in clear: it is encrypted into the SensitiveConfig payload, and the leaves it is substituted into are tracked as sensitive paths.",
+							Ref:         ref(v1.SecretKeySelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			v1.SecretKeySelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -1902,6 +1955,21 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref common.Re
 							Description: "Payload contains the encrypted resolved []ConfigBlob. Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.EncryptedPayload"),
+						},
+					},
+					"sensitivePaths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every leaf resolved from a secret. Passed to the dataserver as TransactionIntent.SensitivePaths so values are redacted northbound. Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},

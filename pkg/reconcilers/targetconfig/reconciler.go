@@ -59,7 +59,7 @@ const (
 	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
 	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
+	//errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
 )
 
@@ -418,7 +418,7 @@ func (r *reconciler) buildIntentInputs(
 
 // getResolvedBlobs returns the resolved ConfigBlobs as the internal type
 // so they can be passed directly to config.GetIntentUpdateFromBlobs.
-func (r *reconciler) getResolvedBlobs(ctx context.Context, sc *configv1alpha1.SensitiveConfig) ([]config.ConfigBlob, error) {
+func (r *reconciler) getResolvedBlobs(_ context.Context, sc *configv1alpha1.SensitiveConfig) ([]config.ConfigBlob, error) {
 	plain, err := r.keyring.Decrypt(sc.Spec.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("decrypt SC %s: %w", sc.Name, err)
@@ -562,7 +562,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 	return nil
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error) error {
+func (r *reconciler) handleError(ctx context.Context, _ *configv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 	if err != nil {
 		msg = fmt.Sprintf("%q err %q", msg, err.Error())

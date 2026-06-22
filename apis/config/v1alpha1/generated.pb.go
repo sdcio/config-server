@@ -24,6 +24,7 @@ import (
 	io "io"
 	"sort"
 
+	v11 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	math_bits "math/bits"
@@ -64,6 +65,8 @@ func (m *ConfigSpec) Reset() { *m = ConfigSpec{} }
 func (m *ConfigStatus) Reset() { *m = ConfigStatus{} }
 
 func (m *ConfigStatusLastKnownGoodSchema) Reset() { *m = ConfigStatusLastKnownGoodSchema{} }
+
+func (m *ConfigVar) Reset() { *m = ConfigVar{} }
 
 func (m *Deviation) Reset() { *m = Deviation{} }
 
@@ -778,6 +781,20 @@ func (m *ConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Vars) > 0 {
+		for iNdEx := len(m.Vars) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Vars[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
 	if len(m.Config) > 0 {
 		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -886,6 +903,46 @@ func (m *ConfigStatusLastKnownGoodSchema) MarshalToSizedBuffer(dAtA []byte) (int
 	i -= len(m.Type)
 	copy(dAtA[i:], m.Type)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Type)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ConfigVar) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ConfigVar) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ConfigVar) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.SecretRef != nil {
+		{
+			size, err := m.SecretRef.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -1469,6 +1526,15 @@ func (m *SensitiveConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.SensitivePaths) > 0 {
+		for iNdEx := len(m.SensitivePaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SensitivePaths[iNdEx])
+			copy(dAtA[i:], m.SensitivePaths[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SensitivePaths[iNdEx])))
+			i--
+			dAtA[i] = 0x42
+		}
+	}
 	{
 		size, err := m.Payload.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -2545,6 +2611,12 @@ func (m *ConfigSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if len(m.Vars) > 0 {
+		for _, e := range m.Vars {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -2571,6 +2643,21 @@ func (m *ConfigStatusLastKnownGoodSchema) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Version)
 	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *ConfigVar) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.SecretRef != nil {
+		l = m.SecretRef.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -2802,6 +2889,12 @@ func (m *SensitiveConfigSpec) Size() (n int) {
 	}
 	l = m.Payload.Size()
 	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.SensitivePaths) > 0 {
+		for _, s := range m.SensitivePaths {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -3279,11 +3372,17 @@ func (this *ConfigSpec) String() string {
 		repeatedStringForConfig += strings.Replace(strings.Replace(f.String(), "ConfigBlob", "ConfigBlob", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForConfig += "}"
+	repeatedStringForVars := "[]ConfigVar{"
+	for _, f := range this.Vars {
+		repeatedStringForVars += strings.Replace(strings.Replace(f.String(), "ConfigVar", "ConfigVar", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForVars += "}"
 	s := strings.Join([]string{`&ConfigSpec{`,
 		`Lifecycle:` + strings.Replace(this.Lifecycle.String(), "Lifecycle", "Lifecycle", 1) + `,`,
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
 		`Config:` + repeatedStringForConfig + `,`,
+		`Vars:` + repeatedStringForVars + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3306,6 +3405,17 @@ func (this *ConfigStatusLastKnownGoodSchema) String() string {
 		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
 		`Vendor:` + fmt.Sprintf("%v", this.Vendor) + `,`,
 		`Version:` + fmt.Sprintf("%v", this.Version) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ConfigVar) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ConfigVar{`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`SecretRef:` + strings.Replace(fmt.Sprintf("%v", this.SecretRef), "SecretKeySelector", "v11.SecretKeySelector", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3499,6 +3609,7 @@ func (this *SensitiveConfigSpec) String() string {
 		`ConfigHash:` + fmt.Sprintf("%v", this.ConfigHash) + `,`,
 		`SecretKeyHashes:` + mapStringForSecretKeyHashes + `,`,
 		`Payload:` + strings.Replace(strings.Replace(this.Payload.String(), "EncryptedPayload", "EncryptedPayload", 1), `&`, ``, 1) + `,`,
+		`SensitivePaths:` + fmt.Sprintf("%v", this.SensitivePaths) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5603,6 +5714,40 @@ func (m *ConfigSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Vars", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Vars = append(m.Vars, ConfigVar{})
+			if err := m.Vars[len(m.Vars)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -5831,6 +5976,124 @@ func (m *ConfigStatusLastKnownGoodSchema) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Version = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ConfigVar) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ConfigVar: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ConfigVar: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecretRef", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SecretRef == nil {
+				m.SecretRef = &v11.SecretKeySelector{}
+			}
+			if err := m.SecretRef.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -7802,6 +8065,38 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 			if err := m.Payload.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SensitivePaths", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SensitivePaths = append(m.SensitivePaths, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -516,7 +516,7 @@ func (t *TargetRuntime) getLastErr() error {
 	return t.lastError
 }
 
-func (t *TargetRuntime) setDSReady(_ctx context.Context, ready bool, err error) {
+func (t *TargetRuntime) setDSReady(_ context.Context, ready bool, err error) {
 	t.actualMu.Lock()
 	defer t.actualMu.Unlock()
 	t.dsReady = ready
@@ -530,7 +530,7 @@ func (t *TargetRuntime) setDSReady(_ctx context.Context, ready bool, err error) 
 	}
 }
 
-func (t *TargetRuntime) setPhase(_ctx context.Context, p TargetPhase, err error) {
+func (t *TargetRuntime) setPhase(_ context.Context, p TargetPhase, err error) {
 	t.actualMu.Lock()
 	defer t.actualMu.Unlock()
 	t.phase = p

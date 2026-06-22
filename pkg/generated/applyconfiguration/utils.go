@@ -57,6 +57,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.ConfigSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigStatus"):
 		return &configv1alpha1.ConfigStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConfigVar"):
+		return &configv1alpha1.ConfigVarApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Deviation"):
 		return &configv1alpha1.DeviationApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("DeviationSpec"):
