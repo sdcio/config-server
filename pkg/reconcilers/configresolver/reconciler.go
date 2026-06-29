@@ -304,7 +304,7 @@ func (r *reconciler) detectChange(
 ) (changeResult, map[string]*corev1.Secret, error) {
 	if !hasExisting {
 		// First time or externally deleted — full resolution required.
-		return changeResult{configChanged: true}, nil, nil
+		return changeResult{configChanged: true}, make(map[string]*corev1.Secret), nil
 	}
 
 	result := changeResult{}
@@ -443,6 +443,9 @@ func (r *reconciler) buildLeafResolver(
 	cfg *configv1alpha1.Config,
 	fetched map[string]*corev1.Secret,
 ) (*leafResolver, map[string]string, []string, error) {
+	if fetched == nil {
+		fetched = make(map[string]*corev1.Secret)
+	}
 	lr := &leafResolver{
 		values:     map[string]string{},
 		unresolved: map[string]error{},

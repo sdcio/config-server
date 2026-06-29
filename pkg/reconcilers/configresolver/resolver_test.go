@@ -434,6 +434,19 @@ func newTestReconciler(t *testing.T, kr *keyring.KeyRing, objs ...client.Object)
 func Test_buildLeafResolver(t *testing.T) {
 	ctx := context.Background()
 
+	t.Run("nil fetched map is initialized", func(t *testing.T) {
+		r := newTestReconciler(t, nil, mkSecret("mysecret", map[string]string{"key0": "val0"}))
+		cfg := mkConfig([]configv1alpha1.ConfigVar{mkVar("pw", "mysecret", "key0")})
+
+		lr, _, _, err := r.buildLeafResolver(ctx, cfg, nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if lr.values["pw"] != "val0" {
+			t.Errorf("values[pw] = %q, want val0", lr.values["pw"])
+		}
+	})
+
 	t.Run("resolved var: value, hash and secret name recorded", func(t *testing.T) {
 		r := newTestReconciler(t, nil, mkSecret("mysecret", map[string]string{"key0": "val0"}))
 		cfg := mkConfig([]configv1alpha1.ConfigVar{mkVar("pw", "mysecret", "key0")})
