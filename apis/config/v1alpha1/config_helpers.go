@@ -222,7 +222,7 @@ func (r *Config) SetOverallStatus() {
 	// An absent resolver condition (no secrets, or resolver hasn't run yet) is not a failure.
 	resolverOK := resolverC.Status == "" || resolverC.IsTrue()
 
-	ready := cfgC.IsTrue() && tgtC.IsTrue()
+	ready := cfgC.IsTrue() && tgtC.IsTrue() && resolverOK
 
 	if ready {
 		// important: only set overall Ready type, do not drop other conditions
