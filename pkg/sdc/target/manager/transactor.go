@@ -110,7 +110,7 @@ func BuildGRPCIntents(
 	intents := make([]*sdcpb.TransactionIntent, 0, len(toUpdate)+len(toDelete))
 
 	for _, inp := range toUpdate {
-		update, err := config.GetIntentUpdateFromBlobs(inp.Config.Spec.Config)
+		update, err := config.GetIntentUpdateFromBlobs(inp.ResolvedBlobs)
 		if err != nil {
 			return nil, fmt.Errorf("build update intent for %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
