@@ -35,10 +35,10 @@ type SensitiveConfigSpec struct {
 	// Revertive defines if this CR is enabled for revertive or non revertve operation
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config blobs.
-	ConfigHash string `json:"configHash,omitempty" protobuf:"varint,5,opt,name=configHash"`
+	ConfigHash string `json:"configHash,omitempty" protobuf:"bytes,5,opt,name=configHash"`
 	// SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
 	// Tracks only the specific key value — not the whole Secret object.
-	SecretKeyHashes map[string]string `json:"secretKeyHashes,omitempty" protobuf:"varint,6,opt,name=secretKeyHashes"`
+	SecretKeyHashes map[string]string `json:"secretKeyHashes,omitempty" protobuf:"bytes,6,opt,name=secretKeyHashes"`
 	// Payload contains the encrypted resolved []ConfigBlob.
 	// Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
 	Payload EncryptedPayload `json:"payload" protobuf:"bytes,7,opt,name=payload"`
