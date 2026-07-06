@@ -240,6 +240,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// ── No change ─────────────────────────────────────────────────────────────
 	if change.noChange() {
+		// Even when content is identical to the stored SensitiveConfig, clear a
+		// stale Resolver=False condition. This occurs when a secret is deleted
+		// (which sets Resolver=False and preserves the last-good SC), then
+		// re-created with the same content: detectChange returns noChange=true
+		// because all hashes still match, but the failure condition from the
+		// deletion window must be cleared so the Config can become Ready again.
+		resolverC := cfgOrig.GetCondition(configv1alpha1.ConditionTypeResolver)
+		if resolverC.Status != "" && !resolverC.IsTrue() {
+			log.Info("no content change but stale Resolver=False detected — clearing condition")
+			return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig), errUpdateStatus)
+		}
 		log.Debug("no change detected, skipping")
 		return ctrl.Result{}, nil
 	}
