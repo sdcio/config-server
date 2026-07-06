@@ -5,6 +5,21 @@
 name: CI/CD (PR and main)
 on:
   workflow_dispatch:
+    inputs:
+      dataserver_version:
+        description: >
+          Optional override for sdcio/data-server image tag (integration).
+          Accepts: short SHA, v0.0.0-PR…, or main. Empty = use Pairs-with resolution or main.
+        required: false
+        default: ""
+        type: string
+      integration_tests_ref:
+        description: >
+          Optional override for sdcio/integration-tests branch/SHA checked out during integration.
+          Empty = use Pairs-with resolution or main.
+        required: false
+        default: ""
+        type: string
   pull_request:
   push:
     branches:
@@ -13,6 +28,7 @@ on:
 
 permissions:
   packages: write
+  pull-requests: read
 
 jobs:
   unittest:
@@ -81,32 +97,127 @@ jobs:
             echo "version=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
+  # Resolves paired repo refs from "Pairs-with: sdcio/<repo>#<PR>" lines in the PR body.
+  # workflow_dispatch explicit inputs always win. Falls back to main for any repo not referenced.
+  # DS images (GHCR) must exist for the resolved short SHA before integration tests run.
+  resolve-paired-refs:
+    runs-on: ubuntu-latest
+    outputs:
+      dataversion: ${{ steps.resolve.outputs.dataversion }}
+      inttest_ref: ${{ steps.resolve.outputs.inttest_ref }}
+    steps:
+      - name: Resolve paired refs from PR body
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          INPUT_DS: ${{ inputs.dataserver_version }}
+          INPUT_IT: ${{ inputs.integration_tests_ref }}
+        run: |
+          set -euo pipefail
+
+          # On main there is nothing to pair
+          if [ "$BRANCH" = "main" ]; then
+            echo "dataversion=main" >> "$GITHUB_OUTPUT"
+            echo "inttest_ref=main" >> "$GITHUB_OUTPUT"
+            echo "Branch is main -> all paired repos use main"
+            exit 0
+          fi
+
+          # workflow_dispatch: honour explicit overrides, skip body parsing
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            DS="$(printf '%s' "${INPUT_DS:-}" | tr -d '\r' | xargs || true)"
+            IT="$(printf '%s' "${INPUT_IT:-}" | tr -d '\r' | xargs || true)"
+            echo "dataversion=${DS:-main}" >> "$GITHUB_OUTPUT"
+            echo "inttest_ref=${IT:-main}" >> "$GITHUB_OUTPUT"
+            echo "workflow_dispatch: data-server=${DS:-main} integration-tests=${IT:-main}"
+            exit 0
+          fi
+
+          # Fetch PR body
+          BODY=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BODY=$(gh pr view --repo "$REPO" "$PR_NUMBER" --json body -q '.body' 2>/dev/null || true)
+          elif [ "$EVENT_NAME" = "push" ]; then
+            BODY=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO%%/*}:${BRANCH}&per_page=5" \
+                     --jq '.[0].body // ""' 2>/dev/null || true)
+          fi
+
+          # Extract the PR number from a "Pairs-with: org/repo#NNN" line
+          pairs_with_pr() {
+            local repo="$1"
+            printf '%s' "$BODY" | grep -oP "(?i)Pairs-with:\s+${repo}#\K[0-9]+" | head -1
+          }
+
+          # Resolve data-server: PR# → branch → short SHA (used as GHCR image tag)
+          DS_PR=$(pairs_with_pr "sdcio/data-server")
+          if [ -n "$DS_PR" ]; then
+            DS_BRANCH=$(gh pr view --repo sdcio/data-server "$DS_PR" \
+                          --json headRefName -q '.headRefName' 2>/dev/null || true)
+            if [ -n "$DS_BRANCH" ]; then
+              ENC="heads/$(printf '%s' "$DS_BRANCH" | sed 's|/|%2F|g')"
+              DS_FULL=$(gh api "repos/sdcio/data-server/git/ref/${ENC}" \
+                          --jq '.object.sha' 2>/dev/null || true)
+              if [ -n "$DS_FULL" ]; then
+                DS_SHORT="$(printf '%s' "$DS_FULL" | cut -c1-7)"
+                echo "dataversion=${DS_SHORT}" >> "$GITHUB_OUTPUT"
+                echo "data-server: PR#${DS_PR} branch=${DS_BRANCH} -> ${DS_SHORT}"
+              else
+                echo "dataversion=main" >> "$GITHUB_OUTPUT"
+                echo "data-server: PR#${DS_PR} branch=${DS_BRANCH} not found on remote -> main"
+              fi
+            else
+              echo "dataversion=main" >> "$GITHUB_OUTPUT"
+              echo "data-server: PR#${DS_PR} not found -> main"
+            fi
+          else
+            echo "dataversion=main" >> "$GITHUB_OUTPUT"
+            echo "data-server: no Pairs-with -> main"
+          fi
+
+          # Resolve integration-tests: PR# → branch name (for checkout ref)
+          IT_PR=$(pairs_with_pr "sdcio/integration-tests")
+          if [ -n "$IT_PR" ]; then
+            IT_BRANCH=$(gh pr view --repo sdcio/integration-tests "$IT_PR" \
+                          --json headRefName -q '.headRefName' 2>/dev/null || true)
+            if [ -n "$IT_BRANCH" ]; then
+              echo "inttest_ref=${IT_BRANCH}" >> "$GITHUB_OUTPUT"
+              echo "integration-tests: PR#${IT_PR} -> branch=${IT_BRANCH}"
+            else
+              echo "inttest_ref=main" >> "$GITHUB_OUTPUT"
+              echo "integration-tests: PR#${IT_PR} not found -> main"
+            fi
+          else
+            echo "inttest_ref=main" >> "$GITHUB_OUTPUT"
+            echo "integration-tests: no Pairs-with -> main"
+          fi
+
   latest-versions:
     name: Fetch latest versions from GH API
     runs-on: ubuntu-latest
     outputs:
       schemaversion: ${{ steps.latest-versions.outputs.schemaversion }}
-      dataversion: ${{ steps.latest-versions.outputs.dataversion }}
       cacheversion: ${{ steps.latest-versions.outputs.cacheversion }}
-      configversion: ${{ steps.latest-versions.outputs.configversion }}
       certmanagerversion: ${{ steps.latest-versions.outputs.certmanagerversion }}
     steps:
       - name: Set env vars
         id: latest-versions
         run: |
           echo "schemaversion=$( curl -sL https://api.github.com/repos/sdcio/schema-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
-          echo "dataversion=$( curl -sL https://api.github.com/repos/sdcio/data-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
           echo "cacheversion=$( curl -sL https://api.github.com/repos/sdcio/cache/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
-          echo "configversion=$( curl -sL https://api.github.com/repos/sdcio/config-server/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
           echo "certmanagerversion=$( curl -sL https://api.github.com/repos/cert-manager/cert-manager/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
 
   integration-tests:
-    needs: [latest-versions, pr-release]
+    needs: [latest-versions, pr-release, resolve-paired-refs]
     uses: sdcio/integration-tests/.github/workflows/single.yml@main
     with:
       configserver_version: ${{ needs.pr-release.outputs.configversion }}
-      dataserver_version: ${{ needs.latest-versions.outputs.dataversion }}
+      dataserver_version: ${{ needs.resolve-paired-refs.outputs.dataversion }}
       schemaserver_version: ${{ needs.latest-versions.outputs.schemaversion }}
       cache_version: ${{ needs.latest-versions.outputs.cacheversion }}
       certmanager_version: ${{ needs.latest-versions.outputs.certmanagerversion }}
+      integration_tests_ref: ${{ needs.resolve-paired-refs.outputs.inttest_ref }}
     secrets: inherit
