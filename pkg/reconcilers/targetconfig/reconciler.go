@@ -239,6 +239,17 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !hasChanged {
 		log.Info("Transact skip, nothing to update")
+		// Still reset TargetForConfig to Ready so any stale Failed condition
+		// (set when the target was briefly not-ready) is cleared. Without this
+		// the overall Config Ready condition stays False permanently whenever a
+		// target drops and recovers but no intent change is detected.
+		if err := r.cfgMgr.SetConfigsTargetConditionForTarget(
+			ctx, targetOrig,
+			configv1alpha1.TargetForConfigReady("target ready"),
+		); err != nil {
+			return ctrl.Result{},
+				errors.Wrap(r.handleError(ctx, targetOrig, "cannot update config status", err), errUpdateStatus)
+		}
 		return ctrl.Result{}, nil
 	}
 
