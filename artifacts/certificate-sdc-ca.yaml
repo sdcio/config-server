@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sdc-ca
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-ca
+    sdcio.dev/config-server: "true"
+spec:
+  isCA: true
+  commonName: sdc-ca
+  secretName: sdc-ca-secret
+  duration: 87600h   # 10 years
+  renewBefore: 720h  # 30 days
+  subject:
+    organizations:
+      - sdc
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-cluster-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
