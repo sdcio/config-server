@@ -72,7 +72,7 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
@@ -320,7 +320,7 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
