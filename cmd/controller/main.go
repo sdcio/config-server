@@ -26,11 +26,11 @@ import (
 	"strconv"
 	"strings"
 
-	//"time"
-
 	"github.com/henderiw/logger/log"
+	sdcconfig "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/config-server/pkg/output/prometheusserver"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -39,12 +39,14 @@ import (
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -166,6 +168,16 @@ func main() {
 		}()
 	}
 
+	// ── KeyRing ───────────────────────────────────────────────────────────────
+	// Load before mgr.Start() using the direct API reader (bypasses informer cache).
+	// Required by: Resolver (encrypt), targetconfigserver (decrypt), recovery (decrypt).
+	kr, err := loadKeyRing(ctx, mgr.GetAPIReader(), operatorNamespace())
+	if err != nil {
+		log.Error("cannot load keyring secret", "err", err)
+		os.Exit(1)
+	}
+	ctrlCfg.KeyRing = kr
+
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
 		if IsReconcilerEnabled(name) {
@@ -229,4 +241,53 @@ func MetricBindAddress() string {
 		return fmt.Sprintf(":%s", val)
 	}
 	return ":8443"
+}
+
+// operatorNamespace returns the namespace the operator is running in.
+// Falls back to "default" — override via POD_NAMESPACE env var.
+func operatorNamespace() string {
+	if ns, ok := os.LookupEnv("POD_NAMESPACE"); ok {
+		return ns
+	}
+	// If running in-cluster, read from the downward API file.
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return "default"
+}
+
+// loadKeyRing fetches the keyring Secret (by label) and builds a KeyRing.
+// Uses the direct API reader — safe to call before mgr.Start().
+func loadKeyRing(ctx context.Context, reader client.Reader, namespace string) (*keyring.KeyRing, error) {
+	secretList := &corev1.SecretList{}
+	if err := reader.List(ctx, secretList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{sdcconfig.LabelKeyRingKey: "true"},
+	); err != nil {
+		return nil, fmt.Errorf("list keyring secrets in %q: %w", namespace, err)
+	}
+
+	switch len(secretList.Items) {
+	case 0:
+		return nil, fmt.Errorf(
+			"no keyring secret found in namespace %q — create a Secret with label %s=true",
+			namespace, sdcconfig.LabelKeyRingKey,
+		)
+	case 1:
+		kr, err := keyring.NewFromSecret(&secretList.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("build keyring from secret %s/%s: %w",
+				secretList.Items[0].Namespace, secretList.Items[0].Name, err)
+		}
+		return kr, nil
+	default:
+		names := make([]string, len(secretList.Items))
+		for i, s := range secretList.Items {
+			names[i] = s.Name
+		}
+		return nil, fmt.Errorf(
+			"multiple keyring secrets found in namespace %q (%s) — expected exactly one",
+			namespace, strings.Join(names, ", "),
+		)
+	}
 }

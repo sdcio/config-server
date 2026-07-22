@@ -78,6 +78,8 @@ spec:
           value: "true"
         - name: ENABLE_ROLLOUT
           value: "true"
+        - name: ENABLE_RESOLVER
+          value: "true"
         volumeMounts:
         #- name: schema-store
         #  mountPath: /schemas

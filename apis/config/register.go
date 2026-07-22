@@ -58,6 +58,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&TargetRunningConfig{},
 		&TargetClearDeviation{},
 		&TargetRunningConfigOptions{},
+		&SensitiveConfig{},
+		&SensitiveConfigList{},
+		&TargetSnapshot{},
+		&TargetSnapshotList{},
 	)
 	return nil
 }

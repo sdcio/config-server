@@ -235,10 +235,9 @@ type UnrecoverableMessage struct {
 	Message         string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }
 
-
-// dedupeConditions returns conditions deduplicated by type; last value wins.
-// This is needed because WithConditions is a generated append-only method and
-// cannot protect against duplicate list-map keys itself.
+// DedupeConditions returns conditions deduplicated by type; last value wins.
+// Needed because WithConditions is a generated append-only method and
+// cannot protect against duplicate list-map keys itself (issue #431).
 func DedupeConditions(conds ...Condition) []Condition {
 	index := make(map[string]int, len(conds))
 	out := make([]Condition, 0, len(conds))

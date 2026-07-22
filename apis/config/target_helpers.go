@@ -319,7 +319,7 @@ func buildClearDeviationTxRequest(
 			})
 			continue
 		}
-		update, err := GetIntentUpdate(cfg, true)
+		update, err := buildUpdates(cfg.Spec.Config)
 		if err != nil {
 			validationErrors = append(validationErrors, TargetClearDeviationConfigResult{
 				Name:    clearCfg.Name,
@@ -500,29 +500,29 @@ func buildClearDeviationStatus(
 	return status
 }
 
-// useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
-// the config
-func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
-	update := make([]*sdcpb.Update, 0, len(config.Spec.Config))
-	configSpec := config.Spec.Config
-	if !useSpec && config.Status.AppliedConfig != nil {
-		update = make([]*sdcpb.Update, 0, len(config.Status.AppliedConfig.Config))
-		configSpec = config.Status.AppliedConfig.Config
-	}
+// GetIntentUpdateFromBlobs builds gRPC Update messages from the provided
+// pre-resolved blobs instead of reading from cfg.Spec.Config.
+// Used when blobs come from a decrypted SensitiveConfig payload.
+func GetIntentUpdateFromBlobs(blobs []ConfigBlob) ([]*sdcpb.Update, error) {
+    return buildUpdates(blobs)
+}
 
-	for _, config := range configSpec {
-		path, err := sdcpb.ParsePath(config.Path)
-		if err != nil {
-			return nil, err
-		}
-		update = append(update, &sdcpb.Update{
-			Path: path,
-			Value: &sdcpb.TypedValue{
-				Value: &sdcpb.TypedValue_JsonVal{
-					JsonVal: config.Value.Raw,
-				},
-			},
-		})
-	}
-	return update, nil
+// buildUpdates is the shared implementation used by both functions.
+func buildUpdates(blobs []ConfigBlob) ([]*sdcpb.Update, error) {
+    updates := make([]*sdcpb.Update, 0, len(blobs))
+    for _, blob := range blobs {
+        path, err := sdcpb.ParsePath(blob.Path)
+        if err != nil {
+            return nil, err
+        }
+        updates = append(updates, &sdcpb.Update{
+            Path: path,
+            Value: &sdcpb.TypedValue{
+                Value: &sdcpb.TypedValue_JsonVal{
+                    JsonVal: blob.Value.Raw,
+                },
+            },
+        })
+    }
+    return updates, nil
 }

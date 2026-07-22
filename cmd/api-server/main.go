@@ -150,7 +150,8 @@ func main() {
 
 	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
-	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
+	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), registryOptions)
+	targetSnapshotStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTargetSnapshot(), registryOptions)
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
@@ -175,6 +176,8 @@ func main() {
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&sdcconfig.SensitiveConfig{}, sensitiveconfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.SensitiveConfig{}, sensitiveconfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.TargetSnapshot{}, targetSnapshotStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.TargetSnapshot{}, targetSnapshotStorageProvider).
 			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).

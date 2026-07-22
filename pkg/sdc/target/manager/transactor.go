@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2026 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,136 +18,68 @@ package targetmanager
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
-	"github.com/google/uuid"
-	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
-	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	reconcilerName = "ConfigController"
-	finalizer      = "config.config.sdcio.dev/finalizer"
-)
+// Transactor is responsible exclusively for gRPC communication with the datastore.
+// It has no knowledge of Kubernetes resources, secrets, or conditions.
+type Transactor struct{}
 
-type Transactor struct {
-	client       client.Client // k8s client
-	fieldManager string
+func NewTransactor() *Transactor {
+	return &Transactor{}
 }
 
-func NewTransactor(client client.Client, fieldManager string) *Transactor {
-	return &Transactor{
-		client:       client,
-		fieldManager: fieldManager,
-	}
-}
-
-func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
-	log := log.FromContext(ctx)
-	log.Debug("RecoverConfigs")
-	configList, err := r.ListConfigsPerTarget(ctx, target)
-	if err != nil {
-		return nil, err
-	}
-
-	configs := []*config.Config{}
-
-	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil {
-			configs = append(configs, &config)
-		}
-	}
-
-	log.Info("recovering target config", "count", len(configs))
-	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
-	msg, err := r.recoverIntents(ctx, dsctx, targetKey, configs)
-	if err != nil {
-		// This is bad since this means we cannot recover the applied config
-		// on a target. We set the target config status to Failed.
-		// Most likely a human intervention is needed
-
-		if err := r.SetConfigsTargetConditionForTarget(
-			ctx,
-			target,
-			configv1alpha1.ConfigFailed(msg),
-		); err != nil {
-			// recovery succeeded but we failed to patch status -> surface it
-			return ptr.To("recovered, but failed to update config status"), err
-		}
-
-		return &msg, err
-	}
-	dsctx.MarkRecovered(true)
-	log.Debug("recovered configs", "count", len(configs))
-
-	if err := r.SetConfigsTargetConditionForTarget(
-		ctx,
-		target,
-		configv1alpha1.ConfigReady("target recovered"),
-	); err != nil {
-		// recovery succeeded but we failed to patch status -> surface it
-		return ptr.To("recovered, but failed to update config status"), err
-	}
-	return nil, nil
-}
-
-func (r *Transactor) recoverIntents(
+// Execute sends a TransactionSet to the datastore and returns the raw response.
+// It does NOT confirm — the caller decides whether to confirm or rollback.
+func (t *Transactor) Execute(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
-	key storebackend.Key,
-	configs []*config.Config,
-) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String())
+	txID string,
+	intents []*sdcpb.TransactionIntent,
+	dryRun bool,
+) (*sdcpb.TransactionSetResponse, error) {
+	log := log.FromContext(ctx).With("transactionID", txID, "datastore", dsctx.DatastoreName)
+	log.Info("executing transaction", "intents", len(intents), "dryRun", dryRun)
 
-	if len(configs) == 0 {
-		return "", nil
-	}
-
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
-	for _, cfg := range configs {
-		update, err := config.GetIntentUpdate(cfg, false)
-		if err != nil {
-			return "", err
-		}
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:            config.GetGVKNSN(cfg),
-			Priority:          int32(cfg.Spec.Priority),
-			Update:            update,
-			NonRevertive:      !cfg.IsRevertive(),
-			PreviouslyApplied: true,
-		})
-	}
-
-	log.Debug("device intent recovery")
-
-	return r.TransactionSet(ctx, dsctx, &sdcpb.TransactionSetRequest{
-		TransactionId: "recovery",
-		DatastoreName: key.String(),
-		DryRun:        false,
-		Timeout:       ptr.To(int32(120)),
+	rsp, err := dsctx.Client.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+		TransactionId: txID,
+		DatastoreName: dsctx.DatastoreName,
+		DryRun:        dryRun,
+		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
+	if rsp != nil {
+		log.Debug("transaction response", "rsp", prototext.Format(rsp))
+	}
+	return rsp, err
 }
 
-func (r *Transactor) TransactionSet(
+// Confirm commits a previously executed transaction.
+func (t *Transactor) Confirm(
+	ctx context.Context,
+	dsctx *DatastoreHandle,
+	txID string,
+) error {
+	_, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+		DatastoreName: dsctx.DatastoreName,
+		TransactionId: txID,
+	})
+	return err
+}
+
+// TransactionSet is a convenience method that executes and immediately confirms.
+// Used by the recovery path where the two-step flow is not needed.
+func (t *Transactor) TransactionSet(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
 	req *sdcpb.TransactionSetRequest,
@@ -157,14 +89,9 @@ func (r *Transactor) TransactionSet(
 	if err != nil {
 		return msg, err
 	}
-	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-	// retrieved from the individual intents
-
-	// For dryRun we don't have to confirm the transaction as the dataserver does not lock things.
 	if req.DryRun {
 		return msg, nil
 	}
-
 	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
 		DatastoreName: req.DatastoreName,
 		TransactionId: req.TransactionId,
@@ -174,745 +101,142 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
-func (r *Transactor) Transact(
-	ctx context.Context,
-	target *configv1alpha1.Target,
-	dsctx *DatastoreHandle,
-	targetCond condv1alpha1.Condition,
-) (bool, error) {
-	log := log.FromContext(ctx)
-	log.Debug("Transact")
-	// get all configs for the target
-	configList, err := r.ListConfigsPerTarget(ctx, target)
-	if err != nil {
-		return true, err
-	}
-	// reapply deviations for each config snippet
-	// This ensure the deviations are applied
-	for _, config := range configList.Items {
-		if _, err := r.applyDeviation(ctx, &config); err != nil {
-			return true, err
-		}
-	}
+// BuildGRPCIntents converts IntentInputs into sdcpb.TransactionIntents.
+// Pure transformation — no external calls.
+func BuildGRPCIntents(
+	toUpdate []IntentInput,
+	toDelete []IntentInput,
+) ([]*sdcpb.TransactionIntent, error) {
+	intents := make([]*sdcpb.TransactionIntent, 0, len(toUpdate)+len(toDelete))
 
-	// determine change
-	configsToUpdate, configsToDelete := getConfigsToTransact(ctx, configList)
-
-	if len(configsToUpdate) == 0 &&
-		len(configsToDelete) == 0 {
-		log.Info("Transact skip, nothing to update")
-		return false, nil
-	}
-
-	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
-
-	uuid := uuid.New()
-
-	rsp, err := r.setIntents(
-		ctx,
-		dsctx,
-		targetKey,
-		uuid.String(),
-		configsToUpdate,
-		configsToDelete,
-		false)
-	// we first collect the warnings and errors -> to determine error or not
-	result := analyzeIntentResponse(err, rsp)
-
-	for _, w := range result.GlobalWarnings {
-		log.Warn("transaction warning", "warning", w)
-	}
-	if result.GlobalError != nil || result.IntentErrors != nil {
-		log.Warn("transaction failed",
-			"recoverable", result.Recoverable,
-			"globalError", result.GlobalError,
-			"intentErrors", result.IntentErrors,
-		)
-
-		return r.handleTransactionErrors(
-			ctx,
-			rsp,
-			configsToUpdate,
-			configsToDelete,
-			result.GlobalError,
-			result.Recoverable,
-		)
-	}
-	log.Debug("transaction response", "rsp", prototext.Format(rsp))
-	// ok case
-	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: dsctx.DatastoreName,
-		TransactionId: uuid.String(),
-	}); err != nil {
-		return true, err
-	}
-	for _, configOrig := range configsToUpdate {
-		config, err := toV1Alpha1Config(configOrig)
+	for _, inp := range toUpdate {
+		update, err := config.GetIntentUpdateFromBlobs(inp.ResolvedBlobs)
 		if err != nil {
-			return false, err
+			return nil, fmt.Errorf("build update intent for %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
-		// We need to deepcopy the config object we transacted since the applyFinalizer
-		// can transform it using patched data
-		transactedConfig := config.DeepCopy()
-		if err := r.applyFinalizer(ctx, config); err != nil {
-			return true, err
-		}
-		if err := r.updateConfigWithSuccess(ctx, transactedConfig, dsctx.Schema, targetCond, ""); err != nil {
-			return true, err
-		}
-	}
-
-	for _, configOrig := range configsToDelete {
-		config := &configv1alpha1.Config{}
-		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-			return true, err
-		}
-		if err := r.deleteFinalizer(ctx, config); err != nil {
-			return true, err
-		}
-		if err := r.deleteDeviation(ctx, config); err != nil {
-			return true, err
-		}
-	}
-
-	return false, nil
-}
-
-func (r *Transactor) setIntents(
-	ctx context.Context,
-	dsctx *DatastoreHandle,
-	targetKey storebackend.Key,
-	transactionID string,
-	configsToUpdate, configsToDelete map[string]*config.Config,
-	dryRun bool,
-) (*sdcpb.TransactionSetResponse, error) {
-	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
-
-	configsToUpdateSet := sets.New[string]()
-	configsToDeleteSet := sets.New[string]()
-
-	intents := make([]*sdcpb.TransactionIntent, 0)
-
-	for key, cfg := range configsToUpdate {
-		configsToUpdateSet.Insert(key)
-		log.Info("Transaction intent update", "config", key, "revertive", cfg.IsRevertive())
-		update, err := config.GetIntentUpdate(cfg, true)
+		sensitive, err := parseSensitivePaths(inp.SensitivePaths)
 		if err != nil {
-			log.Error("Transaction getIntentUpdate config", "error", err)
-			return nil, err
+			return nil, fmt.Errorf("intent %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
+
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:       config.GetGVKNSN(cfg),
-			Priority:     int32(cfg.Spec.Priority),
+			Intent:       config.GetGVKNSN(inp.Config),
+			Priority:     inp.Priority,
 			Update:       update,
-			NonRevertive: !cfg.IsRevertive(),
+			NonRevertive: inp.NonRevertive,
+			SensitivePaths: sensitive,
 		})
 	}
-	for key, cfg := range configsToDelete {
-		configsToDeleteSet.Insert(key)
-		log.Info("Transaction intent delete", "config", key, "revertive", cfg.IsRevertive())
+
+	for _, inp := range toDelete {
 		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:              config.GetGVKNSN(cfg),
+			Intent:              config.GetGVKNSN(inp.Config),
 			Delete:              true,
 			DeleteIgnoreNoExist: true,
-			Orphan:              cfg.Orphan(),
-			// Dont set priority, dont set non revertive
+			Orphan:              inp.Config.Orphan(),
 		})
 	}
 
-	log.Info("Transaction",
-		"configsToUpdate total", len(configsToUpdate),
-		"configsToUpdate names", configsToUpdateSet.UnsortedList(),
-		"configsToDelete total", len(configsToDelete),
-		"configsToDelete names", configsToDeleteSet.UnsortedList(),
-	)
-
-	rsp, err := dsctx.Client.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-		TransactionId: transactionID,
-		DatastoreName: targetKey.String(),
-		DryRun:        dryRun,
-		Timeout:       ptr.To(int32(60)),
-		Intents:       intents,
-	})
-	if rsp != nil {
-		log.Debug("Transaction rsp", "rsp", prototext.Format(rsp))
-	}
-	return rsp, err
+	return intents, nil
 }
 
-func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
-	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", 
-		"config", cfg.GetName(), 
-		"recoverable", recoverable, 
-		"msg", msg, 
-		"err", err,
-	)
-
-	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
-	}
-
-	current := &configv1alpha1.Config{}
-	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
-	if err := r.client.Get(ctx, key, current); err != nil {
-		return err
-	}
-	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip error update: config is deleting")
-		return nil
-	}
-
-	var newConfigCond condv1alpha1.Condition
-	if recoverable {
-		newConfigCond = configv1alpha1.ConfigFailed(msg)
-	} else {
-		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: current.GetResourceVersion(),
-			Message:         msg,
-		}
-		newmsg, err := json.Marshal(newMessage)
-		if err != nil {
-			return err
-		}
-		newConfigCond = condv1alpha1.FailedUnRecoverable(string(newmsg))
-	}
-
-	// Compute the new overall Ready without mutating current.
-	tmp := current.DeepCopy()
-	tmp.SetConditions(newConfigCond)
-	newOverallCond := configv1alpha1.GetOverallCondition(tmp)
-
-	// No-op check.
-	if newConfigCond.Equal(current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))) &&
-		newOverallCond.Equal(current.GetCondition(condv1alpha1.ConditionTypeReady)) &&
-		(recoverable || ptr.Deref(current.Status.DeviationGeneration, -1) == 0) {
-		return nil
-	}
-
-	// dedupeConditions prevents duplicate type="Ready" entries that would
-	// cause the SSA list-map key rejection (issue #431).
-	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)...)
-	if !recoverable {
-		statusApply = statusApply.WithDeviationGeneration(0)
-	}
-
-	return r.client.Status().Apply(ctx,
-		configv1alpha1apply.Config(current.Name, current.Namespace).WithStatus(statusApply),
-		&client.SubResourceApplyOptions{
-			ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
-		},
-	)
-}
-
-func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("applyFinalizer")
-
-	return r.patchMetadata(ctx, config, func() {
-		config.SetFinalizers([]string{finalizer})
-	})
-}
-
-func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("deleteFinalizer")
-
-	return r.patchMetadata(ctx, config, func() {
-		config.SetFinalizers([]string{})
-	})
-}
-
-func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
-	deviation := &configv1alpha1.Deviation{}
-	deviation.Name = cfg.Name
-	deviation.Namespace = cfg.Namespace
-	if err := r.client.Delete(ctx, deviation); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *Transactor) updateConfigWithSuccess(
-	ctx context.Context,
-	cfg *configv1alpha1.Config,
-	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
-	targetCond condv1alpha1.Condition,
-	msg string,
-) error {
-	log := log.FromContext(ctx)
-	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
-
-	// Always re-read the latest object after the transaction was confirmed.
-	current := &configv1alpha1.Config{}
-	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
-	if err := r.client.Get(ctx, key, current); err != nil {
-		return err
-	}
-
-	// If the object is being deleted, do not write a success status anymore.
-	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip success update: config is deleting")
-		return nil
-	}
-	
-
-	newConfigCond := configv1alpha1.ConfigReady(msg)
-
-	// Compute overall from the condition set we want to own.
-	tmp := current.DeepCopy()
-	tmp.SetConditions(newConfigCond, targetCond)
-	tmp.SetOverallStatus()
-	newOverallCond := tmp.GetCondition(condv1alpha1.ConditionTypeReady)
-
-	// Read only the condition types we own from current.
-	curConfigCond := current.GetCondition(condv1alpha1.ConditionType(newConfigCond.Type))
-	curTargetCond := current.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
-	curOverallCond := current.GetCondition(condv1alpha1.ConditionTypeReady)
-
-	// Skip if the fields we own are already what we want.
-	if newConfigCond.Equal(curConfigCond) &&
-		targetCond.Equal(curTargetCond) &&
-		newOverallCond.Equal(curOverallCond) &&
-		reflect.DeepEqual(schema, current.Status.LastKnownGoodSchema) &&
-		reflect.DeepEqual(&cfg.Spec, current.Status.AppliedConfig) {
-		return nil
-	}
-
-	statusApply := configv1alpha1apply.ConfigStatus().
-		WithConditions(newConfigCond, targetCond, newOverallCond).
-		WithLastKnownGoodSchema(schemaToApply(schema)).
-		WithAppliedConfig(configSpecToApply(&cfg.Spec))
-
-	applyConfig := configv1alpha1apply.Config(cfg.Name, cfg.Namespace).
-		WithStatus(statusApply)
-
-	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: r.fieldManager,
-		},
-	})
-}
-
-func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, v1alpha1configList,
-		client.InNamespace(target.GetNamespace()),
-		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
-			config.TargetNameKey:      target.GetName(),
-		},
-	); err != nil {
-		return nil, err
-	}
-
-	configList := &config.ConfigList{}
-	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
-		return nil, err
-	}
-
-	return configList, nil
-}
-
-func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) (configv1alpha1.Deviation, error) {
-	key := types.NamespacedName{
-		Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, config.Name),
-		Namespace: config.Namespace,
-	}
-
-	deviation := &configv1alpha1.Deviation{}
-	if err := r.client.Get(ctx, key, deviation); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return configv1alpha1.Deviation{}, err
-		}
-		// Not found: create new deviation
-		newDeviation := configv1alpha1.BuildDeviation(metav1.ObjectMeta{
-			Name:            configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, config.Name),
-			Namespace:       config.Namespace,
-			OwnerReferences: []metav1.OwnerReference{config.GetOwnerReference()},
-			Labels:          config.Labels,
-		}, &configv1alpha1.DeviationSpec{
-			DeviationType: ptr.To(configv1alpha1.DeviationType_CONFIG),
-		}, nil)
-
-		if err := r.client.Create(ctx, newDeviation); err != nil {
-			return configv1alpha1.Deviation{}, err
-		}
-		return *newDeviation, nil
-	}
-	return *deviation, nil
-}
-
-func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
-	out := &configv1alpha1.Config{}
-	if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(cfg, out, nil); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (r *Transactor) patchMetadata(
-	ctx context.Context,
-	obj client.Object,
-	mutate func(),
-) error {
-	orig := obj.DeepCopyObject().(client.Object)
-	mutate()
-	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
-		&client.PatchOptions{FieldManager: r.fieldManager},
-	)
-}
-
-func getConfigsToTransact(
-	ctx context.Context,
-	configList *config.ConfigList,
-) (
-	map[string]*config.Config,
-	map[string]*config.Config,
-) {
-	log := log.FromContext(ctx)
-
-	configsToUpdate := make(map[string]*config.Config)
-	configsToDelete := make(map[string]*config.Config)
-	nonRecoverable := make(map[string]*config.Config)
-	configsNoChnge := make(map[string]*config.Config)
-
-	// Classify configs: update / delete / non-recoverable / noop
-	for i := range configList.Items {
-		cfg := configList.Items[i].DeepCopy()
-		key := config.GetGVKNSN(cfg)
-
-		switch {
-		case !cfg.IsRecoverable(ctx):
-			nonRecoverable[key] = cfg
-
-		case cfg.GetDeletionTimestamp() != nil:
-			configsToDelete[key] = cfg
-
-		case !cfg.IsConfigConditionReady():
-			configsToUpdate[key] = cfg
-
-		case cfg.Status.AppliedConfig != nil &&
-			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
-			configsNoChnge[key] = cfg
-			continue
-
-		default:
-			configsToUpdate[key] = cfg
-		}
-	}
-
-	log.Debug("getConfigsAndDeviationsToTransact classification start",
-		"configsToUpdate", mapKeys(configsToUpdate),
-		"configsToDelete", mapKeys(configsToDelete),
-		"nonRecoverable", mapKeys(nonRecoverable),
-		"configsNoChange", mapKeys(configsNoChnge),
-	)
-
-	// --- 5) If we have changes, retry non-recoverables + add configs that did not change
-
-	if len(configsToUpdate) > 0 || len(configsToDelete) > 0 {
-		for key, cfg := range nonRecoverable {
-			if cfg.GetDeletionTimestamp() != nil {
-				configsToDelete[key] = cfg
-			} else {
-				configsToUpdate[key] = cfg
-			}
-		}
-		for key, cfg := range configsNoChnge {
-			if cfg.GetDeletionTimestamp() != nil {
-				configsToDelete[key] = cfg
-			} else {
-				configsToUpdate[key] = cfg
-			}
-		}
-	}
-
-	log.Debug("getConfigsAndDeviationsToTransact classification after change",
-		"configsToUpdate", mapKeys(configsToUpdate),
-		"configsToDelete", mapKeys(configsToDelete),
-		"nonRecoverable", mapKeys(nonRecoverable),
-	)
-
-	return configsToUpdate, configsToDelete
-}
-
-func mapKeys[T any](m map[string]T) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
-}
-
-func (r *Transactor) handleTransactionErrors(
-	ctx context.Context,
-	rsp *sdcpb.TransactionSetResponse,
-	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
-	globalErr error,
-	recoverable bool,
-) (bool, error) {
-	log := log.FromContext(ctx)
-	log.Warn("handling transaction errors", "recoverable", recoverable)
-
-	// If no response at all → apply same error to all configs.
-	if rsp == nil {
-		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
-				return true, err
-			}
-		}
-		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
-				return true, err
-			}
-		}
-		return recoverable, globalErr
-	}
-
-	// Response present: handle per-intent
-	dataServerError := false
-
-	for intentName, intent := range rsp.Intents {
-		log.Warn("intent failed", "name", intentName, "errors", intent.Errors)
-
-		var errs = errors.Join(globalErr)
-		for _, intentError := range intent.Errors {
-			errs = errors.Join(errs, fmt.Errorf("%s", intentError))
-		}
-		warnings := collectWarnings(intent.Errors)
-
-		msg := ""
-		if len(warnings) > 0 {
-			msg = strings.Join(warnings, "; ")
-		}
-
-		if cfg, ok := configsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
-				return true, err
-			}
-			continue
-		}
-		if cfg, ok := deletedConfigsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
-				return true, err
-			}
-			continue
-		}
-
-		// Dataserver reported an intent we don't know → treat as global error
-		dataServerError = true
-		recoverable = false
-		globalErr = errors.Join(
-			errs,
-			fmt.Errorf("dataserver reported an error in an intent %s that does not exist", intentName),
-		)
-		break
-	}
-
-	if dataServerError {
-		log.Error("transact dataserver error", "err", globalErr)
-		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
-				return true, err
-			}
-		}
-		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
-				return true, err
-			}
-		}
-	}
-
-	return recoverable, globalErr
-}
-
-func (r *Transactor) processFailedConfig(
-	ctx context.Context,
-	configOrig *config.Config,
-	msg string,
-	origErr error,
-	recoverable bool,
-) error {
-	config, err := toV1Alpha1Config(configOrig)
-	if err != nil {
-		return err
-	}
-	if err := r.applyFinalizer(ctx, config); err != nil {
-		return err
-	}
-	return r.updateConfigWithError(ctx, config, msg, origErr, recoverable)
-}
-
-func collectWarnings(errorsOrMsgs []string) []string {
-	warnings := make([]string, 0, len(errorsOrMsgs))
-	for _, err := range errorsOrMsgs {
-		warnings = append(warnings, fmt.Sprintf("warning: %q", err))
-	}
-	return warnings
-}
-
-type TransactionResult struct {
-	GlobalError    error
-	IntentErrors   error
-	GlobalWarnings []string
-	Recoverable    bool
-}
-
-func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
+// AnalyzeIntentResponse inspects the gRPC response and error to produce a
+// structured TransactionResult. Pure function — no external calls.
+func AnalyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
 	result := TransactionResult{}
 
+	// ── Transport-level error ──────────────────────────────────────────────────
 	if err != nil {
-		result.GlobalError = fmt.Errorf("transaction error: %w", err)
-		// gRPC status code to determine recoverability
-		if statusErr, ok := status.FromError(err); ok {
-			switch statusErr.Code() {
-			case codes.Aborted, codes.ResourceExhausted:
-				result.Recoverable = true
-			default:
-				result.Recoverable = false
-			}
-		}
+		result.Recoverable = isRecoverableGRPCError(err)
+		result.GlobalError = err
+		return result
 	}
 
-	if rsp != nil {
-		// Collect global warnings
-		result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
-		// Collect intent errors
-		for _, intent := range rsp.Intents {
-			for _, intentError := range intent.Errors {
-				result.IntentErrors = errors.Join(result.IntentErrors, fmt.Errorf("%s", intentError))
-				result.Recoverable = false // any intent error is non-recoverable
-			}
+	if rsp == nil {
+		return result
+	}
+
+	// ── Global warnings ────────────────────────────────────────────────────────
+	result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
+
+	// ── Per-intent results ─────────────────────────────────────────────────────
+	for intentName, intent := range rsp.Intents {
+		// Collect intent warnings into GlobalWarnings so callers have one place to look.
+		for _, w := range intent.Warnings {
+			result.GlobalWarnings = append(result.GlobalWarnings,
+				fmt.Sprintf("intent %q: %s", intentName, w))
+		}
+
+		// Any intent error → non-recoverable (datastore accepted the request).
+		for _, e := range intent.Errors {
+			result.IntentErrors = errors.Join(result.IntentErrors,
+				fmt.Errorf("intent %q: %s", intentName, e))
 		}
 	}
 
 	return result
 }
 
-func (r *Transactor) SetConfigsTargetConditionForTarget(
-	ctx context.Context,
-	target *configv1alpha1.Target,
-	targetCond condv1alpha1.Condition,
-) error {
-	//log := log.FromContext(ctx)
+func collectWarnings(msgs []string) []string {
+	out := make([]string, 0, len(msgs))
+	for _, m := range msgs {
+		out = append(out, fmt.Sprintf("warning: %q", m))
+	}
+	return out
+}
 
-	// Reuse your existing lister (returns config.ConfigList)
-	cfgList, err := r.ListConfigsPerTarget(ctx, target)
+func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, err error) (string, error) {
 	if err != nil {
-		return err
+		return err.Error(), err
 	}
-
-	for i := range cfgList.Items {
-		v1cfg, err := toV1Alpha1Config(&cfgList.Items[i])
-		if err != nil {
-			return err
-		}
-
-		oldTargetCond := v1cfg.GetCondition(condv1alpha1.ConditionType(targetCond.Type))
-		oldReadyCond := v1cfg.GetCondition(condv1alpha1.ConditionTypeReady)
-
-		// compute new overall ready
-		v1cfg.SetConditions(targetCond)
-		v1cfg.SetOverallStatus()
-		newReadyCond := v1cfg.GetCondition(condv1alpha1.ConditionTypeReady)
-
-		if targetCond.Equal(oldTargetCond) && newReadyCond.Equal(oldReadyCond) {
-			continue
-		}
-
-		// Preserve ALL existing status fields to avoid stripping them
-		configCond := v1cfg.GetCondition(condv1alpha1.ConditionType(
-			configv1alpha1.ConfigReady("").Type,
-		))
-
-		statusApply := configv1alpha1apply.ConfigStatus().
-			WithConditions(targetCond, configCond, newReadyCond)
-
-		// preserve schema + appliedConfig so SSA doesn't strip them
-		if v1cfg.Status.LastKnownGoodSchema != nil {
-			statusApply = statusApply.WithLastKnownGoodSchema(
-				schemaToApply(v1cfg.Status.LastKnownGoodSchema))
-		}
-		if v1cfg.Status.AppliedConfig != nil {
-			statusApply = statusApply.WithAppliedConfig(
-				configSpecToApply(v1cfg.Status.AppliedConfig))
-		}
-
-		applyConfig := configv1alpha1apply.Config(v1cfg.Name, v1cfg.Namespace).
-			WithStatus(statusApply)
-
-		if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-			ApplyOptions: client.ApplyOptions{
-				FieldManager: r.fieldManager,
-			},
-		}); err != nil {
-			return err
-		}
+	if rsp != nil && len(rsp.Warnings) > 0 {
+		log.FromContext(ctx).Warn("transaction warnings", "warnings", rsp.Warnings)
 	}
-	return nil
+	return "", nil
 }
 
-func schemaToApply(s *configv1alpha1.ConfigStatusLastKnownGoodSchema) *configv1alpha1apply.ConfigStatusLastKnownGoodSchemaApplyConfiguration {
-	if s == nil {
-		return nil
+// isRecoverableGRPCError returns true for transient gRPC errors that are
+// worth retrying (resource pressure, contention), false for permanent ones.
+func isRecoverableGRPCError(err error) bool {
+	if err == nil {
+		return false
 	}
-	a := configv1alpha1apply.ConfigStatusLastKnownGoodSchema()
-	if s.Type != "" {
-		a.WithType(s.Type)
+	st, ok := status.FromError(err)
+	if !ok {
+		// Not a gRPC status error — treat as non-recoverable.
+		return false
 	}
-	if s.Vendor != "" {
-		a.WithVendor(s.Vendor)
+	switch st.Code() {
+	case codes.Aborted, codes.ResourceExhausted:
+		return true
+	default:
+		return false
 	}
-	if s.Version != "" {
-		a.WithVersion(s.Version)
-	}
-	return a
 }
 
-func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.ConfigSpecApplyConfiguration {
-	if s == nil {
-		return nil
-	}
-	
-	a := configv1alpha1apply.ConfigSpec().
-			WithPriority(s.Priority)
-	
-	if s.Revertive != nil {	
-		a.WithRevertive(*s.Revertive)
-	}
 
-	if s.Lifecycle != nil {
-		a.WithLifecycle(lifecycleToApply(s.Lifecycle))
-	}
-
-	for i := range s.Config {
-		a.WithConfig(configBlobToApply(&s.Config[i]))
-	}
-	return a
-}
-
-func lifecycleToApply(l *configv1alpha1.Lifecycle) *configv1alpha1apply.LifecycleApplyConfiguration {
-	if l == nil {
-		return nil
-	}
-	a := configv1alpha1apply.Lifecycle()
-	a.WithDeletionPolicy(l.DeletionPolicy)
-
-	return a
-}
-
-func configBlobToApply(b *configv1alpha1.ConfigBlob) *configv1alpha1apply.ConfigBlobApplyConfiguration {
-	if b == nil {
-		return nil
-	}
-	a := configv1alpha1apply.ConfigBlob()
-	if b.Path != "" {
-		a.WithPath(b.Path)
-	}
-	a.WithValue(b.Value)
-	return a
+// parseSensitivePaths converts keyless XPath strings into sdcpb.Paths.
+// Dedupes by string and rejects key predicates — the dataserver refuses keyed
+// paths, so a '[' here means a bug upstream; fail loudly rather than ship it.
+func parseSensitivePaths(paths []string) ([]*sdcpb.Path, error) {
+    if len(paths) == 0 {
+        return nil, nil
+    }
+    seen := make(map[string]struct{}, len(paths))
+    out := make([]*sdcpb.Path, 0, len(paths))
+    for _, p := range paths {
+        if _, ok := seen[p]; ok {
+            continue
+        }
+        seen[p] = struct{}{}
+        if strings.ContainsRune(p, '[') {
+            return nil, fmt.Errorf("sensitive path %q has a key predicate; must be keyless", p)
+        }
+        sp, err := sdcpb.ParsePath(p)
+        if err != nil {
+            return nil, fmt.Errorf("parse sensitive path %q: %w", p, err)
+        }
+        out = append(out, sp)
+    }
+    return out, nil
 }

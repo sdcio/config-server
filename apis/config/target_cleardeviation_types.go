@@ -30,7 +30,7 @@ type TargetClearDeviationSpec struct {
 
 type TargetClearDeviationConfig struct {
 	// Name of the config on which the paths should be cleared
-	Name string `json:"name" protobuf:"bytes,1,opt,name=paths"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Paths provide the path of the deviation to be cleared
 	Paths []string `json:"paths" protobuf:"bytes,2,rep,name=paths"`
 }
@@ -61,6 +61,7 @@ type TargetClearDeviationConfigResult struct {
 
 // TargetClearDeviation is the Schema for the TargetClearDeviation API
 // +k8s:openapi-gen=true
+// +kubebuilder:skip
 type TargetClearDeviation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
