@@ -57,6 +57,9 @@ var (
 	workspaceDir  = "/workspace"
 )
 
+var version = "dev"
+var commit = ""
+
 func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
@@ -71,6 +74,8 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	log.Info("controller bootstrap", "version", version, "commit", commit)
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
