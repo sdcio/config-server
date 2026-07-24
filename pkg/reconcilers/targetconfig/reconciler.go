@@ -36,8 +36,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -91,6 +93,13 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
+		WithOptions(controller.Options{
+			// Recoverable failures are returned as errors;
+			// Use custom rate limiter to cap the backoff max to 60s
+			// instead of the default ~1000s cap.
+			RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[ctrl.Request](
+				1*time.Second, 60*time.Second),
+		}).
 		For(&configv1alpha1.Target{}).
 		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
@@ -209,18 +218,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if retry {
-			if err := r.transactor.SetConfigsTargetConditionForTarget(
+			if serr := r.transactor.SetConfigsTargetConditionForTarget(
 				ctx,
 				targetOrig,
 				configv1alpha1.TargetForConfigReady("target ready"),
-			); err != nil {
-				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
+			); serr != nil {
+				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", serr), errUpdateStatus)
 			}
-			return ctrl.Result{
-					RequeueAfter: 500 * time.Millisecond,
-					Requeue:      true,
-				},
-				errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
+			// Recoverable failure: trigger backoff
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 	}

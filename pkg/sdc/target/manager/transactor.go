@@ -33,8 +33,6 @@ import (
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -767,15 +765,7 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 
 	if err != nil {
 		result.GlobalError = fmt.Errorf("transaction error: %w", err)
-		// gRPC status code to determine recoverability
-		if statusErr, ok := status.FromError(err); ok {
-			switch statusErr.Code() {
-			case codes.Aborted, codes.ResourceExhausted:
-				result.Recoverable = true
-			default:
-				result.Recoverable = false
-			}
-		}
+		result.Recoverable = isRecoverableTransactionError(err)
 	}
 
 	if rsp != nil {

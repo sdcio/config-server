@@ -55,6 +55,27 @@ func TestProcessTransactionResponse(t *testing.T) {
 			expectErr:   true,
 			recoverable: false,
 		},
+		"Recoverable Unavailable (not connected)": {
+			rsp:         nil,
+			err:         status.Error(codes.Unavailable, "test.test is not connected"),
+			expected:    "error: rpc error: code = Unavailable desc = test.test is not connected",
+			expectErr:   true,
+			recoverable: true,
+		},
+		"Recoverable DeadlineExceeded": {
+			rsp:         nil,
+			err:         status.Error(codes.DeadlineExceeded, "context deadline exceeded"),
+			expected:    "error: rpc error: code = DeadlineExceeded desc = context deadline exceeded",
+			expectErr:   true,
+			recoverable: true,
+		},
+		"Non-Recoverable Unknown not connected (pre-fix data-server)": {
+			rsp:         nil,
+			err:         status.Error(codes.Unknown, "test.test is not connected"),
+			expected:    "error: rpc error: code = Unknown desc = test.test is not connected",
+			expectErr:   true,
+			recoverable: false,
+		},
 		"Intent Errors in Response": {
 			rsp: &sdcpb.TransactionSetResponse{
 				Intents: map[string]*sdcpb.TransactionSetResponseIntent{
@@ -116,6 +137,30 @@ func TestProcessTransactionResponse(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expected, warning)
 			}
+		})
+	}
+}
+
+func TestIsRecoverableTransactionError(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want bool
+	}{
+		"nil":                      {err: nil, want: false},
+		"aborted (lock)":           {err: status.Error(codes.Aborted, "datastore is locked"), want: true},
+		"resource exhausted":       {err: status.Error(codes.ResourceExhausted, "backpressure"), want: true},
+		"unavailable not connected": {err: status.Error(codes.Unavailable, "test.test is not connected"), want: true},
+		"unavailable not ready":    {err: status.Error(codes.Unavailable, "not ready"), want: true},
+		"deadline exceeded":        {err: status.Error(codes.DeadlineExceeded, "timeout"), want: true},
+		"unknown (pre-fix)":        {err: status.Error(codes.Unknown, "test.test is not connected"), want: false},
+		"invalid argument":         {err: status.Error(codes.InvalidArgument, "bad"), want: false},
+		"not found":                {err: status.Error(codes.NotFound, "missing"), want: false},
+		"plain error":              {err: errors.New("boom"), want: false},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isRecoverableTransactionError(tc.err))
 		})
 	}
 }
