@@ -108,9 +108,9 @@ func main() {
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
 		Metrics: metricsServerOptions,
-		LeaderElection:         true,
-		LeaderElectionID:       "sdc-controller.config.sdcio.dev",
-		LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
+		//LeaderElection:         true,
+		//LeaderElectionID:       "sdc-controller.config.sdcio.dev",
+		//LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
