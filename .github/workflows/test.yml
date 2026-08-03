@@ -149,7 +149,7 @@ jobs:
           # Extract the PR number from a "Pairs-with: org/repo#NNN" line
           pairs_with_pr() {
             local repo="$1"
-            printf '%s' "$BODY" | grep -oP "(?i)Pairs-with:\s+${repo}#\K[0-9]+" | head -1
+            printf '%s' "$BODY" | grep -oP "(?i)Pairs-with:\s+${repo}#\K[0-9]+" | head -1 || true
           }
 
           # Resolve data-server: PR# → branch → short SHA (used as GHCR image tag)

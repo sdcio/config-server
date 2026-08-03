@@ -54,6 +54,9 @@ var (
 	configDir = "/config"
 )
 
+var version = "dev"
+var commit = ""
+
 func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
@@ -68,6 +71,8 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	log.Info("api-server bootstrap", "version", version, "commit", commit)
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
