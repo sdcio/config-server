@@ -45,6 +45,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -76,8 +77,10 @@ func main() {
 	ctx := logf.IntoContext(context.Background(), l)
 	log := logf.FromContext(ctx)
 
-	// controller-runtime logs through logr, so give it the same handler.
+	// controller-runtime logs through logr and client-go through klog, so give
+	// them the same handler.
 	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
+	klog.SetSlogLogger(l)
 
 	log.Info("controller bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
 
