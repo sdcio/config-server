@@ -25,19 +25,20 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-logr/logr"
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
-	"github.com/henderiw/logger/log"
+	logf "github.com/henderiw/logger/log"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/internal/verbosity"
 	"github.com/sdcio/config-server/pkg/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
@@ -45,7 +46,6 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -61,18 +61,20 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	l := log.NewLogger(&log.HandlerOptions{Name: "sdc-api-server-logger", AddSource: false})
+	verbosity.RegisterFlag()
+
+	logVerbosity := verbosity.FromArgs(os.Args[1:])
+	level := verbosity.LogLevel(logVerbosity)
+
+	l := logf.NewLogger(&logf.HandlerOptions{Name: "sdc-api-server-logger", MinLevel: level, AddSource: false})
 	slog.SetDefault(l)
-	ctx := log.IntoContext(context.Background(), l)
-	log := log.FromContext(ctx)
+	ctx := logf.IntoContext(context.Background(), l)
+	log := logf.FromContext(ctx)
 
-	opts := zap.Options{
-		TimeEncoder: zapcore.RFC3339NanoTimeEncoder,
-	}
+	// controller-runtime logs through logr, so give it the same handler.
+	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	log.Info("api-server bootstrap", "version", version, "commit", commit)
+	log.Info("api-server bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
