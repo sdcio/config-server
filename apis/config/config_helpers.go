@@ -18,7 +18,8 @@ package config
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -86,13 +87,6 @@ func (r *Config) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Name: r.Name, Namespace: r.Namespace}
 }
 
-func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
-	if r.Status.LastKnownGoodSchema == nil {
-		return &ConfigStatusLastKnownGoodSchema{}
-	}
-	return r.Status.LastKnownGoodSchema
-}
-
 func (r *Config) GetTarget() string {
 	if len(r.GetLabels()) == 0 {
 		return ""
@@ -157,28 +151,19 @@ func BuildEmptyConfig() *Config {
 	}
 }
 
-func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
-	}
-}
-
 type RecoveryConfig struct {
 	Config    Config
 	Deviation Deviation
 }
 
-func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
-	log := log.FromContext(ctx)
-	appliedSpec, err := json.Marshal(r)
+// GetHash returns a SHA-256 hex hash.
+func (r *ConfigSpec) GetHash() (string, error) {
+	raw, err := json.Marshal(r)
 	if err != nil {
-		log.Error("cannot marshal appliedConfig", "error", err)
-		return [20]byte{}
+		return "", fmt.Errorf("marshal config blobs: %w", err)
 	}
-	return sha1.Sum(appliedSpec)
+	h := sha256.Sum256(raw)
+	return hex.EncodeToString(h[:]), nil
 }
 
 func (r *Config) GetOwnerReference() metav1.OwnerReference {

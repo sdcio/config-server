@@ -40,7 +40,7 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := config.GetIntentUpdate(c, true)
+	updates, err := config.GetIntentUpdateFromBlobs(c.Spec.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := config.GetIntentUpdate(c, true)
+	updates, err := config.GetIntentUpdateFromBlobs(c.Spec.Config)
 	if err != nil {
 		return nil, err
 	}

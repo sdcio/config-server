@@ -30,7 +30,8 @@ type TargetRunningConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Value  string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Format string `json:"format" protobuf:"bytes,3,opt,name=format"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -40,11 +41,11 @@ type TargetRunningConfigOptions struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// Path filters the running config to a subtree
-	Path string `json:"path,omitempty"`
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// Format controls output format (json, json_ietf, xml, proto)
 	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
 	// +kubebuilder:default=json
-	Format string `json:"format,omitempty"`
+	Format string `json:"format,omitempty" protobuf:"bytes,2,opt,name=format"`
 }
 
 // Format defines the output encoding format for running config

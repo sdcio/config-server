@@ -24,26 +24,10 @@ import (
 	"strings"
 
 	"github.com/henderiw/logger/log"
-	"github.com/sdcio/config-server/apis/condition"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
-
-// GetCondition returns the condition based on the condition kind
-func (r *SensitiveConfig) GetCondition(t condition.ConditionType) condition.Condition {
-	return r.Status.GetCondition(t)
-}
-
-// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
-// to be set at once
-func (r *SensitiveConfig) SetConditions(c ...condition.Condition) {
-	r.Status.SetConditions(c...)
-}
-
-func (r *SensitiveConfig) IsConditionReady() bool {
-	return r.GetCondition(condition.ConditionTypeReady).Status == metav1.ConditionTrue
-}
 
 func (r *SensitiveConfig) IsRevertive() bool {
 	if r.Spec.Revertive != nil {
@@ -57,30 +41,8 @@ func (r *SensitiveConfig) IsRevertive() bool {
 	return true
 }
 
-func (r *SensitiveConfig) IsRecoverable() bool {
-	c := r.GetCondition(condition.ConditionTypeReady)
-	if c.Reason == string(condition.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condition.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			return true
-		}
-		return false
-	}
-	return true
-}
-
 func (r *SensitiveConfig) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Name: r.Name, Namespace: r.Namespace}
-}
-
-func (r *SensitiveConfig) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
-	if r.Status.LastKnownGoodSchema == nil {
-		return &ConfigStatusLastKnownGoodSchema{}
-	}
-	return r.Status.LastKnownGoodSchema
 }
 
 func (r *SensitiveConfig) GetTarget() string {
@@ -125,15 +87,6 @@ func BuildEmptySensitiveConfig() *SensitiveConfig {
 			APIVersion: SchemeGroupVersion.Identifier(),
 			Kind:       SensitiveConfigKind,
 		},
-	}
-}
-
-func (r *SensitiveConfig) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
 	}
 }
 

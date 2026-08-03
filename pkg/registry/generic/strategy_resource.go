@@ -163,11 +163,6 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	if shouldLog(obj) {
-		logObject(ctx, "Update New", key, obj)
-		logObject(ctx, "Update Old", key, old)
-	}
-
 	if r.obj.IsEqual(ctx, obj, old) {
 		return obj, nil
 	}

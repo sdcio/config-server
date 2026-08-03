@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,21 +34,6 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// GetCondition returns the condition based on the condition kind
-func (r *SensitiveConfig) GetCondition(t condv1alpha1.ConditionType) condv1alpha1.Condition {
-	return r.Status.GetCondition(t)
-}
-
-// SetConditions sets the conditions on the resource. it allows for 0, 1 or more conditions
-// to be set at once
-func (r *SensitiveConfig) SetConditions(c ...condv1alpha1.Condition) {
-	r.Status.SetConditions(c...)
-}
-
-func (r *SensitiveConfig) IsConditionReady() bool {
-	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
-}
 
 func (r *SensitiveConfig) GetOwnerReference() metav1.OwnerReference {
 	return metav1.OwnerReference{
@@ -73,39 +57,8 @@ func (r *SensitiveConfig) IsRevertive() bool {
 	return true
 }
 
-func (r *SensitiveConfig) IsRecoverable() bool {
-	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			return true
-		}
-		return false
-	}
-	return true
-}
-
-func (r *SensitiveConfig) HashDeviationGenerationChanged(deviation Deviation) bool {
-	if r.Status.DeviationGeneration == nil {
-		// if there was no old deviation, but now we have a deviation wwe return true
-		return len(deviation.Spec.Deviations) != 0
-	} else {
-		return *r.Status.DeviationGeneration == deviation.GetGeneration()
-	}
-}
-
 func (r *SensitiveConfig) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
-}
-
-func (r *SensitiveConfig) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
-	if r.Status.LastKnownGoodSchema == nil {
-		return &ConfigStatusLastKnownGoodSchema{}
-	}
-	return r.Status.LastKnownGoodSchema
 }
 
 func (r *SensitiveConfig) GetTarget() string {
@@ -143,16 +96,6 @@ func (r *SensitiveConfig) GetTargetNamespaceName() (*types.NamespacedName, error
 	}, nil
 }
 
-/*
-// IsTransacting return true if a create/update or delete is ongoing on the SensitiveConfig object
-func (r *SensitiveConfig) IsTransacting() bool {
-	condition := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	return condition.Reason == string(condv1alpha1.ConditionReasonCreating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonUpdating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonDeleting)
-}
-*/
-
 func (r *SensitiveConfig) Validate() error {
 	var errm error
 	if _, ok := r.GetLabels()[config.TargetNameKey]; !ok {
@@ -165,7 +108,7 @@ func (r *SensitiveConfig) Validate() error {
 }
 
 // BuildSensitiveConfig returns a reource from a client Object a Spec/Status
-func BuildSensitiveConfig(meta metav1.ObjectMeta, spec SensitiveConfigSpec, status SensitiveConfigStatus) *SensitiveConfig {
+func BuildSensitiveConfig(meta metav1.ObjectMeta, spec SensitiveConfigSpec) *SensitiveConfig {
 	return &SensitiveConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.Identifier(),
@@ -173,7 +116,6 @@ func BuildSensitiveConfig(meta metav1.ObjectMeta, spec SensitiveConfigSpec, stat
 		},
 		ObjectMeta: meta,
 		Spec:       spec,
-		Status:     status,
 	}
 }
 
@@ -234,36 +176,6 @@ func (r *SensitiveConfig) CalculateHash() ([sha1.Size]byte, error) {
 	return sha1.Sum(jsonData), nil
 }
 
-/*
-	func ConvertSdcpbDeviations2SensitiveConfigDeviations(devs []*sdcpb.WatchDeviationResponse) []Deviation {
-		deviations := make([]Deviation, 0, len(devs))
-		for _, dev := range devs {
-			deviations = append(deviations, Deviation{
-				Path:         utils.ToXPath(dev.GetPath(), false),
-				DesiredValue: dev.GetExpectedValue().String(),
-				CurrentValue: dev.GetCurrentValue().String(),
-				Reason:       dev.GetReason().String(),
-			})
-		}
-		return deviations
-	}
-
-	func (r SensitiveConfigStatus) HasNotAppliedDeviation() bool {
-		for _, dev := range r.Deviations {
-			if dev.Reason == "NOT_APPLIED" {
-				return true
-			}
-		}
-		return false
-	}
-
-// +k8s:deepcopy-gen=false
-var _ SensitiveConfigDeviations = &SensitiveConfig{}
-
-	func (r *SensitiveConfig) SetDeviations(d []Deviation) {
-		r.Status.Deviations = d
-	}
-*/
 func (r *SensitiveConfig) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }

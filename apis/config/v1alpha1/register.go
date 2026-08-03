@@ -69,6 +69,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&TargetRunningConfig{},
 		&TargetClearDeviation{},
 		&TargetRunningConfigOptions{},
+		&SensitiveConfig{},
+		&SensitiveConfigList{},
+		&TargetSnapshot{},
+		&TargetSnapshotList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

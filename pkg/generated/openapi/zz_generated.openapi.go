@@ -52,21 +52,21 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec":                        schema_config_server_apis_config_v1alpha1_ConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus":                      schema_config_server_apis_config_v1alpha1_ConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema":   schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar":                         schema_config_server_apis_config_v1alpha1_ConfigVar(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Deviation":                         schema_config_server_apis_config_v1alpha1_Deviation(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationList":                     schema_config_server_apis_config_v1alpha1_DeviationList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec":                     schema_config_server_apis_config_v1alpha1_DeviationSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationStatus":                   schema_config_server_apis_config_v1alpha1_DeviationStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.DiscoveryInfo":                     schema_config_server_apis_config_v1alpha1_DiscoveryInfo(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.EncryptedPayload":                  schema_config_server_apis_config_v1alpha1_EncryptedPayload(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle":                         schema_config_server_apis_config_v1alpha1_Lifecycle(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfig":                     schema_config_server_apis_config_v1alpha1_RunningConfig(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigList":                 schema_config_server_apis_config_v1alpha1_RunningConfigList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec":                 schema_config_server_apis_config_v1alpha1_RunningConfigSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus":               schema_config_server_apis_config_v1alpha1_RunningConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfig":                   schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData":               schema_config_server_apis_config_v1alpha1_SensitiveConfigData(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigList":               schema_config_server_apis_config_v1alpha1_SensitiveConfigList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec":               schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref),
-		"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus":             schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.Target":                            schema_config_server_apis_config_v1alpha1_Target(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviation":              schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationConfig":        schema_config_server_apis_config_v1alpha1_TargetClearDeviationConfig(ref),
@@ -77,6 +77,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfig":               schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfigOptions":        schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshot":                    schema_config_server_apis_config_v1alpha1_TargetSnapshot(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotList":                schema_config_server_apis_config_v1alpha1_TargetSnapshotList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotSpec":                schema_config_server_apis_config_v1alpha1_TargetSnapshotSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec":                        schema_config_server_apis_config_v1alpha1_TargetSpec(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus":                      schema_config_server_apis_config_v1alpha1_TargetStatus(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatusUsedReferences":        schema_config_server_apis_config_v1alpha1_TargetStatusUsedReferences(ref),
@@ -749,6 +752,11 @@ func schema_config_server_apis_config_v1alpha1_ConfigBlob(ref common.ReferenceCa
 						},
 					},
 					"value": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-map-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
 						},
@@ -1205,12 +1213,34 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"vars": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Vars declares named variables referenced from Config blob values via the ${vars.<name>} placeholder. The controller resolves each variable and substitutes its value into the rendered configuration before it is sent to the target. Variables are the supported mechanism for injecting sensitive material: the referenced Secret value is resolved, encrypted into the SensitiveConfig payload, and every leaf it lands on is recorded as a sensitive path so the datastore redacts it in northbound responses. A Config with no variables is rendered verbatim.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"config"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigVar", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
 	}
 }
 
@@ -1243,30 +1273,11 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							},
 						},
 					},
-					"lastKnownGoodSchema": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LastKnownGoodSchema identifies the last known good schema used to apply the config successfully",
-							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
-						},
-					},
-					"appliedConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AppliedConfig defines the config applied to the target",
-							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec"),
-						},
-					},
-					"deviationGeneration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Deviations generation used for the latest config apply",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"},
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"},
 	}
 }
 
@@ -1300,6 +1311,36 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatusLastKnownGoodSchema(r
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_ConfigVar(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigVar is a named variable referenced from Config blob values as ${vars.<name>}. The name is the merge key for the Vars list and must be unique within a single Config. Exactly one value source must be set; today the only source is SecretRef.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name identifies the variable for reference as ${vars.<name>}. Must be unique within the Config's Vars list.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretRef resolves the variable's value from a key of a Secret in the same namespace as the Config. The resolved value is never stored in clear: it is encrypted into the SensitiveConfig payload, and the leaves it is substituted into are tracked as sensitive paths.",
+							Ref:         ref(v1.SecretKeySelector{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			v1.SecretKeySelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -1564,6 +1605,43 @@ func schema_config_server_apis_config_v1alpha1_DiscoveryInfo(ref common.Referenc
 	}
 }
 
+func schema_config_server_apis_config_v1alpha1_EncryptedPayload(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "EncryptedPayload is the common encrypted structure used by both SensitiveConfig and TargetSnapshot.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"keyID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeyID identifies which key in the keyring was used for encryption. Used to detect key rotation without decryption.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"plainHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PlainHash is a SHA-256 hash of the plaintext before encryption. Stored in clear for efficient change detection without decryption.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"data": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Data contains the AES-GCM encrypted, JSON-marshaled payload.",
+							Type:        []string{"string"},
+							Format:      "byte",
+						},
+					},
+				},
+				Required: []string{"keyID", "plainHash", "data"},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_Lifecycle(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1751,12 +1829,6 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref common.Refere
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"),
 						},
 					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus"),
-						},
-					},
 				},
 			},
 			VendorExtensible: spec.VendorExtensible{
@@ -1768,37 +1840,7 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
-	}
-}
-
-func schema_config_server_apis_config_v1alpha1_SensitiveConfigData(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Path defines the path relative to which the value is applicable",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"secretKeyRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SecretKeyRef refers to a secret in the same namesapce as the config",
-							Default:     map[string]interface{}{},
-							Ref:         ref(v1.SecretKeySelector{}.OpenAPIModelName()),
-						},
-					},
-				},
-				Required: []string{"path", "secretKeyRef"},
-			},
-		},
-		Dependencies: []string{
-			v1.SecretKeySelector{}.OpenAPIModelName()},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
@@ -1858,6 +1900,13 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref common.Re
 				Description: "SensitiveConfigSpec defines the desired state of SensitiveConfig",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"generation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Generation is the Config CR generation this was resolved from. Used during recovery to detect if the spec changed since last apply.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 					"lifecycle": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete will follow",
@@ -1878,87 +1927,57 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref common.Re
 							Format:      "",
 						},
 					},
-					"config": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
+					"configHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config blobs.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secretKeyHashes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretKeyHashes maps \"secretName/keyName\" → sha256(secret.Data[keyName]). Tracks only the specific key value — not the whole Secret object.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
 							},
 						},
+					},
+					"payload": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SensitiveConfig defines the SensitiveConfiguration to be applied to a target device",
+							Description: "Payload contains the encrypted resolved []ConfigBlob. Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.EncryptedPayload"),
+						},
+					},
+					"sensitivePaths": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every leaf resolved from a secret. Passed to the dataserver as TransactionIntent.SensitivePaths so values are redacted northbound. Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData"),
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
 						},
 					},
 				},
-				Required: []string{"config"},
+				Required: []string{"payload"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigData"},
-	}
-}
-
-func schema_config_server_apis_config_v1alpha1_SensitiveConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SensitiveConfigStatus defines the observed state of SensitiveConfig",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"conditions": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"type",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Conditions of the resource.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/sdcio/config-server/apis/condition/v1alpha1.Condition"),
-									},
-								},
-							},
-						},
-					},
-					"lastKnownGoodSchema": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LastKnownGoodSchema identifies the last known good schema used to apply the SensitiveConfig successfully",
-							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
-						},
-					},
-					"appliedSensitiveConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AppliedSensitiveConfig defines the SensitiveConfig applied to the target",
-							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"),
-						},
-					},
-					"deviationGeneration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Deviations generation used for the latest SensitiveConfig apply",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"},
+			"github.com/sdcio/config-server/apis/config/v1alpha1.EncryptedPayload", "github.com/sdcio/config-server/apis/config/v1alpha1.Lifecycle"},
 	}
 }
 
@@ -2381,8 +2400,15 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref common.Re
 							Format:  "",
 						},
 					},
+					"format": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"value"},
+				Required: []string{"value", "format"},
 			},
 			VendorExtensible: spec.VendorExtensible{
 				Extensions: spec.Extensions{
@@ -2435,6 +2461,140 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref co
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSnapshot(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetSnapshot defines the Schema for the SensitiveConfig API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotSpec"),
+						},
+					},
+				},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetSnapshot", "version": "v1alpha1"},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotSpec", metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSnapshotList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfigList contains a list of SensitiveConfigs",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshot"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshot", metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSnapshotSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SensitiveConfigSpec defines the desired state of SensitiveConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configs maps Config name to the last successfully applied resolved state. Key is the Config CR name within the same namespace as the TargetSnapshot. Each entry is independently encrypted — change detection via Payload.PlainHash without decryption.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"),
+									},
+								},
+							},
+						},
+					},
+					"lastKnownGoodSchema": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastKnownGoodSchema identifies the last known good schema",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"),
+						},
+					},
+				},
+				Required: []string{"configs"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", "github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigSpec"},
 	}
 }
 

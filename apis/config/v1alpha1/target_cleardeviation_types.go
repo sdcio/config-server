@@ -30,7 +30,7 @@ type TargetClearDeviationSpec struct {
 
 type TargetClearDeviationConfig struct {
 	// Name of the config on which the paths should be cleared
-	Name string `json:"name" protobuf:"bytes,1,opt,name=paths"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Paths provide the path of the deviation to be cleared
 	Paths []string `json:"paths" protobuf:"bytes,2,rep,name=paths"`
 }
@@ -48,13 +48,13 @@ type TargetClearDeviationConfigResult struct {
 	// Name of the config on which the paths should be cleared
 	Name string `json:"name" protobuf:"bytes,1,rep,name=paths"`
 	// Success indicates whether the clear deviation was successful
-	Success bool `json:"success"`
+	Success bool `json:"success" protobuf:"varint,2,opt,name=success"`
 	// Message provides detail on the outcome
-	Message string `json:"message,omitempty"`
+	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// Errors lists any errors for this specific config
-	Errors []string `json:"errors,omitempty"`
+	Errors []string `json:"errors,omitempty" protobuf:"bytes,4,rep,name=errors"`
 	// Warnings lists any warnings for this specific config
-	Warnings []string `json:"warnings,omitempty"`
+	Warnings []string `json:"warnings,omitempty" protobuf:"bytes,5,rep,name=warnings"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

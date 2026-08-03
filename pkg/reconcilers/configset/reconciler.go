@@ -246,13 +246,13 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				newConfig.Annotations[k] = v
 			}
 
-			newHash, err := newConfig.CalculateHash()
+			newHash, err := newConfig.GetHash()
 			if err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
-			oldHash, err := oldConfig.CalculateHash()
+			oldHash, err := oldConfig.GetHash()
 			if err != nil {
 				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())

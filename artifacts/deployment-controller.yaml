@@ -78,11 +78,16 @@ spec:
           value: "true"
         - name: ENABLE_ROLLOUT
           value: "true"
+        - name: ENABLE_RESOLVER
+          value: "true"
         volumeMounts:
         #- name: schema-store
         #  mountPath: /schemas
         - name: workspace-store
           mountPath: /workspace
+        - name: keyring
+          mountPath: /etc/sdc/keyring 
+          readOnly: true
       volumes:
       #- name: schema-store # yang file from git
       #  persistentVolumeClaim:
@@ -90,3 +95,7 @@ spec:
       - name: workspace-store # git workspace
         persistentVolumeClaim:
           claimName: pvc-workspace-store
+      - name: keyring
+        secret:
+          secretName: config-keyring
+          defaultMode: 0400

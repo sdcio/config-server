@@ -26,11 +26,10 @@ import (
 	"strconv"
 	"strings"
 
-	//"time"
-
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/config-server/pkg/output/prometheusserver"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -109,6 +108,9 @@ func main() {
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
 		Metrics: metricsServerOptions,
+		//LeaderElection:         true,
+		//LeaderElectionID:       "sdc-controller.config.sdcio.dev",
+		//LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
@@ -165,6 +167,21 @@ func main() {
 			}
 		}()
 	}
+
+	// ── KeyRing ───────────────────────────────────────────────────────────────
+	// Loaded from a projected Secret volume, and optional here: whether a keyring
+	// is required depends on which reconcilers are enabled, and those reconcilers
+	// assert it themselves via ctrlCfg.RequireKeyRing during SetupWithManager.
+	//
+	// Load also registers keyring.FileWatcher on mgr, so rotation is picked up
+	// once mgr.Start runs — the watcher reloads this same *KeyRing in place and
+	// signals `rotation`, which the Resolver consumes with source.Channel.
+	kr, rotation, err := keyring.Load(ctx, mgr)
+	if err != nil {
+		log.Error("cannot load keyring", "err", err)
+		os.Exit(1)
+	}
+	ctrlCfg.SetKeyRing(kr, rotation)
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))

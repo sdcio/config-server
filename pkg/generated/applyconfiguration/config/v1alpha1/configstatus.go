@@ -29,12 +29,6 @@ type ConfigStatusApplyConfiguration struct {
 	// ConditionedStatus provides the status of the Readiness using conditions
 	// if the condition is true the other attributes in the status are meaningful
 	conditionv1alpha1.ConditionedStatus `json:",inline"`
-	// LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
-	LastKnownGoodSchema *ConfigStatusLastKnownGoodSchemaApplyConfiguration `json:"lastKnownGoodSchema,omitempty"`
-	// AppliedConfig defines the config applied to the target
-	AppliedConfig *ConfigSpecApplyConfiguration `json:"appliedConfig,omitempty"`
-	// Deviations generation used for the latest config apply
-	DeviationGeneration *int64 `json:"deviationGeneration,omitempty"`
 }
 
 // ConfigStatusApplyConfiguration constructs a declarative configuration of the ConfigStatus type for use with
@@ -50,29 +44,5 @@ func (b *ConfigStatusApplyConfiguration) WithConditions(values ...conditionv1alp
 	for i := range values {
 		b.ConditionedStatus.Conditions = append(b.ConditionedStatus.Conditions, values[i])
 	}
-	return b
-}
-
-// WithLastKnownGoodSchema sets the LastKnownGoodSchema field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the LastKnownGoodSchema field is set to the value of the last call.
-func (b *ConfigStatusApplyConfiguration) WithLastKnownGoodSchema(value *ConfigStatusLastKnownGoodSchemaApplyConfiguration) *ConfigStatusApplyConfiguration {
-	b.LastKnownGoodSchema = value
-	return b
-}
-
-// WithAppliedConfig sets the AppliedConfig field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the AppliedConfig field is set to the value of the last call.
-func (b *ConfigStatusApplyConfiguration) WithAppliedConfig(value *ConfigSpecApplyConfiguration) *ConfigStatusApplyConfiguration {
-	b.AppliedConfig = value
-	return b
-}
-
-// WithDeviationGeneration sets the DeviationGeneration field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the DeviationGeneration field is set to the value of the last call.
-func (b *ConfigStatusApplyConfiguration) WithDeviationGeneration(value int64) *ConfigStatusApplyConfiguration {
-	b.DeviationGeneration = &value
 	return b
 }

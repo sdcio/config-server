@@ -26,6 +26,7 @@ const (
 	// Config related conditions
 	ConditionTypeConfigReady          condv1alpha1.ConditionType = "ConfigReady"
 	ConditionTypeTargetForConfigReady condv1alpha1.ConditionType = "TargetForConfigReady"
+	ConditionTypeResolver             condv1alpha1.ConditionType = "Resolver"
 
 	// Target relation conditions
 	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
@@ -227,6 +228,26 @@ func TargetConnectionReady() condv1alpha1.Condition {
 func TargetConnectionFailed(msg string) condv1alpha1.Condition {
 	return condv1alpha1.Condition{Condition: metav1.Condition{
 		Type:               string(ConditionTypeTargetConnectionReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonFailed),
+		Message:            msg,
+	}}
+}
+
+func ConfigResolverReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeResolver),
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonReady),
+		Message:            msg,
+	}}
+}
+
+func ConfigResolverFailed(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeResolver),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             string(condv1alpha1.ConditionReasonFailed),
