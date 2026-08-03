@@ -102,6 +102,9 @@ spec:
           mountPath: /schemadb
         - name: schema-store
           mountPath: /schemas
+        - name: keyring
+          mountPath: /etc/sdc/keyring   # directory — NOT subPath
+          readOnly: true
       volumes:
       - name: data-server-config
         configMap:
@@ -115,4 +118,8 @@ spec:
       - name: schema-store # yang file from git
         persistentVolumeClaim:
           claimName: pvc-schema-store
+      - name: keyring
+        secret:
+          secretName: config-keyring
+          defaultMode: 0400
 

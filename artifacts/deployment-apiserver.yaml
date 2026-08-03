@@ -76,4 +76,3 @@ spec:
       - name: config-store
         persistentVolumeClaim:
           claimName: pvc-config-store
-

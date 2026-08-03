@@ -105,6 +105,9 @@ func main() {
 
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
+		LeaderElection:         true,
+		LeaderElectionID:       "sdc-apiserver.config.sdcio.dev",
+		LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
 		Metrics: metricsServerOptions,
 	}
 	if port := IsPProfEnabled(); port != nil {

@@ -149,7 +149,7 @@ func Test_resolveLeaf(t *testing.T) {
 		// Includes a value that *contains* a resolvable var — still rejected,
 		// because exact-match mode does not interpolate.
 		for _, s := range []string{
-			"foo ${vars.pw} bar", // interpolation attempt
+			"foo ${vars.pw} bar",   // interpolation attempt
 			"${vars.pw}${vars.pw}", // two placeholders
 			"${vars.pw",            // missing closing brace
 			"prefix ${vars.",       // bare marker mid-string
@@ -206,10 +206,11 @@ func Test_substituteBlobs(t *testing.T) {
 			wantPaths: []string{"/network-instance/protocols/bgp/auth"},
 		},
 		{
-			// Root-level bare string: substituted, but path "" is not recorded.
-			name:      "root bare string substituted, no path captured",
-			blobs:     []configv1alpha1.ConfigBlob{blob("/", `"${vars.pw}"`)},
-			wantVals:  []string{`"s3cr3t"`},
+			// The root guard fires only for SECRET-derived values: a plain literal
+			// at the blob root still passes through untouched.
+			name:      "plain root string passes, no path captured",
+			blobs:     []configv1alpha1.ConfigBlob{blob("/", `"hello"`)},
+			wantVals:  []string{`"hello"`},
 			wantPaths: nil,
 		},
 		{
@@ -280,6 +281,14 @@ func Test_substituteBlobs_errors(t *testing.T) {
 			name:    "error is path-qualified",
 			blobs:   []configv1alpha1.ConfigBlob{blob("/sys", `{"auth":{"pw":"${vars.ghost}"}}`)},
 			wantSub: "/sys/auth/pw",
+		},
+		{
+			// A secret at the blob root has no addressable sensitive path.
+			// Dropping the capture would fail OPEN — the dataserver would treat
+			// the secret as ordinary config — so this must be an error.
+			name:    "secret-derived value at blob root is rejected",
+			blobs:   []configv1alpha1.ConfigBlob{blob("/", `"${vars.pw}"`)},
+			wantSub: "root",
 		},
 		{
 			name:    "malformed json",
@@ -358,13 +367,41 @@ func Test_keylessXPath(t *testing.T) {
 	}
 }
 
+// ── truncateUTF8 ────────────────────────────────────────────────────────────────
+
+// Test_truncateUTF8 guards the condition message path: a naive s[:max] can land
+// mid-rune and produce invalid UTF-8, which the API server rejects.
+func Test_truncateUTF8(t *testing.T) {
+	if got := truncateUTF8("short", 128); got != "short" {
+		t.Errorf("short string altered: %q", got)
+	}
+	// "é" is two bytes; cutting at 3 must back off to 2 rather than split it.
+	if got := truncateUTF8("aéb", 3); got != "aé" {
+		t.Errorf("truncateUTF8 split a rune: got %q, want %q", got, "aé")
+	}
+	long := strings.Repeat("ü", 200) // 400 bytes
+	got := truncateUTF8(long, maxConditionMessage)
+	if len(got) > maxConditionMessage {
+		t.Errorf("result %d bytes, want <= %d", len(got), maxConditionMessage)
+	}
+	if !utf8ValidString(got) {
+		t.Errorf("result is not valid UTF-8: %q", got)
+	}
+}
+
+// utf8ValidString avoids importing unicode/utf8 solely for one assertion; the
+// round trip through []rune is lossy exactly when the input is invalid.
+func utf8ValidString(s string) bool {
+	return string([]rune(s)) == s
+}
+
 // ── test fixtures for reconciler-backed tests ────────────────────────────────────
 
 const testNS = "default"
 
-// newTestKeyRing builds a real *keyring.KeyRing from an in-memory Secret. The
-// actual key bytes are irrelevant to detectChange — only the primary ID matters
-// for NeedsReencryption — but they must be a valid AES key length so that the
+// newTestKeyRing builds a real *keyring.KeyRing from in-memory JSON. The actual
+// key bytes are irrelevant to detectChange — only the primary ID matters for
+// NeedsReencryption — but they must be a valid AES key length so the
 // resolveConfig round-trip (Encrypt/Decrypt) works.
 func newTestKeyRing(t *testing.T, primary string, keyIDs ...string) *keyring.KeyRing {
 	t.Helper()
@@ -380,13 +417,9 @@ func newTestKeyRing(t *testing.T, primary string, keyIDs ...string) *keyring.Key
 	if err != nil {
 		t.Fatalf("marshal keyring: %v", err)
 	}
-	sec := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: testNS, Name: "keyring"},
-		Data:       map[string][]byte{"keyring.json": raw},
-	}
-	kr, err := keyring.NewFromSecret(sec)
+	kr, err := keyring.NewFromBytes(raw)
 	if err != nil {
-		t.Fatalf("NewFromSecret: %v", err)
+		t.Fatalf("NewFromBytes: %v", err)
 	}
 	return kr
 }
@@ -419,14 +452,20 @@ func mkConfig(vars []configv1alpha1.ConfigVar, blobs ...configv1alpha1.ConfigBlo
 	}
 }
 
+// newTestReconciler wires both apiReader and client to the same fake, so tests
+// that touch SensitiveConfig (save, reencrypt, allNeedingReencryption) work
+// alongside the Secret-only ones.
 func newTestReconciler(t *testing.T, kr *keyring.KeyRing, objs ...client.Object) *reconciler {
 	t.Helper()
 	sch := runtime.NewScheme()
 	if err := corev1.AddToScheme(sch); err != nil {
 		t.Fatalf("add corev1 to scheme: %v", err)
 	}
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add configv1alpha1 to scheme: %v", err)
+	}
 	c := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
-	return &reconciler{keyring: kr, apiReader: c}
+	return &reconciler{keyring: kr, apiReader: c, client: c}
 }
 
 // ── buildLeafResolver ────────────────────────────────────────────────────────────
@@ -567,6 +606,11 @@ func Test_resolveConfig(t *testing.T) {
 		if !reflect.DeepEqual(out.secretNames, []string{"mysecret"}) {
 			t.Errorf("secretNames = %#v", out.secretNames)
 		}
+		// The keyid label written by save() comes from this field; if it is
+		// empty the retirement gate has nothing to select on.
+		if out.payload.KeyID != "v1" {
+			t.Errorf("payload.KeyID = %q, want v1", out.payload.KeyID)
+		}
 
 		// Decrypt and confirm the placeholder is gone and the value substituted.
 		plain, err := kr.Decrypt(out.payload)
@@ -637,6 +681,78 @@ func Test_resolveConfig(t *testing.T) {
 	})
 }
 
+// ── reencrypt ───────────────────────────────────────────────────────────────────
+
+func Test_reencrypt(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("rewraps under the new primary and updates the keyid label", func(t *testing.T) {
+		// Encrypt under v1, then rotate to v2 with v1 retained.
+		krOld := newTestKeyRing(t, "v1", "v1")
+		payload, err := krOld.Encrypt([]byte(`[{"path":"/","value":{}}]`))
+		if err != nil {
+			t.Fatalf("seed encrypt: %v", err)
+		}
+		payload.PlainHash = "SEEDHASH"
+
+		sc := &configv1alpha1.SensitiveConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: testNS, Name: "cfg1"},
+			Spec:       configv1alpha1.SensitiveConfigSpec{Payload: payload},
+		}
+
+		krNew := newTestKeyRing(t, "v2", "v1", "v2")
+		r := newTestReconciler(t, krNew, sc)
+
+		if err := r.reencrypt(ctx, sc); err != nil {
+			t.Fatalf("reencrypt: %v", err)
+		}
+		if sc.Spec.Payload.KeyID != "v2" {
+			t.Errorf("KeyID = %q, want v2", sc.Spec.Payload.KeyID)
+		}
+		if sc.Labels[keyring.LabelKeyID] != "v2" {
+			t.Errorf("keyid label = %q, want v2 — the retirement gate depends on it",
+				sc.Labels[keyring.LabelKeyID])
+		}
+		// Rotation rewraps content; it must not restate it.
+		if sc.Spec.Payload.PlainHash != "SEEDHASH" {
+			t.Errorf("PlainHash changed during rotation: %q", sc.Spec.Payload.PlainHash)
+		}
+		if _, err := krNew.Decrypt(sc.Spec.Payload); err != nil {
+			t.Errorf("payload not decryptable under new primary: %v", err)
+		}
+	})
+
+	// A payload encrypted under a key that has since been removed from the ring
+	// must surface ErrUnknownKeyID so Reconcile falls back to full resolution
+	// rather than requeueing forever on a key that no longer exists. This is what
+	// makes key retirement expensive rather than irreversible.
+	t.Run("retired key surfaces ErrUnknownKeyID for the resolution fallback", func(t *testing.T) {
+		kr := newTestKeyRing(t, "v2", "v2") // v1 retired
+		r := newTestReconciler(t, kr)
+		sc := &configv1alpha1.SensitiveConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: testNS, Name: "cfg1"},
+			Spec: configv1alpha1.SensitiveConfigSpec{
+				Payload: configv1alpha1.EncryptedPayload{KeyID: "v1", Data: []byte("stale")},
+			},
+		}
+		err := r.reencrypt(ctx, sc)
+		if !errors.Is(err, keyring.ErrUnknownKeyID) {
+			t.Fatalf("want ErrUnknownKeyID, got %v", err)
+		}
+	})
+
+	t.Run("empty payload is a no-op", func(t *testing.T) {
+		kr := newTestKeyRing(t, "v1", "v1")
+		r := newTestReconciler(t, kr)
+		sc := &configv1alpha1.SensitiveConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: testNS, Name: "cfg1"},
+		}
+		if err := r.reencrypt(ctx, sc); err != nil {
+			t.Fatalf("empty payload must be a no-op, got: %v", err)
+		}
+	})
+}
+
 // ── detectChange ────────────────────────────────────────────────────────────────
 
 func Test_detectChange(t *testing.T) {
@@ -702,8 +818,9 @@ func Test_detectChange(t *testing.T) {
 			existingHash:    "STALE_HASH",
 			storedKeyHashes: map[string]string{"mysecret/key0": sha256hex([]byte("val0"))},
 			payloadKeyID:    "v1",
-			// secret value also differs, but secretChanged stays false because the
-			// secret check is skipped when configChanged is already true.
+			// The secret value also differs, but secretChanged stays false: the
+			// secret check is skipped when configChanged is already true. So a
+			// false secretChanged here means "not checked", not "unchanged".
 			secrets: []client.Object{mkSecret("mysecret", map[string]string{"key0": "CHANGED"})},
 			want:    changeResult{configChanged: true},
 		},

@@ -78,12 +78,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if cfg.TargetManager == nil {
 		return nil, fmt.Errorf("TargetManager is nil: set LOCAL_DATASERVER=true or disable TargetConfigServerController")
 	}
-	if cfg.KeyRing == nil {
-		return nil, fmt.Errorf("KeyRing is nil: required for SensitiveConfig decryption")
+	r.keyring, err = cfg.RequireKeyRing(reconcilerName); if err != nil {
+		return nil, err
 	}
 
 	r.client = mgr.GetClient()
-	r.keyring = cfg.KeyRing
 	r.finalizer = resource.NewAPIFinalizer(
 		mgr.GetClient(),
 		finalizer,

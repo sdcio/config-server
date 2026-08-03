@@ -54,24 +54,24 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if cfg.TargetManager == nil {
 		return nil, fmt.Errorf("TargetManager is nil: set LOCAL_DATASERVER=true or disable TargetRecoveryServerController")
 	}
-	if cfg.KeyRing == nil {
-		return nil, fmt.Errorf("KeyRing is nil: required for snapshot decryption during recovery")
+	var err error
+	r.keyring, err = cfg.RequireKeyRing(reconcilerName)
+	if err != nil {
+		return nil, fmt.Errorf("KeyRing is nil: required for SensitiveConfig decryption")
 	}
 
-	var err error
 	r.discoveryClient, err = ctrlconfig.GetDiscoveryClient(mgr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get discoveryClient from manager")
+		return nil, err
 	}
 
-	r.client    = mgr.GetClient()
-	r.keyring   = cfg.KeyRing
+	r.client = mgr.GetClient()
 	r.targetMgr = cfg.TargetManager
-	r.recorder  = mgr.GetEventRecorder(reconcilerName)
+	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.transactor = targetmanager.NewTransactor()
 	// we need to use a common fieldmanager for config and config recovery due to SSA
-	r.cfgMgr     = targetmanager.NewConfigManager(mgr.GetClient(), "targetConfigManager")
-	r.finalizer  = resource.NewAPIFinalizer(
+	r.cfgMgr = targetmanager.NewConfigManager(mgr.GetClient(), "targetConfigManager")
+	r.finalizer = resource.NewAPIFinalizer(
 		mgr.GetClient(),
 		finalizer,
 		fieldmanagerfinalizer,
@@ -156,6 +156,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// ── Recover using snapshot blobs ───────────────────────────────────────────
 	msg, err := targetmanager.RecoverConfigs(ctx, targetOrig, dsctx, r.transactor, r.cfgMgr, r.keyring, snapshot)
 	if err != nil {
+		if errors.Is(err, keyring.ErrUnknownKeyID) {
+			// This replica has not picked up the rotated keyring yet. Refresh and
+			// requeue rather than parking: handleError returns nil once the
+			// condition is already set, so falling through here would leave
+			// recovery permanently stalled with no event to restart it.
+			_ = r.keyring.Refresh()
+			return ctrl.Result{RequeueAfter: 5 * time.Second},
+				errors.Wrap(r.handleError(ctx, targetOrig, "keyring not yet propagated", err), errUpdateStatus)
+		}
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "recovery failed", err), errUpdateStatus)
 	}
 

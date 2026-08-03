@@ -21,12 +21,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
@@ -53,6 +55,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 func init() {
@@ -73,6 +76,8 @@ const (
 	// requeue delay when secrets are unavailable — Secret watch won't help
 	// if SensitiveConfig doesn't exist yet (no ref labels set)
 	requeueOnResolutionFailure = 30 * time.Second
+	// maxConditionMessage bounds the condition message length.
+	maxConditionMessage = 128
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
@@ -81,8 +86,13 @@ const (
 // ── Change detection ───────────────────────────────────────────────────────────
 
 // changeResult holds the outcome of detectChange.
-// All three criteria are always evaluated — no early exit — so annotations
-// accurately reflect every dimension of what changed simultaneously.
+//
+// configChanged and keyringChanged are always evaluated. secretChanged is only
+// evaluated when the config is unchanged: a config change forces full
+// resolution regardless, and the stored per-key hashes may reference secretRefs
+// that no longer exist. So a false secretChanged alongside a true
+// configChanged means "not checked", not "verified unchanged" — the annotations
+// should be read with that in mind.
 type changeResult struct {
 	configChanged  bool
 	secretChanged  bool
@@ -119,13 +129,22 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot get discoveryClient from manager")
 	}
 
-	if cfg.KeyRing == nil {
-		return nil, fmt.Errorf("KeyRing is nil: set keyring secret or disable SensitiveResolverController")
+	// The reconciler asserts its own dependency rather than main guessing at it
+	// from an unrelated flag. RequireKeyRing names this reconciler in the error.
+	r.keyring, err = cfg.RequireKeyRing(crName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Guaranteed non-nil whenever a keyring is present (they are installed
+	// together by SetKeyRing), but source.Channel on a nil channel would block
+	// forever rather than fail, so check rather than trust.
+	if cfg.KeyRotationEvents == nil {
+		return nil, fmt.Errorf("reconciler %q: keyring present but KeyRotationEvents channel is nil", crName)
 	}
 
 	r.client = mgr.GetClient()
 	r.apiReader = mgr.GetAPIReader()
-	r.keyring = cfg.KeyRing
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 	r.finalizer = resource.NewAPIFinalizer(
 		mgr.GetClient(),
@@ -140,28 +159,20 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		},
 	)
 
-	isKeyring := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		_, ok := obj.GetLabels()[config.LabelKeyRingKey]
-		return ok
-	})
-	notKeyring := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		_, ok := obj.GetLabels()[config.LabelKeyRingKey]
-		return !ok
-	})
-
+	// No keyring-Secret predicate here any more: the keyring is a mounted volume
+	// watched by keyring.FileWatcher, not an API object this controller reads.
+	// mapSecretToConfigs already filters by ref label, so a keyring Secret event
+	// costs one indexed List and maps to nothing.
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
 		For(&configv1alpha1.Config{}).
 		Owns(&configv1alpha1.SensitiveConfig{}).
+		WatchesRawSource(source.Channel(cfg.KeyRotationEvents,
+			handler.EnqueueRequestsFromMapFunc(r.allNeedingReencryption))).
 		WatchesMetadata(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.mapSecretToConfigs),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, notKeyring),
-		).
-		WatchesMetadata(
-			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(r.mapKeyRingToAllConfigs),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, isKeyring),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
@@ -204,6 +215,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		//   - The record that this config was applied and must be removed from device
 		//   - The surface for failure conditions if the delete fails
 		// The targetconfig controller deletes it explicitly after TransactionConfirm.
+		//
+		// NOTE: save() sets a controller OwnerReference from the Config to the SC,
+		// so once this finalizer is removed and the Config is actually deleted,
+		// garbage collection will delete the SC as a dependent. That retention
+		// guarantee therefore holds ONLY IF targetconfig holds its own finalizer
+		// on the SensitiveConfig — GC then sets deletionTimestamp and waits.
+		// Without such a finalizer the SC is collected before targetconfig ever
+		// observes it, and the device config is never cleaned up. Verify this
+		// before relying on the comment above.
 		if err := r.finalizer.RemoveFinalizer(ctx, cfgOrig); err != nil {
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot remove finalizer", err), errUpdateStatus)
@@ -226,7 +246,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	hasExistingSC := err == nil
 
-	// ── Detect change: walks ALL criteria without early exit ──────────────────
+	// ── Detect change ─────────────────────────────────────────────────────────
 	change, fetched, err := r.detectChange(ctx, cfgOrig, existingSC, hasExistingSC)
 	if err != nil {
 		return ctrl.Result{Requeue: true},
@@ -247,17 +267,41 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// ── Keyring rotation only: re-encrypt, no secret fetch needed ─────────────
 	// SensitivePaths are untouched here — rotation moves no secrets.
 	if change.needsReencryptionOnly() {
-		if err := r.reencrypt(ctx, existingSC); err != nil {
+		err := r.reencrypt(ctx, existingSC)
+		switch {
+		case err == nil:
+			return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig), errUpdateStatus)
+
+		case stderrors.Is(err, keyring.ErrUnknownKeyID):
+			// Either the old key was retired, or this replica is behind the
+			// current keyring. Refresh before deciding: falling back with a
+			// stale ring would re-encrypt under an OLD primary (see below).
+			if refreshErr := r.keyring.Refresh(); refreshErr != nil {
+				log.Warn("cannot refresh keyring", "err", refreshErr)
+			}
+			if !r.keyring.NeedsReencryption(existingSC.Spec.Payload) {
+				// The refresh caught us up and the payload is already on the
+				// current primary. Nothing to do.
+				return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig), errUpdateStatus)
+			}
+			// Still off-primary with no key for it: the old key is gone. The
+			// plaintext is re-derivable from the Config and its Secrets, so fall
+			// through to full resolution rather than stranding the object on a
+			// key that no longer exists. This is what makes retiring a key
+			// expensive rather than irreversible.
+			log.Info("cannot re-encrypt with retired key, falling back to full resolution",
+				"keyID", existingSC.Spec.Payload.KeyID, "primary", r.keyring.PrimaryID())
+
+		default:
 			return ctrl.Result{Requeue: true},
 				errors.Wrap(r.handleError(ctx, cfgOrig, "cannot re-encrypt SensitiveConfig", err), errUpdateStatus)
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, cfgOrig), errUpdateStatus)
 	}
 
 	// ── Resolution needed ─────────────────────────────────────────────────────
-	// Covers: configChanged, secretChanged, or both (+ possible concurrent keyringChanged).
-	// r.keyring.Encrypt always uses the primary key, so a concurrent keyring
-	// rotation is handled automatically during resolution.
+	// Covers: configChanged, secretChanged, both, or a keyring-only change whose
+	// re-encrypt fell through above. r.keyring.Encrypt always uses the primary
+	// key, so a concurrent rotation is handled automatically during resolution.
 
 	// GetHash hashes the ConfigSpec — defined in config_helpers.go.
 	// IMPORTANT: it MUST hash spec.Vars as well as spec.Config, otherwise a
@@ -283,7 +327,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: requeueOnResolutionFailure}, nil
 	}
 
-	if err := r.save(ctx, cfgOrig, out, configHash, change); err != nil {
+	if err := r.save(ctx, cfgOrig, out, configHash, change, existingSC, hasExistingSC); err != nil {
 		return ctrl.Result{Requeue: true},
 			errors.Wrap(r.handleError(ctx, cfgOrig, "cannot save SensitiveConfig", err), errUpdateStatus)
 	}
@@ -293,9 +337,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // ── detectChange ──────────────────────────────────────────────────────────────
 
-// detectChange evaluates all three criteria without early exit.
-// Returns the full picture for accurate per-dimension annotations.
+// detectChange evaluates what changed since the last resolution.
 // Also returns pre-fetched secrets to avoid double-fetching in resolveConfig.
+// See changeResult for why secretChanged is not evaluated when configChanged.
 func (r *reconciler) detectChange(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
@@ -356,6 +400,9 @@ func (r *reconciler) detectChange(
 
 // ── reencrypt ─────────────────────────────────────────────────────────────────
 
+// reencrypt rewraps an existing payload under the current primary key without
+// re-resolving. It is an optimization, not a requirement: the caller falls back
+// to full resolution when the old key is gone (ErrUnknownKeyID).
 func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.SensitiveConfig) error {
 	if len(sc.Spec.Payload.Data) == 0 {
 		// Nothing to re-encrypt (no-payload entry).
@@ -363,6 +410,7 @@ func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.Sensitive
 	}
 	plain, err := r.keyring.Decrypt(sc.Spec.Payload)
 	if err != nil {
+		// Wrapped with %w so ErrUnknownKeyID survives to the caller's Is check.
 		return fmt.Errorf("decrypt: %w", err)
 	}
 	newPayload, err := r.keyring.Encrypt(plain)
@@ -373,6 +421,10 @@ func (r *reconciler) reencrypt(ctx context.Context, sc *configv1alpha1.Sensitive
 	// only the wrapping key changed, not the content or its layout.
 	newPayload.PlainHash = sc.Spec.Payload.PlainHash
 	sc.Spec.Payload = newPayload
+
+	// The keyid label is the retirement gate: with it, "is anything still on
+	// key-1?" is a label selector rather than a decrypt-everything sweep.
+	metav1.SetMetaDataLabel(&sc.ObjectMeta, keyring.LabelKeyID, newPayload.KeyID)
 
 	metav1.SetMetaDataAnnotation(&sc.ObjectMeta, config.AnnotationConfigChanged, "false")
 	metav1.SetMetaDataAnnotation(&sc.ObjectMeta, config.AnnotationSecretChanged, "false")
@@ -611,7 +663,16 @@ func substituteAndCapture(node interface{}, path string, lr *leafResolver, paths
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", pathLabel(path), err)
 		}
-		if sensitive && path != "" {
+		if sensitive {
+			if path == "" {
+				// A secret-derived value at the blob root has no expressible
+				// sensitive path. Dropping it would silently fail OPEN — the
+				// dataserver would treat a secret as ordinary config — so this
+				// is an error rather than a skipped capture.
+				return nil, fmt.Errorf(
+					"secret-derived value at the blob root has no addressable path; " +
+						"nest it under a container, or give the blob a non-root path")
+			}
 			*paths = append(*paths, path)
 		}
 		return newVal, nil
@@ -647,60 +708,72 @@ func pathLabel(p string) string {
 
 // ── save ──────────────────────────────────────────────────────────────────────
 
+// save writes the resolved SensitiveConfig. existing/hasExisting are the objects
+// Reconcile already fetched — passed in rather than re-Get'd.
 func (r *reconciler) save(
 	ctx context.Context,
 	cfg *configv1alpha1.Config,
 	out resolveOutput,
 	configHash string,
 	change changeResult,
+	existing *configv1alpha1.SensitiveConfig,
+	hasExisting bool,
 ) error {
 	labels := map[string]string{
 		config.TargetNamespaceKey: cfg.Labels[config.TargetNamespaceKey],
 		config.TargetNameKey:      cfg.Labels[config.TargetNameKey],
+		// Records which key encrypted this payload. This is what makes key
+		// retirement checkable:
+		//   kubectl get sensitiveconfigs -A -l config.sdcio.dev/keyid=key-1
+		// Empty means nothing is left on key-1 and it can be dropped.
+		keyring.LabelKeyID: out.payload.KeyID,
 	}
 	for _, sn := range out.secretNames {
 		labels[refLabelPrefix+sn] = "true"
 	}
 
-	desired := &configv1alpha1.SensitiveConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cfg.Name,
-			Namespace: cfg.Namespace,
-			Labels:    labels,
-			Annotations: map[string]string{
-				config.AnnotationConfigChanged:  strconv.FormatBool(change.configChanged),
-				config.AnnotationSecretChanged:  strconv.FormatBool(change.secretChanged),
-				config.AnnotationKeyringChanged: strconv.FormatBool(change.keyringChanged),
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cfg,
-					configv1alpha1.SchemeGroupVersion.WithKind(configv1alpha1.ConfigKind),
-				),
-			},
-		},
-		Spec: configv1alpha1.SensitiveConfigSpec{
-			Generation:      cfg.Generation,
-			Lifecycle:       cfg.Spec.Lifecycle,
-			Priority:        int64(cfg.Spec.Priority),
-			Revertive:       cfg.Spec.Revertive,
-			ConfigHash:      configHash,
-			SecretKeyHashes: out.secretKeyHashes,
-			Payload:         out.payload,
-			SensitivePaths:  out.sensitivePaths,
-		},
+	annotations := map[string]string{
+		config.AnnotationConfigChanged:  strconv.FormatBool(change.configChanged),
+		config.AnnotationSecretChanged:  strconv.FormatBool(change.secretChanged),
+		config.AnnotationKeyringChanged: strconv.FormatBool(change.keyringChanged),
 	}
 
-	existing := &configv1alpha1.SensitiveConfig{}
-	err := r.client.Get(ctx, client.ObjectKeyFromObject(desired), existing)
-	if err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return err
-		}
-		return r.client.Create(ctx, desired)
+	spec := configv1alpha1.SensitiveConfigSpec{
+		Generation:      cfg.Generation,
+		Lifecycle:       cfg.Spec.Lifecycle,
+		Priority:        int64(cfg.Spec.Priority),
+		Revertive:       cfg.Spec.Revertive,
+		ConfigHash:      configHash,
+		SecretKeyHashes: out.secretKeyHashes,
+		Payload:         out.payload,
+		SensitivePaths:  out.sensitivePaths,
 	}
-	existing.Labels = desired.Labels
-	existing.Annotations = desired.Annotations
-	existing.Spec = desired.Spec
+
+	if !hasExisting {
+		return r.client.Create(ctx, &configv1alpha1.SensitiveConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        cfg.Name,
+				Namespace:   cfg.Namespace,
+				Labels:      labels,
+				Annotations: annotations,
+				// See the deletion branch in Reconcile: this controller reference
+				// makes the SC a GC dependent of the Config, so its survival past
+				// Config deletion depends on targetconfig holding a finalizer.
+				OwnerReferences: []metav1.OwnerReference{
+					*metav1.NewControllerRef(cfg,
+						configv1alpha1.SchemeGroupVersion.WithKind(configv1alpha1.ConfigKind),
+					),
+				},
+			},
+			Spec: spec,
+		})
+	}
+
+	// Update in place: preserves resourceVersion, finalizers (including any held
+	// by targetconfig) and ownerReferences.
+	existing.Labels = labels
+	existing.Annotations = annotations
+	existing.Spec = spec
 	return r.client.Update(ctx, existing)
 }
 
@@ -731,14 +804,44 @@ func (r *reconciler) handleError(ctx context.Context, cfg *configv1alpha1.Config
 	if err != nil {
 		msg = fmt.Sprintf("%s: %s", msg, err.Error())
 	}
-	if len(msg) > 128 {
-		msg = msg[:128]
-	}
+	msg = truncateUTF8(msg, maxConditionMessage)
+
 	log.Warn("sensitive resolver failed", "msg", msg, "err", err)
+	if r.recorder != nil {
+		r.recorder.Eventf(cfg, nil, corev1.EventTypeWarning, "ResolveFailed", "Resolve", "%s", msg)
+	}
 	return r.setResolverCondition(ctx, cfg, configv1alpha1.ConfigResolverFailed(msg))
 }
 
 // ── Event mappers ──────────────────────────────────────────────────────────────
+
+// allNeedingReencryption enqueues every Config whose SensitiveConfig payload is
+// off the current primary. Driven by the keyring rotation channel.
+//
+// The filter is client-side because a payload written before the keyid label
+// existed carries no label to select on. Once every SensitiveConfig has been
+// written at least once by this version, this can become a server-side
+// selector on keyring.LabelKeyID != PrimaryID().
+func (r *reconciler) allNeedingReencryption(ctx context.Context, _ client.Object) []reconcile.Request {
+	log := log.FromContext(ctx)
+
+	scList := &configv1alpha1.SensitiveConfigList{}
+	if err := r.client.List(ctx, scList); err != nil {
+		log.Error("cannot list SensitiveConfigs for rotation sweep", "err", err)
+		return nil
+	}
+
+	reqs := make([]reconcile.Request, 0, len(scList.Items))
+	for i := range scList.Items {
+		if r.keyring.NeedsReencryption(scList.Items[i].Spec.Payload) {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&scList.Items[i]),
+			})
+		}
+	}
+	log.Info("keyring rotation sweep", "primary", r.keyring.PrimaryID(), "enqueued", len(reqs))
+	return reqs
+}
 
 // mapSecretToConfigs maps a Secret metadata event to Configs that still
 // reference it. Uses ref labels on SensitiveConfig as a fast index, then
@@ -775,28 +878,6 @@ func (r *reconciler) mapSecretToConfigs(ctx context.Context, obj client.Object) 
 	return reqs
 }
 
-// mapKeyRingToAllConfigs reloads the KeyRing then enqueues every Config.
-func (r *reconciler) mapKeyRingToAllConfigs(ctx context.Context, obj client.Object) []reconcile.Request {
-	secret := &corev1.Secret{}
-	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(obj), secret); err != nil {
-		return nil
-	}
-	if err := r.keyring.Reload(secret); err != nil {
-		return nil
-	}
-	configList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, configList); err != nil {
-		return nil
-	}
-	reqs := make([]reconcile.Request, len(configList.Items))
-	for i := range configList.Items {
-		reqs[i] = reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(&configList.Items[i]),
-		}
-	}
-	return reqs
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 // splitRefKey splits a "secretName/keyName" composite key back into its parts.
@@ -825,6 +906,20 @@ func configReferencesSecret(cfg *configv1alpha1.Config, secretName string) bool 
 func sha256hex(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
+}
+
+// truncateUTF8 cuts s to at most max bytes without splitting a rune. A plain
+// s[:max] can land mid-sequence and produce an invalid UTF-8 condition message,
+// which the API server rejects.
+func truncateUTF8(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	b := s[:max]
+	for len(b) > 0 && !utf8.ValidString(b) {
+		b = b[:len(b)-1]
+	}
+	return b
 }
 
 // keylessXPath parses an xpath and re-renders it without any key predicates.
