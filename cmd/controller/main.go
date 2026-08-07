@@ -34,6 +34,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/sdcio/config-server/pkg/sdc/configread"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
@@ -182,6 +183,21 @@ func main() {
 		os.Exit(1)
 	}
 	ctrlCfg.SetKeyRing(kr, rotation)
+
+	// ── Local Config-read server ─────────────────────────────────────────────
+	// Localhost-bound gRPC surface data-server's config-server-backed
+	// cache.Client dials to read real Intents, backed entirely by this same
+	// process's informer cache (mgr.GetClient()) — no new watch, no new
+	// store. See pkg/cache/docs/adr/0001-config-server-backed-cache-client.md
+	// (data-server repo).
+	configReadServer := configread.NewServer(&configread.Config{
+		Address: configread.GetLocalAddress(),
+		Client:  mgr.GetClient(),
+	})
+	if err := configReadServer.AddToManager(mgr); err != nil {
+		log.Error("cannot add config-read server to manager", "err", err)
+		os.Exit(1)
+	}
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
