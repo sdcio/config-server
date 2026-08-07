@@ -114,7 +114,7 @@ func BuildGRPCIntents(
 		if err != nil {
 			return nil, fmt.Errorf("build update intent for %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
-		sensitive, err := parseSensitivePaths(inp.SensitivePaths)
+		sensitive, err := ParseSensitivePaths(inp.SensitivePaths)
 		if err != nil {
 			return nil, fmt.Errorf("intent %s: %w", config.GetGVKNSN(inp.Config), err)
 		}
@@ -215,10 +215,13 @@ func isRecoverableGRPCError(err error) bool {
 }
 
 
-// parseSensitivePaths converts keyless XPath strings into sdcpb.Paths.
+// ParseSensitivePaths converts keyless XPath strings into sdcpb.Paths.
 // Dedupes by string and rejects key predicates — the dataserver refuses keyed
 // paths, so a '[' here means a bug upstream; fail loudly rather than ship it.
-func parseSensitivePaths(paths []string) ([]*sdcpb.Path, error) {
+// Exported so other same-process readers of the same SensitiveConfig data
+// (e.g. the local ConfigReadService) reuse this parsing instead of
+// duplicating it.
+func ParseSensitivePaths(paths []string) ([]*sdcpb.Path, error) {
     if len(paths) == 0 {
         return nil, nil
     }
