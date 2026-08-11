@@ -79,7 +79,7 @@ func TestServer_liveRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer cc.Close()
+	defer func() { _ = cc.Close() }()
 
 	cl := config_read.NewConfigReadServiceClient(cc)
 	rsp, err := cl.Get(context.Background(), &config_read.GetConfigRequest{

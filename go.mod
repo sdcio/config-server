@@ -2,11 +2,6 @@ module github.com/sdcio/config-server
 
 go 1.25.0
 
-// sdcio/sdc-protos config-server-cache-backend branch (commit a8f3da0, adds
-// config_read.ConfigReadService for ticket 01) — not pushed/tagged yet, so
-// pinned to the sibling local checkout until it lands and is tagged.
-replace github.com/sdcio/sdc-protos => ../sdc-protos
-
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/fsnotify/fsnotify v1.9.0
@@ -26,7 +21,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/prometheus v0.309.1
-	github.com/sdcio/sdc-protos v0.0.55-0.20260610090020-a8f3da0000000
+	github.com/sdcio/sdc-protos v0.0.55-0.20260807130335-a8f3da07030a
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.43.0
