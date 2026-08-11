@@ -102,7 +102,7 @@ func (s *Server) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("configReadServer: listen on %s: %w", s.address, err)
 	}
-	defer lis.Close()
+	defer func() { _ = lis.Close() }()
 
 	grpcServer := grpc.NewServer()
 	config_read.RegisterConfigReadServiceServer(grpcServer, s)
