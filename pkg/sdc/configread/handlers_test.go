@@ -105,29 +105,6 @@ func mkTargetSnapshot(targetNS, targetName string, configs map[string]configv1al
 	}
 }
 
-func mkTargetConfig(name string, targetNS, targetName string, mutate func(*configv1alpha1.Config)) *configv1alpha1.Config {
-	cfg := &configv1alpha1.Config{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: targetNS,
-			Name:      name,
-			Labels: map[string]string{
-				config.TargetNamespaceKey: targetNS,
-				config.TargetNameKey:      targetName,
-			},
-		},
-		Spec: configv1alpha1.ConfigSpec{
-			Priority: 10,
-			Config: []configv1alpha1.ConfigBlob{
-				{Path: "/system", Value: runtime.RawExtension{Raw: []byte(`{"hostname":"router1"}`)}},
-			},
-		},
-	}
-	if mutate != nil {
-		mutate(cfg)
-	}
-	return cfg
-}
-
 // ── Get ──────────────────────────────────────────────────────────────────────
 
 // TestGet_found locks the last-applied contract: Get serves whatever's
@@ -265,11 +242,16 @@ func TestGet_defaultsRevertiveTrue(t *testing.T) {
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
-func TestList_scopedToTarget(t *testing.T) {
-	cfg1 := mkTargetConfig("cfg1", testNamespace, testTarget, nil)
-	cfg2 := mkTargetConfig("cfg2", testNamespace, testTarget, nil)
-	other := mkTargetConfig("cfg3", testNamespace, "other-target", nil)
-	s := newTestServer(t, cfg1, cfg2, other)
+// TestList_multipleIntents locks the last-applied contract: List serves
+// every entry recorded in the target's TargetSnapshot, keyed by intent
+// name — not any live Config/ConfigList.
+func TestList_multipleIntents(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": mkSnapshotEntry(t, kr, nil, nil),
+		"cfg2": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
 
 	rsp, err := s.List(context.Background(), &config_read.ListConfigRequest{
 		TargetNamespace: testNamespace,
@@ -309,30 +291,28 @@ func TestList_missingArgs(t *testing.T) {
 	}
 }
 
-func TestList_joinsEachSensitiveConfigByName(t *testing.T) {
-	cfg1 := mkTargetConfig("cfg1", testNamespace, testTarget, nil)
-	cfg2 := mkTargetConfig("cfg2", testNamespace, testTarget, nil)
-	sc1 := &configv1alpha1.SensitiveConfig{
-		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "cfg1"},
-		Spec:       configv1alpha1.SensitiveConfigSpec{SensitivePaths: []string{"/interface/name"}},
-	}
-	s := newTestServer(t, cfg1, cfg2, sc1)
+// TestList_oneBadEntryFailsWholeCall is the regression test for the
+// "deletions silently lost" failure mode this spec exists to close: a
+// decrypt/unmarshal failure on any one Configs entry must fail the whole
+// List call with Internal, not silently omit just that entry.
+func TestList_oneBadEntryFailsWholeCall(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": mkSnapshotEntry(t, kr, nil, nil),
+		"cfg2": {
+			Payload: configv1alpha1.EncryptedPayload{
+				KeyID: "unknown-key",
+				Data:  []byte("not-real-ciphertext"),
+			},
+		},
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
 
-	rsp, err := s.List(context.Background(), &config_read.ListConfigRequest{
+	_, err := s.List(context.Background(), &config_read.ListConfigRequest{
 		TargetNamespace: testNamespace,
 		TargetName:      testTarget,
 	})
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	byName := map[string]*config_read.ConfigEntry{}
-	for _, e := range rsp.GetConfig() {
-		byName[e.GetName()] = e
-	}
-	if len(byName["cfg1"].GetSensitivePaths()) != 1 {
-		t.Errorf("cfg1 sensitive_paths = %+v, want 1", byName["cfg1"].GetSensitivePaths())
-	}
-	if len(byName["cfg2"].GetSensitivePaths()) != 0 {
-		t.Errorf("cfg2 sensitive_paths = %+v, want 0 (no SensitiveConfig)", byName["cfg2"].GetSensitivePaths())
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("err = %v, want Internal", err)
 	}
 }
