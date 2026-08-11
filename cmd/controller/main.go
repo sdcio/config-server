@@ -190,10 +190,15 @@ func main() {
 	// process's informer cache (mgr.GetClient()) — no new watch, no new
 	// store. See pkg/cache/docs/adr/0001-config-server-backed-cache-client.md
 	// (data-server repo).
-	configReadServer := configread.NewServer(&configread.Config{
+	configReadServer, err := configread.NewServer(&configread.Config{
 		Address: configread.GetLocalAddress(),
 		Client:  mgr.GetClient(),
+		KeyRing: kr,
 	})
+	if err != nil {
+		log.Error("cannot construct config-read server", "err", err)
+		os.Exit(1)
+	}
 	if err := configReadServer.AddToManager(mgr); err != nil {
 		log.Error("cannot add config-read server to manager", "err", err)
 		os.Exit(1)
