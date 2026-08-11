@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/sdc-protos/config_read"
 	"google.golang.org/grpc"
@@ -52,11 +53,17 @@ func TestServer_liveRoundTrip(t *testing.T) {
 	if err := configv1alpha1.AddToScheme(sch); err != nil {
 		t.Fatalf("add configv1alpha1 to scheme: %v", err)
 	}
-	cfg := mkTargetConfig("cfg1", testNamespace, testTarget, nil)
-	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(cfg).Build()
+	kr := newTestKeyRing(t)
+	entrySpec := mkSnapshotEntry(t, kr, []config.ConfigBlob{
+		{Path: "/system", Value: runtime.RawExtension{Raw: []byte(`{"hostname":"router1"}`)}},
+	}, nil)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(snapshot).Build()
 
 	addr := freeLocalAddr(t)
-	srv, err := NewServer(&Config{Address: addr, Client: fakeClient, KeyRing: newTestKeyRing(t)})
+	srv, err := NewServer(&Config{Address: addr, Client: fakeClient, KeyRing: kr})
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

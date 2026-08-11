@@ -45,12 +45,20 @@ const (
 
 func newTestServer(t *testing.T, objs ...client.Object) *Server {
 	t.Helper()
+	return newTestServerWithKeyRing(t, newTestKeyRing(t), objs...)
+}
+
+// newTestServerWithKeyRing is newTestServer with an explicit KeyRing, so
+// tests that need to encrypt fixture payloads (e.g. via mkSnapshotEntry) can
+// share the exact KeyRing instance the server under test will decrypt with.
+func newTestServerWithKeyRing(t *testing.T, kr *keyring.KeyRing, objs ...client.Object) *Server {
+	t.Helper()
 	sch := runtime.NewScheme()
 	if err := configv1alpha1.AddToScheme(sch); err != nil {
 		t.Fatalf("add configv1alpha1 to scheme: %v", err)
 	}
 	c := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
-	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: newTestKeyRing(t)})
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: kr})
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -83,6 +91,20 @@ func newTestKeyRing(t *testing.T) *keyring.KeyRing {
 	return kr
 }
 
+// mkTargetSnapshot builds a TargetSnapshot the way targetconfig's reconciler
+// saves one: named/namespaced after the target itself, keyed by intent name.
+func mkTargetSnapshot(targetNS, targetName string, configs map[string]configv1alpha1.SensitiveConfigSpec) *configv1alpha1.TargetSnapshot {
+	return &configv1alpha1.TargetSnapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: targetNS,
+			Name:      targetName,
+		},
+		Spec: configv1alpha1.TargetSnapshotSpec{
+			Configs: configs,
+		},
+	}
+}
+
 func mkTargetConfig(name string, targetNS, targetName string, mutate func(*configv1alpha1.Config)) *configv1alpha1.Config {
 	cfg := &configv1alpha1.Config{
 		ObjectMeta: metav1.ObjectMeta{
@@ -108,9 +130,19 @@ func mkTargetConfig(name string, targetNS, targetName string, mutate func(*confi
 
 // ── Get ──────────────────────────────────────────────────────────────────────
 
+// TestGet_found locks the last-applied contract: Get serves whatever's
+// recorded in the target's TargetSnapshot, keyed by intent name — not any
+// live Config.
 func TestGet_found(t *testing.T) {
-	cfg := mkTargetConfig("cfg1", testNamespace, testTarget, nil)
-	s := newTestServer(t, cfg)
+	kr := newTestKeyRing(t)
+	blobs := []config.ConfigBlob{
+		{Path: "/system", Value: runtime.RawExtension{Raw: []byte(`{"hostname":"router1"}`)}},
+	}
+	entrySpec := mkSnapshotEntry(t, kr, blobs, nil)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
 
 	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
 		TargetNamespace: testNamespace,
@@ -132,7 +164,9 @@ func TestGet_found(t *testing.T) {
 	}
 }
 
-func TestGet_notFound(t *testing.T) {
+// TestGet_notFoundNoSnapshot covers a target that has never had a successful
+// transaction: no TargetSnapshot exists for it at all yet.
+func TestGet_notFoundNoSnapshot(t *testing.T) {
 	s := newTestServer(t)
 
 	_, err := s.Get(context.Background(), &config_read.GetConfigRequest{
@@ -145,12 +179,14 @@ func TestGet_notFound(t *testing.T) {
 	}
 }
 
-// TestGet_wrongTarget locks the scoping guarantee: a Config that exists
-// under the requested name/namespace but belongs to a different target must
-// never be returned — it must look identical to a missing Config.
-func TestGet_wrongTarget(t *testing.T) {
-	cfg := mkTargetConfig("cfg1", testNamespace, "other-target", nil)
-	s := newTestServer(t, cfg)
+// TestGet_notFoundMissingFromSnapshot covers a target that does have a
+// TargetSnapshot, but the requested intent isn't (yet, or anymore) one of
+// its entries.
+func TestGet_notFoundMissingFromSnapshot(t *testing.T) {
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"other-cfg": mkSnapshotEntry(t, newTestKeyRing(t), nil, nil),
+	})
+	s := newTestServer(t, snapshot)
 
 	_, err := s.Get(context.Background(), &config_read.GetConfigRequest{
 		TargetNamespace: testNamespace,
@@ -170,21 +206,21 @@ func TestGet_missingArgs(t *testing.T) {
 	}
 }
 
-// TestGet_joinsSensitiveConfig verifies the by-name join and the field
-// mapping (non_revertive is the inverse of Revertive; orphan reflects the
-// deletion policy; sensitive_paths comes only from the joined SensitiveConfig).
-func TestGet_joinsSensitiveConfig(t *testing.T) {
-	cfg := mkTargetConfig("cfg1", testNamespace, testTarget, func(c *configv1alpha1.Config) {
-		c.Spec.Revertive = ptr.To(false)
-		c.Spec.Lifecycle = &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
+// TestGet_fieldMapping verifies the field mapping straight off the
+// TargetSnapshot entry's SensitiveConfigSpec (non_revertive is the inverse
+// of Revertive; orphan reflects the deletion policy; sensitive_paths comes
+// off the same spec — no separate joined object).
+func TestGet_fieldMapping(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entrySpec := mkSnapshotEntry(t, kr, nil, func(spec *configv1alpha1.SensitiveConfigSpec) {
+		spec.Revertive = ptr.To(false)
+		spec.Lifecycle = &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
+		spec.SensitivePaths = []string{"/interface/name"}
 	})
-	sc := &configv1alpha1.SensitiveConfig{
-		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "cfg1"},
-		Spec: configv1alpha1.SensitiveConfigSpec{
-			SensitivePaths: []string{"/interface/name"},
-		},
-	}
-	s := newTestServer(t, cfg, sc)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
 
 	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
 		TargetNamespace: testNamespace,
@@ -207,8 +243,12 @@ func TestGet_joinsSensitiveConfig(t *testing.T) {
 }
 
 func TestGet_defaultsRevertiveTrue(t *testing.T) {
-	cfg := mkTargetConfig("cfg1", testNamespace, testTarget, nil) // Revertive unset
-	s := newTestServer(t, cfg)
+	kr := newTestKeyRing(t)
+	entrySpec := mkSnapshotEntry(t, kr, nil, nil) // Revertive unset
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
 
 	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
 		TargetNamespace: testNamespace,
