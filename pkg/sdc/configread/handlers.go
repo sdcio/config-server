@@ -31,36 +31,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Get returns a single Config (joined with its SensitiveConfig, if any) by
-// name, scoped to the requested target. A Config that exists under that name
-// but belongs to a different target is treated identically to a missing one
-// — this backend never returns another target's data.
+// Get returns the last-applied value for a single intent, scoped to the
+// requested target: the resolved state targetconfig's reconciler last
+// confirmed was successfully pushed to the device, read off that target's
+// TargetSnapshot. Looking the TargetSnapshot up by {target namespace, target
+// name} makes the lookup key the target's identity, so there's no separate
+// object that could belong to the wrong target.
 func (s *Server) Get(ctx context.Context, req *config_read.GetConfigRequest) (*config_read.GetConfigResponse, error) {
 	if req.GetTargetNamespace() == "" || req.GetTargetName() == "" || req.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "target_namespace, target_name and name are required")
 	}
 
-	key := types.NamespacedName{Namespace: req.GetTargetNamespace(), Name: req.GetName()}
-	cfg := &configv1alpha1.Config{}
-	if err := s.client.Get(ctx, key, cfg); err != nil {
+	notFoundKey := types.NamespacedName{Namespace: req.GetTargetNamespace(), Name: req.GetName()}
+
+	targetKey := types.NamespacedName{Namespace: req.GetTargetNamespace(), Name: req.GetTargetName()}
+	snapshot := &configv1alpha1.TargetSnapshot{}
+	if err := s.client.Get(ctx, targetKey, snapshot); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, notFoundConfig(key)
+			return nil, notFoundConfig(notFoundKey)
 		}
-		return nil, status.Errorf(codes.Internal, "get config %s/%s: %v", key.Namespace, key.Name, err)
-	}
-	if !belongsToTarget(cfg, req.GetTargetNamespace(), req.GetTargetName()) {
-		return nil, notFoundConfig(key)
+		return nil, status.Errorf(codes.Internal, "get targetsnapshot %s/%s: %v", targetKey.Namespace, targetKey.Name, err)
 	}
 
-	sc, err := s.getSensitiveConfig(ctx, key)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get sensitiveconfig %s/%s: %v", key.Namespace, key.Name, err)
+	spec, ok := snapshot.Spec.Configs[req.GetName()]
+	if !ok {
+		return nil, notFoundConfig(notFoundKey)
 	}
 
-	entry, err := toConfigEntry(cfg, sc)
+	entry, err := toLastAppliedConfigEntry(req.GetName(), spec, s.keyRing)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "map config entry %s/%s: %v", key.Namespace, key.Name, err)
+		return nil, status.Errorf(codes.Internal, "map config entry %s/%s: %v", notFoundKey.Namespace, notFoundKey.Name, err)
 	}
+	entry.Namespace = req.GetTargetNamespace()
 	return &config_read.GetConfigResponse{Config: entry}, nil
 }
 
@@ -118,15 +120,6 @@ func (s *Server) getSensitiveConfig(ctx context.Context, key types.NamespacedNam
 
 func notFoundConfig(key types.NamespacedName) error {
 	return status.Errorf(codes.NotFound, "config %s/%s not found", key.Namespace, key.Name)
-}
-
-// belongsToTarget guards against a name collision across targets: the Get
-// path looks a Config up by namespace+name alone (namespace already scopes
-// to the target's namespace), so it re-checks the target labels before
-// trusting the result.
-func belongsToTarget(cfg *configv1alpha1.Config, targetNamespace, targetName string) bool {
-	labels := cfg.GetLabels()
-	return labels[config.TargetNamespaceKey] == targetNamespace && labels[config.TargetNameKey] == targetName
 }
 
 // toConfigEntry maps a Config (+ its optional joined SensitiveConfig) onto
