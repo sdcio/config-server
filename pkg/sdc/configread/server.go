@@ -31,6 +31,7 @@ import (
 	"os"
 
 	"github.com/henderiw/logger/log"
+	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/sdc-protos/config_read"
 	"google.golang.org/grpc"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -60,6 +61,10 @@ type Config struct {
 	// Client is the manager's cached client — the same watch-synced informer
 	// cache Transactor/ConfigManager already read from.
 	Client client.Client
+	// KeyRing decrypts TargetSnapshot entries' EncryptedPayload. Required —
+	// NewServer fails fast if nil rather than letting Get/List fail lazily
+	// on first call.
+	KeyRing *keyring.KeyRing
 }
 
 // Server implements config_read.ConfigReadServiceServer over the colocated
@@ -71,12 +76,16 @@ type Server struct {
 
 	address string
 	client  client.Client
+	keyRing *keyring.KeyRing
 }
 
 // NewServer constructs a Server. Call AddToManager to start it alongside the
 // manager.
-func NewServer(cfg *Config) *Server {
-	return &Server{address: cfg.Address, client: cfg.Client}
+func NewServer(cfg *Config) (*Server, error) {
+	if cfg.KeyRing == nil {
+		return nil, fmt.Errorf("KeyRing is nil: required for TargetSnapshot decryption")
+	}
+	return &Server{address: cfg.Address, client: cfg.Client, keyRing: cfg.KeyRing}, nil
 }
 
 // AddToManager registers the server as a controller-runtime Runnable so it

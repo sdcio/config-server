@@ -30,6 +30,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// TestNewServer_nilKeyRing locks NewServer's fail-fast contract: a Server
+// backed by a nil KeyRing must never start, since every entry it later reads
+// (TargetSnapshot.Spec.Configs) needs KeyRing.Decrypt.
+func TestNewServer_nilKeyRing(t *testing.T) {
+	_, err := NewServer(&Config{
+		Address: "127.0.0.1:0",
+		Client:  fake.NewClientBuilder().Build(),
+		KeyRing: nil,
+	})
+	if err == nil {
+		t.Fatal("NewServer with nil KeyRing: want error, got nil")
+	}
+}
+
 // TestServer_liveRoundTrip starts the real gRPC server on a free localhost
 // port and drives it through the generated client, end to end — listener
 // setup, registration, and the wire contract all in one shot.
@@ -42,7 +56,10 @@ func TestServer_liveRoundTrip(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(cfg).Build()
 
 	addr := freeLocalAddr(t)
-	srv := NewServer(&Config{Address: addr, Client: fakeClient})
+	srv, err := NewServer(&Config{Address: addr, Client: fakeClient, KeyRing: newTestKeyRing(t)})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

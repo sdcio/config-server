@@ -18,13 +18,17 @@ package configread
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/sdc-protos/config_read"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -46,7 +50,37 @@ func newTestServer(t *testing.T, objs ...client.Object) *Server {
 		t.Fatalf("add configv1alpha1 to scheme: %v", err)
 	}
 	c := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
-	return NewServer(&Config{Address: "127.0.0.1:0", Client: c})
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: newTestKeyRing(t)})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	return s
+}
+
+// newTestKeyRing builds a real *keyring.KeyRing from an in-memory Secret,
+// valid for both Encrypt and Decrypt round-trips in tests.
+func newTestKeyRing(t *testing.T) *keyring.KeyRing {
+	t.Helper()
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	raw, err := json.Marshal(map[string]interface{}{
+		"primary": "v1",
+		"keys":    map[string]string{"v1": base64.StdEncoding.EncodeToString(key)},
+	})
+	if err != nil {
+		t.Fatalf("marshal keyring: %v", err)
+	}
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "keyring"},
+		Data:       map[string][]byte{"keyring.json": raw},
+	}
+	kr, err := keyring.NewFromSecret(sec)
+	if err != nil {
+		t.Fatalf("NewFromSecret: %v", err)
+	}
+	return kr
 }
 
 func mkTargetConfig(name string, targetNS, targetName string, mutate func(*configv1alpha1.Config)) *configv1alpha1.Config {
