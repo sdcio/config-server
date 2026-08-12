@@ -28,7 +28,6 @@ import (
 	"github.com/sdcio/sdc-protos/config_read"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -65,8 +64,8 @@ func newTestServerWithKeyRing(t *testing.T, kr *keyring.KeyRing, objs ...client.
 	return s
 }
 
-// newTestKeyRing builds a real *keyring.KeyRing from an in-memory Secret,
-// valid for both Encrypt and Decrypt round-trips in tests.
+// newTestKeyRing builds a real *keyring.KeyRing from raw JSON, valid for both
+// Encrypt and Decrypt round-trips in tests.
 func newTestKeyRing(t *testing.T) *keyring.KeyRing {
 	t.Helper()
 	key := make([]byte, 32)
@@ -80,13 +79,9 @@ func newTestKeyRing(t *testing.T) *keyring.KeyRing {
 	if err != nil {
 		t.Fatalf("marshal keyring: %v", err)
 	}
-	sec := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "keyring"},
-		Data:       map[string][]byte{"keyring.json": raw},
-	}
-	kr, err := keyring.NewFromSecret(sec)
+	kr, err := keyring.NewFromBytes(raw)
 	if err != nil {
-		t.Fatalf("NewFromSecret: %v", err)
+		t.Fatalf("NewFromBytes: %v", err)
 	}
 	return kr
 }
