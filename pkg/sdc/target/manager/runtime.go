@@ -106,10 +106,20 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 
 func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *configv1alpha1.TargetStatusUsedReferences, hash string) {
 	r.desiredMu.Lock()
+	unchanged := r.desiredHash == hash
 	r.desired = req
 	r.desiredRefs = refs
 	r.desiredHash = hash
 	r.desiredMu.Unlock()
+
+	// Skip waking the runtime when the desired state hasn't actually changed:
+	// TargetDataStoreController.Reconcile calls ApplyDesired unconditionally on
+	// every Target reconcile, and an unconditional wake() here would cycle
+	// Phase away from PhaseRunning on every no-op call, manufacturing a
+	// transient false-negative readiness window for GetDatastore() callers.
+	if unchanged {
+		return
+	}
 	r.wake()
 }
 
