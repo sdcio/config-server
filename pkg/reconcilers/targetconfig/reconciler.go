@@ -39,7 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -118,11 +117,25 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Complete(r)
 }
 
+// discoveryChecker is the narrow slice of discovery.DiscoveryInterface this
+// reconciler needs — a seam so tests can stub the API-group-availability
+// check without a real API server.
+type discoveryChecker interface {
+	ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error)
+}
+
+// datastoreGetter is the narrow slice of *targetmanager.TargetManager this
+// reconciler needs — a seam so tests can stub target-datastore readiness
+// without driving TargetRuntime's real async state machine.
+type datastoreGetter interface {
+	GetDatastore(ctx context.Context, key storebackend.Key) (*targetmanager.DatastoreHandle, bool)
+}
+
 type reconciler struct {
 	client          client.Client
-	discoveryClient *discovery.DiscoveryClient
+	discoveryClient discoveryChecker
 	finalizer       *resource.APIFinalizer
-	targetMgr       *targetmanager.TargetManager
+	targetMgr       datastoreGetter
 	recorder        events.EventRecorder
 	transactor      *targetmanager.Transactor
 	cfgMgr          *targetmanager.ConfigManager
@@ -244,6 +257,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if !hasChanged {
 		log.Info("Transact skip, nothing to update")
+		if err := r.cfgMgr.SetConfigsTargetConditionForTarget(ctx, targetOrig,
+			configv1alpha1.TargetForConfigReady("target ready")); err != nil {
+			return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, targetOrig, "cannot self-heal target condition on no-op reconcile", err), errUpdateStatus)
+		}
 		return ctrl.Result{}, nil
 	}
 
