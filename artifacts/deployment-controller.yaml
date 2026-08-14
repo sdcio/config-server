@@ -28,6 +28,8 @@ spec:
         imagePullPolicy: Always
         command:
         - /app/controller
+        #args:
+        #- "--v=4" # 4 enables the debug logs
         env:
         - name: POD_IP
           valueFrom:

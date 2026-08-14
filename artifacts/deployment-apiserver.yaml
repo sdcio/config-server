@@ -36,6 +36,7 @@ spec:
         - "--audit-log-maxage=0"
         - "--audit-log-maxbackup=0"
         - "--secure-port=6443"
+        #- "--v=4" # 4 enables the debug logs
         ports:
         - name: api-service
           containerPort: 6443
