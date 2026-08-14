@@ -8,7 +8,7 @@ Tracks status for the implementation tickets under this feature. See `../spec.md
 |---|-------|--------|------------|
 | [01](01-skip-wake-on-unchanged-desired-hash.md) | Skip `wake()` on unchanged desired hash in `TargetRuntime.SetDesired` | done | None |
 | [02](02-requeue-delay-investigation-logging.md) | Requeue-delay investigation logging (best-effort, non-blocking) | done | None |
-| [03](03-self-heal-targetforconfig-on-noop-reconcile.md) | Self-heal `TargetForConfig` condition on no-op reconcile | ready-for-agent | None |
+| [03](03-self-heal-targetforconfig-on-noop-reconcile.md) | Self-heal `TargetForConfig` condition on no-op reconcile | done | None |
 
 ## Status values
 
