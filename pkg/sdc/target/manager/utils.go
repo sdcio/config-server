@@ -38,15 +38,7 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 	var recoverable bool
 	if rsperr != nil {
 		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
-		if er, ok := status.FromError(rsperr); ok {
-			switch er.Code() {
-			// Aborted is the refering to a lock in the dataserver
-			case codes.Aborted, codes.ResourceExhausted:
-				recoverable = true
-			default:
-				recoverable = false
-			}
-		}
+		recoverable = isRecoverableTransactionError(rsperr)
 	}
 	if rsp != nil {
 		for _, warning := range rsp.Warnings {
@@ -71,4 +63,22 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
 	return msg, err
+}
+
+// isRecoverableTransactionError reports whether a data-server transaction error
+// is transient and worth retrying, based on its gRPC status code.
+func isRecoverableTransactionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Aborted, codes.ResourceExhausted, codes.Unavailable, codes.DeadlineExceeded:
+		return true
+	default:
+		return false
+	}
 }
