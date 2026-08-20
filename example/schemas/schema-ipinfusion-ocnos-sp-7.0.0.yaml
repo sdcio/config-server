@@ -23,6 +23,10 @@ spec:
     - src: standard/ietf/RFC
       dst: ietf
     schema:
+      models:
+      - ietf/ietf-netconf-acm.yang
+      excludes:
+      - ".*pon.*"
       includes:
       - ietf/ietf-inet-types.yang
       - ietf/ietf-yang-types.yang
