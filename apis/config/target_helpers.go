@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -27,6 +28,8 @@ import (
 	"github.com/sdcio/config-server/apis/condition"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	"github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -403,9 +406,70 @@ func GetGVKNSN(obj client.Object) string {
 	return fmt.Sprintf("%s.%s", obj.GetNamespace(), obj.GetName())
 }
 
+// clearDeviationTxMaxAttempts and clearDeviationTxBaseBackoff bound the retry
+// below: this handler runs synchronously inside a REST request (the CLI/user
+// is waiting on it), so retries must stay short — unlike the targetconfig
+// reconciler's background, requeue-based backoff (capped at 60s), a
+// foreground call can only afford a few hundred milliseconds per attempt.
+const (
+	clearDeviationTxMaxAttempts = 4
+	clearDeviationTxBaseBackoff = 200 * time.Millisecond
+)
+
 // executeClearDeviationTx opens a connection to the dataserver,
 // sends the TransactionSetRequest, and confirms on success.
+//
+// TransactionSet fails with a codes.Aborted "transaction ongoing" error
+// whenever another transaction is already registered (but not yet
+// Confirmed/Cancelled) on the same datastore — e.g. the targetconfig
+// reconciler reconciling a different Config/ConfigSet against the same
+// target. That window is normally only open for as long as the other
+// transaction takes to Confirm, so a short, bounded retry here resolves the
+// common case without requiring the caller (kubectl-sdc) to retry itself.
 func executeClearDeviationTx(
+	ctx context.Context,
+	txReq *sdcpb.TransactionSetRequest,
+) (*sdcpb.TransactionSetResponse, error) {
+	return retryClearDeviationTx(ctx, clearDeviationTxMaxAttempts, clearDeviationTxBaseBackoff,
+		func() (*sdcpb.TransactionSetResponse, error) {
+			return executeClearDeviationTxOnce(ctx, txReq)
+		})
+}
+
+// retryClearDeviationTx runs attempt up to maxAttempts times, doubling
+// backoff (starting at baseBackoff) between attempts, stopping as soon as
+// attempt succeeds or returns a non-recoverable error. Split out from
+// executeClearDeviationTx so the retry/backoff logic can be unit tested
+// without a live dataserver connection.
+func retryClearDeviationTx(
+	ctx context.Context,
+	maxAttempts int,
+	baseBackoff time.Duration,
+	attempt func() (*sdcpb.TransactionSetResponse, error),
+) (*sdcpb.TransactionSetResponse, error) {
+	backoff := baseBackoff
+	var rsp *sdcpb.TransactionSetResponse
+	var err error
+	for i := 1; i <= maxAttempts; i++ {
+		rsp, err = attempt()
+		if err == nil || i == maxAttempts || !isRecoverableClearDeviationTxError(err) {
+			return rsp, err
+		}
+		log.FromContext(ctx).Info("clear-deviation transaction hit a recoverable error, retrying",
+			"attempt", i, "backoff", backoff.String(), "error", err.Error())
+		select {
+		case <-ctx.Done():
+			return rsp, err
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+	return rsp, err
+}
+
+// executeClearDeviationTxOnce is a single, non-retried attempt at the
+// Set-then-Confirm sequence.
+func executeClearDeviationTxOnce(
 	ctx context.Context,
 	txReq *sdcpb.TransactionSetRequest,
 ) (*sdcpb.TransactionSetResponse, error) {
@@ -437,6 +501,26 @@ func executeClearDeviationTx(
 	}
 
 	return rsp, nil
+}
+
+// isRecoverableClearDeviationTxError mirrors pkg/sdc/target/manager's
+// isRecoverableTransactionError classification. Duplicated rather than
+// imported: pkg/sdc/target/manager already imports this package
+// (apis/config), so importing it back here would be a cycle.
+func isRecoverableClearDeviationTxError(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Aborted, codes.ResourceExhausted, codes.Unavailable, codes.DeadlineExceeded:
+		return true
+	default:
+		return false
+	}
 }
 
 // buildClearDeviationStatus assembles the response status from the
