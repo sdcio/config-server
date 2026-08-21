@@ -19,7 +19,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -33,7 +33,7 @@ jobs:
           git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
           mkdir -p -m 0700 /home/runner/.ssh && ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 
