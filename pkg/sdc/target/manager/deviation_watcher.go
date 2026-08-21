@@ -233,19 +233,31 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 			log.Info("target device deviations", "devs", len(configDevs))
 			typ = configv1alpha1.DeviationType_TARGET
 		} else {
-			parts := strings.SplitN(configName, ".", 2)
-			nsn = types.NamespacedName{
-				Namespace: parts[0],
-				Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, parts[1]),
-			}
-			if len(parts) != 2 {
+			parsed, ok := configDeviationKey(configName)
+			if !ok {
 				log.Error("unexpected configName", "got", configName)
-				return
+				continue
 			}
+			nsn = parsed
 			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
 		}
 		r.processDSDeviations(ctx, nsn, configDevs, typ)
 	}
+}
+
+// configDeviationKey splits a data-server intent owner into the Deviation
+// CR namespaced name. Owners are config.GetGVKNSN ("<namespace>.<name>").
+// A name with no "." is not a config owner — indexing parts[1] used to
+// panic the controller.
+func configDeviationKey(configName string) (types.NamespacedName, bool) {
+	ns, name, ok := strings.Cut(configName, ".")
+	if !ok || ns == "" || name == "" {
+		return types.NamespacedName{}, false
+	}
+	return types.NamespacedName{
+		Namespace: ns,
+		Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, name),
+	}, true
 }
 
 func (r *DeviationWatcher) processDSDeviations(
