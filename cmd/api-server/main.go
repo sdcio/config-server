@@ -161,12 +161,10 @@ func main() {
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
 		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
 	})
-	// no storage required since the targetStore is acting as the storage for the running config resource
+	// no storage required since the targetStore is acting as the storage for the configblame config resource
 	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
 		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
 	})
 
 	go func() {

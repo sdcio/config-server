@@ -105,6 +105,8 @@ func (*TargetRunningConfig) ProtoMessage() {}
 
 func (*TargetRunningConfigOptions) ProtoMessage() {}
 
+func (*TargetSensitiveConfigBlame) ProtoMessage() {}
+
 func (*TargetSnapshot) ProtoMessage() {}
 
 func (*TargetSnapshotList) ProtoMessage() {}

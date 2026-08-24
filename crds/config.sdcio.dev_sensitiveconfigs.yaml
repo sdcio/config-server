@@ -107,6 +107,15 @@ spec:
                   SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
                   Tracks only the specific key value — not the whole Secret object.
                 type: object
+              sensitivePaths:
+                description: |-
+                  SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every
+                  leaf resolved from a secret. Passed to the dataserver as
+                  TransactionIntent.SensitivePaths so values are redacted northbound.
+                  Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.
+                items:
+                  type: string
+                type: array
             required:
             - payload
             type: object

@@ -99,7 +99,7 @@ func (r *Target) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfigOptions) (runtime.Object, error) {
+func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfigOptions, sensitive bool) (runtime.Object, error) {
 	targetKey := r.GetNamespacedName()
 	if !r.IsReady() {
 		return nil, apierrors.NewServiceUnavailable(
@@ -131,6 +131,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 		DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
 		Intent:        RunningIntentName,
 		Format:        FormatToProto(format),
+		IncludeSensitive: sensitive,
 	})
 	if err != nil {
 		return nil, err
@@ -161,7 +162,7 @@ func FormatToProto(f TargetFormat) sdcpb.Format {
 	}
 }
 
-func (r *Target) GetConfigBlame(ctx context.Context) (runtime.Object, error) {
+func (r *Target) GetConfigBlame(ctx context.Context, sensitive bool) (runtime.Object, error) {
 	targetKey := r.GetNamespacedName()
 	if !r.IsReady() {
 		return nil, apierrors.NewServiceUnavailable(
@@ -188,6 +189,7 @@ func (r *Target) GetConfigBlame(ctx context.Context) (runtime.Object, error) {
 	rsp, err := dsclient.BlameConfig(ctx, &sdcpb.BlameConfigRequest{
 		DatastoreName:   storebackend.KeyFromNSN(targetKey).String(),
 		IncludeDefaults: true,
+		IncludeSensitive: sensitive,
 	})
 	if err != nil {
 		return nil, err

@@ -62,6 +62,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&SensitiveConfigList{},
 		&TargetSnapshot{},
 		&TargetSnapshotList{},
+		&TargetSensitiveConfigBlame{},
+		&TargetSensitiveRunningConfig{},
 	)
 	return nil
 }

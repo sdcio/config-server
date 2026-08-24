@@ -481,6 +481,14 @@ message TargetRunningConfigOptions {
   optional string format = 2;
 }
 
+// TargetSensitiveConfigBlame is the Schema for the TargetSensitiveConfigBlame API
+message TargetSensitiveConfigBlame {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
+}
+
 // TargetSnapshot defines the Schema for the SensitiveConfig API
 message TargetSnapshot {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;

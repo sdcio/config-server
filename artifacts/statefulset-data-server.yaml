@@ -83,6 +83,9 @@ spec:
         volumeMounts:
         - name: schema-store
           mountPath: /schemas
+        - name: keyring
+          mountPath: /etc/sdc/keyring   # directory — NOT subPath
+          readOnly: true
       - name: data-server
         image: input.context[0].data.dataServerImage
         imagePullPolicy: Always
@@ -102,9 +105,6 @@ spec:
           mountPath: /schemadb
         - name: schema-store
           mountPath: /schemas
-        - name: keyring
-          mountPath: /etc/sdc/keyring   # directory — NOT subPath
-          readOnly: true
       volumes:
       - name: data-server-config
         configMap:

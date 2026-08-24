@@ -52,6 +52,7 @@ spec:
                       type: string
                     value:
                       type: object
+                      x-kubernetes-map-type: atomic
                       x-kubernetes-preserve-unknown-fields: true
                   required:
                   - value
@@ -83,6 +84,65 @@ spec:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
+              vars:
+                description: |-
+                  Vars declares named variables referenced from Config blob values via the
+                  ${vars.<name>} placeholder. The controller resolves each variable and
+                  substitutes its value into the rendered configuration before it is sent to
+                  the target. Variables are the supported mechanism for injecting sensitive
+                  material: the referenced Secret value is resolved, encrypted into the
+                  SensitiveConfig payload, and every leaf it lands on is recorded as a
+                  sensitive path so the datastore redacts it in northbound responses.
+                  A Config with no variables is rendered verbatim.
+                items:
+                  description: |-
+                    ConfigVar is a named variable referenced from Config blob values as
+                    ${vars.<name>}. The name is the merge key for the Vars list and must be
+                    unique within a single Config. Exactly one value source must be set; today
+                    the only source is SecretRef.
+                  properties:
+                    name:
+                      description: |-
+                        Name identifies the variable for reference as ${vars.<name>}.
+                        Must be unique within the Config's Vars list.
+                      minLength: 1
+                      pattern: ^[a-zA-Z0-9_.-]+$
+                      type: string
+                    secretRef:
+                      description: |-
+                        SecretRef resolves the variable's value from a key of a Secret in the
+                        same namespace as the Config. The resolved value is never stored in
+                        clear: it is encrypted into the SensitiveConfig payload, and the leaves
+                        it is substituted into are tracked as sensitive paths.
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be a valid secret key.
+                          type: string
+                        name:
+                          default: ""
+                          description: |-
+                            Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
+                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          type: string
+                        optional:
+                          description: Specify whether the Secret or its key must
+                            be defined
+                          type: boolean
+                      required:
+                      - key
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  required:
+                  - name
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
             required:
             - config
             type: object

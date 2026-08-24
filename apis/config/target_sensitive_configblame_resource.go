@@ -28,37 +28,37 @@ import (
 )
 
 const (
-	SubResource_ConfigBlame = "configblame"
+	SubResource_SensitiveConfigBlame = "sensitiveconfigblame"
 )
 
-var _ resource.ArbitrarySubResource = &TargetConfigBlame{}
+var _ resource.ArbitrarySubResource = &TargetSensitiveConfigBlame{}
 
-func (TargetConfigBlame) SubResourceName() string {
+func (TargetSensitiveConfigBlame) SubResourceName() string {
 	return SubResource_ConfigBlame
 }
 
-func (TargetConfigBlame) New() runtime.Object {
-	return &TargetConfigBlame{} // returns parent type — GET returns the full Target
+func (TargetSensitiveConfigBlame) New() runtime.Object {
+	return &TargetSensitiveConfigBlame{} // returns parent type — GET returns the full Target
 }
 
-func (TargetConfigBlame) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
-	return &targetConfigBlameREST{
+func (TargetSensitiveConfigBlame) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
+	return &targetSensitiveConfigBlameREST{
 		parentStore: parentStorage,
 	}, nil
 }
 
 // targetBlameREST implements rest.Storage + rest.Getter
-type targetConfigBlameREST struct {
+type targetSensitiveConfigBlameREST struct {
 	parentStore rest.Storage
 }
 
-func (r *targetConfigBlameREST) New() runtime.Object {
-	return &TargetConfigBlame{}
+func (r *targetSensitiveConfigBlameREST) New() runtime.Object {
+	return &TargetSensitiveConfigBlame{}
 }
 
-func (r *targetConfigBlameREST) Destroy() {}
+func (r *targetSensitiveConfigBlameREST) Destroy() {}
 
-func (r *targetConfigBlameREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+func (r *targetSensitiveConfigBlameREST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	// Get the parent Target from the parent store
 	getter, ok := r.parentStore.(rest.Getter)
 	if !ok {
@@ -76,5 +76,5 @@ func (r *targetConfigBlameREST) Get(ctx context.Context, name string, options *m
 			fmt.Errorf("expected *Target, got %T", obj))
 	}
 
-	return target.GetConfigBlame(ctx, false)
+	return target.GetConfigBlame(ctx, true)
 }

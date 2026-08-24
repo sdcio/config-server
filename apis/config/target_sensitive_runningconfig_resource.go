@@ -30,34 +30,34 @@ import (
 )
 
 const (
-	SubResource_RunningConfig = "runningconfig"
+	SubResource_SensitiveRunningConfig = "sensitiverunningconfig"
 )
 
-var _ resource.ArbitrarySubResource = &TargetRunningConfig{}
+var _ resource.ArbitrarySubResource = &TargetSensitiveRunningConfig{}
 
-func (TargetRunningConfig) SubResourceName() string {
-	return SubResource_RunningConfig
+func (TargetSensitiveRunningConfig) SubResourceName() string {
+	return SubResource_SensitiveRunningConfig
 }
 
-func (TargetRunningConfig) New() runtime.Object {
-	return &TargetRunningConfig{} // returns parent type — GET returns the full Target
+func (TargetSensitiveRunningConfig) New() runtime.Object {
+	return &TargetSensitiveRunningConfig{} // returns parent type — GET returns the full Target
 }
 
-func (TargetRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
-	return &targetRunningConfigREST{
+func (TargetSensitiveRunningConfig) NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error) {
+	return &targetSensitiveRunningConfigREST{
 		parentStore: parentStorage,
 	}, nil
 }
 
-var _ resource.ArbitrarySubResourceWithOptions = &TargetRunningConfig{}
+var _ resource.ArbitrarySubResourceWithOptions = &TargetSensitiveRunningConfig{}
 
-func (TargetRunningConfig) NewGetOptions() runtime.Object {
+func (TargetSensitiveRunningConfig) NewGetOptions() runtime.Object {
 	return &TargetRunningConfigOptions{}
 }
 
-var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetRunningConfig{}
+var _ resource.ArbitrarySubResourceWithOptionsConverter = &TargetSensitiveRunningConfig{}
 
-func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error {
+func (TargetSensitiveRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error {
 	return func(a, b interface{}, scope conversion.Scope) error {
 		values := a.(*url.Values)
 		out := b.(*TargetRunningConfigOptions)
@@ -68,26 +68,26 @@ func (TargetRunningConfig) ConvertFromURLValues() func(a, b interface{}, scope c
 }
 
 // targetRunningREST implements rest.Storage + rest.Getter
-type targetRunningConfigREST struct {
+type targetSensitiveRunningConfigREST struct {
 	parentStore rest.Storage
 }
 
-func (r *targetRunningConfigREST) New() runtime.Object {
-	return &TargetRunningConfig{}
+func (r *targetSensitiveRunningConfigREST) New() runtime.Object {
+	return &TargetSensitiveRunningConfig{}
 }
 
-func (r *targetRunningConfigREST) Destroy() {}
+func (r *targetSensitiveRunningConfigREST) Destroy() {}
 
-func (r *targetRunningConfigREST) NewGetOptions() (runtime.Object, bool, string) {
+func (r *targetSensitiveRunningConfigREST) NewGetOptions() (runtime.Object, bool, string) {
 	// Returns: (options object, decode from body?, single query param name)
 	return &TargetRunningConfigOptions{}, false, ""
 }
 
-func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options runtime.Object) (runtime.Object, error) {
+func (r *targetSensitiveRunningConfigREST) Get(ctx context.Context, name string, options runtime.Object) (runtime.Object, error) {
 	opts, ok := options.(*TargetRunningConfigOptions)
 	if !ok {
 		return nil, apierrors.NewBadRequest(
-			fmt.Sprintf("expected TargetRunningConfigOptions, got %T", options))
+			fmt.Sprintf("expected TargetSensitiveRunningConfigOptions, got %T", options))
 	}
 
 	// Get the parent Target from the parent store
@@ -106,6 +106,6 @@ func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options 
 			fmt.Errorf("expected *Target, got %T", obj))
 	}
 
-	return target.GetRunningConfig(ctx, opts, false)
+	return target.GetRunningConfig(ctx, opts, true)
 
 }

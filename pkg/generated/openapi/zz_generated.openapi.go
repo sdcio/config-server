@@ -77,6 +77,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetList":                        schema_config_server_apis_config_v1alpha1_TargetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfig":               schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetRunningConfigOptions":        schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSensitiveConfigBlame":        schema_config_server_apis_config_v1alpha1_TargetSensitiveConfigBlame(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSensitiveRunningConfig":      schema_config_server_apis_config_v1alpha1_TargetSensitiveRunningConfig(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshot":                    schema_config_server_apis_config_v1alpha1_TargetSnapshot(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotList":                schema_config_server_apis_config_v1alpha1_TargetSnapshotList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSnapshotSpec":                schema_config_server_apis_config_v1alpha1_TargetSnapshotSpec(ref),
@@ -2461,6 +2463,111 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfigOptions(ref co
 				},
 			},
 		},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSensitiveConfigBlame(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetSensitiveConfigBlame is the Schema for the TargetSensitiveConfigBlame API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(runtime.RawExtension{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"value"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetSensitiveConfigBlame", "version": "v1alpha1"},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.ObjectMeta{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+	}
+}
+
+func schema_config_server_apis_config_v1alpha1_TargetSensitiveRunningConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TargetSensitiveRunningConfig is the Schema for the TargetSensitiveRunningConfig API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"format": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"value", "format"},
+			},
+			VendorExtensible: spec.VendorExtensible{
+				Extensions: spec.Extensions{
+					"x-kubernetes-group-version-kind": []interface{}{
+						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetSensitiveRunningConfig", "version": "v1alpha1"},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			metav1.ObjectMeta{}.OpenAPIModelName()},
 	}
 }
 
