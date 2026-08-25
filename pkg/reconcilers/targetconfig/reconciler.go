@@ -147,7 +147,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	log := log.FromContext(ctx)
 	log.Info("reconcile")
 	// Pairs with logRequeueScheduled for the requeue-delay investigation.
-	log.Info("reconcile-entry", "target", req.NamespacedName.Name, "namespace", req.NamespacedName.Namespace, "entryTime", time.Now())
+	log.Info("reconcile-entry", "target", req.Name, "namespace", req.Namespace, "entryTime", time.Now())
 
 	if _, err := r.discoveryClient.ServerResourcesForGroupVersion(configv1alpha1.SchemeGroupVersion.String()); err != nil {
 		log.Info("API group not available, retrying...", "groupversion", configv1alpha1.SchemeGroupVersion.String())
