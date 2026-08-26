@@ -32,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -132,6 +133,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+		}
+		// update the status for the config that the target is not found
+		if updateErr := r.transactor.SetConfigsTargetConditionForTarget(
+			ctx,
+			&configv1alpha1.Target{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: req.NamespacedName.Namespace,
+					Name:      req.NamespacedName.Name,
+				},
+			},
+			configv1alpha1.TargetForConfigFailed("target not found"),
+		); updateErr != nil {
+			return ctrl.Result{Requeue: true},
+				errors.Wrap(r.handleError(ctx, target, "cannot update config status", updateErr), errUpdateStatus)
 		}
 		return ctrl.Result{}, nil
 	}

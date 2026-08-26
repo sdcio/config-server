@@ -340,10 +340,10 @@ func (r *Transactor) setIntents(
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", 
-		"config", cfg.GetName(), 
-		"recoverable", recoverable, 
-		"msg", msg, 
+	log.Warn("updateConfigWithError",
+		"config", cfg.GetName(),
+		"recoverable", recoverable,
+		"msg", msg,
 		"err", err,
 	)
 
@@ -456,7 +456,6 @@ func (r *Transactor) updateConfigWithSuccess(
 		log.Debug("skip success update: config is deleting")
 		return nil
 	}
-	
 
 	newConfigCond := configv1alpha1.ConfigReady(msg)
 
@@ -815,12 +814,14 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 		}
 
 		// Preserve ALL existing status fields to avoid stripping them
-		configCond := v1cfg.GetCondition(condv1alpha1.ConditionType(
-			configv1alpha1.ConfigReady("").Type,
-		))
+		configCondType := condv1alpha1.ConditionType(configv1alpha1.ConfigReady("").Type)
+		conds := []condv1alpha1.Condition{targetCond, newReadyCond}
+		if v1cfg.Status.HasCondition(configCondType) {
+			conds = append(conds, v1cfg.GetCondition(configCondType))
+		}
 
 		statusApply := configv1alpha1apply.ConfigStatus().
-			WithConditions(targetCond, configCond, newReadyCond)
+			WithConditions(conds...)
 
 		// preserve schema + appliedConfig so SSA doesn't strip them
 		if v1cfg.Status.LastKnownGoodSchema != nil {
@@ -867,11 +868,11 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 	if s == nil {
 		return nil
 	}
-	
+
 	a := configv1alpha1apply.ConfigSpec().
-			WithPriority(s.Priority)
-	
-	if s.Revertive != nil {	
+		WithPriority(s.Priority)
+
+	if s.Revertive != nil {
 		a.WithRevertive(*s.Revertive)
 	}
 
