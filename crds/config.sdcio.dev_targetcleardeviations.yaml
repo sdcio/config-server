@@ -40,23 +40,160 @@ spec:
           spec:
             description: TargetClearDeviationSpec defines the desired state of Target
             properties:
-              paths:
-                description: Paths provide the path of the deviation to be cleared
+              config:
+                description: Config defines the clear deviations configs to applied
+                  on the taget
                 items:
-                  type: string
+                  properties:
+                    name:
+                      description: Name of the config on which the paths should be
+                        cleared
+                      type: string
+                    paths:
+                      description: Paths provide the path of the deviation to be cleared
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - paths
+                  type: object
                 type: array
             required:
-            - paths
+            - config
             type: object
           status:
             properties:
-              cleared:
-                type: integer
               message:
+                description: Message is a global message for the transaction
                 type: string
+              results:
+                description: Results holds per-config outcomes, keyed by intent name
+                items:
+                  properties:
+                    errors:
+                      description: Errors lists any errors for this specific config
+                      items:
+                        type: string
+                      type: array
+                    message:
+                      description: Message provides detail on the outcome
+                      type: string
+                    name:
+                      description: Name of the config on which the paths should be
+                        cleared
+                      type: string
+                    success:
+                      description: Success indicates whether the clear deviation was
+                        successful
+                      type: boolean
+                    warnings:
+                      description: Warnings lists any warnings for this specific config
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - success
+                  type: object
+                type: array
+              warnings:
+                description: Warnings are global warnings from the transaction
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: TargetClearDeviation is the Schema for the TargetClearDeviation
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TargetClearDeviationSpec defines the desired state of Target
+            properties:
+              config:
+                description: Config defines the clear deviations configs to applied
+                  on the taget
+                items:
+                  properties:
+                    name:
+                      description: Name of the config on which the paths should be
+                        cleared
+                      type: string
+                    paths:
+                      description: Paths provide the path of the deviation to be cleared
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - paths
+                  type: object
+                type: array
             required:
-            - cleared
-            - message
+            - config
+            type: object
+          status:
+            properties:
+              message:
+                description: Message is a global message for the transaction
+                type: string
+              results:
+                description: Results holds per-config outcomes, keyed by intent name
+                items:
+                  properties:
+                    errors:
+                      description: Errors lists any errors for this specific config
+                      items:
+                        type: string
+                      type: array
+                    message:
+                      description: Message provides detail on the outcome
+                      type: string
+                    name:
+                      description: Name of the config on which the paths should be
+                        cleared
+                      type: string
+                    success:
+                      description: Success indicates whether the clear deviation was
+                        successful
+                      type: boolean
+                    warnings:
+                      description: Warnings lists any warnings for this specific config
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - success
+                  type: object
+                type: array
+              warnings:
+                description: Warnings are global warnings from the transaction
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true
