@@ -43,3 +43,7 @@ provide today.
   `targetconnprofile_helpers.go`, regenerated deepcopy + CRD manifests
   (`crds/inv.sdcio.dev_targetconnectionprofiles.yaml`, `artifacts/inv.sdcio.dev_targetconnectionprofiles.yaml`),
   and added a `target-conn-profile-gnmi-sonic.yaml` fixture/test case.
+- Re-landed cleanly (cherry-pick, no conflicts) onto a fresh `sonic-device-profile` branch/worktree
+  cut from `origin/main`, ahead of ticket 07: `config-server-cache-backend` carries an unrelated,
+  still-unmerged sensitive-config-CR feature stack and its own sdc-protos pin, neither of which
+  this effort should depend on. See ticket 07's Comments for why.

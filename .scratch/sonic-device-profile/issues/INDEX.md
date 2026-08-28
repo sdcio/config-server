@@ -9,7 +9,7 @@ is a read-only summary, not the source of truth for status.
 | # | Ticket | Blocked by | Status |
 |---|--------|-----------|--------|
 | [06](06-add-deviceprofile-to-connection-profile-spec.md) | Add `DeviceProfile` typed field to `TargetConnectionProfileSpec` | None | done |
-| [07](07-wire-deviceprofile-through-grpc.md) | Wire `DeviceProfile` from CR through `CreateDataStore` gRPC | 06 | pending |
+| [07](07-wire-deviceprofile-through-grpc.md) | Wire `DeviceProfile` from CR through `CreateDataStore` gRPC | 06 | done |
 | [08](08-reference-krm-yamls.md) | Reference KRM YAMLs for SONiC device onboarding | 06 | pending |
 
 ## Working the frontier
