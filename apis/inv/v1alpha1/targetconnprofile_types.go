@@ -66,6 +66,18 @@ const (
 	Protocol_NONE    Protocol = "none"
 )
 
+// DeviceProfile selects a NOS-specific gNMI Set encoder on the data-server
+// southbound layer. Values must mirror pkg/config.DeviceProfile in
+// data-server exactly, since they map 1-to-1 through the gRPC DeviceProfile
+// enum.
+type DeviceProfile string
+
+const (
+	DeviceProfileNone       DeviceProfile = ""
+	DeviceProfileSonic      DeviceProfile = "sonic"
+	DeviceProfileCiscoIOSXR DeviceProfile = "cisco-ios-xr"
+)
+
 type CommitCandidate string
 
 const (
@@ -119,6 +131,12 @@ type TargetConnectionProfileSpec struct {
 	// Examples: "OC-YANG" (SONiC), "openconfig" (some vendors), or empty
 	// +optional
 	TargetName *string `json:"targetName,omitempty" yaml:"targetName,omitempty" protobuf:"bytes,13,opt,name=targetName"`
+	// DeviceProfile selects a NOS-specific gNMI Set encoder on the data-server
+	// southbound layer. Absence (nil) means DeviceProfileNone (generic, no
+	// NOS-specific encoder).
+	// +kubebuilder:validation:Enum="";sonic;cisco-ios-xr
+	// +optional
+	DeviceProfile *DeviceProfile `json:"deviceProfile,omitempty" yaml:"deviceProfile,omitempty" protobuf:"bytes,14,opt,name=deviceProfile,casttype=DeviceProfile"`
 }
 
 // +kubebuilder:object:root=true

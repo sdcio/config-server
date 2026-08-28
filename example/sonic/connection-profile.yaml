@@ -1,0 +1,18 @@
+# gNMI connection template for SONiC devices. deviceProfile: sonic activates
+# data-server's SONiC-specific GnmiSetPlan encoder (translib/sonic_yang), which
+# requires JSON_IETF encoding — any other encoding is rejected at config-load
+# time on the data-server side.
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: TargetConnectionProfile
+metadata:
+  name: sonic-gnmi
+  namespace: default
+spec:
+  protocol: gnmi
+  port: 57400          # adjust to the device's gNMI listener port
+  encoding: JSON_IETF
+  deviceProfile: sonic
+  connectRetry: 10s
+  timeout: 10s
+  skipVerify: true
+  insecure: false       # set true only for plaintext/lab targets
