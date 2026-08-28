@@ -8,7 +8,7 @@ reference configuration artifacts only.
 **Blocked by:** 06 (`deviceProfile` field must exist on `TargetConnectionProfileSpec` before the
 `TargetConnectionProfile` YAML is accurate)
 
-**Status:** pending
+**Status:** done
 
 ---
 
@@ -169,16 +169,28 @@ For subnet-based discovery, replace `addresses` with `prefixes`:
 
 ## Checklist
 
-- [ ] `example/sonic/` (or `docs/sonic/`) directory created in the config-server repo.
-- [ ] `schema.yaml` — Schema CR as above, with confirmed `excludes` from live lab.
-- [ ] `connection-profile.yaml` — `TargetConnectionProfile` CR as above.
-- [ ] `sync-profile.yaml` — `TargetSyncProfile` CR with per-module paths, annotated with
+- [x] `example/sonic/` directory created in the config-server repo.
+- [x] `schema.yaml` — Schema CR as above. Used the live-lab-verified shape from
+  `/home/mava/projects/sonic/workspace/sonic-schema.yaml` (whole-directory `models: [sonic]`,
+  no `excludes`) rather than the draft's speculative excludes list, since that file is the
+  authoritative confirmed-working config, not a guess.
+- [x] `connection-profile.yaml` — `TargetConnectionProfile` CR as above.
+- [x] `sync-profile.yaml` — `TargetSyncProfile` CR with per-module paths, annotated with
   the "do not use `/`" warning.
-- [ ] `discovery-rule.yaml` — `DiscoveryRule` CR as above, with inline comments on
-  credentials secret format.
-- [ ] Short `README.md` in the same directory: apply order (Schema → profiles → DiscoveryRule),
+- [x] `discovery-rule.yaml` — `DiscoveryRule` CR as above, plus the referenced
+  `sonic-credentials` `Secret` (type `kubernetes.io/basic-auth`, confirmed against
+  `pkg/git/auth/secret/secret.go`'s `BasicAuthType`), with inline comments on the credentials
+  secret format.
+- [x] Short `README.md` in the same directory: apply order (Schema → profiles → DiscoveryRule),
   prerequisites (schema-server running, translib-write-enabled `telemetry` binary on device),
   and a pointer to the data-server user-guide device-profiles page (tracked separately in the
   data-server docs PR).
 
 ## Comments
+
+Landed on branch `sonic-device-profile` (worktree
+`config-server-worktrees/sonic-device-profile`), cut from `origin/main`. No code changes —
+added `example/sonic/{schema,connection-profile,sync-profile,discovery-rule}.yaml` +
+`example/sonic/README.md`. Left the existing per-kind `example/{connection-profiles,...}`
+directories (unit-test fixtures, "DO NOT UPDATE") untouched; this is a separate, self-contained
+reference set as the ticket specified.
