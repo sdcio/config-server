@@ -3,6 +3,16 @@
 Config-server-side tickets for SONiC device onboarding. Upstream data-server tickets live in
 `sdcio/data-server/.scratch/sonic-device-profile/issues/INDEX.md`.
 
+## Where to work
+
+Do this work in the worktree at `/home/mava/projects/config-server-worktrees/sonic-device-profile`,
+on branch `sonic-device-profile` (cut from `origin/main`). **Do not** use
+`/home/mava/projects/config-server` directly — that checkout sits on `config-server-cache-backend`,
+an unrelated, still-unmerged sensitive-config-CR feature branch whose `sdc-protos` pin predates and
+conflicts with the `deviceprofile` branch this effort needs (see ticket 07's Comments for the full
+story). If this worktree ever goes stale relative to `origin/main`, rebase it rather than falling
+back to the primary checkout.
+
 Ticket list in dependency order. Each ticket's `Status:` line lives in its own file — this index
 is a read-only summary, not the source of truth for status.
 
