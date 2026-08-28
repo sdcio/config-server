@@ -139,8 +139,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			ctx,
 			&configv1alpha1.Target{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: req.NamespacedName.Namespace,
-					Name:      req.NamespacedName.Name,
+					Namespace: req.Namespace,
+					Name:      req.Name,
 				},
 			},
 			configv1alpha1.TargetForConfigFailed("target not found"),
