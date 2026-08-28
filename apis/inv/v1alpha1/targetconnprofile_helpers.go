@@ -58,6 +58,13 @@ func (r *TargetConnectionProfile) CommitCandidate() CommitCandidate {
 	return *r.Spec.CommitCandidate
 }
 
+func (r *TargetConnectionProfile) DeviceProfile() DeviceProfile {
+	if r.Spec.DeviceProfile == nil {
+		return DeviceProfileNone
+	}
+	return *r.Spec.DeviceProfile
+}
+
 // DefaultTargetConnectionProfile returns a default TargetConnectionProfile
 func DefaultTargetConnectionProfile() *TargetConnectionProfile {
 	return BuildTargetConnectionProfile(
