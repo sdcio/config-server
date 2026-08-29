@@ -116,7 +116,7 @@ func (p *PromMetric) String() string {
 		}
 		sb.WriteString("],")
 	}
-	sb.WriteString(fmt.Sprintf("value=%f,", p.value))
+	fmt.Fprintf(&sb, "value=%f,", p.value)
 	sb.WriteString("time=")
 	if p.Time != nil {
 		sb.WriteString(p.Time.String())
