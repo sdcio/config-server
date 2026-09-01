@@ -81,7 +81,7 @@ func TestServer_liveRoundTrip(t *testing.T) {
 	}
 	defer func() { _ = cc.Close() }()
 
-	cl := config_read.NewConfigReadServiceClient(cc)
+	cl := config_read.NewConfigSnapshotServiceClient(cc)
 	rsp, err := cl.Get(context.Background(), &config_read.GetConfigRequest{
 		TargetNamespace: testNamespace,
 		TargetName:      testTarget,

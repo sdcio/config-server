@@ -219,7 +219,7 @@ func isRecoverableGRPCError(err error) bool {
 // Dedupes by string and rejects key predicates — the dataserver refuses keyed
 // paths, so a '[' here means a bug upstream; fail loudly rather than ship it.
 // Exported so other same-process readers of the same SensitiveConfig data
-// (e.g. the local ConfigReadService) reuse this parsing instead of
+// (e.g. the local ConfigSnapshotService) reuse this parsing instead of
 // duplicating it.
 func ParseSensitivePaths(paths []string) ([]*sdcpb.Path, error) {
     if len(paths) == 0 {

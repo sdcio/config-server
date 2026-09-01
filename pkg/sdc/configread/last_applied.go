@@ -25,6 +25,7 @@ import (
 	"github.com/sdcio/config-server/pkg/keyring"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"github.com/sdcio/sdc-protos/config_read"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // toLastAppliedConfigEntry maps a TargetSnapshot.Spec.Configs entry — the
@@ -66,5 +67,44 @@ func toLastAppliedConfigEntry(name string, spec configv1alpha1.SensitiveConfigSp
 		Priority:       int32(spec.Priority),
 		SensitivePaths: sensitivePaths,
 		Config:         configBlobs,
+	}, nil
+}
+
+// fromConfigEntry maps a wire ConfigEntry — the applied payload Modify's
+// caller sends — onto a TargetSnapshot entry's SensitiveConfigSpec: the
+// write-path counterpart to toLastAppliedConfigEntry. revertive and
+// lifecycle are not taken off the wire entry: Modify's caller reports what
+// was applied to the device, not config-server-owned lifecycle policy, so
+// callers pass the values read off the current live SensitiveConfig
+// instead.
+func fromConfigEntry(entry *config_read.ConfigEntry, revertive *bool, lifecycle *configv1alpha1.Lifecycle, kr *keyring.KeyRing) (configv1alpha1.SensitiveConfigSpec, error) {
+	blobs := make([]config.ConfigBlob, 0, len(entry.GetConfig()))
+	for _, b := range entry.GetConfig() {
+		blobs = append(blobs, config.ConfigBlob{
+			Path:  b.GetPath(),
+			Value: runtime.RawExtension{Raw: b.GetValue()},
+		})
+	}
+
+	data, err := json.Marshal(blobs)
+	if err != nil {
+		return configv1alpha1.SensitiveConfigSpec{}, fmt.Errorf("marshal config %s: %w", entry.GetName(), err)
+	}
+	payload, err := kr.Encrypt(data)
+	if err != nil {
+		return configv1alpha1.SensitiveConfigSpec{}, fmt.Errorf("encrypt config %s: %w", entry.GetName(), err)
+	}
+
+	sensitivePaths := make([]string, 0, len(entry.GetSensitivePaths()))
+	for _, p := range entry.GetSensitivePaths() {
+		sensitivePaths = append(sensitivePaths, p.ToXPath(true))
+	}
+
+	return configv1alpha1.SensitiveConfigSpec{
+		Priority:       int64(entry.GetPriority()),
+		Revertive:      revertive,
+		Lifecycle:      lifecycle,
+		Payload:        payload,
+		SensitivePaths: sensitivePaths,
 	}, nil
 }

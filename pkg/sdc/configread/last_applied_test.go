@@ -23,6 +23,7 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/keyring"
+	"github.com/sdcio/sdc-protos/config_read"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 )
@@ -149,5 +150,62 @@ func TestToLastAppliedConfigEntry_unmarshalFailure(t *testing.T) {
 	_, err = toLastAppliedConfigEntry("cfg1", spec, kr)
 	if err == nil {
 		t.Fatal("toLastAppliedConfigEntry with invalid blob JSON: want error, got nil")
+	}
+}
+
+// ── fromConfigEntry ──────────────────────────────────────────────────────────
+
+// TestFromConfigEntry_roundTrip locks the write-path counterpart to
+// toLastAppliedConfigEntry: encrypting a wire ConfigEntry's blobs must
+// decrypt back to the same content through the existing read-path mapping.
+func TestFromConfigEntry_roundTrip(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entry := &config_read.ConfigEntry{
+		Name:     "cfg1",
+		Priority: 7,
+		Config: []*config_read.ConfigBlob{
+			{Path: "/system", Value: []byte(`{"hostname":"router1"}`)},
+		},
+	}
+
+	spec, err := fromConfigEntry(entry, ptr.To(true), nil, kr)
+	if err != nil {
+		t.Fatalf("fromConfigEntry: %v", err)
+	}
+	if spec.Priority != 7 {
+		t.Errorf("priority = %d, want 7", spec.Priority)
+	}
+
+	got, err := toLastAppliedConfigEntry("cfg1", spec, kr)
+	if err != nil {
+		t.Fatalf("toLastAppliedConfigEntry round trip: %v", err)
+	}
+	if len(got.GetConfig()) != 1 || got.GetConfig()[0].GetPath() != "/system" {
+		t.Fatalf("config blobs = %+v", got.GetConfig())
+	}
+}
+
+// TestFromConfigEntry_incidentalFieldsFromCaller locks that Revertive and
+// Lifecycle come from whatever the caller passes in (the live
+// SensitiveConfig), not from the wire ConfigEntry's own non_revertive/orphan
+// flags.
+func TestFromConfigEntry_incidentalFieldsFromCaller(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entry := &config_read.ConfigEntry{
+		Name:         "cfg1",
+		NonRevertive: true, // must be ignored — caller-supplied revertive wins
+		Orphan:       false,
+	}
+	lifecycle := &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
+
+	spec, err := fromConfigEntry(entry, ptr.To(false), lifecycle, kr)
+	if err != nil {
+		t.Fatalf("fromConfigEntry: %v", err)
+	}
+	if spec.Revertive == nil || *spec.Revertive {
+		t.Errorf("Revertive = %v, want false (from caller, not wire NonRevertive=true)", spec.Revertive)
+	}
+	if spec.Lifecycle == nil || spec.Lifecycle.DeletionPolicy != configv1alpha1.DeletionOrphan {
+		t.Errorf("Lifecycle = %+v, want DeletionOrphan (from caller)", spec.Lifecycle)
 	}
 }

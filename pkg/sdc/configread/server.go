@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package configread implements config_read.ConfigReadService: a unary,
+// Package configread implements config_read.ConfigSnapshotService: a unary,
 // localhost-bound Get-by-name/List-by-target read API over config-server's
 // Config (+ joined SensitiveConfig) resources, backed entirely by the
 // colocated controller's existing watch-synced informer cache — the same one
@@ -67,12 +67,13 @@ type Config struct {
 	KeyRing *keyring.KeyRing
 }
 
-// Server implements config_read.ConfigReadServiceServer over the colocated
-// controller's existing informer cache. It is a controller-runtime Runnable
-// (via AddToManager), not a CRD reconciler: it reconciles nothing and owns no
-// watch of its own.
+// Server implements config_read.ConfigSnapshotServiceServer over the
+// colocated controller's existing informer cache for reads (Get/List), and
+// against the API server directly for writes (Modify/Delete). It is a
+// controller-runtime Runnable (via AddToManager), not a CRD reconciler: it
+// reconciles nothing and owns no watch of its own.
 type Server struct {
-	config_read.UnimplementedConfigReadServiceServer
+	config_read.UnimplementedConfigSnapshotServiceServer
 
 	address string
 	client  client.Client
@@ -105,7 +106,7 @@ func (s *Server) Start(ctx context.Context) error {
 	defer func() { _ = lis.Close() }()
 
 	grpcServer := grpc.NewServer()
-	config_read.RegisterConfigReadServiceServer(grpcServer, s)
+	config_read.RegisterConfigSnapshotServiceServer(grpcServer, s)
 
 	errCh := make(chan error, 1)
 	go func() {

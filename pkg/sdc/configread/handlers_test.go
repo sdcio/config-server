@@ -86,6 +86,19 @@ func newTestKeyRing(t *testing.T) *keyring.KeyRing {
 	return kr
 }
 
+// mkSensitiveConfig builds a SensitiveConfig fixture carrying just the
+// incidental fields (Revertive, Lifecycle) that Modify sources from the
+// live object rather than trusting off the wire ConfigEntry.
+func mkSensitiveConfig(namespace, name string, revertive *bool, lifecycle *configv1alpha1.Lifecycle) *configv1alpha1.SensitiveConfig {
+	return &configv1alpha1.SensitiveConfig{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Spec: configv1alpha1.SensitiveConfigSpec{
+			Revertive: revertive,
+			Lifecycle: lifecycle,
+		},
+	}
+}
+
 // mkTargetSnapshot builds a TargetSnapshot the way targetconfig's reconciler
 // saves one: named/namespaced after the target itself, keyed by intent name.
 func mkTargetSnapshot(targetNS, targetName string, configs map[string]configv1alpha1.SensitiveConfigSpec) *configv1alpha1.TargetSnapshot {
@@ -309,5 +322,235 @@ func TestList_oneBadEntryFailsWholeCall(t *testing.T) {
 	})
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("err = %v, want Internal", err)
+	}
+}
+
+// ── Modify ───────────────────────────────────────────────────────────────────
+
+// TestModify_createsSnapshotOnFirstApply covers a target that has never had
+// a successful transaction: no TargetSnapshot exists yet, so Modify must
+// create one rather than requiring a pre-existing object to patch.
+func TestModify_createsSnapshotOnFirstApply(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	s := newTestServerWithKeyRing(t, kr, sc)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name:     "cfg1",
+			Priority: 5,
+			Config: []*config_read.ConfigBlob{
+				{Path: "/system", Value: []byte(`{"hostname":"router1"}`)},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get after Modify: %v", err)
+	}
+	entry := rsp.GetConfig()
+	if entry.GetPriority() != 5 {
+		t.Errorf("priority = %d, want 5", entry.GetPriority())
+	}
+	if len(entry.GetConfig()) != 1 || entry.GetConfig()[0].GetPath() != "/system" {
+		t.Fatalf("config blobs = %+v", entry.GetConfig())
+	}
+}
+
+// TestModify_updatesExistingEntryWithoutTouchingOthers is the regression
+// test for the merge-patch contract: Modify must touch only the single key
+// it's writing, leaving a concurrent unrelated key in the map untouched even
+// if that key was written by another apply racing on the same target.
+func TestModify_updatesExistingEntryWithoutTouchingOthers(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1":  mkSnapshotEntry(t, kr, nil, nil),
+		"other": mkSnapshotEntry(t, kr, []config.ConfigBlob{{Path: "/other", Value: runtime.RawExtension{Raw: []byte(`{"a":1}`)}}}, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, sc, snapshot)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name: "cfg1",
+			Config: []*config_read.ConfigBlob{
+				{Path: "/system", Value: []byte(`{"hostname":"router2"}`)},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	got, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get cfg1 after Modify: %v", err)
+	}
+	if len(got.GetConfig().GetConfig()) != 1 || got.GetConfig().GetConfig()[0].GetPath() != "/system" {
+		t.Fatalf("cfg1 config blobs = %+v, want updated /system entry", got.GetConfig().GetConfig())
+	}
+
+	other, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "other",
+	})
+	if err != nil {
+		t.Fatalf("Get other after Modify: %v", err)
+	}
+	if len(other.GetConfig().GetConfig()) != 1 || other.GetConfig().GetConfig()[0].GetPath() != "/other" {
+		t.Fatalf("other config blobs = %+v, want untouched /other entry", other.GetConfig().GetConfig())
+	}
+}
+
+// TestModify_sourcesRevertiveAndLifecycleFromSensitiveConfig locks that
+// Revertive/Lifecycle are sourced from the live SensitiveConfig, not trusted
+// off the wire ConfigEntry's own non_revertive/orphan flags.
+func TestModify_sourcesRevertiveAndLifecycleFromSensitiveConfig(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(false), &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan})
+	s := newTestServerWithKeyRing(t, kr, sc)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name:         "cfg1",
+			NonRevertive: false, // wire says revertive — must be ignored in favor of the live SC (Revertive=false)
+			Orphan:       false, // wire says not orphan — must be ignored in favor of the live SC (DeletionOrphan)
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get after Modify: %v", err)
+	}
+	if !rsp.GetConfig().GetNonRevertive() {
+		t.Errorf("non_revertive = false, want true (sourced from live SC Revertive=false)")
+	}
+	if !rsp.GetConfig().GetOrphan() {
+		t.Errorf("orphan = false, want true (sourced from live SC DeletionOrphan)")
+	}
+}
+
+// TestModify_missingSensitiveConfig locks that a kube-client failure looking
+// up the live SensitiveConfig is a real RPC error, not a log-only failure.
+func TestModify_missingSensitiveConfig(t *testing.T) {
+	s := newTestServer(t)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config:          &config_read.ConfigEntry{Name: "cfg1"},
+	})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("err = %v, want Internal", err)
+	}
+}
+
+func TestModify_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		Config: &config_read.ConfigEntry{},
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+}
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+
+// TestDelete_removesEntryWithoutTouchingOthers is the regression test for
+// the merge-patch contract on the delete path: Delete must remove only the
+// key it targets.
+func TestDelete_removesEntryWithoutTouchingOthers(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1":  mkSnapshotEntry(t, kr, nil, nil),
+		"other": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	_, err = s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("Get cfg1 after Delete: err = %v, want NotFound", err)
+	}
+
+	_, err = s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "other",
+	})
+	if err != nil {
+		t.Fatalf("Get other after Delete: %v, want untouched entry", err)
+	}
+}
+
+// TestDelete_missingKeyIsNoop locks idempotent-delete: removing a key that
+// isn't (or is no longer) present in an existing snapshot is a no-op
+// success, not an error.
+func TestDelete_missingKeyIsNoop(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"other": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "missing",
+	})
+	if err != nil {
+		t.Fatalf("Delete of missing key: %v, want no-op success", err)
+	}
+}
+
+// TestDelete_missingSnapshotIsNoop locks idempotent-delete for a target that
+// has never had a successful transaction: no TargetSnapshot exists at all.
+func TestDelete_missingSnapshotIsNoop(t *testing.T) {
+	s := newTestServer(t)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Delete with no snapshot: %v, want no-op success", err)
+	}
+}
+
+func TestDelete_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
 	}
 }
