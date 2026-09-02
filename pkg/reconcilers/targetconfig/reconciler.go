@@ -57,9 +57,9 @@ const (
 	reconcilerName        = "TargetConfigController"
 	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
+	errGetCr = "cannot get cr"
 	//errUpdateDataStore = "cannot update datastore"
-	errUpdateStatus    = "cannot update status"
+	errUpdateStatus = "cannot update status"
 )
 
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -77,7 +77,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	if cfg.TargetManager == nil {
 		return nil, fmt.Errorf("TargetManager is nil: set LOCAL_DATASERVER=true or disable TargetConfigServerController")
 	}
-	r.keyring, err = cfg.RequireKeyRing(reconcilerName); if err != nil {
+	r.keyring, err = cfg.RequireKeyRing(reconcilerName)
+	if err != nil {
 		return nil, err
 	}
 
@@ -267,12 +268,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Reapply deviations before transacting.
 	/*
-	for _, cfg := range cfgList.Items {
-		if _, err := r.cfgMgr.ApplyDeviation(ctx, &cfg); err != nil {
-			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, targetOrig, "cannot apply deviation", err), errUpdateStatus)
+		for _, cfg := range cfgList.Items {
+			if _, err := r.cfgMgr.ApplyDeviation(ctx, &cfg); err != nil {
+				return ctrl.Result{Requeue: true},
+					errors.Wrap(r.handleError(ctx, targetOrig, "cannot apply deviation", err), errUpdateStatus)
+			}
 		}
-	}
 	*/
 
 	targetCond := configv1alpha1.TargetForConfigReady("target ready")
@@ -324,9 +325,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, targetOrig, "cannot update config status after success", err), errUpdateStatus)
 	}
 
-	// ── Save snapshot ──────────────────────────────────────────────────────────
-	// Not fatal if it fails — next reconcile will detect change and re-transact.
-	if err := r.saveSnapshot(ctx, targetOrig, scList, toUpdate, toDelete); err != nil {
+	// ── Save snapshot (backstop) ───────────────────────────────────────────────
+	// Last-applied membership is written at apply time; this only prunes
+	// orphan keys and refreshes schema metadata. Not fatal if it fails —
+	// the next successful transact retries the backstop.
+	if err := r.saveSnapshot(ctx, targetOrig, snapshot, dsctx.Schema); err != nil {
 		log.Warn("cannot save snapshot after transaction", "err", err)
 	}
 
@@ -387,10 +390,10 @@ func (r *reconciler) buildIntentInputs(
 		}
 
 		input := targetmanager.IntentInput{
-			Config:        cfg,
-			ResolvedBlobs: blobs,
-			Priority:      int32(sc.Spec.Priority),
-			NonRevertive:  sc.Spec.Revertive != nil && !*sc.Spec.Revertive,
+			Config:         cfg,
+			ResolvedBlobs:  blobs,
+			Priority:       int32(sc.Spec.Priority),
+			NonRevertive:   sc.Spec.Revertive != nil && !*sc.Spec.Revertive,
 			SensitivePaths: sc.Spec.SensitivePaths,
 		}
 
@@ -413,20 +416,6 @@ func (r *reconciler) buildIntentInputs(
 		if changed || !cfg.IsConfigConditionReady() {
 			hasChange = true
 			toUpdate = append(toUpdate, input)
-		}
-	}
-
-	// Snapshot entry exists but SC is gone → SC was deleted after confirmed delete,
-	// but snapshot wasn't updated (e.g. saveSnapshot failed).
-	// Re-send the delete so the snapshot gets cleaned up.
-	for name := range snapshot.Spec.Configs {
-		if _, hasSC := scByName[name]; !hasSC {
-			// SC gone = delete was confirmed. If Config also gone, snapshot is stale.
-			// If Config still exists with deletionTimestamp, targetconfig handles it
-			// via the normal deletionTimestamp path above.
-			// If snapshot entry lingers after both are gone → hasChange=true forces
-			// a saveSnapshot which will exclude the stale entry.
-			hasChange = true
 		}
 	}
 
@@ -479,55 +468,57 @@ func (r *reconciler) loadSnapshot(ctx context.Context, target *configv1alpha1.Ta
 	return snapshot, nil
 }
 
-// saveSnapshot persists the TargetSnapshot after a successful transaction.
-// It updates only the entries that were part of this transaction, and removes
-// entries for deleted configs.
+// saveSnapshot is a post-Confirm backstop. Last-applied membership is written
+// at apply time; this only prunes Spec.Configs keys whose SensitiveConfig is
+// gone and refreshes LastKnownGoodSchema, via a per-key JSON merge-patch
+// (RFC 7396) so a concurrent apply-time or rollback write on any other key
+// cannot be clobbered. A missing TargetSnapshot is a no-op (NotFound on
+// Patch) — the backstop does not create the object, but it will still
+// refresh schema onto one apply-time just created this turn.
 func (r *reconciler) saveSnapshot(
 	ctx context.Context,
 	target *configv1alpha1.Target,
-	scList *configv1alpha1.SensitiveConfigList,
-	toUpdate []targetmanager.IntentInput,
-	toDelete []targetmanager.IntentInput,
+	snapshot *configv1alpha1.TargetSnapshot,
+	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
 ) error {
-	// Build a lookup of what was updated.
-	updatedNames := make(map[string]struct{}, len(toUpdate))
-	for _, u := range toUpdate {
-		updatedNames[u.Config.Name] = struct{}{}
-	}
-	deletedNames := make(map[string]struct{}, len(toDelete))
-	for _, d := range toDelete {
-		deletedNames[d.Config.Name] = struct{}{}
-	}
-
-	// Build the complete new snapshot from current SensitiveConfigs.
-	// SC spec already contains the correctly encrypted payload with current key.
-	scByName := make(map[string]configv1alpha1.SensitiveConfigSpec, len(scList.Items))
-	for _, sc := range scList.Items {
-		if _, wasDeleted := deletedNames[sc.Name]; !wasDeleted {
-			scByName[sc.Name] = sc.Spec
-		}
-	}
-
-	desired := &configv1alpha1.TargetSnapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      target.Name,
-			Namespace: target.Namespace,
-		},
-		Spec: configv1alpha1.TargetSnapshotSpec{
-			Configs: scByName,
-		},
-	}
-
-	existing := &configv1alpha1.TargetSnapshot{}
-	err := r.client.Get(ctx, client.ObjectKeyFromObject(desired), existing)
+	scList, err := r.listSensitiveConfigsPerTarget(ctx, target)
 	if err != nil {
-		if resource.IgnoreNotFound(err) != nil {
-			return err
-		}
-		return r.client.Create(ctx, desired)
+		return err
 	}
-	existing.Spec = desired.Spec
-	return r.client.Update(ctx, existing)
+	scByName := make(map[string]struct{}, len(scList.Items))
+	for i := range scList.Items {
+		scByName[scList.Items[i].Name] = struct{}{}
+	}
+
+	prune := make(map[string]any)
+	for name := range snapshot.Spec.Configs {
+		if _, ok := scByName[name]; !ok {
+			prune[name] = nil
+		}
+	}
+
+	specPatch := make(map[string]any)
+	if len(prune) > 0 {
+		specPatch["configs"] = prune
+	}
+	if schema != nil {
+		specPatch["lastKnownGoodSchema"] = schema
+	}
+	if len(specPatch) == 0 {
+		return nil
+	}
+
+	patch, err := json.Marshal(map[string]any{"spec": specPatch})
+	if err != nil {
+		return err
+	}
+	obj := &configv1alpha1.TargetSnapshot{
+		ObjectMeta: metav1.ObjectMeta{Name: target.Name, Namespace: target.Namespace},
+	}
+	if err := r.client.Patch(ctx, obj, client.RawPatch(types.MergePatchType, patch)); err != nil {
+		return resource.IgnoreNotFound(err)
+	}
+	return nil
 }
 
 // ── List helpers ───────────────────────────────────────────────────────────────
@@ -564,18 +555,18 @@ func (r *reconciler) mapSensitiveConfigToTarget(_ context.Context, obj client.Ob
 
 // mapConfigToTarget maps a Config event to its Target using the target labels.
 func (r *reconciler) mapConfigToTarget(_ context.Context, obj client.Object) []reconcile.Request {
-    labels := obj.GetLabels()
-    targetNS, ok1   := labels[config.TargetNamespaceKey]
-    targetName, ok2 := labels[config.TargetNameKey]
-    if !ok1 || !ok2 {
-        return nil
-    }
-    return []reconcile.Request{{
-        NamespacedName: types.NamespacedName{
-            Name:      targetName,
-            Namespace: targetNS,
-        },
-    }}
+	labels := obj.GetLabels()
+	targetNS, ok1 := labels[config.TargetNamespaceKey]
+	targetName, ok2 := labels[config.TargetNameKey]
+	if !ok1 || !ok2 {
+		return nil
+	}
+	return []reconcile.Request{{
+		NamespacedName: types.NamespacedName{
+			Name:      targetName,
+			Namespace: targetNS,
+		},
+	}}
 }
 
 // ── Handlers ───────────────────────────────────────────────────────────────────

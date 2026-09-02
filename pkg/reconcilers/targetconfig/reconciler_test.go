@@ -22,12 +22,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
@@ -49,6 +50,8 @@ const (
 	testTargetName = "target1"
 	testNamespace  = "default"
 	testConfigName = "cfg1"
+	testAliveName  = "alive"
+	testGhostName  = "ghost"
 )
 
 // ── test doubles ─────────────────────────────────────────────────────────────
@@ -120,6 +123,41 @@ func (stubDSClient) WatchDeviations(context.Context, *sdcpb.WatchDeviationReques
 }
 func (stubDSClient) BlameConfig(context.Context, *sdcpb.BlameConfigRequest, ...grpc.CallOption) (*sdcpb.BlameConfigResponse, error) {
 	return nil, nil
+}
+
+// scriptedDSClient overrides TransactionSet so tests can drive a successful
+// or failed transact without a real data-server.
+type scriptedDSClient struct {
+	stubDSClient
+	transactionSetErr error
+}
+
+func (s scriptedDSClient) TransactionSet(context.Context, *sdcpb.TransactionSetRequest, ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+	if s.transactionSetErr != nil {
+		return nil, s.transactionSetErr
+	}
+	return &sdcpb.TransactionSetResponse{}, nil
+}
+
+// hookDSClient runs afterSet after a successful TransactionSet, so a test
+// can simulate the apply-time Modify that creates a TargetSnapshot during
+// the transact.
+type hookDSClient struct {
+	scriptedDSClient
+	afterSet func(context.Context) error
+}
+
+func (s hookDSClient) TransactionSet(ctx context.Context, req *sdcpb.TransactionSetRequest, opts ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+	rsp, err := s.scriptedDSClient.TransactionSet(ctx, req, opts...)
+	if err != nil {
+		return rsp, err
+	}
+	if s.afterSet != nil {
+		if err := s.afterSet(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return rsp, nil
 }
 
 // fakeConfigStatusApply works around a controller-runtime v0.23 fake-client
@@ -320,4 +358,325 @@ func TestReconcile_NoOpReconcile_SelfHealsStaleTargetForConfigCondition(t *testi
 	readyCond := got.GetCondition(condv1alpha1.ConditionTypeReady)
 	assert.Equal(t, metav1.ConditionTrue, readyCond.Status,
 		"overall Ready should follow once TargetForConfigReady is corrected")
+}
+
+func targetLabels() map[string]string {
+	return map[string]string{
+		config.TargetNamespaceKey: testNamespace,
+		config.TargetNameKey:      testTargetName,
+	}
+}
+
+func encryptSpec(t *testing.T, kr *keyring.KeyRing, marker string) configv1alpha1.SensitiveConfigSpec {
+	t.Helper()
+	plaintext, err := json.Marshal([]config.ConfigBlob{
+		{Path: "/marker", Value: runtime.RawExtension{Raw: []byte(`{"v":"` + marker + `"}`)}},
+	})
+	if err != nil {
+		t.Fatalf("marshal blobs: %v", err)
+	}
+	plainHashBytes := sha256.Sum256(plaintext)
+	payload, err := kr.Encrypt(plaintext)
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	payload.PlainHash = hex.EncodeToString(plainHashBytes[:])
+	return configv1alpha1.SensitiveConfigSpec{
+		Priority: 10,
+		Payload:  payload,
+	}
+}
+
+func readyConfig(name string, conditions ...condv1alpha1.Condition) *configv1alpha1.Config {
+	cfg := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{Name: name, Namespace: testNamespace, Labels: targetLabels()},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+	if len(conditions) == 0 {
+		conditions = []condv1alpha1.Condition{
+			configv1alpha1.ConfigReady(""),
+			configv1alpha1.ConfigResolverReady(""),
+			configv1alpha1.TargetForConfigReady("target ready"),
+		}
+	}
+	cfg.SetConditions(conditions...)
+	cfg.SetOverallStatus()
+	return cfg
+}
+
+func sensitiveConfig(name string, spec configv1alpha1.SensitiveConfigSpec) *configv1alpha1.SensitiveConfig {
+	return &configv1alpha1.SensitiveConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace, Labels: targetLabels()},
+		Spec:       spec,
+	}
+}
+
+func newTestScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	sch := runtime.NewScheme()
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add scheme: %v", err)
+	}
+	return sch
+}
+
+func newTestReconciler(c client.Client, kr *keyring.KeyRing, dsClient targetmanager.DatastoreHandle) *reconciler {
+	handle := dsClient
+	if handle.Client == nil {
+		handle.Client = stubDSClient{}
+	}
+	if handle.Status.Phase == "" {
+		handle.Status = targetmanager.RuntimeStatus{
+			Phase:        targetmanager.PhaseRunning,
+			DSReady:      true,
+			DSStoreReady: true,
+			Recovered:    true,
+		}
+	}
+	return &reconciler{
+		client:          c,
+		discoveryClient: stubDiscovery{},
+		finalizer: resource.NewAPIFinalizer(
+			c,
+			finalizer,
+			fieldmanagerfinalizer,
+			func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+				ac := configv1alpha1apply.Target(name, namespace)
+				if len(finalizers) > 0 {
+					ac.WithFinalizers(finalizers...)
+				}
+				return ac
+			},
+		),
+		targetMgr: stubDatastoreGetter{
+			ok:     true,
+			handle: &handle,
+		},
+		transactor: targetmanager.NewTransactor(),
+		cfgMgr:     targetmanager.NewConfigManager(c, "targetConfigManager"),
+		keyring:    kr,
+	}
+}
+
+func interceptTargetSnapshotWrite(onWrite func(ctx context.Context) error) interceptor.Funcs {
+	run := func(ctx context.Context, obj client.Object) error {
+		if _, ok := obj.(*configv1alpha1.TargetSnapshot); ok {
+			return onWrite(ctx)
+		}
+		return nil
+	}
+	return interceptor.Funcs{
+		SubResourceApply: fakeConfigStatusApply,
+		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			if err := run(ctx, obj); err != nil {
+				return err
+			}
+			return c.Update(ctx, obj, opts...)
+		},
+		Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+			if err := run(ctx, obj); err != nil {
+				return err
+			}
+			return c.Patch(ctx, obj, patch, opts...)
+		},
+	}
+}
+
+func snapshotKey() types.NamespacedName {
+	return types.NamespacedName{Name: testTargetName, Namespace: testNamespace}
+}
+
+func getSnapshot(t *testing.T, ctx context.Context, c client.Client) *configv1alpha1.TargetSnapshot {
+	t.Helper()
+	got := &configv1alpha1.TargetSnapshot{}
+	if err := c.Get(ctx, snapshotKey(), got); err != nil {
+		t.Fatalf("get snapshot: %v", err)
+	}
+	return got
+}
+
+// TestReconcile_SaveSnapshot_PruneOrphanDoesNotClobberConcurrentApplyWrite
+// locks the backstop contract: after a successful transact, saveSnapshot
+// must prune a snapshot key whose SensitiveConfig is gone, and must not
+// clobber an unrelated key a concurrent apply-time write just updated.
+func TestReconcile_SaveSnapshot_PruneOrphanDoesNotClobberConcurrentApplyWrite(t *testing.T) {
+	ctx := context.Background()
+	kr := newTestKeyRing(t, "v1")
+
+	cfg1Old := encryptSpec(t, kr, "cfg1-old")
+	cfg1New := encryptSpec(t, kr, "cfg1-new")
+	aliveSC := encryptSpec(t, kr, "alive-sc")
+	aliveApply := encryptSpec(t, kr, "alive-apply")
+	ghostSpec := encryptSpec(t, kr, "ghost")
+
+	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    "srl",
+		Vendor:  "nokia",
+		Version: "24.10",
+	}
+
+	target := readyTarget()
+	cfg1 := readyConfig(testConfigName)
+	aliveCfg := readyConfig(testAliveName)
+	snapshot := configv1alpha1.BuildTargetSnapshot(
+		metav1.ObjectMeta{Name: testTargetName, Namespace: testNamespace},
+		configv1alpha1.TargetSnapshotSpec{
+			Configs: map[string]configv1alpha1.SensitiveConfigSpec{
+				testConfigName: cfg1Old,
+				testAliveName:  aliveSC,
+				testGhostName:  ghostSpec,
+			},
+		},
+	)
+
+	baseClient := fake.NewClientBuilder().
+		WithScheme(newTestScheme(t)).
+		WithObjects(
+			target, cfg1, aliveCfg,
+			sensitiveConfig(testConfigName, cfg1New),
+			sensitiveConfig(testAliveName, aliveSC),
+			snapshot,
+		).
+		WithStatusSubresource(cfg1, aliveCfg).
+		Build()
+
+	injectApplyTimeWrite := func(ctx context.Context) error {
+		current := &configv1alpha1.TargetSnapshot{}
+		if err := baseClient.Get(ctx, snapshotKey(), current); err != nil {
+			return err
+		}
+		if current.Spec.Configs == nil {
+			current.Spec.Configs = map[string]configv1alpha1.SensitiveConfigSpec{}
+		}
+		current.Spec.Configs[testAliveName] = aliveApply
+		return baseClient.Update(ctx, current)
+	}
+
+	fakeClient := interceptor.NewClient(baseClient, interceptTargetSnapshotWrite(injectApplyTimeWrite))
+	r := newTestReconciler(fakeClient, kr, targetmanager.DatastoreHandle{
+		Client: scriptedDSClient{},
+		Schema: schema,
+	})
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: snapshotKey()})
+	assert.NoError(t, err, "successful transact should not fail Reconcile")
+
+	got := getSnapshot(t, ctx, fakeClient)
+	if _, stillThere := got.Spec.Configs[testGhostName]; stillThere {
+		t.Fatalf("ghost key %q still in snapshot; backstop must prune keys with no SensitiveConfig", testGhostName)
+	}
+	alive, ok := got.Spec.Configs[testAliveName]
+	if !ok {
+		t.Fatalf("alive key %q missing from snapshot; backstop must not drop an unrelated apply-time write", testAliveName)
+	}
+	if alive.Payload.PlainHash != aliveApply.Payload.PlainHash {
+		t.Fatalf("alive hash = %s, want apply-time hash %s (backstop clobbered a concurrent apply-time write)",
+			alive.Payload.PlainHash, aliveApply.Payload.PlainHash)
+	}
+	if got.Spec.LastKnownGoodSchema == nil || *got.Spec.LastKnownGoodSchema != *schema {
+		t.Fatalf("LastKnownGoodSchema = %+v, want %+v", got.Spec.LastKnownGoodSchema, schema)
+	}
+}
+
+// TestReconcile_SaveSnapshot_SkippedOnFailedTransact locks that the
+// backstop never runs after a failed transact: an orphan snapshot key is
+// left in place, matching the existing HasErrors early-return.
+func TestReconcile_SaveSnapshot_SkippedOnFailedTransact(t *testing.T) {
+	ctx := context.Background()
+	kr := newTestKeyRing(t, "v1")
+
+	cfg1Old := encryptSpec(t, kr, "cfg1-old")
+	cfg1New := encryptSpec(t, kr, "cfg1-new")
+	ghostSpec := encryptSpec(t, kr, "ghost")
+
+	cfg1 := readyConfig(testConfigName)
+	snapshot := configv1alpha1.BuildTargetSnapshot(
+		metav1.ObjectMeta{Name: testTargetName, Namespace: testNamespace},
+		configv1alpha1.TargetSnapshotSpec{
+			Configs: map[string]configv1alpha1.SensitiveConfigSpec{
+				testConfigName: cfg1Old,
+				testGhostName:  ghostSpec,
+			},
+		},
+	)
+
+	baseClient := fake.NewClientBuilder().
+		WithScheme(newTestScheme(t)).
+		WithObjects(
+			readyTarget(), cfg1,
+			sensitiveConfig(testConfigName, cfg1New),
+			snapshot,
+		).
+		WithStatusSubresource(cfg1).
+		Build()
+
+	fakeClient := interceptor.NewClient(baseClient, interceptor.Funcs{SubResourceApply: fakeConfigStatusApply})
+	r := newTestReconciler(fakeClient, kr, targetmanager.DatastoreHandle{
+		Client: scriptedDSClient{transactionSetErr: fmt.Errorf("southbound failed")},
+	})
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: snapshotKey()})
+	assert.NoError(t, err, "handleError swallows the transact error; Reconcile itself returns nil")
+
+	got := getSnapshot(t, ctx, fakeClient)
+	if _, ok := got.Spec.Configs[testGhostName]; !ok {
+		t.Fatalf("ghost key %q was pruned after a failed transact; saveSnapshot must not run", testGhostName)
+	}
+	if got.Spec.Configs[testConfigName].Payload.PlainHash != cfg1Old.Payload.PlainHash {
+		t.Fatalf("cfg1 snapshot hash changed after a failed transact")
+	}
+}
+
+// TestReconcile_SaveSnapshot_RefreshesSchemaAfterApplyTimeCreate locks that
+// the backstop still refreshes LastKnownGoodSchema when loadSnapshot saw
+// no TargetSnapshot (empty resourceVersion) but apply-time Modify created
+// one during this transact.
+func TestReconcile_SaveSnapshot_RefreshesSchemaAfterApplyTimeCreate(t *testing.T) {
+	ctx := context.Background()
+	kr := newTestKeyRing(t, "v1")
+
+	cfg1New := encryptSpec(t, kr, "cfg1-new")
+	schema := &configv1alpha1.ConfigStatusLastKnownGoodSchema{
+		Type:    "srl",
+		Vendor:  "nokia",
+		Version: "24.10",
+	}
+
+	cfg1 := readyConfig(testConfigName)
+	baseClient := fake.NewClientBuilder().
+		WithScheme(newTestScheme(t)).
+		WithObjects(readyTarget(), cfg1, sensitiveConfig(testConfigName, cfg1New)).
+		WithStatusSubresource(cfg1).
+		Build()
+
+	createApplyTimeSnapshot := func(ctx context.Context) error {
+		snap := configv1alpha1.BuildTargetSnapshot(
+			metav1.ObjectMeta{Name: testTargetName, Namespace: testNamespace},
+			configv1alpha1.TargetSnapshotSpec{
+				Configs: map[string]configv1alpha1.SensitiveConfigSpec{
+					testConfigName: cfg1New,
+				},
+			},
+		)
+		return baseClient.Create(ctx, snap)
+	}
+
+	fakeClient := interceptor.NewClient(baseClient, interceptor.Funcs{SubResourceApply: fakeConfigStatusApply})
+	r := newTestReconciler(fakeClient, kr, targetmanager.DatastoreHandle{
+		Client: hookDSClient{afterSet: createApplyTimeSnapshot},
+		Schema: schema,
+	})
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: snapshotKey()})
+	assert.NoError(t, err)
+
+	got := getSnapshot(t, ctx, fakeClient)
+	if _, ok := got.Spec.Configs[testConfigName]; !ok {
+		t.Fatalf("cfg1 missing from snapshot created at apply time")
+	}
+	if got.Spec.LastKnownGoodSchema == nil || *got.Spec.LastKnownGoodSchema != *schema {
+		t.Fatalf("LastKnownGoodSchema = %+v, want %+v (backstop must patch schema onto a snapshot apply-time just created)",
+			got.Spec.LastKnownGoodSchema, schema)
+	}
 }
