@@ -18,6 +18,8 @@ This ticket is independently verifiable via handler unit tests + fixtures, witho
 
 ## Comments
 
+- Spec review flagged a race in `upsertSnapshotEntry`'s create-on-first-apply fallback: two `Modify` calls for different intent names on the same never-before-seen target could both observe `NotFound` and race into `Create`, dropping the loser's write as a generic `Internal` error on `AlreadyExists`. Fixed by retrying as a patch on `AlreadyExists`, with a regression test (`TestModify_createOnFirstApplyRace`) driving the race deterministically via a client interceptor.
+
 Implemented on `config-server` worktree at `/home/mava/projects/config-server-worktrees/config-server-cache-backend-race` (branch `config-server-cache-backend-race`).
 
 - `Modify`/`Delete` write via `client.RawPatch(types.MergePatchType, ...)` targeting only `spec.configs.<name>` — RFC 7396 merge-patch semantics guarantee sibling keys are untouched, satisfying the concurrent-unrelated-key requirement without a get-then-replace round trip. `Modify` falls back to `Create` on a `NotFound` patch result (first apply for a target with no `TargetSnapshot` yet); `Delete` maps `NotFound` to a no-op success.
