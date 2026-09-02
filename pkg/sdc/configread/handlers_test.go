@@ -28,11 +28,13 @@ import (
 	"github.com/sdcio/sdc-protos/config_read"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 const (
@@ -364,6 +366,68 @@ func TestModify_createsSnapshotOnFirstApply(t *testing.T) {
 	}
 	if len(entry.GetConfig()) != 1 || entry.GetConfig()[0].GetPath() != "/system" {
 		t.Fatalf("config blobs = %+v", entry.GetConfig())
+	}
+}
+
+// TestModify_createOnFirstApplyRace covers two Modify calls for different
+// intent names racing to create the very first TargetSnapshot for a target:
+// both patches observe NotFound, so both fall into the Create fallback in
+// upsertSnapshotEntry. This test drives that race deterministically by
+// intercepting the second caller's Create with AlreadyExists (as if the
+// first caller's Create had already landed concurrently) and asserts the
+// second caller's write is not lost — it must retry as a patch against the
+// snapshot the winner created, leaving both keys present.
+func TestModify_createOnFirstApplyRace(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc1 := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	sc2 := mkSensitiveConfig(testNamespace, "cfg2", ptr.To(true), nil)
+
+	sch := runtime.NewScheme()
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add configv1alpha1 to scheme: %v", err)
+	}
+	base := fake.NewClientBuilder().WithScheme(sch).WithObjects(sc1, sc2).Build()
+
+	var raced bool
+	c := interceptor.NewClient(base, interceptor.Funcs{
+		Create: func(ctx context.Context, cl client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			if !raced {
+				raced = true
+				// Simulate the other racer's Create landing first: create
+				// the object underneath this call, then report
+				// AlreadyExists exactly as the real API server would.
+				snapshot, ok := obj.(*configv1alpha1.TargetSnapshot)
+				if ok {
+					winner := snapshot.DeepCopy()
+					winner.Spec.Configs = map[string]configv1alpha1.SensitiveConfigSpec{}
+					if err := cl.Create(ctx, winner); err != nil {
+						return err
+					}
+				}
+				return apierrors.NewAlreadyExists(configv1alpha1.Resource("targetsnapshot"), obj.GetName())
+			}
+			return cl.Create(ctx, obj, opts...)
+		},
+	})
+
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: kr})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	_, err = s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config:          &config_read.ConfigEntry{Name: "cfg1"},
+	})
+	if err != nil {
+		t.Fatalf("Modify(cfg1) (the create-race loser): %v", err)
+	}
+
+	if _, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	}); err != nil {
+		t.Errorf("Get(cfg1) after racing Modify: %v, want the loser's write to have retried as a patch, not been dropped", err)
 	}
 }
 

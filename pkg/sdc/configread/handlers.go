@@ -170,7 +170,12 @@ func (s *Server) Delete(ctx context.Context, req *config_read.DeleteConfigReques
 // upsertSnapshotEntry writes a single Configs[name] entry via merge-patch.
 // A NotFound patch result means the target has never had a successful
 // transaction yet — no TargetSnapshot exists — so this falls back to
-// creating one carrying just this entry.
+// creating one carrying just this entry. Two Modify calls for different
+// intent names on the same never-before-seen target can both observe
+// NotFound and race into that Create fallback; the loser's Create fails
+// with AlreadyExists, so it retries once as a patch against the snapshot
+// the winner just created — the same merge-patch path that isolates keys
+// on every other call — rather than losing that racer's write.
 func (s *Server) upsertSnapshotEntry(ctx context.Context, targetNamespace, targetName, name string, spec configv1alpha1.SensitiveConfigSpec) error {
 	patch, err := json.Marshal(map[string]any{
 		"spec": map[string]any{"configs": map[string]any{name: spec}},
@@ -189,7 +194,12 @@ func (s *Server) upsertSnapshotEntry(ctx context.Context, targetNamespace, targe
 				Configs: map[string]configv1alpha1.SensitiveConfigSpec{name: spec},
 			},
 		}
-		return s.client.Create(ctx, snapshot)
+		if err := s.client.Create(ctx, snapshot); err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				return s.patchSnapshotConfigs(ctx, targetNamespace, targetName, patch)
+			}
+			return err
+		}
 	}
 	return nil
 }
