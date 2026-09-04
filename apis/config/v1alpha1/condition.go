@@ -92,6 +92,20 @@ func ConfigFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
+// ConfigFailedUnrecoverable returns a condition that indicates the config
+// failed to apply for a reason considered unrecoverable without a spec
+// change. msg is expected to already be the marshaled condv1alpha1.UnrecoverableMessage
+// JSON payload, matching IsRecoverable's unmarshal expectations.
+func ConfigFailedUnrecoverable(msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(ConditionTypeConfigReady),
+		Status:             metav1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             string(condv1alpha1.ConditionReasonUnrecoverable),
+		Message:            msg,
+	}}
+}
+
 // TargetForConfigReady return a condition that indicates
 // the target became ready
 func TargetForConfigReady(msg string) condv1alpha1.Condition {
