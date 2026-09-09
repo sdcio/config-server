@@ -45,7 +45,7 @@ func (s *Server) Get(ctx context.Context, req *config_read.GetConfigRequest) (*c
 
 	targetKey := types.NamespacedName{Namespace: req.GetTargetNamespace(), Name: req.GetTargetName()}
 	snapshot := &configv1alpha1.TargetSnapshot{}
-	if err := s.client.Get(ctx, targetKey, snapshot); err != nil {
+	if err := s.apiReader.Get(ctx, targetKey, snapshot); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, notFoundConfig(notFoundKey)
 		}
@@ -82,7 +82,7 @@ func (s *Server) List(ctx context.Context, req *config_read.ListConfigRequest) (
 
 	targetKey := types.NamespacedName{Namespace: req.GetTargetNamespace(), Name: req.GetTargetName()}
 	snapshot := &configv1alpha1.TargetSnapshot{}
-	if err := s.client.Get(ctx, targetKey, snapshot); err != nil {
+	if err := s.apiReader.Get(ctx, targetKey, snapshot); err != nil {
 		if apierrors.IsNotFound(err) {
 			return &config_read.ListConfigResponse{}, nil
 		}

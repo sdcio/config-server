@@ -15,13 +15,13 @@ limitations under the License.
 */
 
 // Package configread implements config_read.ConfigSnapshotService: a unary,
-// localhost-bound Get-by-name/List-by-target read API over config-server's
-// Config (+ joined SensitiveConfig) resources, backed entirely by the
-// colocated controller's existing watch-synced informer cache — the same one
-// targetmanager.ConfigManager.ListConfigsPerTarget already reads from. No new
-// watch, no new store, no new trust boundary: see
-// pkg/cache/docs/adr/0001-config-server-backed-cache-client.md (data-server
-// repo) for the contract this serves.
+// localhost-bound Get-by-name/List-by-target/Modify/Delete API over
+// config-server's TargetSnapshot resource. Reads (Get/List) use an uncached
+// API-server reader (mgr.GetAPIReader()) so they are immediately consistent
+// with Modify/Delete writes, which also go directly to the API server via
+// merge-patch. This eliminates the informer-propagation lag that would
+// otherwise let LoadAllButRunningIntents see a stale snapshot immediately
+// after a write — see pkg/cache/docs/adr/0003-... (data-server repo).
 package configread
 
 import (
@@ -58,9 +58,13 @@ func envOrDefault(key, fallback string) string {
 type Config struct {
 	// Address is the localhost bind address, e.g. "127.0.0.1:56010".
 	Address string
-	// Client is the manager's cached client — the same watch-synced informer
-	// cache Transactor/ConfigManager already read from.
+	// Client is the manager's cached client — used for writes (Patch/Create)
+	// against the API server.
 	Client client.Client
+	// APIReader is an uncached reader that goes directly to the API server —
+	// used for Get/List reads so they are immediately consistent with writes
+	// made by Modify/Delete in the same or a prior RPC.
+	APIReader client.Reader
 	// KeyRing decrypts TargetSnapshot entries' EncryptedPayload. Required —
 	// NewServer fails fast if nil rather than letting Get/List fail lazily
 	// on first call.
@@ -68,16 +72,18 @@ type Config struct {
 }
 
 // Server implements config_read.ConfigSnapshotServiceServer over the
-// colocated controller's existing informer cache for reads (Get/List), and
-// against the API server directly for writes (Modify/Delete). It is a
-// controller-runtime Runnable (via AddToManager), not a CRD reconciler: it
-// reconciles nothing and owns no watch of its own.
+// API server directly for both reads (Get/List via APIReader) and writes
+// (Modify/Delete via Client). Using an uncached reader for Get/List ensures
+// read-after-write consistency: a Modify/Delete patch lands on the API server
+// and the immediately following List sees it, with no informer-propagation
+// lag in between.
 type Server struct {
 	config_read.UnimplementedConfigSnapshotServiceServer
 
-	address string
-	client  client.Client
-	keyRing *keyring.KeyRing
+	address   string
+	client    client.Client
+	apiReader client.Reader
+	keyRing   *keyring.KeyRing
 }
 
 // NewServer constructs a Server. Call AddToManager to start it alongside the
@@ -86,7 +92,10 @@ func NewServer(cfg *Config) (*Server, error) {
 	if cfg.KeyRing == nil {
 		return nil, fmt.Errorf("KeyRing is nil: required for TargetSnapshot decryption")
 	}
-	return &Server{address: cfg.Address, client: cfg.Client, keyRing: cfg.KeyRing}, nil
+	if cfg.APIReader == nil {
+		return nil, fmt.Errorf("APIReader is nil: required for consistent read-after-write")
+	}
+	return &Server{address: cfg.Address, client: cfg.Client, apiReader: cfg.APIReader, keyRing: cfg.KeyRing}, nil
 }
 
 // AddToManager registers the server as a controller-runtime Runnable so it

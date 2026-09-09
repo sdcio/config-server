@@ -186,14 +186,18 @@ func main() {
 
 	// ── Local Config-read server ─────────────────────────────────────────────
 	// Localhost-bound gRPC surface data-server's config-server-backed
-	// cache.Client dials to read real Intents, backed entirely by this same
-	// process's informer cache (mgr.GetClient()) — no new watch, no new
-	// store. See pkg/cache/docs/adr/0001-config-server-backed-cache-client.md
+	// cache.Client dials to read real Intents. Reads (Get/List) use
+	// mgr.GetAPIReader() — an uncached direct-to-API-server reader — so
+	// they are immediately consistent with Modify/Delete writes that also
+	// go directly to the API server. See
+	// pkg/cache/docs/adr/0001-config-server-backed-cache-client.md and
+	// pkg/cache/docs/adr/0003-config-server-write-path-real-last-applied-writes.md
 	// (data-server repo).
 	configReadServer, err := configread.NewServer(&configread.Config{
-		Address: configread.GetLocalAddress(),
-		Client:  mgr.GetClient(),
-		KeyRing: kr,
+		Address:   configread.GetLocalAddress(),
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		KeyRing:   kr,
 	})
 	if err != nil {
 		log.Error("cannot construct config-read server", "err", err)

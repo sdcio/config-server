@@ -59,7 +59,7 @@ func newTestServerWithKeyRing(t *testing.T, kr *keyring.KeyRing, objs ...client.
 		t.Fatalf("add configv1alpha1 to scheme: %v", err)
 	}
 	c := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
-	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: kr})
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, APIReader: c, KeyRing: kr})
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestModify_createOnFirstApplyRace(t *testing.T) {
 		},
 	})
 
-	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, KeyRing: kr})
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, APIReader: base, KeyRing: kr})
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

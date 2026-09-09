@@ -35,13 +35,30 @@ import (
 // backed by a nil KeyRing must never start, since every entry it later reads
 // (TargetSnapshot.Spec.Configs) needs KeyRing.Decrypt.
 func TestNewServer_nilKeyRing(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().Build()
 	_, err := NewServer(&Config{
-		Address: "127.0.0.1:0",
-		Client:  fake.NewClientBuilder().Build(),
-		KeyRing: nil,
+		Address:   "127.0.0.1:0",
+		Client:    fakeClient,
+		APIReader: fakeClient,
+		KeyRing:   nil,
 	})
 	if err == nil {
 		t.Fatal("NewServer with nil KeyRing: want error, got nil")
+	}
+}
+
+// TestNewServer_nilAPIReader locks NewServer's fail-fast contract: a Server
+// backed by a nil APIReader must never start — reads would silently fall back
+// to the informer cache, defeating the read-after-write consistency guarantee.
+func TestNewServer_nilAPIReader(t *testing.T) {
+	_, err := NewServer(&Config{
+		Address:   "127.0.0.1:0",
+		Client:    fake.NewClientBuilder().Build(),
+		APIReader: nil,
+		KeyRing:   newTestKeyRing(t),
+	})
+	if err == nil {
+		t.Fatal("NewServer with nil APIReader: want error, got nil")
 	}
 }
 
@@ -63,7 +80,7 @@ func TestServer_liveRoundTrip(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(snapshot).Build()
 
 	addr := freeLocalAddr(t)
-	srv, err := NewServer(&Config{Address: addr, Client: fakeClient, KeyRing: kr})
+	srv, err := NewServer(&Config{Address: addr, Client: fakeClient, APIReader: fakeClient, KeyRing: kr})
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
