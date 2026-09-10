@@ -628,6 +628,132 @@ func TestReconcile_SaveSnapshot_SkippedOnFailedTransact(t *testing.T) {
 	}
 }
 
+// TestReconcile_FirstConfig_NoSnapshot_ConfigReachesReady is the acceptance
+// test for issue #01 (TargetSnapshot NotFound in the SSA/PATCH path).
+//
+// When a Config is applied against a target that has never had a successful
+// transaction — so no TargetSnapshot exists yet — the reconciler must still
+// drive Config.Status.Ready to true after a successful transaction.
+//
+// In the real api-server this requires AllowCreateOnUpdate=false for the
+// TargetSnapshot registry (pkg/registry/generic, DisableCreateOnUpdate option)
+// so that a JSON merge-patch against a missing snapshot returns a clean
+// NotFound rather than the confusing "update failed to construct UpdatedObject"
+// error that prevents the configread.Modify gRPC handler from falling back to
+// Create.  At the unit-test level we verify the reconciler path end-to-end:
+// the fake client's Patch already returns NotFound for a missing object, so
+// the saveSnapshot backstop silently falls through — the Config must still
+// reach Ready=true via ProcessSuccess.
+func TestReconcile_FirstConfig_NoSnapshot_ConfigReachesReady(t *testing.T) {
+	ctx := context.Background()
+	kr := newTestKeyRing(t, "v1")
+
+	cfg1Spec := encryptSpec(t, kr, "cfg1-data")
+
+	// A Config that has passed through the resolver reconciler (ConfigResolverReady=True,
+	// SensitiveConfig exists) but has NOT yet been processed by the TargetConfig reconciler.
+	// In production the resolver always sets ConfigResolverReady before TargetConfig picks
+	// up the work, so this is the realistic initial state for a first-time Config.
+	cfg1 := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{Name: testConfigName, Namespace: testNamespace, Labels: targetLabels()},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+	cfg1.SetConditions(configv1alpha1.ConfigResolverReady(""))
+	cfg1.SetOverallStatus() // Ready=False because ConfigReady and TargetForConfig are not yet set
+
+	baseClient := fake.NewClientBuilder().
+		WithScheme(newTestScheme(t)).
+		WithObjects(
+			readyTarget(),
+			cfg1,
+			sensitiveConfig(testConfigName, cfg1Spec),
+			// intentionally no TargetSnapshot — target has never had a
+			// successful transaction
+		).
+		WithStatusSubresource(cfg1).
+		Build()
+
+	fakeClient := interceptor.NewClient(baseClient, interceptor.Funcs{
+		SubResourceApply: fakeConfigStatusApply,
+	})
+	r := newTestReconciler(fakeClient, kr, targetmanager.DatastoreHandle{
+		Client: scriptedDSClient{}, // TransactionSet succeeds
+	})
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: snapshotKey()})
+	assert.NoError(t, err, "Reconcile must not return an error when no TargetSnapshot pre-exists")
+
+	got := &configv1alpha1.Config{}
+	if err := fakeClient.Get(ctx, client.ObjectKey{Name: testConfigName, Namespace: testNamespace}, got); err != nil {
+		t.Fatalf("get Config after Reconcile: %v", err)
+	}
+
+	readyCond := got.GetCondition(condv1alpha1.ConditionTypeReady)
+	assert.Equal(t, metav1.ConditionTrue, readyCond.Status,
+		"Config created against a target with no pre-existing TargetSnapshot must reach Ready=true "+
+			"after a successful transaction (issue #01: TargetSnapshot NotFound in SSA/PATCH path)")
+}
+
+// TestReconcile_ExistingSnapshot_ConfigReachesReady is the regression guard
+// for issue #01: a Config applied against a target that ALREADY HAS a
+// TargetSnapshot must still reach Status.Ready=true after a successful
+// transaction.  This is the complement of
+// TestReconcile_FirstConfig_NoSnapshot_ConfigReachesReady.
+func TestReconcile_ExistingSnapshot_ConfigReachesReady(t *testing.T) {
+	ctx := context.Background()
+	kr := newTestKeyRing(t, "v1")
+
+	cfg1Spec := encryptSpec(t, kr, "cfg1-data")
+
+	// Same realistic initial state: resolver has run, TargetConfig has not yet.
+	cfg1 := configv1alpha1.BuildConfig(
+		metav1.ObjectMeta{Name: testConfigName, Namespace: testNamespace, Labels: targetLabels()},
+		configv1alpha1.ConfigSpec{},
+		configv1alpha1.ConfigStatus{},
+	)
+	cfg1.SetConditions(configv1alpha1.ConfigResolverReady(""))
+	cfg1.SetOverallStatus()
+
+	// An existing TargetSnapshot with different content — change detection will
+	// include cfg1 in toUpdate.
+	oldSpec := encryptSpec(t, kr, "cfg1-old")
+	snapshot := configv1alpha1.BuildTargetSnapshot(
+		metav1.ObjectMeta{Name: testTargetName, Namespace: testNamespace},
+		configv1alpha1.TargetSnapshotSpec{
+			Configs: map[string]configv1alpha1.SensitiveConfigSpec{
+				testConfigName: oldSpec,
+			},
+		},
+	)
+
+	baseClient := fake.NewClientBuilder().
+		WithScheme(newTestScheme(t)).
+		WithObjects(readyTarget(), cfg1, sensitiveConfig(testConfigName, cfg1Spec), snapshot).
+		WithStatusSubresource(cfg1).
+		Build()
+
+	fakeClient := interceptor.NewClient(baseClient, interceptor.Funcs{
+		SubResourceApply: fakeConfigStatusApply,
+	})
+	r := newTestReconciler(fakeClient, kr, targetmanager.DatastoreHandle{
+		Client: scriptedDSClient{},
+	})
+
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: snapshotKey()})
+	assert.NoError(t, err, "Reconcile must not return an error when a TargetSnapshot already exists")
+
+	got := &configv1alpha1.Config{}
+	if err := fakeClient.Get(ctx, client.ObjectKey{Name: testConfigName, Namespace: testNamespace}, got); err != nil {
+		t.Fatalf("get Config after Reconcile: %v", err)
+	}
+
+	readyCond := got.GetCondition(condv1alpha1.ConditionTypeReady)
+	assert.Equal(t, metav1.ConditionTrue, readyCond.Status,
+		"Config applied against a target with a pre-existing TargetSnapshot must reach Ready=true "+
+			"after a successful transaction (regression guard for issue #01)")
+}
+
 // TestReconcile_SaveSnapshot_RefreshesSchemaAfterApplyTimeCreate locks that
 // the backstop still refreshes LastKnownGoodSchema when loadSnapshot saw
 // no TargetSnapshot (empty resourceVersion) but apply-time Modify created

@@ -220,7 +220,11 @@ func (r *Config) SetOverallStatus() {
 
 	// Resolver condition only blocks ready if it has been explicitly set to False.
 	// An absent resolver condition (no secrets, or resolver hasn't run yet) is not a failure.
-	resolverOK := resolverC.Status == "" || resolverC.IsTrue()
+	// GetCondition returns a zero-value Condition with empty Reason (and Status=False as a
+	// placeholder) when the condition has never been set.  We detect "absent" via Reason == ""
+	// because a real ConfigResolverFailed always carries Reason="Failed"; using Status==""
+	// would never trigger since GetCondition never returns an empty Status string.
+	resolverOK := resolverC.Reason == "" || resolverC.IsTrue()
 
 	ready := cfgC.IsTrue() && tgtC.IsTrue() && resolverOK
 
