@@ -210,18 +210,6 @@ jobs:
           echo "cacheversion=$( curl -sL https://api.github.com/repos/sdcio/cache/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
           echo "certmanagerversion=$( curl -sL https://api.github.com/repos/cert-manager/cert-manager/releases/latest | jq '.name' )" >> $GITHUB_OUTPUT
 
-  integration-tests:
-    needs: [latest-versions, pr-release, resolve-paired-refs]
-    uses: sdcio/integration-tests/.github/workflows/single.yml@main
-    with:
-      configserver_version: ${{ needs.pr-release.outputs.configversion }}
-      dataserver_version: ${{ needs.resolve-paired-refs.outputs.dataversion }}
-      schemaserver_version: ${{ needs.latest-versions.outputs.schemaversion }}
-      cache_version: ${{ needs.latest-versions.outputs.cacheversion }}
-      certmanager_version: ${{ needs.latest-versions.outputs.certmanagerversion }}
-      integration_tests_ref: ${{ needs.resolve-paired-refs.outputs.inttest_ref }}
-    secrets: inherit
-
   integration-tests-cache-backend:
     name: integration-tests (config-server cache backend)
     needs: [latest-versions, pr-release, resolve-paired-refs]
