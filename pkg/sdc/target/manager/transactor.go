@@ -24,9 +24,8 @@ import (
 
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
+	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/utils/ptr"
 )
@@ -197,23 +196,11 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 
 // isRecoverableGRPCError returns true for transient gRPC errors that are
 // worth retrying (resource pressure, contention), false for permanent ones.
+// Delegates to dsclient.IsRecoverableError, the single source of truth for
+// this classification shared with apis/config's ClearDeviations path.
 func isRecoverableGRPCError(err error) bool {
-	if err == nil {
-		return false
-	}
-	st, ok := status.FromError(err)
-	if !ok {
-		// Not a gRPC status error — treat as non-recoverable.
-		return false
-	}
-	switch st.Code() {
-	case codes.Aborted, codes.ResourceExhausted:
-		return true
-	default:
-		return false
-	}
+	return dsclient.IsRecoverableError(err)
 }
-
 
 // ParseSensitivePaths converts keyless XPath strings into sdcpb.Paths.
 // Dedupes by string and rejects key predicates — the dataserver refuses keyed

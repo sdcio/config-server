@@ -25,9 +25,11 @@ import (
 	"github.com/henderiw/logger/log"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 	//"google.golang.org/grpc/keepalive"
 )
 
@@ -65,6 +67,33 @@ func envOrDefault(key, fallback string) string {
         return v
     }
     return fallback
+}
+
+// IsRecoverableError reports whether err is a transient gRPC condition from
+// data-server that is worth retrying (contention on a datastore's exclusive
+// transaction lock, or resource pressure) as opposed to a permanent failure.
+//
+// codes.Aborted is data-server's response when a TransactionSet/Confirm/Cancel
+// call loses a TryLock race against another in-flight transaction on the same
+// datastore (see data-server's ErrDatastoreLocked) — the gRPC status-code
+// guidelines define Aborted as exactly this: "the client should retry at a
+// higher level, e.g. when a client-specified test-and-set fails." Nothing was
+// applied server-side when this is returned, so replaying the same request is
+// safe.
+func IsRecoverableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Aborted, codes.ResourceExhausted:
+		return true
+	default:
+		return false
+	}
 }
 
 type Config struct {
