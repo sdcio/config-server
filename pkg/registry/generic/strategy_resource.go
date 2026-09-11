@@ -150,7 +150,12 @@ func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object
 	r.obj.PrepareForUpdate(ctx, obj, old)
 }
 
-func (r *strategy) AllowCreateOnUpdate() bool { return true }
+func (r *strategy) AllowCreateOnUpdate() bool {
+	if r.opts != nil && r.opts.DisableCreateOnUpdate {
+		return false
+	}
+	return true
+}
 
 func (r *strategy) AllowUnconditionalUpdate() bool { return false }
 

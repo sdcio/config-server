@@ -154,7 +154,17 @@ func main() {
 	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
 	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), registryOptions)
-	targetSnapshotStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTargetSnapshot(), registryOptions)
+	// TargetSnapshot is written exclusively via JSON merge-patch (RFC 7396)
+	// from configread.Modify/Delete, which already handles NotFound by
+	// falling back to Create.  With AllowCreateOnUpdate=true (the default),
+	// the henderiw registry tries to apply the merge-patch over a nil
+	// existing object when the snapshot doesn't exist yet, producing a
+	// confusing "update failed to construct UpdatedObject" error instead of a
+	// clean NotFound.  DisableCreateOnUpdate=true makes the registry return
+	// NotFound so the existing fallback logic fires correctly.
+	targetSnapshotRegistryOptions := *registryOptions
+	targetSnapshotRegistryOptions.DisableCreateOnUpdate = true
+	targetSnapshotStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTargetSnapshot(), &targetSnapshotRegistryOptions)
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)

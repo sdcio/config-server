@@ -1,0 +1,620 @@
+/*
+Copyright 2026 Nokia.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package configread
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"testing"
+
+	"github.com/sdcio/config-server/apis/config"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	"github.com/sdcio/config-server/pkg/keyring"
+	"github.com/sdcio/sdc-protos/config_read"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+)
+
+const (
+	testNamespace = "ns1"
+	testTarget    = "target1"
+)
+
+// ── test helpers ────────────────────────────────────────────────────────────────
+
+func newTestServer(t *testing.T, objs ...client.Object) *Server {
+	t.Helper()
+	return newTestServerWithKeyRing(t, newTestKeyRing(t), objs...)
+}
+
+// newTestServerWithKeyRing is newTestServer with an explicit KeyRing, so
+// tests that need to encrypt fixture payloads (e.g. via mkSnapshotEntry) can
+// share the exact KeyRing instance the server under test will decrypt with.
+func newTestServerWithKeyRing(t *testing.T, kr *keyring.KeyRing, objs ...client.Object) *Server {
+	t.Helper()
+	sch := runtime.NewScheme()
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add configv1alpha1 to scheme: %v", err)
+	}
+	c := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, APIReader: c, KeyRing: kr})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	return s
+}
+
+// newTestKeyRing builds a real *keyring.KeyRing from raw JSON, valid for both
+// Encrypt and Decrypt round-trips in tests.
+func newTestKeyRing(t *testing.T) *keyring.KeyRing {
+	t.Helper()
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	raw, err := json.Marshal(map[string]interface{}{
+		"primary": "v1",
+		"keys":    map[string]string{"v1": base64.StdEncoding.EncodeToString(key)},
+	})
+	if err != nil {
+		t.Fatalf("marshal keyring: %v", err)
+	}
+	kr, err := keyring.NewFromBytes(raw)
+	if err != nil {
+		t.Fatalf("NewFromBytes: %v", err)
+	}
+	return kr
+}
+
+// mkSensitiveConfig builds a SensitiveConfig fixture carrying just the
+// incidental fields (Revertive, Lifecycle) that Modify sources from the
+// live object rather than trusting off the wire ConfigEntry.
+func mkSensitiveConfig(namespace, name string, revertive *bool, lifecycle *configv1alpha1.Lifecycle) *configv1alpha1.SensitiveConfig {
+	return &configv1alpha1.SensitiveConfig{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Spec: configv1alpha1.SensitiveConfigSpec{
+			Revertive: revertive,
+			Lifecycle: lifecycle,
+		},
+	}
+}
+
+// mkTargetSnapshot builds a TargetSnapshot the way targetconfig's reconciler
+// saves one: named/namespaced after the target itself, keyed by intent name.
+func mkTargetSnapshot(targetNS, targetName string, configs map[string]configv1alpha1.SensitiveConfigSpec) *configv1alpha1.TargetSnapshot {
+	return &configv1alpha1.TargetSnapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: targetNS,
+			Name:      targetName,
+		},
+		Spec: configv1alpha1.TargetSnapshotSpec{
+			Configs: configs,
+		},
+	}
+}
+
+// ── Get ──────────────────────────────────────────────────────────────────────
+
+// TestGet_found locks the last-applied contract: Get serves whatever's
+// recorded in the target's TargetSnapshot, keyed by intent name — not any
+// live Config.
+func TestGet_found(t *testing.T) {
+	kr := newTestKeyRing(t)
+	blobs := []config.ConfigBlob{
+		{Path: "/system", Value: runtime.RawExtension{Raw: []byte(`{"hostname":"router1"}`)}},
+	}
+	entrySpec := mkSnapshotEntry(t, kr, blobs, nil)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	entry := rsp.GetConfig()
+	if entry.GetName() != "cfg1" || entry.GetNamespace() != testNamespace {
+		t.Fatalf("unexpected entry: %+v", entry)
+	}
+	if entry.GetPriority() != 10 {
+		t.Errorf("priority = %d, want 10", entry.GetPriority())
+	}
+	if len(entry.GetConfig()) != 1 || entry.GetConfig()[0].GetPath() != "/system" {
+		t.Errorf("config blobs = %+v", entry.GetConfig())
+	}
+}
+
+// TestGet_notFoundNoSnapshot covers a target that has never had a successful
+// transaction: no TargetSnapshot exists for it at all yet.
+func TestGet_notFoundNoSnapshot(t *testing.T) {
+	s := newTestServer(t)
+
+	_, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "missing",
+	})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("err = %v, want NotFound", err)
+	}
+}
+
+// TestGet_notFoundMissingFromSnapshot covers a target that does have a
+// TargetSnapshot, but the requested intent isn't (yet, or anymore) one of
+// its entries.
+func TestGet_notFoundMissingFromSnapshot(t *testing.T) {
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"other-cfg": mkSnapshotEntry(t, newTestKeyRing(t), nil, nil),
+	})
+	s := newTestServer(t, snapshot)
+
+	_, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("err = %v, want NotFound", err)
+	}
+}
+
+func TestGet_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.Get(context.Background(), &config_read.GetConfigRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+}
+
+// TestGet_fieldMapping verifies the field mapping straight off the
+// TargetSnapshot entry's SensitiveConfigSpec (non_revertive is the inverse
+// of Revertive; orphan reflects the deletion policy; sensitive_paths comes
+// off the same spec — no separate joined object).
+func TestGet_fieldMapping(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entrySpec := mkSnapshotEntry(t, kr, nil, func(spec *configv1alpha1.SensitiveConfigSpec) {
+		spec.Revertive = ptr.To(false)
+		spec.Lifecycle = &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
+		spec.SensitivePaths = []string{"/interface/name"}
+	})
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	entry := rsp.GetConfig()
+	if !entry.GetNonRevertive() {
+		t.Errorf("non_revertive = false, want true (Revertive=false)")
+	}
+	if !entry.GetOrphan() {
+		t.Errorf("orphan = false, want true (DeletionOrphan)")
+	}
+	if len(entry.GetSensitivePaths()) != 1 {
+		t.Fatalf("sensitive_paths = %+v, want 1 entry", entry.GetSensitivePaths())
+	}
+}
+
+func TestGet_defaultsRevertiveTrue(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entrySpec := mkSnapshotEntry(t, kr, nil, nil) // Revertive unset
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": entrySpec,
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if rsp.GetConfig().GetNonRevertive() {
+		t.Errorf("non_revertive = true, want false (Revertive defaults to true)")
+	}
+}
+
+// ── List ─────────────────────────────────────────────────────────────────────
+
+// TestList_multipleIntents locks the last-applied contract: List serves
+// every entry recorded in the target's TargetSnapshot, keyed by intent
+// name — not any live Config/ConfigList.
+func TestList_multipleIntents(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": mkSnapshotEntry(t, kr, nil, nil),
+		"cfg2": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	rsp, err := s.List(context.Background(), &config_read.ListConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+	})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	got := map[string]bool{}
+	for _, e := range rsp.GetConfig() {
+		got[e.GetName()] = true
+	}
+	if len(got) != 2 || !got["cfg1"] || !got["cfg2"] {
+		t.Fatalf("List returned %+v, want exactly cfg1 and cfg2", got)
+	}
+}
+
+func TestList_empty(t *testing.T) {
+	s := newTestServer(t)
+	rsp, err := s.List(context.Background(), &config_read.ListConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+	})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(rsp.GetConfig()) != 0 {
+		t.Fatalf("List = %+v, want empty", rsp.GetConfig())
+	}
+}
+
+func TestList_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.List(context.Background(), &config_read.ListConfigRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+}
+
+// TestList_oneBadEntryFailsWholeCall is the regression test for the
+// "deletions silently lost" failure mode this spec exists to close: a
+// decrypt/unmarshal failure on any one Configs entry must fail the whole
+// List call with Internal, not silently omit just that entry.
+func TestList_oneBadEntryFailsWholeCall(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1": mkSnapshotEntry(t, kr, nil, nil),
+		"cfg2": {
+			Payload: configv1alpha1.EncryptedPayload{
+				KeyID: "unknown-key",
+				Data:  []byte("not-real-ciphertext"),
+			},
+		},
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	_, err := s.List(context.Background(), &config_read.ListConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+	})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("err = %v, want Internal", err)
+	}
+}
+
+// ── Modify ───────────────────────────────────────────────────────────────────
+
+// TestModify_createsSnapshotOnFirstApply covers a target that has never had
+// a successful transaction: no TargetSnapshot exists yet, so Modify must
+// create one rather than requiring a pre-existing object to patch.
+func TestModify_createsSnapshotOnFirstApply(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	s := newTestServerWithKeyRing(t, kr, sc)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name:     "cfg1",
+			Priority: 5,
+			Config: []*config_read.ConfigBlob{
+				{Path: "/system", Value: []byte(`{"hostname":"router1"}`)},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get after Modify: %v", err)
+	}
+	entry := rsp.GetConfig()
+	if entry.GetPriority() != 5 {
+		t.Errorf("priority = %d, want 5", entry.GetPriority())
+	}
+	if len(entry.GetConfig()) != 1 || entry.GetConfig()[0].GetPath() != "/system" {
+		t.Fatalf("config blobs = %+v", entry.GetConfig())
+	}
+}
+
+// TestModify_createOnFirstApplyRace covers two Modify calls for different
+// intent names racing to create the very first TargetSnapshot for a target:
+// both patches observe NotFound, so both fall into the Create fallback in
+// upsertSnapshotEntry. This test drives that race deterministically by
+// intercepting the second caller's Create with AlreadyExists (as if the
+// first caller's Create had already landed concurrently) and asserts the
+// second caller's write is not lost — it must retry as a patch against the
+// snapshot the winner created, leaving both keys present.
+func TestModify_createOnFirstApplyRace(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc1 := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	sc2 := mkSensitiveConfig(testNamespace, "cfg2", ptr.To(true), nil)
+
+	sch := runtime.NewScheme()
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add configv1alpha1 to scheme: %v", err)
+	}
+	base := fake.NewClientBuilder().WithScheme(sch).WithObjects(sc1, sc2).Build()
+
+	var raced bool
+	c := interceptor.NewClient(base, interceptor.Funcs{
+		Create: func(ctx context.Context, cl client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+			if !raced {
+				raced = true
+				// Simulate the other racer's Create landing first: create
+				// the object underneath this call, then report
+				// AlreadyExists exactly as the real API server would.
+				snapshot, ok := obj.(*configv1alpha1.TargetSnapshot)
+				if ok {
+					winner := snapshot.DeepCopy()
+					winner.Spec.Configs = map[string]configv1alpha1.SensitiveConfigSpec{}
+					if err := cl.Create(ctx, winner); err != nil {
+						return err
+					}
+				}
+				return apierrors.NewAlreadyExists(configv1alpha1.Resource("targetsnapshot"), obj.GetName())
+			}
+			return cl.Create(ctx, obj, opts...)
+		},
+	})
+
+	s, err := NewServer(&Config{Address: "127.0.0.1:0", Client: c, APIReader: base, KeyRing: kr})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+
+	_, err = s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config:          &config_read.ConfigEntry{Name: "cfg1"},
+	})
+	if err != nil {
+		t.Fatalf("Modify(cfg1) (the create-race loser): %v", err)
+	}
+
+	if _, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	}); err != nil {
+		t.Errorf("Get(cfg1) after racing Modify: %v, want the loser's write to have retried as a patch, not been dropped", err)
+	}
+}
+
+// TestModify_updatesExistingEntryWithoutTouchingOthers is the regression
+// test for the merge-patch contract: Modify must touch only the single key
+// it's writing, leaving a concurrent unrelated key in the map untouched even
+// if that key was written by another apply racing on the same target.
+func TestModify_updatesExistingEntryWithoutTouchingOthers(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(true), nil)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1":  mkSnapshotEntry(t, kr, nil, nil),
+		"other": mkSnapshotEntry(t, kr, []config.ConfigBlob{{Path: "/other", Value: runtime.RawExtension{Raw: []byte(`{"a":1}`)}}}, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, sc, snapshot)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name: "cfg1",
+			Config: []*config_read.ConfigBlob{
+				{Path: "/system", Value: []byte(`{"hostname":"router2"}`)},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	got, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get cfg1 after Modify: %v", err)
+	}
+	if len(got.GetConfig().GetConfig()) != 1 || got.GetConfig().GetConfig()[0].GetPath() != "/system" {
+		t.Fatalf("cfg1 config blobs = %+v, want updated /system entry", got.GetConfig().GetConfig())
+	}
+
+	other, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "other",
+	})
+	if err != nil {
+		t.Fatalf("Get other after Modify: %v", err)
+	}
+	if len(other.GetConfig().GetConfig()) != 1 || other.GetConfig().GetConfig()[0].GetPath() != "/other" {
+		t.Fatalf("other config blobs = %+v, want untouched /other entry", other.GetConfig().GetConfig())
+	}
+}
+
+// TestModify_sourcesRevertiveAndLifecycleFromSensitiveConfig locks that
+// Revertive/Lifecycle are sourced from the live SensitiveConfig, not trusted
+// off the wire ConfigEntry's own non_revertive/orphan flags.
+func TestModify_sourcesRevertiveAndLifecycleFromSensitiveConfig(t *testing.T) {
+	kr := newTestKeyRing(t)
+	sc := mkSensitiveConfig(testNamespace, "cfg1", ptr.To(false), &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan})
+	s := newTestServerWithKeyRing(t, kr, sc)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config: &config_read.ConfigEntry{
+			Name:         "cfg1",
+			NonRevertive: false, // wire says revertive — must be ignored in favor of the live SC (Revertive=false)
+			Orphan:       false, // wire says not orphan — must be ignored in favor of the live SC (DeletionOrphan)
+		},
+	})
+	if err != nil {
+		t.Fatalf("Modify: %v", err)
+	}
+
+	rsp, err := s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Get after Modify: %v", err)
+	}
+	if !rsp.GetConfig().GetNonRevertive() {
+		t.Errorf("non_revertive = false, want true (sourced from live SC Revertive=false)")
+	}
+	if !rsp.GetConfig().GetOrphan() {
+		t.Errorf("orphan = false, want true (sourced from live SC DeletionOrphan)")
+	}
+}
+
+// TestModify_missingSensitiveConfig locks that a kube-client failure looking
+// up the live SensitiveConfig is a real RPC error, not a log-only failure.
+func TestModify_missingSensitiveConfig(t *testing.T) {
+	s := newTestServer(t)
+
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Config:          &config_read.ConfigEntry{Name: "cfg1"},
+	})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("err = %v, want Internal", err)
+	}
+}
+
+func TestModify_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.Modify(context.Background(), &config_read.ModifyConfigRequest{
+		Config: &config_read.ConfigEntry{},
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+}
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+
+// TestDelete_removesEntryWithoutTouchingOthers is the regression test for
+// the merge-patch contract on the delete path: Delete must remove only the
+// key it targets.
+func TestDelete_removesEntryWithoutTouchingOthers(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"cfg1":  mkSnapshotEntry(t, kr, nil, nil),
+		"other": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	_, err = s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "cfg1",
+	})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("Get cfg1 after Delete: err = %v, want NotFound", err)
+	}
+
+	_, err = s.Get(context.Background(), &config_read.GetConfigRequest{
+		TargetNamespace: testNamespace, TargetName: testTarget, Name: "other",
+	})
+	if err != nil {
+		t.Fatalf("Get other after Delete: %v, want untouched entry", err)
+	}
+}
+
+// TestDelete_missingKeyIsNoop locks idempotent-delete: removing a key that
+// isn't (or is no longer) present in an existing snapshot is a no-op
+// success, not an error.
+func TestDelete_missingKeyIsNoop(t *testing.T) {
+	kr := newTestKeyRing(t)
+	snapshot := mkTargetSnapshot(testNamespace, testTarget, map[string]configv1alpha1.SensitiveConfigSpec{
+		"other": mkSnapshotEntry(t, kr, nil, nil),
+	})
+	s := newTestServerWithKeyRing(t, kr, snapshot)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "missing",
+	})
+	if err != nil {
+		t.Fatalf("Delete of missing key: %v, want no-op success", err)
+	}
+}
+
+// TestDelete_missingSnapshotIsNoop locks idempotent-delete for a target that
+// has never had a successful transaction: no TargetSnapshot exists at all.
+func TestDelete_missingSnapshotIsNoop(t *testing.T) {
+	s := newTestServer(t)
+
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{
+		TargetNamespace: testNamespace,
+		TargetName:      testTarget,
+		Name:            "cfg1",
+	})
+	if err != nil {
+		t.Fatalf("Delete with no snapshot: %v, want no-op success", err)
+	}
+}
+
+func TestDelete_missingArgs(t *testing.T) {
+	s := newTestServer(t)
+	_, err := s.Delete(context.Background(), &config_read.DeleteConfigRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+}

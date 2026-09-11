@@ -40,6 +40,16 @@ type Options struct {
 	DB     *badger.DB
 	// Target
 	Client client.Client
+	// DisableCreateOnUpdate makes the registry return a clean NotFound when a
+	// PATCH (merge-patch) request targets a resource that does not yet exist,
+	// instead of the confusing "update failed to construct UpdatedObject" error
+	// that the henderiw apiserver-store emits when AllowCreateOnUpdate=true
+	// causes it to merge-patch over a nil existing object.
+	//
+	// Set this to true for TargetSnapshot: its writers (configread.Modify /
+	// configread.Delete) already handle NotFound by falling back to Create,
+	// so a clean NotFound is exactly what they need.
+	DisableCreateOnUpdate bool
 	// specific functions
 	DryRunCreateFn func(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error)
 	DryRunUpdateFn func(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error)

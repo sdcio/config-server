@@ -110,7 +110,7 @@ func (w *FileWatcher) Start(ctx context.Context) error {
 		log.Error("cannot watch keyring directory, falling back to polling",
 			"interval", interval, "err", err)
 	} else {
-		defer fsw.Close()
+		defer func() { _ = fsw.Close() }()
 		events, errs = fsw.Events, fsw.Errors
 	}
 
@@ -148,7 +148,7 @@ func newDirWatcher(path string) (*fsnotify.Watcher, error) {
 		return nil, err
 	}
 	if err := fsw.Add(filepath.Dir(path)); err != nil {
-		fsw.Close()
+		_ = fsw.Close()
 		return nil, err
 	}
 	return fsw, nil

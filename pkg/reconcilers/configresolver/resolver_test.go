@@ -909,6 +909,33 @@ func Test_detectChange(t *testing.T) {
 			secrets:      []client.Object{mkSecret("mysecret", map[string]string{"key0": "val0", "key1": "val1"})},
 			want:         changeResult{configChanged: true, keyringChanged: true},
 		},
+		{
+			// Regression for the frozen-Resolver bug: existing.Spec.* is a
+			// snapshot of the last SUCCESSFUL resolution only (save() is never
+			// called on failure). A secret deleted then recreated with the
+			// EXACT same content hashes right back to that stale baseline, so
+			// hash-only detection sees "nothing changed" and a resolution that
+			// failed in between is never retried. The live Resolver condition
+			// must force resolution regardless of hash match.
+			name:            "Resolver condition currently False -> forces configChanged even with matching hashes",
+			cfg:             withResolverFailed(singleEntry, "secret not found"),
+			hasExisting:     true,
+			existingHash:    hashOf(singleEntry),
+			storedKeyHashes: map[string]string{"mysecret/key0": sha256hex([]byte("val0"))},
+			payloadKeyID:    "v1",
+			secrets:         []client.Object{mkSecret("mysecret", map[string]string{"key0": "val0"})},
+			want:            changeResult{configChanged: true},
+		},
+		{
+			name:            "Resolver condition currently True -> hash match still means no change",
+			cfg:             withResolverReady(singleEntry, ""),
+			hasExisting:     true,
+			existingHash:    hashOf(singleEntry),
+			storedKeyHashes: map[string]string{"mysecret/key0": sha256hex([]byte("val0"))},
+			payloadKeyID:    "v1",
+			secrets:         []client.Object{mkSecret("mysecret", map[string]string{"key0": "val0"})},
+			want:            changeResult{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -932,4 +959,21 @@ func Test_detectChange(t *testing.T) {
 			}
 		})
 	}
+}
+
+// withResolverFailed returns a deep copy of cfg with its Resolver condition
+// set to False, as SetOverallStatus/handleError would leave it after a failed
+// resolution attempt.
+func withResolverFailed(cfg *configv1alpha1.Config, msg string) *configv1alpha1.Config {
+	out := cfg.DeepCopy()
+	out.Status.SetConditions(configv1alpha1.ConfigResolverFailed(msg))
+	return out
+}
+
+// withResolverReady returns a deep copy of cfg with its Resolver condition
+// set to True, as a successful resolution would leave it.
+func withResolverReady(cfg *configv1alpha1.Config, msg string) *configv1alpha1.Config {
+	out := cfg.DeepCopy()
+	out.Status.SetConditions(configv1alpha1.ConfigResolverReady(msg))
+	return out
 }
