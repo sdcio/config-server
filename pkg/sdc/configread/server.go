@@ -106,11 +106,11 @@ func (s *Server) AddToManager(mgr ctrl.Manager) error {
 
 // Start implements controller-runtime's manager.Runnable.
 func (s *Server) Start(ctx context.Context) error {
-	l := log.FromContext(ctx).With("component", "configReadServer", "address", s.address)
+	l := log.FromContext(ctx).With("component", "configSnapshotServer", "address", s.address)
 
 	lis, err := net.Listen("tcp", s.address)
 	if err != nil {
-		return fmt.Errorf("configReadServer: listen on %s: %w", s.address, err)
+		return fmt.Errorf("configSnapshotServer: listen on %s: %w", s.address, err)
 	}
 	defer func() { _ = lis.Close() }()
 
@@ -121,11 +121,11 @@ func (s *Server) Start(ctx context.Context) error {
 	go func() {
 		errCh <- grpcServer.Serve(lis)
 	}()
-	l.Info("configReadServer started")
+	l.Info("configSnapshotServer started")
 
 	select {
 	case <-ctx.Done():
-		l.Info("configReadServer stopping")
+		l.Info("configSnapshotServer stopping")
 		grpcServer.GracefulStop()
 		return nil
 	case err := <-errCh:
