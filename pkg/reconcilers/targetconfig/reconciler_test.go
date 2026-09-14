@@ -639,7 +639,7 @@ func TestReconcile_SaveSnapshot_SkippedOnFailedTransact(t *testing.T) {
 // TargetSnapshot registry (pkg/registry/generic, DisableCreateOnUpdate option)
 // so that a JSON merge-patch against a missing snapshot returns a clean
 // NotFound rather than the confusing "update failed to construct UpdatedObject"
-// error that prevents the configread.Modify gRPC handler from falling back to
+// error that prevents the configsnapshot.Modify gRPC handler from falling back to
 // Create.  At the unit-test level we verify the reconciler path end-to-end:
 // the fake client's Patch already returns NotFound for a missing object, so
 // the saveSnapshot backstop silently falls through — the Config must still

@@ -46,8 +46,8 @@ type Options struct {
 	// that the henderiw apiserver-store emits when AllowCreateOnUpdate=true
 	// causes it to merge-patch over a nil existing object.
 	//
-	// Set this to true for TargetSnapshot: its writers (configread.Modify /
-	// configread.Delete) already handle NotFound by falling back to Create,
+	// Set this to true for TargetSnapshot: its writers (configsnapshot.Modify /
+	// configsnapshot.Delete) already handle NotFound by falling back to Create,
 	// so a clean NotFound is exactly what they need.
 	DisableCreateOnUpdate bool
 	// specific functions

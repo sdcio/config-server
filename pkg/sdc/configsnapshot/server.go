@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package configread implements config_read.ConfigSnapshotService: a unary,
+// Package configsnapshot implements config_read.ConfigSnapshotService: a unary,
 // localhost-bound Get-by-name/List-by-target/Modify/Delete API over
 // config-server's TargetSnapshot resource. Reads (Get/List) use an uncached
 // API-server reader (mgr.GetAPIReader()) so they are immediately consistent
@@ -22,7 +22,7 @@ limitations under the License.
 // merge-patch. This eliminates the informer-propagation lag that would
 // otherwise let LoadAllButRunningIntents see a stale snapshot immediately
 // after a write — see pkg/cache/docs/adr/0003-... (data-server repo).
-package configread
+package configsnapshot
 
 import (
 	"context"

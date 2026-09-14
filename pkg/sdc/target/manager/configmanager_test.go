@@ -93,3 +93,19 @@ func TestProcessErrors_MultipleUnknownIntentsFolded(t *testing.T) {
 	assert.Contains(t, err.Error(), "some other reserved error")
 	assert.NotContains(t, err.Error(), "dataserver reported")
 }
+
+func TestEnsureFinalizer(t *testing.T) {
+	got := ensureFinalizer([]string{"a", "b"}, "c")
+	require.Equal(t, []string{"a", "b", "c"}, got)
+
+	got = ensureFinalizer([]string{"a", "b"}, "b")
+	require.Equal(t, []string{"a", "b"}, got)
+}
+
+func TestDropFinalizer(t *testing.T) {
+	got := dropFinalizer([]string{"a", finalizer, "b"}, finalizer)
+	require.Equal(t, []string{"a", "b"}, got)
+
+	got = dropFinalizer([]string{"a", "b"}, finalizer)
+	require.Equal(t, []string{"a", "b"}, got)
+}

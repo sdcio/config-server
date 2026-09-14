@@ -155,7 +155,7 @@ func main() {
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
 	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), registryOptions)
 	// TargetSnapshot is written exclusively via JSON merge-patch (RFC 7396)
-	// from configread.Modify/Delete, which already handles NotFound by
+	// from configsnapshot.Modify/Delete, which already handles NotFound by
 	// falling back to Create.  With AllowCreateOnUpdate=true (the default),
 	// the henderiw registry tries to apply the merge-patch over a nil
 	// existing object when the snapshot doesn't exist yet, producing a

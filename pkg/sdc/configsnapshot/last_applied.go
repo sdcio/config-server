@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package configread
+package configsnapshot
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -90,10 +92,14 @@ func fromConfigEntry(entry *config_read.ConfigEntry, revertive *bool, lifecycle 
 	if err != nil {
 		return configv1alpha1.SensitiveConfigSpec{}, fmt.Errorf("marshal config %s: %w", entry.GetName(), err)
 	}
+	// Keep PlainHash in sync with configresolver's payload contract so
+	// targetconfig change detection can treat snapshot and SensitiveConfig as equal.
+	plainHash := sha256.Sum256(data)
 	payload, err := kr.Encrypt(data)
 	if err != nil {
 		return configv1alpha1.SensitiveConfigSpec{}, fmt.Errorf("encrypt config %s: %w", entry.GetName(), err)
 	}
+	payload.PlainHash = hex.EncodeToString(plainHash[:])
 
 	sensitivePaths := make([]string, 0, len(entry.GetSensitivePaths()))
 	for _, p := range entry.GetSensitivePaths() {

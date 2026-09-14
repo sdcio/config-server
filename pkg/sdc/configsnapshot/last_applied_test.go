@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package configread
+package configsnapshot
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 
@@ -207,5 +209,35 @@ func TestFromConfigEntry_incidentalFieldsFromCaller(t *testing.T) {
 	}
 	if spec.Lifecycle == nil || spec.Lifecycle.DeletionPolicy != configv1alpha1.DeletionOrphan {
 		t.Errorf("Lifecycle = %+v, want DeletionOrphan (from caller)", spec.Lifecycle)
+	}
+}
+
+// TestFromConfigEntry_setsPlainHash locks change-detection parity with
+// configresolver: payload.PlainHash must describe the encrypted plaintext.
+func TestFromConfigEntry_setsPlainHash(t *testing.T) {
+	kr := newTestKeyRing(t)
+	entry := &config_read.ConfigEntry{
+		Name: "cfg1",
+		Config: []*config_read.ConfigBlob{
+			{Path: "/system", Value: []byte(`{"hostname":"router1"}`)},
+		},
+	}
+
+	spec, err := fromConfigEntry(entry, ptr.To(true), nil, kr)
+	if err != nil {
+		t.Fatalf("fromConfigEntry: %v", err)
+	}
+	if spec.Payload.PlainHash == "" {
+		t.Fatal("Payload.PlainHash empty, want non-empty")
+	}
+
+	plain, err := kr.Decrypt(spec.Payload)
+	if err != nil {
+		t.Fatalf("decrypt payload: %v", err)
+	}
+	hashBytes := sha256.Sum256(plain)
+	want := hex.EncodeToString(hashBytes[:])
+	if spec.Payload.PlainHash != want {
+		t.Fatalf("Payload.PlainHash = %q, want %q", spec.Payload.PlainHash, want)
 	}
 }

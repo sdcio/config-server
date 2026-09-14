@@ -401,11 +401,15 @@ func (m *ConfigManager) updateConfigWithError(
 }
 
 func (m *ConfigManager) applyFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	return m.patchMetadata(ctx, cfg, func() { cfg.SetFinalizers([]string{finalizer}) })
+	return m.patchMetadata(ctx, cfg, func() {
+		cfg.SetFinalizers(ensureFinalizer(cfg.GetFinalizers(), finalizer))
+	})
 }
 
 func (m *ConfigManager) deleteFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	return m.patchMetadata(ctx, cfg, func() { cfg.SetFinalizers([]string{}) })
+	return m.patchMetadata(ctx, cfg, func() {
+		cfg.SetFinalizers(dropFinalizer(cfg.GetFinalizers(), finalizer))
+	})
 }
 
 func (m *ConfigManager) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
@@ -450,4 +454,29 @@ func isDeletePathNotFound(errs []string) bool {
 		}
 	}
 	return true
+}
+
+func ensureFinalizer(finalizers []string, value string) []string {
+	for _, f := range finalizers {
+		if f == value {
+			return finalizers
+		}
+	}
+	out := make([]string, 0, len(finalizers)+1)
+	out = append(out, finalizers...)
+	out = append(out, value)
+	return out
+}
+
+func dropFinalizer(finalizers []string, value string) []string {
+	if len(finalizers) == 0 {
+		return finalizers
+	}
+	out := make([]string, 0, len(finalizers))
+	for _, f := range finalizers {
+		if f != value {
+			out = append(out, f)
+		}
+	}
+	return out
 }
