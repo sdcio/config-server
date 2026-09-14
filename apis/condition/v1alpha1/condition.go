@@ -102,7 +102,10 @@ func (r *ConditionedStatus) GetCondition(t ConditionType) Condition {
 			return c
 		}
 	}
-	return Condition{metav1.Condition{Type: string(t), Status: metav1.ConditionFalse}}
+	// Return an absent sentinel: Status="" signals "never set", distinct from
+	// an explicit Status=False.  Callers that need to distinguish "not present"
+	// from "present but False" (e.g. SetOverallStatus) check Status=="".
+	return Condition{metav1.Condition{Type: string(t)}}
 }
 
 // SetConditions sets the supplied conditions, replacing any existing conditions

@@ -220,6 +220,8 @@ func (r *Config) SetOverallStatus() {
 
 	// Resolver condition only blocks ready if it has been explicitly set to False.
 	// An absent resolver condition (no secrets, or resolver hasn't run yet) is not a failure.
+	// GetCondition returns Status="" when the condition has never been set (the absent sentinel),
+	// so this check correctly passes through both the absent case and an explicit True.
 	resolverOK := resolverC.Status == "" || resolverC.IsTrue()
 
 	ready := cfgC.IsTrue() && tgtC.IsTrue() && resolverOK

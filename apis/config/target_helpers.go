@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -405,8 +406,52 @@ func GetGVKNSN(obj client.Object) string {
 	return fmt.Sprintf("%s.%s", obj.GetNamespace(), obj.GetName())
 }
 
+const (
+	// clearDeviationMaxAttempts bounds how many times a single TransactionSet
+	// or TransactionConfirm call is replayed after a recoverable (codes.Aborted /
+	// codes.ResourceExhausted) error — e.g. data-server's datastore-wide
+	// TryLock losing a race against another in-flight transaction.
+	clearDeviationMaxAttempts = 5
+	// clearDeviationRetryBackoff is the fixed delay between retry attempts.
+	// TargetConfigController's own reconcile loop uses the same 500ms
+	// RequeueAfter for the identical recoverable-error condition
+	// (pkg/reconcilers/targetconfig/reconciler.go) — matching it here keeps
+	// the two code paths' behavior under contention consistent.
+	clearDeviationRetryBackoff = 500 * time.Millisecond
+)
+
+// retryOnRecoverable calls fn, retrying up to clearDeviationMaxAttempts times
+// (with a fixed backoff between attempts) as long as the returned error is a
+// dsclient.IsRecoverableError condition. It gives up early if ctx is done.
+// This is a synchronous, blocking-caller analogue of what
+// TargetConfigController's reconcile loop already does by requeueing on the
+// same error classification (see isRecoverableGRPCError in
+// pkg/sdc/target/manager/transactor.go) — ClearDeviations has no reconcile
+// queue to requeue onto, so it retries in a loop instead.
+func retryOnRecoverable[T any](ctx context.Context, fn func() (T, error)) (T, error) {
+	var (
+		result T
+		err    error
+	)
+	for attempt := 1; attempt <= clearDeviationMaxAttempts; attempt++ {
+		result, err = fn()
+		if err == nil || !dsclient.IsRecoverableError(err) || attempt == clearDeviationMaxAttempts {
+			return result, err
+		}
+		select {
+		case <-ctx.Done():
+			return result, err
+		case <-time.After(clearDeviationRetryBackoff):
+		}
+	}
+	return result, err
+}
+
 // executeClearDeviationTx opens a connection to the dataserver,
-// sends the TransactionSetRequest, and confirms on success.
+// sends the TransactionSetRequest, and confirms on success. Both calls are
+// retried on recoverable errors (see retryOnRecoverable) since a losing
+// TryLock race on data-server's side never applied anything — replaying the
+// same request is safe.
 func executeClearDeviationTx(
 	ctx context.Context,
 	txReq *sdcpb.TransactionSetRequest,
@@ -425,15 +470,19 @@ func executeClearDeviationTx(
 		}
 	}()
 
-	rsp, err := dsClient.TransactionSet(ctx, txReq)
+	rsp, err := retryOnRecoverable(ctx, func() (*sdcpb.TransactionSetResponse, error) {
+		return dsClient.TransactionSet(ctx, txReq)
+	})
 	if err != nil {
 		return rsp, err
 	}
 
 	// Confirm the transaction
-	if _, err := dsClient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: txReq.DatastoreName,
-		TransactionId: txReq.TransactionId,
+	if _, err := retryOnRecoverable(ctx, func() (*sdcpb.TransactionConfirmResponse, error) {
+		return dsClient.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+			DatastoreName: txReq.DatastoreName,
+			TransactionId: txReq.TransactionId,
+		})
 	}); err != nil {
 		return rsp, fmt.Errorf("transaction confirm failed: %w", err)
 	}

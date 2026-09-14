@@ -17,13 +17,100 @@ limitations under the License.
 package targetmanager
 
 import (
+	"context"
 	"testing"
 
+	"github.com/henderiw/apiserver-store/pkg/storebackend"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
+
+// newTestRuntime builds a TargetRuntime backed by a fake k8s client seeded
+// with a Target whose TargetConnectionReady condition already matches what
+// reconcileOnce's deferred pushConnIfChanged would compute for a
+// not-yet-ds-ready target. This lets tests call reconcileOnce directly
+// without needing the fake client to support status-subresource Apply.
+func newTestRuntime(t *testing.T) *TargetRuntime {
+	t.Helper()
+	sch := runtime.NewScheme()
+	if err := configv1alpha1.AddToScheme(sch); err != nil {
+		t.Fatalf("add configv1alpha1 to scheme: %v", err)
+	}
+	nsn := types.NamespacedName{Namespace: "default", Name: "target1"}
+	target := &configv1alpha1.Target{
+		ObjectMeta: metav1.ObjectMeta{Name: nsn.Name, Namespace: nsn.Namespace},
+	}
+	target.Status.SetConditions(configv1alpha1.TargetConnectionFailed("dataserver not ready"))
+	fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(target).WithStatusSubresource(target).Build()
+
+	return &TargetRuntime{
+		key:    storebackend.KeyFromNSN(nsn),
+		client: fakeClient,
+		phase:  PhaseRunning,
+		wakeCh: make(chan struct{}, 1),
+	}
+}
+
+// processWake mirrors run()'s own wakeCh handling: a queued signal triggers
+// exactly one reconcileOnce call, and an empty channel is a pure no-op. Using
+// this (instead of calling reconcileOnce unconditionally) is what makes the
+// Phase assertions below a genuine regression test for the no-op-hash guard:
+// against the old unconditional-wake code, the unchanged-hash case would
+// have queued a signal here too, driving reconcileOnce and perturbing Phase.
+func processWake(ctx context.Context, rt *TargetRuntime) {
+	select {
+	case <-rt.wakeCh:
+		rt.reconcileOnce(ctx)
+	default:
+	}
+}
+
+func TestSetDesired_SkipsWakeOnUnchangedHash(t *testing.T) {
+	ctx := context.Background()
+	rt := newTestRuntime(t)
+	req := &sdcpb.CreateDataStoreRequest{}
+
+	// First call establishes the desired hash; since it differs from the
+	// zero-value initial desiredHash, it must still wake and reconcile,
+	// settling on PhaseWaitingForDS since no dataserver is wired up here.
+	rt.SetDesired(req, nil, "hash-a")
+	processWake(ctx, rt)
+	assert.Equal(t, PhaseWaitingForDS, rt.Status().Phase)
+
+	// Simulate the runtime having since converged to PhaseRunning.
+	rt.setPhase(ctx, PhaseRunning, nil)
+
+	// Second call with an identical hash must not wake: nothing about the
+	// desired state changed, so no reconcile should be triggered and Phase
+	// must never be perturbed away from PhaseRunning.
+	rt.SetDesired(req, nil, "hash-a")
+	processWake(ctx, rt)
+	assert.Equal(t, PhaseRunning, rt.Status().Phase, "Phase must not transition off PhaseRunning for a no-op SetDesired call")
+}
+
+func TestSetDesired_WakesOnChangedHash(t *testing.T) {
+	ctx := context.Background()
+	rt := newTestRuntime(t)
+	req := &sdcpb.CreateDataStoreRequest{}
+
+	rt.SetDesired(req, nil, "hash-a")
+	processWake(ctx, rt)
+	rt.setPhase(ctx, PhaseRunning, nil) // simulate having since converged
+
+	// A genuinely different hash must still wake, and the resulting
+	// reconcile must still cycle the phase off PhaseRunning (the legitimate
+	// re-apply/recreate path is unaffected by the no-op guard).
+	rt.SetDesired(req, nil, "hash-b")
+	processWake(ctx, rt)
+	assert.NotEqual(t, PhaseRunning, rt.Status().Phase, "reconcileOnce should have cycled Phase off PhaseRunning for a real desired-state change")
+}
 
 func TestAnalyzeIntentResponse(t *testing.T) {
 	cases := map[string]struct {

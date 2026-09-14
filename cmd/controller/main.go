@@ -34,6 +34,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"github.com/sdcio/config-server/pkg/sdc/configsnapshot"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
@@ -182,6 +183,22 @@ func main() {
 		os.Exit(1)
 	}
 	ctrlCfg.SetKeyRing(kr, rotation)
+
+	// ── Local Config snapshot server ───────────────────────────────────────
+	configSnapshotServer, err := configsnapshot.NewServer(&configsnapshot.Config{
+		Address:   configsnapshot.GetLocalAddress(),
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		KeyRing:   kr,
+	})
+	if err != nil {
+		log.Error("cannot construct config snapshot server", "err", err)
+		os.Exit(1)
+	}
+	if err := configSnapshotServer.AddToManager(mgr); err != nil {
+		log.Error("cannot add config snapshot server to manager", "err", err)
+		os.Exit(1)
+	}
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))

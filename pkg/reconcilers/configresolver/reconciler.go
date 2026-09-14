@@ -354,6 +354,27 @@ func (r *reconciler) detectChange(
 	result := changeResult{}
 	fetched := make(map[string]*corev1.Secret)
 
+	// 0. Prior failure: existing.Spec.* is a snapshot of the last SUCCESSFUL
+	//    resolution — save() is never called on failure (see Reconcile), so a
+	//    failed attempt leaves that snapshot untouched. If the live Resolver
+	//    condition is currently False, the secret content that made the LAST
+	//    successful resolution's hash baseline is not necessarily what's live
+	//    now: a secret can be deleted then recreated with byte-identical
+	//    content, which hashes right back to that stale baseline and would
+	//    otherwise look like "no change" below — masking the fact that a
+	//    resolution failed in between and was never retried. Force resolution
+	//    whenever we're not currently known-good, regardless of hash match.
+	// Applied as an OR onto configChanged below (not returned early) so the
+	// existing "configChanged skips secret-hash detection" short-circuit still
+	// runs — cheap and correct either way, since we want full resolution here.
+	//
+	// Status.GetCondition defaults an ABSENT condition to Status=False (see
+	// ConditionedStatus.GetCondition), so a plain Status==ConditionFalse check
+	// can't tell "explicitly failed" apart from "resolver hasn't run yet" —
+	// HasCondition guards against reading that default as a real failure.
+	resolverFailed := cfg.Status.HasCondition(configv1alpha1.ConditionTypeResolver) &&
+		cfg.GetCondition(configv1alpha1.ConditionTypeResolver).Status == metav1.ConditionFalse
+
 	// 1. Keyring: always check — no API call needed.
 	result.keyringChanged = r.keyring.NeedsReencryption(existing.Spec.Payload)
 
@@ -364,7 +385,7 @@ func (r *reconciler) detectChange(
 	if err != nil {
 		return result, nil, fmt.Errorf("hash config: %w", err)
 	}
-	result.configChanged = currentConfigHash != existing.Spec.ConfigHash
+	result.configChanged = currentConfigHash != existing.Spec.ConfigHash || resolverFailed
 
 	// 3. Secret key hashes: only meaningful when config structure is unchanged.
 	//    If config changed, stored hashes reference potentially stale refs —

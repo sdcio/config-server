@@ -150,7 +150,6 @@ func (m *ConfigManager) ProcessErrors(
 		return recoverable, globalErr
 	}
 
-	dataServerError := false
 	for intentName, intent := range rsp.Intents {
 		log.Warn("intent failed", "name", intentName, "errors", intent.Errors)
 
@@ -195,24 +194,15 @@ func (m *ConfigManager) ProcessErrors(
 			continue
 		}
 
-		dataServerError = true
-		recoverable = false
-		globalErr = errors.Join(errs, fmt.Errorf("dataserver reported unknown intent %s", intentName))
-		break
-	}
-
-	if dataServerError {
-		log.Error("transact dataserver error", "err", globalErr)
-		for _, inp := range toUpdate {
-			if err := m.processFailedInput(ctx, inp, "", globalErr, recoverable); err != nil {
-				return true, err
-			}
-		}
-		for _, inp := range toDelete {
-			if err := m.processFailedInput(ctx, inp, "", globalErr, false); err != nil {
-				return true, err
-			}
-		}
+		// Unknown intent key (e.g. the reserved "running" key that data-server
+		// uses for the synced device config). It is not a user Config CR, so we
+		// must not declare a dataServerError — that path sets FailedUnRecoverable
+		// on every config, which triggers a Config status-update watch event that
+		// immediately re-queues the reconcile, producing a tight busy-loop.
+		// Instead, fold the errors into the global error and continue so that any
+		// remaining known-config intents in the response are still handled.
+		log.Warn("unknown intent key in response — folding into global error", "intent", intentName)
+		globalErr = errors.Join(globalErr, errs)
 	}
 
 	return recoverable, globalErr
@@ -411,11 +401,15 @@ func (m *ConfigManager) updateConfigWithError(
 }
 
 func (m *ConfigManager) applyFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	return m.patchMetadata(ctx, cfg, func() { cfg.SetFinalizers([]string{finalizer}) })
+	return m.patchMetadata(ctx, cfg, func() {
+		cfg.SetFinalizers(ensureFinalizer(cfg.GetFinalizers(), finalizer))
+	})
 }
 
 func (m *ConfigManager) deleteFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	return m.patchMetadata(ctx, cfg, func() { cfg.SetFinalizers([]string{}) })
+	return m.patchMetadata(ctx, cfg, func() {
+		cfg.SetFinalizers(dropFinalizer(cfg.GetFinalizers(), finalizer))
+	})
 }
 
 func (m *ConfigManager) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
@@ -460,4 +454,29 @@ func isDeletePathNotFound(errs []string) bool {
 		}
 	}
 	return true
+}
+
+func ensureFinalizer(finalizers []string, value string) []string {
+	for _, f := range finalizers {
+		if f == value {
+			return finalizers
+		}
+	}
+	out := make([]string, 0, len(finalizers)+1)
+	out = append(out, finalizers...)
+	out = append(out, value)
+	return out
+}
+
+func dropFinalizer(finalizers []string, value string) []string {
+	if len(finalizers) == 0 {
+		return finalizers
+	}
+	out := make([]string, 0, len(finalizers))
+	for _, f := range finalizers {
+		if f != value {
+			out = append(out, f)
+		}
+	}
+	return out
 }
