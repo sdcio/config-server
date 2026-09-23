@@ -373,7 +373,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 		if err != nil {
 			return err
 		}
-		newConfigCond = condv1alpha1.FailedUnRecoverable(string(newmsg))
+		newConfigCond = configv1alpha1.ConfigFailedUnrecoverable(string(newmsg))
 	}
 
 	// Compute the new overall Ready without mutating current.
