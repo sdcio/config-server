@@ -459,6 +459,10 @@ func retryClearDeviationTx(
 			"attempt", i, "backoff", backoff.String(), "error", err.Error())
 		select {
 		case <-ctx.Done():
+			log.FromContext(ctx).Info("clear-deviation transaction retry canceled",
+				"attempt", i,
+				"ctxErr", ctx.Err(),
+				"lastErr", err)
 			return rsp, err
 		case <-time.After(backoff):
 		}
