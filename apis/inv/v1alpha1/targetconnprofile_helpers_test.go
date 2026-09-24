@@ -41,6 +41,10 @@ func TestExampleTargetConnectionProfile(t *testing.T) {
 			path:        "../../../example/connection-profiles/target-conn-profile-gnmi-sonic.yaml",
 			expectedErr: nil,
 		},
+		"GNMICiscoIOSXR": {
+			path:        "../../../example/connection-profiles/target-conn-profile-gnmi-cisco-ios-xr.yaml",
+			expectedErr: nil,
+		},
 	}
 
 	for name, tc := range cases {
