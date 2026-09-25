@@ -1,0 +1,11 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: sdc-ca-issuer
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-ca-issuer
+    sdcio.dev/config-server: "true"
+spec:
+  ca:
+    secretName: sdc-ca-secret

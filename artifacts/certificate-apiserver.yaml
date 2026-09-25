@@ -1,0 +1,36 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-server-cert
+  namespace: sdc-system
+  labels:
+    app.kubernetes.io/name: sdc-api-server
+    sdcio.dev/config-server: "true"
+spec:
+  secretName: api-server-cert
+  secretTemplate:
+    labels:
+      app.kubernetes.io/name: sdc-api-server
+      sdcio.dev/config-server: "true"
+  duration: 8760h   # 1 year
+  renewBefore: 360h # 15 days
+  subject:
+    organizations:
+      - sdc
+  commonName: api-server.sdc-system.svc
+  dnsNames:
+    - api-server
+    - api-server.sdc-system
+    - api-server.sdc-system.svc
+    - api-server.sdc-system.svc.cluster.local
+  usages:
+    - server auth
+    - client auth
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: sdc-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
