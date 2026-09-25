@@ -1,0 +1,30 @@
+# Loads the sonic_yang YANG models (plus the IETF types they depend on) into
+# schema-server. Apply this before any TargetConnectionProfile/DiscoveryRule
+# that references provider "sonic.nokia.sdcio.dev".
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: Schema
+metadata:
+  name: sonic.nokia.sdcio.dev-202605
+  namespace: default
+spec:
+  provider: sonic.nokia.sdcio.dev
+  version: "202605"
+  repositories:
+  - repoURL: https://github.com/sdcio/sonic-schema
+    kind: branch
+    ref: "202605"
+    dirs:
+    - src: .
+      dst: sonic
+    schema:
+      models:
+      - sonic
+  - repoURL: https://github.com/YangModels/yang
+    kind: branch
+    ref: main
+    dirs:
+    - src: standard/ietf/RFC
+      dst: ietf
+    schema:
+      includes:
+      - ietf

@@ -410,8 +410,9 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *conf
 				Username: string(secret.Data["username"]),
 				Password: string(secret.Data["password"]),
 			},
-			Tls:  tls,
-			Port: uint32(connProfile.Spec.Port),
+			Tls:           tls,
+			Port:          uint32(connProfile.Spec.Port),
+			DeviceProfile: toProtoDeviceProfile(connProfile.DeviceProfile()),
 		},
 		Schema: &sdcpb.Schema{
 			Name:    "",
