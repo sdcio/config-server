@@ -25,6 +25,7 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
+// +kubebuilder:storageversion
 
 // TargetConfigBlame is the Schema for the TargetConfigBlame API
 type TargetConfigBlame struct {
