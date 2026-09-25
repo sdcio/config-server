@@ -19,15 +19,6 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # Make sure the @v0.8.0 matches the current version of the action
-      - uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.IPTECHARCH_SSH_KEY }}
-      - name: Setup Git config
-        run: |
-          git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"
-          mkdir -p -m 0700 /home/runner/.ssh && ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
-
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
