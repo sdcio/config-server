@@ -34,6 +34,7 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -280,6 +281,7 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	defer func() {
 		c, msg := t.connSnapshot()
 		t.pushConnIfChanged(ctx, c, msg)
+		t.syncRecoveryCondition(ctx)
 	}()
 
 	desired := t.getDesired()
@@ -346,6 +348,7 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 			}
 			t.setRunningHash(wantHash)
 			t.setDatastoreReady(true)
+			t.setRecovered(false)
 			return nil
 		}
 
@@ -373,6 +376,7 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 
 		t.setRunningHash(wantHash)
 		t.setDatastoreReady(true)
+		t.setRecovered(false)
 		return nil
 	}
 
@@ -653,4 +657,52 @@ func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, m
 		"phase", r.Status().Phase,
 		"msg", msg,
 	)
+}
+
+const msgConfigNotRecovered = "config not recovered"
+
+// recoveryConditionFor returns the condition that must replace old so the
+// recovery condition never reports ready while the Recovered flag is false.
+// It only demotes a True condition; promotion belongs to the recovery reconciler.
+func recoveryConditionFor(recovered bool, old condv1alpha1.Condition) (condv1alpha1.Condition, bool) {
+	if recovered || !old.IsTrue() {
+		return condv1alpha1.Condition{}, false
+	}
+	return configv1alpha1.TargetConfigRecoveryFailed(msgConfigNotRecovered), true
+}
+
+// syncRecoveryCondition demotes a stale ready recovery condition on the Target
+// when Recovered is false. The resulting Target update re-triggers recovery even
+// if the connection condition did not change.
+func (t *TargetRuntime) syncRecoveryCondition(ctx context.Context) {
+	if t.client == nil || t.Status().Recovered {
+		return
+	}
+	log := log.FromContext(ctx)
+
+	target := &configv1alpha1.Target{}
+	if err := t.client.Get(ctx, t.key.NamespacedName, target); err != nil {
+		log.Error("target fetch failed", "error", err)
+		return
+	}
+
+	newCond, apply := recoveryConditionFor(false, target.GetCondition(configv1alpha1.ConditionTypeTargetConfigRecoveryReady))
+	if !apply {
+		return
+	}
+
+	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
+		WithStatus(configv1alpha1apply.TargetStatus().WithConditions(newCond))
+
+	// Force: the recovery reconciler owns this condition type too.
+	if err := t.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+		ApplyOptions: client.ApplyOptions{
+			FieldManager: fieldManagerTargetRuntime,
+			Force:        ptr.To(true),
+		},
+	}); err != nil {
+		log.Error("recovery condition patch failed", "error", err)
+		return
+	}
+	log.Info("recovery condition demoted", "msg", msgConfigNotRecovered)
 }
