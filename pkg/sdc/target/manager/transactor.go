@@ -121,17 +121,11 @@ func (r *Transactor) recoverIntents(
 
 	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
 	for _, cfg := range configs {
-		update, err := config.GetIntentUpdate(cfg, false)
+		intent, err := config.BuildTransactionIntent(cfg, false)
 		if err != nil {
 			return "", err
 		}
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:            config.GetGVKNSN(cfg),
-			Priority:          int32(cfg.Spec.Priority),
-			Update:            update,
-			NonRevertive:      !cfg.IsRevertive(),
-			PreviouslyApplied: true,
-		})
+		intents = append(intents, intent)
 	}
 
 	log.Debug("device intent recovery")
@@ -294,17 +288,12 @@ func (r *Transactor) setIntents(
 	for key, cfg := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
 		log.Info("Transaction intent update", "config", key, "revertive", cfg.IsRevertive())
-		update, err := config.GetIntentUpdate(cfg, true)
+		intent, err := config.BuildTransactionIntent(cfg, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
 			return nil, err
 		}
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:       config.GetGVKNSN(cfg),
-			Priority:     int32(cfg.Spec.Priority),
-			Update:       update,
-			NonRevertive: !cfg.IsRevertive(),
-		})
+		intents = append(intents, intent)
 	}
 	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)

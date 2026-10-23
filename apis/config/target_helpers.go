@@ -588,6 +588,23 @@ func buildClearDeviationStatus(
 	return status
 }
 
+// BuildTransactionIntent returns the data-server intent for config. With useSpec the
+// spec content is sent; without it the applied config is sent and the intent is marked
+// as previously applied (recovery).
+func BuildTransactionIntent(config *Config, useSpec bool) (*sdcpb.TransactionIntent, error) {
+	update, err := GetIntentUpdate(config, useSpec)
+	if err != nil {
+		return nil, err
+	}
+	return &sdcpb.TransactionIntent{
+		Intent:            GetGVKNSN(config),
+		Priority:          int32(config.Spec.Priority),
+		Update:            update,
+		NonRevertive:      !config.IsRevertive(),
+		PreviouslyApplied: !useSpec,
+	}, nil
+}
+
 // useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
 // the config
 func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
