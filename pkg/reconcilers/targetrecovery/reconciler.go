@@ -188,6 +188,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return failedRecoveryResult(err, statusErr)
 	}
 
+	// recovery just replayed intents: parked Configs get another try
+	if _, err := r.transactor.WakeParkedConfigs(ctx, targetOrig, true, "recovery re-ran"); err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "cannot wake parked configs", err), errUpdateStatus)
+	}
+
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
 }
 

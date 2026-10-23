@@ -230,9 +230,15 @@ func Rollout(msg string) Condition {
 	}}
 }
 
+// UnrecoverableMessage is the payload of a parked Config's ConfigReady condition.
+// SpecHash ties the marker to the spec that failed; ResourceVersion is legacy
+// and no longer decides whether the marker is valid.
 type UnrecoverableMessage struct {
-	ResourceVersion string `json:"resourceVersion" protobuf:"bytes,1,opt,name=resourceVersion"`
+	ResourceVersion string `json:"resourceVersion,omitempty" protobuf:"bytes,1,opt,name=resourceVersion"`
 	Message         string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	SpecHash        string `json:"specHash,omitempty" protobuf:"bytes,3,opt,name=specHash"`
+	// Attempts counts consecutive failed tries for SpecHash and drives the retry backoff.
+	Attempts int32 `json:"attempts,omitempty" protobuf:"varint,4,opt,name=attempts"`
 }
 
 
