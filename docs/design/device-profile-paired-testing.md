@@ -41,5 +41,21 @@ will pass until:
 
 Reference connection-profile fixtures (unit-tested examples) live under
 `example/connection-profiles/` (`target-conn-profile-gnmi-sonic.yaml`,
-`target-conn-profile-gnmi-cisco-ios-xr.yaml`). Full SONiC onboarding YAML sets are tracked on
-the `sonic-device-profile` config-server branch.
+`target-conn-profile-gnmi-cisco-ios-xr.yaml`).
+
+The config-server branch `sonic-device-profile` (PR branch name is historical) carries the full
+device-profile effort: CRD/gRPC wiring for `""`, `sonic`, and `cisco-ios-xr`, plus reference
+onboarding YAML sets under `example/sonic/` and `example/cisco-iosxr/`.
+
+Pair with the matching data-server NOS PR when testing end-to-end:
+
+```text
+Pairs-with: sdcio/data-server#507
+```
+
+```text
+Pairs-with: sdcio/data-server#508
+```
+
+Use data-server **#506** (device-profile base) when the PR only needs shared plumbing with both
+profiles still fail-closed on the data plane.

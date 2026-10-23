@@ -49,6 +49,9 @@ references both by name (`defaultSchema`, `targetConnectionProfiles[].connection
 
 ## Further reading
 
+Cisco IOS-XR reference manifests (same `deviceProfile` field, different data-server NOS stack) live
+in [`../cisco-iosxr/README.md`](../cisco-iosxr/README.md).
+
 The data-server side of this work (the SONiC `GnmiSetPlan` encoder, closed-set `device-profile`
 config validation, and the dispatch in `materialize.BuildPlan`) is tracked in the sibling
 `sdcio/data-server` repo's `.scratch/sonic-device-profile/` effort. A user-guide page under
