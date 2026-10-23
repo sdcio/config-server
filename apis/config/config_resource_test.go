@@ -113,3 +113,53 @@ func TestConfigSetAdmission(t *testing.T) {
 		}
 	}
 }
+
+func TestSensitiveConfigAdmission(t *testing.T) {
+	data := []SensitiveConfigData{{Path: "/a"}}
+	tests := []struct {
+		name     string
+		spec     SensitiveConfigSpec
+		priority int64
+		wantErr  string
+	}{
+		{"content", SensitiveConfigSpec{Config: data}, 10, ""},
+		{"content large priority", SensitiveConfigSpec{Config: data}, 1 << 40, ""},
+		{"sweeper", SensitiveConfigSpec{DeletePaths: []string{"/"}}, 10, ""},
+		{"both", SensitiveConfigSpec{Config: data, DeletePaths: []string{"/a"}}, 10, "spec.deletePaths"},
+		{"neither", SensitiveConfigSpec{}, 10, "spec.config"},
+		{"bad path", SensitiveConfigSpec{DeletePaths: []string{"/ok", "/a/[b"}}, 10, "spec.deletePaths[1]"},
+		{"sweeper priority too big", SensitiveConfigSpec{DeletePaths: []string{"/"}}, 1 << 33, "spec.priority"},
+	}
+	for _, tt := range tests {
+		mk := func() *SensitiveConfig {
+			s := tt.spec
+			s.Priority = tt.priority
+			return &SensitiveConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: "c", Labels: map[string]string{
+					TargetNameKey: "t", TargetNamespaceKey: "ns"}},
+				Spec: s,
+			}
+		}
+		for _, op := range []string{"create", "update"} {
+			t.Run(op+"/"+tt.name, func(t *testing.T) {
+				c := mk()
+				var joined string
+				if op == "create" {
+					for _, e := range c.ValidateCreate(context.Background(), c) {
+						joined += e.Error() + ";"
+					}
+				} else {
+					for _, e := range c.ValidateUpdate(context.Background(), c, mk()) {
+						joined += e.Error() + ";"
+					}
+				}
+				if tt.wantErr == "" && joined != "" {
+					t.Fatalf("unexpected: %s", joined)
+				}
+				if tt.wantErr != "" && !strings.Contains(joined, tt.wantErr) {
+					t.Fatalf("%q does not mention %q", joined, tt.wantErr)
+				}
+			})
+		}
+	}
+}

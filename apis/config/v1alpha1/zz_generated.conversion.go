@@ -1374,6 +1374,7 @@ func autoConvert_v1alpha1_SensitiveConfigSpec_To_config_SensitiveConfigSpec(in *
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.SensitiveConfigData)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -1387,6 +1388,7 @@ func autoConvert_config_SensitiveConfigSpec_To_v1alpha1_SensitiveConfigSpec(in *
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]SensitiveConfigData)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
