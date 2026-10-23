@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"context"
 	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,19 +75,24 @@ func (r *Config) IsRevertive() bool {
 	return true
 }
 
-func (r *Config) IsRecoverable() bool {
-	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			return true
-		}
-		return false
+// SpecHash identifies the current spec; a parked marker is valid only for the spec it was written for.
+func (r *Config) SpecHash(ctx context.Context) string {
+	sum := r.Spec.GetShaSum(ctx)
+	return hex.EncodeToString(sum[:])
+}
+
+// IsRecoverable reports false while the Config is parked: its ConfigReady
+// condition is Unrecoverable and the marker's spec hash matches the current spec.
+func (r *Config) IsRecoverable(ctx context.Context) bool {
+	c := r.GetCondition(ConditionTypeConfigReady)
+	if c.Reason != string(condv1alpha1.ConditionReasonUnrecoverable) {
+		return true
 	}
-	return true
+	unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
+	if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+		return true
+	}
+	return unrecoverableMessage.SpecHash == "" || unrecoverableMessage.SpecHash != r.SpecHash(ctx)
 }
 
 func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {

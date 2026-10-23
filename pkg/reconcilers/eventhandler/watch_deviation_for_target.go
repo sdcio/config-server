@@ -22,6 +22,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -30,9 +31,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// DeviationForTargetEventHandler enqueues the target of a Deviation. Updates
+// that leave the spec unchanged (the data-server re-applies status about every
+// 5s) are ignored.
 type DeviationForTargetEventHandler struct {
 	Client         client.Client
 	ControllerName string
+	// OnSpecChange, when set, is called with the target once per Deviation spec
+	// change before the target is enqueued.
+	OnSpecChange func(ctx context.Context, target types.NamespacedName)
 }
 
 // Create enqueues a request
@@ -42,6 +49,22 @@ func (r *DeviationForTargetEventHandler) Create(ctx context.Context, evt event.C
 
 // Create enqueues a request
 func (r *DeviationForTargetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	oldDev, ok := evt.ObjectOld.(*configv1alpha1.Deviation)
+	if !ok {
+		return
+	}
+	newDev, ok := evt.ObjectNew.(*configv1alpha1.Deviation)
+	if !ok {
+		return
+	}
+	if equality.Semantic.DeepEqual(oldDev.Spec, newDev.Spec) {
+		return
+	}
+	if r.OnSpecChange != nil {
+		if targetKey, err := newDev.GetTargetNamespaceName(); err == nil {
+			r.OnSpecChange(ctx, *targetKey)
+		}
+	}
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
 }
@@ -67,6 +90,7 @@ func (r *DeviationForTargetEventHandler) add(ctx context.Context, obj runtime.Ob
 	targetKey, err := deviation.GetTargetNamespaceName()
 	if err != nil {
 		log.Error(err.Error())
+		return
 	}
 	queue.Add(reconcile.Request{NamespacedName: *targetKey})
 }
