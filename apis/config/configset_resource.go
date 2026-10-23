@@ -293,6 +293,7 @@ func (r *ConfigSet) ValidateCreate(ctx context.Context, obj runtime.Object) fiel
 			"priority should be bigger 2",
 		))
 	}
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), newobj.Spec.Config, newobj.Spec.DeletePaths)...)
 
 	return allErrs
 }
@@ -314,6 +315,9 @@ func (r *ConfigSet) ValidateUpdate(ctx context.Context, obj, old runtime.Object)
 			err.Error(),
 		))
 	}
+
+	newobj := obj.(*ConfigSet)
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), newobj.Spec.Config, newobj.Spec.DeletePaths)...)
 
 	return allErrs
 }

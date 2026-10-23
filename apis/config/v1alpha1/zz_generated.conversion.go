@@ -807,6 +807,7 @@ func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpe
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -823,6 +824,7 @@ func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.Confi
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
