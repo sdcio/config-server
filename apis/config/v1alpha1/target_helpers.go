@@ -69,7 +69,7 @@ func (r *Target) SetOverallStatus(target *Target) {
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConfigRecoveryReady).IsTrue() {
 		ready = false
-		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
+		msg = "config not recovered"
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
@@ -95,7 +95,7 @@ func GetOverallStatus(target *Target) condv1alpha1.Condition {
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConfigRecoveryReady).IsTrue() {
 		ready = false
-		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
+		msg = "config not recovered"
 	}
 	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
 		ready = false
