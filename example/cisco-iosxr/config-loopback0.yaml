@@ -1,0 +1,21 @@
+# Loopback0 for OSPF samples — UM interface model uses the if-ip-address augment.
+apiVersion: config.sdcio.dev/v1alpha1
+kind: Config
+metadata:
+  name: cisco-iosxr-loopback0-sample
+  namespace: default
+  labels:
+    config.sdcio.dev/targetName: ixr01
+    config.sdcio.dev/targetNamespace: default
+spec:
+  priority: 10
+  config:
+  - path: /Cisco-IOS-XR-um-interface-cfg:interfaces
+    value:
+      interface:
+      - interface-name: Loopback0
+        ipv4:
+          Cisco-IOS-XR-um-if-ip-address-cfg:addresses:
+            address:
+              address: 1.1.1.1
+              netmask: 255.255.255.255
