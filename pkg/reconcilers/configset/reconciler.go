@@ -145,12 +145,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	targets, err := r.unrollDownstreamTargets(ctx, configSet)
 	if err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot unroll downstream targets", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot unroll downstream targets", err), errUpdateStatus)
 	}
 
 	if err := r.ensureConfigs(ctx, configSet, targets); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", err), errUpdateStatus)
 	}
 
 	msg := r.determineOverallStatus(ctx, configSet)
