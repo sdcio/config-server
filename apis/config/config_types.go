@@ -35,7 +35,10 @@ type ConfigSpec struct {
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,3,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
-	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
+	Config []ConfigBlob `json:"config,omitempty" protobuf:"bytes,4,rep,name=config"`
+	// DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+	// and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+	DeletePaths []string `json:"deletePaths,omitempty" protobuf:"bytes,5,rep,name=deletePaths"`
 }
 
 type ConfigBlob struct {

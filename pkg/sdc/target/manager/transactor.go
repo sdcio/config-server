@@ -871,6 +871,7 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 	for i := range s.Config {
 		a.WithConfig(configBlobToApply(&s.Config[i]))
 	}
+	a.WithDeletePaths(s.DeletePaths...)
 	return a
 }
 

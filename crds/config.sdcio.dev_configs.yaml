@@ -58,6 +58,13 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-preserve-unknown-fields: true
+              deletePaths:
+                description: |-
+                  DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                  and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                items:
+                  type: string
+                type: array
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -72,14 +79,12 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
-            required:
-            - config
             type: object
           status:
             description: ConfigStatus defines the observed state of Config
@@ -104,6 +109,13 @@ spec:
                       type: object
                     type: array
                     x-kubernetes-preserve-unknown-fields: true
+                  deletePaths:
+                    description: |-
+                      DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                      and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                    items:
+                      type: string
+                    type: array
                   lifecycle:
                     description: |-
                       Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -118,14 +130,12 @@ spec:
                     type: object
                   priority:
                     description: Priority defines the priority of this config
-                    format: int64
+                    format: int32
                     type: integer
                   revertive:
                     description: Revertive defines if this CR is enabled for revertive
                       or non revertve operation
                     type: boolean
-                required:
-                - config
                 type: object
               conditions:
                 description: Conditions of the resource.
@@ -252,6 +262,14 @@ spec:
                 type: array
                 x-kubernetes-list-type: atomic
                 x-kubernetes-preserve-unknown-fields: true
+              deletePaths:
+                description: |-
+                  DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                  and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -270,14 +288,12 @@ spec:
                 type: object
               priority:
                 description: Priority defines the priority of this config
-                format: int64
+                format: int32
                 type: integer
               revertive:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
-            required:
-            - config
             type: object
           status:
             description: ConfigStatus defines the observed state of Config
@@ -303,6 +319,14 @@ spec:
                     type: array
                     x-kubernetes-list-type: atomic
                     x-kubernetes-preserve-unknown-fields: true
+                  deletePaths:
+                    description: |-
+                      DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                      and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
                   lifecycle:
                     description: |-
                       Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -321,14 +345,12 @@ spec:
                     type: object
                   priority:
                     description: Priority defines the priority of this config
-                    format: int64
+                    format: int32
                     type: integer
                   revertive:
                     description: Revertive defines if this CR is enabled for revertive
                       or non revertve operation
                     type: boolean
-                required:
-                - config
                 type: object
               conditions:
                 description: Conditions of the resource.

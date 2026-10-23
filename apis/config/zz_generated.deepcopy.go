@@ -448,6 +448,11 @@ func (in *ConfigSpec) DeepCopyInto(out *ConfigSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.DeletePaths != nil {
+		in, out := &in.DeletePaths, &out.DeletePaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

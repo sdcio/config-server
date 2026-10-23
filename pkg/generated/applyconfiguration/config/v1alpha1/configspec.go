@@ -31,6 +31,9 @@ type ConfigSpecApplyConfiguration struct {
 	Revertive *bool `json:"revertive,omitempty"`
 	// Config defines the configuration to be applied to a target device
 	Config []ConfigBlobApplyConfiguration `json:"config,omitempty"`
+	// DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+	// and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+	DeletePaths []string `json:"deletePaths,omitempty"`
 }
 
 // ConfigSpecApplyConfiguration constructs a declarative configuration of the ConfigSpec type for use with
@@ -72,6 +75,16 @@ func (b *ConfigSpecApplyConfiguration) WithConfig(values ...*ConfigBlobApplyConf
 			panic("nil value passed to WithConfig")
 		}
 		b.Config = append(b.Config, *values[i])
+	}
+	return b
+}
+
+// WithDeletePaths adds the given value to the DeletePaths field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the DeletePaths field.
+func (b *ConfigSpecApplyConfiguration) WithDeletePaths(values ...string) *ConfigSpecApplyConfiguration {
+	for i := range values {
+		b.DeletePaths = append(b.DeletePaths, values[i])
 	}
 	return b
 }
