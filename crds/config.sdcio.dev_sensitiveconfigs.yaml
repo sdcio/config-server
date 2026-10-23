@@ -80,6 +80,13 @@ spec:
                   - secretKeyRef
                   type: object
                 type: array
+              deletePaths:
+                description: |-
+                  DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                  and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                items:
+                  type: string
+                type: array
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -100,8 +107,6 @@ spec:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
-            required:
-            - config
             type: object
           status:
             description: SensitiveConfigStatus defines the observed state of SensitiveConfig
@@ -149,6 +154,13 @@ spec:
                       - secretKeyRef
                       type: object
                     type: array
+                  deletePaths:
+                    description: |-
+                      DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                      and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                    items:
+                      type: string
+                    type: array
                   lifecycle:
                     description: |-
                       Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -169,8 +181,6 @@ spec:
                     description: Revertive defines if this CR is enabled for revertive
                       or non revertve operation
                     type: boolean
-                required:
-                - config
                 type: object
               conditions:
                 description: Conditions of the resource.
@@ -320,6 +330,14 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+              deletePaths:
+                description: |-
+                  DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                  and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               lifecycle:
                 description: |-
                   Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -344,8 +362,6 @@ spec:
                 description: Revertive defines if this CR is enabled for revertive
                   or non revertve operation
                 type: boolean
-            required:
-            - config
             type: object
           status:
             description: SensitiveConfigStatus defines the observed state of SensitiveConfig
@@ -394,6 +410,14 @@ spec:
                       type: object
                     type: array
                     x-kubernetes-list-type: atomic
+                  deletePaths:
+                    description: |-
+                      DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+                      and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
                   lifecycle:
                     description: |-
                       Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
@@ -418,8 +442,6 @@ spec:
                     description: Revertive defines if this CR is enabled for revertive
                       or non revertve operation
                     type: boolean
-                required:
-                - config
                 type: object
               conditions:
                 description: Conditions of the resource.

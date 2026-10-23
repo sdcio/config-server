@@ -35,7 +35,11 @@ type SensitiveConfigSpec struct {
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,3,opt,name=revertive"`
 	// SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
 	// +listType=atomic
-	Config []SensitiveConfigData `json:"config" protobuf:"bytes,4,rep,name=config"`
+	Config []SensitiveConfigData `json:"config,omitempty" protobuf:"bytes,4,rep,name=config"`
+	// DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+	// and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+	// +listType=atomic
+	DeletePaths []string `json:"deletePaths,omitempty" protobuf:"bytes,5,rep,name=deletePaths"`
 }
 
 type SensitiveConfigData struct {

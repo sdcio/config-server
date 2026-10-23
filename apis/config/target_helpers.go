@@ -588,6 +588,28 @@ func buildClearDeviationStatus(
 	return status
 }
 
+// BuildTransactionIntent returns the data-server intent for config. With useSpec the
+// spec content is sent; without it the applied config is sent and the intent is marked
+// as previously applied (recovery).
+func BuildTransactionIntent(config *Config, useSpec bool) (*sdcpb.TransactionIntent, error) {
+	update, err := GetIntentUpdate(config, useSpec)
+	if err != nil {
+		return nil, err
+	}
+	deletes, err := GetIntentDeletes(config, useSpec)
+	if err != nil {
+		return nil, err
+	}
+	return &sdcpb.TransactionIntent{
+		Intent:            GetGVKNSN(config),
+		Priority:          int32(config.Spec.Priority),
+		Update:            update,
+		Deletes:           deletes,
+		NonRevertive:      !config.IsRevertive(),
+		PreviouslyApplied: !useSpec,
+	}, nil
+}
+
 // useSpec indicates to use the spec as the confifSpec, typically set to true; when set to false it means we are recovering
 // the config
 func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
@@ -613,4 +635,27 @@ func GetIntentUpdate(config *Config, useSpec bool) ([]*sdcpb.Update, error) {
 		})
 	}
 	return update, nil
+}
+
+// GetIntentDeletes parses the deletePaths of the spec, or of the applied config when
+// useSpec is false and one exists. The result is empty for a content intent.
+func GetIntentDeletes(config *Config, useSpec bool) ([]*sdcpb.Path, error) {
+	paths := config.Spec.DeletePaths
+	if !useSpec && config.Status.AppliedConfig != nil {
+		paths = config.Status.AppliedConfig.DeletePaths
+	}
+	return ParseDeletePaths(paths)
+}
+
+// ParseDeletePaths parses paths with the parser used for config paths; an error names the failing index.
+func ParseDeletePaths(paths []string) ([]*sdcpb.Path, error) {
+	var out []*sdcpb.Path
+	for i, p := range paths {
+		path, err := sdcpb.ParsePath(p)
+		if err != nil {
+			return nil, fmt.Errorf("deletePaths[%d]: %w", i, err)
+		}
+		out = append(out, path)
+	}
+	return out, nil
 }
