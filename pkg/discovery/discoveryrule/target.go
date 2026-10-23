@@ -18,6 +18,7 @@ package discoveryrule
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -88,6 +89,12 @@ func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName
 		return err
 	}
 
+	targetProfiles := r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles
+	if len(targetProfiles) == 0 {
+		return fmt.Errorf("discovery rule has no targetConnectionProfiles")
+	}
+	targetProfile := targetProfiles[0]
+
 	applyConfig := configv1alpha1apply.Target(targetKey.Name, targetKey.Namespace).
 		WithLabels(labels).
 		WithAnnotations(anno).
@@ -106,10 +113,10 @@ func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName
 			Provider: provider,
 			Address:  address,
 			TargetProfile: invv1alpha1.TargetProfile{
-				Credentials: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].Credentials,
+				Credentials:       targetProfile.Credentials,
 				// TODO TLSSecret:
-				ConnectionProfile: r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].ConnectionProfile,
-				SyncProfile:       r.cfg.CR.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile,
+				ConnectionProfile: targetProfile.ConnectionProfile,
+				SyncProfile:       targetProfile.SyncProfile,
 			},
 		}))
 

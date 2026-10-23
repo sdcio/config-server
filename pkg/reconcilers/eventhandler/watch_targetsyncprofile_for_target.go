@@ -76,12 +76,13 @@ func (r *TargetSyncProfileForTargetEventHandler) add(ctx context.Context, obj ru
 		return
 	}
 	for _, target := range targets.Items {
-		if *target.Spec.SyncProfile == cr.GetName() {
-			key := types.NamespacedName{
-				Namespace: target.Namespace,
-				Name:      target.Name}
-			log.Debug("event requeue target", "key", key.String())
-			queue.Add(reconcile.Request{NamespacedName: key})
+		if target.Spec.SyncProfile == nil || *target.Spec.SyncProfile != cr.GetName() {
+			continue
 		}
+		key := types.NamespacedName{
+			Namespace: target.Namespace,
+			Name:      target.Name}
+		log.Debug("event requeue target", "key", key.String())
+		queue.Add(reconcile.Request{NamespacedName: key})
 	}
 }

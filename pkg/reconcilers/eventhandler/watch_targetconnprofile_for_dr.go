@@ -88,14 +88,16 @@ func (r *TargetConnProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 			}
 		}
 
-		// check if the connection profile is referenced in the ConnectivityProfile
-		if *dr.GetDiscoveryParameters().TargetConnectionProfiles[0].SyncProfile == cr.GetName() {
+		for _, targetConnProfile := range dr.GetDiscoveryParameters().TargetConnectionProfiles {
+			if targetConnProfile.ConnectionProfile != cr.GetName() {
+				continue
+			}
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}
-			log.Debug("event requeue target", "key", key.String())
+			log.Debug("event requeue discovery rule", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
-			continue
+			break
 		}
 	}
 }

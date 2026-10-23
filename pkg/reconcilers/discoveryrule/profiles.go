@@ -94,11 +94,13 @@ func (r *reconciler) getTargetConnectionProfile(ctx context.Context, cr *invv1al
 		secret, err := r.getSecret(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: targetConnProfile.Credentials})
 		if err != nil {
 			errm = errors.Join(errm, err)
+			continue
 		}
 
 		connProfile, err := r.getConnProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: targetConnProfile.ConnectionProfile})
 		if err != nil {
 			errm = errors.Join(errm, err)
+			continue
 		}
 		connProfile = connProfile.DeepCopy()
 		var syncProfile *invv1alpha1.TargetSyncProfile
@@ -106,13 +108,11 @@ func (r *reconciler) getTargetConnectionProfile(ctx context.Context, cr *invv1al
 			syncProfile, err = r.getSyncProfile(ctx, types.NamespacedName{Namespace: cr.GetNamespace(), Name: *targetConnProfile.SyncProfile})
 			if err != nil {
 				errm = errors.Join(errm, err)
+				continue
 			}
 			syncProfile = syncProfile.DeepCopy()
 		}
 
-		if errm != nil {
-			continue
-		}
 		targetConnProfiles[i] = discoveryrule.TargetConnectionProfile{
 			Secret:                targetConnProfile.Credentials,
 			SecretResourceVersion: secret.GetResourceVersion(),
