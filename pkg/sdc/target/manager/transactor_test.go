@@ -59,8 +59,8 @@ func TestUpdateConfigWithError_NonRecoverable_StampsConfigReadyAndOverallFalse(t
 	current := newConfigWithPriorSuccess("cfg-nonrecoverable")
 
 	newMessage := condv1alpha1.UnrecoverableMessage{
-		ResourceVersion: current.GetResourceVersion(),
-		Message:         "apply failed: malformed intent",
+		SpecHash: current.SpecHash(context.Background()),
+		Message:  "apply failed: malformed intent",
 	}
 	raw, err := json.Marshal(newMessage)
 	require.NoError(t, err)
@@ -105,11 +105,15 @@ func TestUpdateConfigWithError_NonRecoverable_StampsConfigReadyAndOverallFalse(t
 
 	internalCfg := toInternalConfig(t, final)
 	ctx := context.Background()
-	assert.False(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must report false immediately after (same ResourceVersion)")
+	assert.False(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must report false immediately after (same spec)")
 
-	// Simulate a spec edit bumping ResourceVersion: IsRecoverable should flip back to true.
+	// A status write bumps ResourceVersion: the marker must stay valid.
 	internalCfg.ResourceVersion = "11"
-	assert.True(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must flip back to true once ResourceVersion changes (spec edit)")
+	assert.False(t, internalCfg.IsRecoverable(ctx), "marker must survive a ResourceVersion bump")
+
+	// A spec edit invalidates the marker.
+	internalCfg.Spec.Priority = 99
+	assert.True(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must flip back to true once the spec changes")
 }
 
 func TestUpdateConfigWithError_Recoverable_UnchangedBehavior(t *testing.T) {

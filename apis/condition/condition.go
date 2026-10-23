@@ -222,7 +222,13 @@ func FailedUnRecoverable(msg string) Condition {
 	}}
 }
 
+// UnrecoverableMessage is the payload of a parked Config's ConfigReady condition.
+// SpecHash ties the marker to the spec that failed; ResourceVersion is legacy
+// and no longer decides whether the marker is valid.
 type UnrecoverableMessage struct {
-	ResourceVersion string `json:"resourceVersion"`
+	ResourceVersion string `json:"resourceVersion,omitempty"`
+	SpecHash        string `json:"specHash,omitempty"`
+	// Attempts counts consecutive failed tries for SpecHash and drives the retry backoff.
+	Attempts int32 `json:"attempts,omitempty"`
 	Message         string `json:"message"`
 }
