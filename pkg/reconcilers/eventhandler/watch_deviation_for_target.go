@@ -89,7 +89,7 @@ func (r *DeviationForTargetEventHandler) add(ctx context.Context, obj runtime.Ob
 
 	targetKey, err := deviation.GetTargetNamespaceName()
 	if err != nil {
-		log.Error(err.Error())
+		log.Error("cannot resolve target from labels, skipping event", "error", err)
 		return
 	}
 	queue.Add(reconcile.Request{NamespacedName: *targetKey})
