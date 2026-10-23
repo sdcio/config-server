@@ -18,6 +18,7 @@ package targetconfigserver
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -36,9 +37,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
@@ -46,8 +49,26 @@ func init() {
 	reconcilers.Register(crName, &reconciler{})
 }
 
-// recoveryRetryInterval is the delay before a failed config recovery is retried.
-const recoveryRetryInterval = 10 * time.Second
+// newRecoveryRateLimiter backs off failed recoveries from 1s up to a 60s cap.
+func newRecoveryRateLimiter() workqueue.TypedRateLimiter[ctrl.Request] {
+	return workqueue.NewTypedItemExponentialFailureRateLimiter[ctrl.Request](
+		1*time.Second, 60*time.Second)
+}
+
+// failedRecoveryResult returns the recovery error (joined with any status
+// update error) so controller-runtime applies rate-limited backoff; it never
+// sets a fixed requeue interval.
+func failedRecoveryResult(recoveryErr, statusErr error) (ctrl.Result, error) {
+	return ctrl.Result{}, stderrors.Join(recoveryErr, statusErr)
+}
+
+// recoveryFailureMessage builds the full, untruncated failure condition message.
+func recoveryFailureMessage(msg string, err error) string {
+	if err != nil {
+		return fmt.Sprintf("%q err %q", msg, err.Error())
+	}
+	return msg
+}
 
 const (
 	crName                = "targetrecoveryconfig"
@@ -96,6 +117,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
+		WithOptions(controller.Options{RateLimiter: newRecoveryRateLimiter()}).
 		For(&configv1alpha1.Target{}).
 		Complete(r)
 }
@@ -162,12 +184,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	msg, err := r.transactor.RecoverConfigs(ctx, target, dsctx)
 	if err != nil {
-		// This is bad since this means we cannot recover the applied config
-		// on a target. We set the target config status to Failed.
-		// Most likely a human intervention is needed
-		// recovery failed: keep retrying, nothing else re-triggers this reconciler
-		return ctrl.Result{RequeueAfter: recoveryRetryInterval},
-			errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		statusErr := errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		return failedRecoveryResult(err, statusErr)
 	}
 
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
@@ -206,12 +224,8 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error) error {
 	log := log.FromContext(ctx)
 
-	if err != nil {
-		msg = fmt.Sprintf("%q err %q", msg, err.Error())
-	}
-	if len(msg) > 128 {
-		msg = msg[:128]
-	}
+	msg = recoveryFailureMessage(msg, err)
+	log.Warn(msg, "error", err)
 	newCond := configv1alpha1.TargetConfigRecoveryFailed(msg)
 	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConfigRecoveryReady)
 
@@ -220,7 +234,6 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 		return nil
 	}
 
-	log.Warn(msg, "error", err)
 	log.Info("handleError -> change", "condition change", true)
 	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
 
