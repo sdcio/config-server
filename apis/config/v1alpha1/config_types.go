@@ -36,7 +36,11 @@ type ConfigSpec struct {
 	// Config defines the configuration to be applied to a target device
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +listType=atomic
-	Config []ConfigBlob `json:"config" protobuf:"bytes,4,rep,name=config"`
+	Config []ConfigBlob `json:"config,omitempty" protobuf:"bytes,4,rep,name=config"`
+	// DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+	// and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+	// +listType=atomic
+	DeletePaths []string `json:"deletePaths,omitempty" protobuf:"bytes,5,rep,name=deletePaths"`
 }
 
 type ConfigBlob struct {

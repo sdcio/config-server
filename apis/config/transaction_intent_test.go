@@ -59,3 +59,35 @@ func TestBuildTransactionIntent(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildTransactionIntentSweeper(t *testing.T) {
+	sweeper := &Config{
+		Spec: ConfigSpec{Priority: 5, DeletePaths: []string{"/interfaces"}},
+		Status: ConfigStatus{AppliedConfig: &ConfigSpec{
+			DeletePaths: []string{"/system", "/acl"},
+		}},
+	}
+	got, err := BuildTransactionIntent(sweeper, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Update) != 0 || len(got.Deletes) != 1 {
+		t.Fatalf("spec: update=%d deletes=%d", len(got.Update), len(got.Deletes))
+	}
+	got, err = BuildTransactionIntent(sweeper, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Deletes) != 2 || got.Deletes[0].Elem[0].Name != "system" {
+		t.Fatalf("applied deletes = %v", got.Deletes)
+	}
+
+	content := &Config{Spec: ConfigSpec{Config: []ConfigBlob{{Path: "/a", Value: runtime.RawExtension{Raw: []byte(`{}`)}}}}}
+	got, err = BuildTransactionIntent(content, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Deletes) != 0 || len(got.Update) != 1 {
+		t.Fatalf("content: update=%d deletes=%d", len(got.Update), len(got.Deletes))
+	}
+}
