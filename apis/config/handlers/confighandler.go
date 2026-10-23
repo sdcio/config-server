@@ -39,19 +39,13 @@ func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	updates, err := config.GetIntentUpdate(c, true)
+	intent, err := config.BuildTransactionIntent(c, true)
 	if err != nil {
 		return nil, err
 	}
-
-	intents := []*sdcpb.TransactionIntent{
-		{
-			Intent:   config.GetGVKNSN(c),
-			Priority: int32(c.Spec.Priority),
-			Update:   updates,
-			// Dont set not Revertive
-		},
-	}
+	// dry run does not carry the revertive flag
+	intent.NonRevertive = false
+	intents := []*sdcpb.TransactionIntent{intent}
 
 	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
