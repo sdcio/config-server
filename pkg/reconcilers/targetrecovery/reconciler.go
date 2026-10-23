@@ -46,6 +46,9 @@ func init() {
 	reconcilers.Register(crName, &reconciler{})
 }
 
+// recoveryRetryInterval is the delay before a failed config recovery is retried.
+const recoveryRetryInterval = 10 * time.Second
+
 const (
 	crName                = "targetrecoveryconfig"
 	fieldmanagerfinalizer = "TargetRecoveryConfigController-finalizer"
@@ -162,7 +165,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// This is bad since this means we cannot recover the applied config
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
+		// recovery failed: keep retrying, nothing else re-triggers this reconciler
+		return ctrl.Result{RequeueAfter: recoveryRetryInterval},
+			errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
 
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, msg), errUpdateStatus)
