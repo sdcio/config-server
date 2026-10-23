@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
@@ -308,7 +309,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 
 	if newCond.Equal(oldCond) {
 		log.Info("handleError -> no change")
-		return ctrl.Result{}, nil
+		return failureResult(err, nil)
 	}
 
 	log.Error(msg)
@@ -319,17 +320,30 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 			WithConditions(newCond),
 		)
 
-	var unrecoverableError *sdcerrors.UnrecoverableError
-	result := ctrl.Result{}
-	if errors.As(err, &unrecoverableError) {
-		result = ctrl.Result{Requeue: false}
-	}
-
-	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+	statusErr := pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
+	return failureResult(err, statusErr)
+}
+
+// schemaPollInterval is how often a schema the schema-server is still loading is re-checked.
+const schemaPollInterval = 10 * time.Second
+
+// failureResult picks the retry for a failed reconcile: unrecoverable errors
+// are not retried, other errors are returned for controller-runtime backoff,
+// and a failure without an error (schema still loading) is polled.
+func failureResult(err, statusErr error) (ctrl.Result, error) {
+	var unrecoverableError *sdcerrors.UnrecoverableError
+	switch {
+	case errors.As(err, &unrecoverableError):
+		return ctrl.Result{}, statusErr
+	case err != nil:
+		return ctrl.Result{}, errors.Join(err, statusErr)
+	default:
+		return ctrl.Result{RequeueAfter: schemaPollInterval}, statusErr
+	}
 }
 
 func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
