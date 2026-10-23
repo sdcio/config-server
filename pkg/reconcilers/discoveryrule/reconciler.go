@@ -144,7 +144,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	if err := discoveryRule.Validate(); err != nil {
-		return ctrl.Result{Requeue: true},
+		// the same spec fails the same way; a spec change re-triggers the reconcile
+		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, discoveryRuleOrig, "validation failed", err), errUpdateStatus)
 	}
 
@@ -322,8 +323,11 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 	newCond := condv1alpha1.Failed(msg)
 	oldCond := discoveryRule.GetCondition(condv1alpha1.ConditionTypeReady)
 
-	// always update on error since StartTime changes
-	_ = oldCond
+	// an unchanged failure must not rewrite status: the write re-triggers this reconcile
+	if newCond.Equal(oldCond) {
+		log.Info("handleError -> no change")
+		return nil
+	}
 
 	log.Error(msg)
 	r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg, "")
