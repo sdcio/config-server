@@ -34,19 +34,26 @@ type ConfigStoreHandler struct {
 	Client client.Client
 }
 
+// buildDryRunIntents builds the create/update intent from the spec, without the revertive flag.
+func buildDryRunIntents(c *config.Config) ([]*sdcpb.TransactionIntent, error) {
+	intent, err := config.BuildTransactionIntent(c, true)
+	if err != nil {
+		return nil, err
+	}
+	intent.NonRevertive = false
+	return []*sdcpb.TransactionIntent{intent}, nil
+}
+
 func (r *ConfigStoreHandler) DryRunCreateFn(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
 	c, target, err := r.prepareConfigAndTarget(ctx, obj)
 	if err != nil {
 		return obj, err
 	}
 
-	intent, err := config.BuildTransactionIntent(c, true)
+	intents, err := buildDryRunIntents(c)
 	if err != nil {
 		return nil, err
 	}
-	// dry run does not carry the revertive flag
-	intent.NonRevertive = false
-	intents := []*sdcpb.TransactionIntent{intent}
 
 	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }
@@ -56,13 +63,10 @@ func (r *ConfigStoreHandler) DryRunUpdateFn(ctx context.Context, key types.Names
 		return obj, err
 	}
 
-	intent, err := config.BuildTransactionIntent(c, true)
+	intents, err := buildDryRunIntents(c)
 	if err != nil {
 		return nil, err
 	}
-	// dry run does not carry the revertive flag
-	intent.NonRevertive = false
-	intents := []*sdcpb.TransactionIntent{intent}
 
 	return targetmanager.RunDryRunTransaction(ctx, c, target, intents, dryrun)
 }

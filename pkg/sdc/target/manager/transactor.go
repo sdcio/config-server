@@ -119,13 +119,9 @@ func (r *Transactor) recoverIntents(
 		return "", nil
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
-	for _, cfg := range configs {
-		intent, err := config.BuildTransactionIntent(cfg, false)
-		if err != nil {
-			return "", err
-		}
-		intents = append(intents, intent)
+	intents, err := buildRecoveryIntents(configs)
+	if err != nil {
+		return "", err
 	}
 
 	log.Debug("device intent recovery")
@@ -137,6 +133,20 @@ func (r *Transactor) recoverIntents(
 		Timeout:       ptr.To(int32(120)),
 		Intents:       intents,
 	})
+}
+
+// buildRecoveryIntents builds one intent per config from its applied config, so
+// unapplied spec edits are not sent.
+func buildRecoveryIntents(configs []*config.Config) ([]*sdcpb.TransactionIntent, error) {
+	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
+	for _, cfg := range configs {
+		intent, err := config.BuildTransactionIntent(cfg, false)
+		if err != nil {
+			return nil, err
+		}
+		intents = append(intents, intent)
+	}
+	return intents, nil
 }
 
 func (r *Transactor) TransactionSet(
@@ -270,6 +280,17 @@ func (r *Transactor) Transact(
 	return false, nil
 }
 
+// buildDeleteIntent removes the intent itself; it carries no priority and no deletes,
+// so only the intent's own markers go away.
+func buildDeleteIntent(cfg *config.Config) *sdcpb.TransactionIntent {
+	return &sdcpb.TransactionIntent{
+		Intent:              config.GetGVKNSN(cfg),
+		Delete:              true,
+		DeleteIgnoreNoExist: true,
+		Orphan:              cfg.Orphan(),
+	}
+}
+
 func (r *Transactor) setIntents(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
@@ -298,13 +319,7 @@ func (r *Transactor) setIntents(
 	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		log.Info("Transaction intent delete", "config", key, "revertive", cfg.IsRevertive())
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:              config.GetGVKNSN(cfg),
-			Delete:              true,
-			DeleteIgnoreNoExist: true,
-			Orphan:              cfg.Orphan(),
-			// Dont set priority, dont set non revertive
-		})
+		intents = append(intents, buildDeleteIntent(cfg))
 	}
 
 	log.Info("Transaction",
