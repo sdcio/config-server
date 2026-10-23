@@ -43,6 +43,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlob":                        schema_config_server_apis_config_v1alpha1_ConfigBlob(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigDeviation":                   schema_config_server_apis_config_v1alpha1_ConfigDeviation(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigList":                        schema_config_server_apis_config_v1alpha1_ConfigList(ref),
+		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigParked":                      schema_config_server_apis_config_v1alpha1_ConfigParked(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet":                         schema_config_server_apis_config_v1alpha1_ConfigSet(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetList":                     schema_config_server_apis_config_v1alpha1_ConfigSetList(ref),
 		"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetSpec":                     schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref),
@@ -851,6 +852,33 @@ func schema_config_server_apis_config_v1alpha1_ConfigList(ref common.ReferenceCa
 	}
 }
 
+func schema_config_server_apis_config_v1alpha1_ConfigParked(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigParked records the spec a non-recoverable failure was observed for.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"specHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SpecHash identifies the spec that failed; the config is retried once its spec differs.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"attempts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Attempts counts consecutive failed tries for SpecHash and drives the retry backoff.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1262,11 +1290,17 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Format:      "int64",
 						},
 					},
+					"parked": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Parked is set while a non-recoverable failure keeps the config from being retried until its spec changes or a wake-up trigger fires.",
+							Ref:         ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigParked"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"},
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigParked", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"},
 	}
 }
 

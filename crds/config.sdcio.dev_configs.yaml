@@ -203,6 +203,21 @@ spec:
                     description: Schema Version
                     type: string
                 type: object
+              parked:
+                description: |-
+                  Parked is set while a non-recoverable failure keeps the config from being retried
+                  until its spec changes or a wake-up trigger fires.
+                properties:
+                  attempts:
+                    description: Attempts counts consecutive failed tries for SpecHash
+                      and drives the retry backoff.
+                    format: int32
+                    type: integer
+                  specHash:
+                    description: SpecHash identifies the spec that failed; the config
+                      is retried once its spec differs.
+                    type: string
+                type: object
             type: object
         type: object
     served: true
@@ -404,6 +419,21 @@ spec:
                     type: string
                   version:
                     description: Schema Version
+                    type: string
+                type: object
+              parked:
+                description: |-
+                  Parked is set while a non-recoverable failure keeps the config from being retried
+                  until its spec changes or a wake-up trigger fires.
+                properties:
+                  attempts:
+                    description: Attempts counts consecutive failed tries for SpecHash
+                      and drives the retry backoff.
+                    format: int32
+                    type: integer
+                  specHash:
+                    description: SpecHash identifies the spec that failed; the config
+                      is retried once its spec differs.
                     type: string
                 type: object
             type: object

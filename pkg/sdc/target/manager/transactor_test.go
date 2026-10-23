@@ -18,7 +18,6 @@ package targetmanager
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -58,14 +57,8 @@ func newConfigWithPriorSuccess(name string) *configv1alpha1.Config {
 func TestUpdateConfigWithError_NonRecoverable_StampsConfigReadyAndOverallFalse(t *testing.T) {
 	current := newConfigWithPriorSuccess("cfg-nonrecoverable")
 
-	newMessage := condv1alpha1.UnrecoverableMessage{
-		ResourceVersion: current.GetResourceVersion(),
-		Message:         "apply failed: malformed intent",
-	}
-	raw, err := json.Marshal(newMessage)
-	require.NoError(t, err)
-
-	newConfigCond := configv1alpha1.ConfigFailedUnrecoverable(string(raw))
+	parked := nextParked(context.Background(), current)
+	newConfigCond := configv1alpha1.ConfigFailedUnrecoverable("apply failed: malformed intent")
 
 	// Same Type as ConfigFailed/ConfigReady: this is what makes SetConditions
 	// below overwrite the real ConfigReady slot instead of colliding with the
@@ -102,14 +95,19 @@ func TestUpdateConfigWithError_NonRecoverable_StampsConfigReadyAndOverallFalse(t
 	// contract this bug fix is supposed to restore.
 	final := current.DeepCopy()
 	final.SetConditions(deduped...)
+	final.Status.Parked = parked
 
 	internalCfg := toInternalConfig(t, final)
 	ctx := context.Background()
-	assert.False(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must report false immediately after (same ResourceVersion)")
+	assert.False(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must report false immediately after (same spec)")
 
-	// Simulate a spec edit bumping ResourceVersion: IsRecoverable should flip back to true.
+	// A status write bumps ResourceVersion: the parked record must stay valid.
 	internalCfg.ResourceVersion = "11"
-	assert.True(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must flip back to true once ResourceVersion changes (spec edit)")
+	assert.False(t, internalCfg.IsRecoverable(ctx), "parked record must survive a ResourceVersion bump")
+
+	// A spec edit invalidates the parked record.
+	internalCfg.Spec.Priority = 99
+	assert.True(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must flip back to true once the spec changes")
 }
 
 func TestUpdateConfigWithError_Recoverable_UnchangedBehavior(t *testing.T) {

@@ -43,6 +43,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.ConfigBlobApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigDeviation"):
 		return &configv1alpha1.ConfigDeviationApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConfigParked"):
+		return &configv1alpha1.ConfigParkedApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSet"):
 		return &configv1alpha1.ConfigSetApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigSetSpec"):

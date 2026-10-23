@@ -56,6 +56,17 @@ type ConfigStatus struct {
 	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
 	// Deviations generation used for the latest config apply
 	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
+	// Parked is set while a non-recoverable failure keeps the config from being retried
+	// until its spec changes or a wake-up trigger fires.
+	Parked *ConfigParked `json:"parked,omitempty" protobuf:"bytes,5,opt,name=parked"`
+}
+
+// ConfigParked records the spec a non-recoverable failure was observed for.
+type ConfigParked struct {
+	// SpecHash identifies the spec that failed; the config is retried once its spec differs.
+	SpecHash string `json:"specHash,omitempty" protobuf:"bytes,1,opt,name=specHash"`
+	// Attempts counts consecutive failed tries for SpecHash and drives the retry backoff.
+	Attempts int32 `json:"attempts,omitempty" protobuf:"varint,2,opt,name=attempts"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {

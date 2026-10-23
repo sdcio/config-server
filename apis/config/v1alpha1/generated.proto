@@ -128,6 +128,15 @@ message ConfigList {
   repeated Config items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
+// ConfigParked records the spec a non-recoverable failure was observed for.
+message ConfigParked {
+  // SpecHash identifies the spec that failed; the config is retried once its spec differs.
+  optional string specHash = 1 [(gogoproto.customname) = "SpecHash", (gogoproto.nullable) = false];
+
+  // Attempts counts consecutive failed tries for SpecHash and drives the retry backoff.
+  optional int32 attempts = 2 [(gogoproto.customname) = "Attempts", (gogoproto.nullable) = false];
+}
+
 // ConfigSet is the Schema for the ConfigSet API
 message ConfigSet {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
@@ -222,6 +231,10 @@ message ConfigStatus {
 
   // Deviations generation used for the latest config apply
   optional int64 deviationGeneration = 4 [(gogoproto.customname) = "DeviationGeneration"];
+
+  // Parked is set while a non-recoverable failure keeps the config from being retried
+  // until its spec changes or a wake-up trigger fires.
+  optional ConfigParked parked = 5 [(gogoproto.customname) = "Parked"];
 }
 
 message ConfigStatusLastKnownGoodSchema {

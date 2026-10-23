@@ -24,7 +24,7 @@ import (
 )
 
 func TestConfigFailedUnrecoverable(t *testing.T) {
-	const msg = `{"resourceVersion":"42","message":"boom"}`
+	const msg = "boom"
 
 	cond := ConfigFailedUnrecoverable(msg)
 

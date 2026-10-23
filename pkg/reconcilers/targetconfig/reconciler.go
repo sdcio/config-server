@@ -33,6 +33,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
@@ -102,7 +103,26 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		}).
 		For(&configv1alpha1.Target{}).
 		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Deviation{}, &eventhandler.DeviationForTargetEventHandler{
+			Client:         mgr.GetClient(),
+			ControllerName: reconcilerName,
+			OnSpecChange:   r.wakeParkedOnDeviation,
+		}).
 		Complete(r)
+}
+
+// wakeParkedOnDeviation retries every parked Config of the target after the
+// data-server reports a deviation spec change.
+func (r *reconciler) wakeParkedOnDeviation(ctx context.Context, key types.NamespacedName) {
+	log := log.FromContext(ctx)
+	target := &configv1alpha1.Target{}
+	if err := r.client.Get(ctx, key, target); err != nil {
+		log.Warn("cannot get target to wake parked configs", "target", key, "err", err)
+		return
+	}
+	if _, err := r.transactor.WakeParkedConfigs(ctx, target, true, "deviation changed"); err != nil {
+		log.Warn("cannot wake parked configs", "target", key, "err", err)
+	}
 }
 
 type reconciler struct {
@@ -214,6 +234,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
 	}
 
+	// parked Configs are retried on a backoff timer; next is when the following one is due
+	nextParked, err := r.transactor.WakeParkedConfigs(ctx, targetOrig, false, "retry timer")
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "cannot wake parked configs", err), errUpdateStatus)
+	}
+
 	retry, err := r.transactor.Transact(ctx, targetOrig, dsctx, configv1alpha1.TargetForConfigReady("target ready"))
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
@@ -253,7 +279,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	); err != nil {
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 	}
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{RequeueAfter: nextParked}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target) error {
