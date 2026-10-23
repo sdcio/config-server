@@ -357,6 +357,9 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *configv1alpha1.T
 func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *configv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *configv1alpha1.TargetStatusUsedReferences, error) {
 	usedReferences := &configv1alpha1.TargetStatusUsedReferences{}
 
+	if target.Spec.SyncProfile == nil {
+		return nil, nil, fmt.Errorf("target %s has no syncProfile", target.GetName())
+	}
 	syncProfile, err := r.getSyncProfile(ctx, types.NamespacedName{Namespace: target.GetNamespace(), Name: *target.Spec.SyncProfile})
 	if err != nil {
 		return nil, nil, err

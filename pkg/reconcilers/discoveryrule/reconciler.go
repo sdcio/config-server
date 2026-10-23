@@ -261,10 +261,20 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 		if newDRConfig.TargetConnectionProfiles[i].SecretResourceVersion != currentDRConfig.TargetConnectionProfiles[i].SecretResourceVersion {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Connectionprofile.Generation {
+		newConn := newDRConfig.TargetConnectionProfiles[i].Connectionprofile
+		curConn := currentDRConfig.TargetConnectionProfiles[i].Connectionprofile
+		if (newConn == nil) != (curConn == nil) {
 			return true
 		}
-		if newDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation != currentDRConfig.TargetConnectionProfiles[i].Syncprofile.Generation {
+		if newConn != nil && newConn.Generation != curConn.Generation {
+			return true
+		}
+		newSync := newDRConfig.TargetConnectionProfiles[i].Syncprofile
+		curSync := currentDRConfig.TargetConnectionProfiles[i].Syncprofile
+		if (newSync == nil) != (curSync == nil) {
+			return true
+		}
+		if newSync != nil && newSync.Generation != curSync.Generation {
 			return true
 		}
 	}
