@@ -298,6 +298,6 @@ func validateConfigSetSpec(cs *ConfigSet) field.ErrorList {
 	if _, err := metav1.LabelSelectorAsSelector(cs.Spec.Target.TargetSelector); err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "target", "targetSelector"), cs.Spec.Target.TargetSelector, err.Error()))
 	}
-	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), cs.Spec.Config, cs.Spec.DeletePaths)...)
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), len(cs.Spec.Config), cs.Spec.DeletePaths)...)
 	return allErrs
 }

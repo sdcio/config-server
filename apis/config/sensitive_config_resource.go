@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
@@ -289,12 +290,27 @@ func (r *SensitiveConfig) PrepareForUpdate(ctx context.Context, obj, old runtime
 
 func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	allErrs := ValidateTargetKey(obj)
-	if obj.(*Config).Spec.Priority < 2 {
+	newobj := obj.(*SensitiveConfig)
+	if newobj.Spec.Priority < 2 {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "priority"), obj, "priority should be bigger 2"))
 	}
+	allErrs = append(allErrs, validateSensitiveIntent(newobj)...)
 	return allErrs
 }
 
 func (r *SensitiveConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	return ValidateTargetKeyUpdate(obj, old)
+	allErrs := ValidateTargetKeyUpdate(obj, old)
+	allErrs = append(allErrs, validateSensitiveIntent(obj.(*SensitiveConfig))...)
+	return allErrs
+}
+
+// validateSensitiveIntent applies the content rules and, for a sweeper, requires the
+// 64-bit priority to fit the data-server's 32-bit priority.
+func validateSensitiveIntent(c *SensitiveConfig) field.ErrorList {
+	allErrs := validateIntentContent(field.NewPath("spec"), len(c.Spec.Config), c.Spec.DeletePaths)
+	if len(c.Spec.DeletePaths) > 0 && (c.Spec.Priority > math.MaxInt32 || c.Spec.Priority < math.MinInt32) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "priority"), c.Spec.Priority,
+			"priority of a sweeper must fit in 32 bits"))
+	}
+	return allErrs
 }

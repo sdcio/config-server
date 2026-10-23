@@ -292,6 +292,11 @@ message SensitiveConfigSpec {
   // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
   // +listType=atomic
   repeated SensitiveConfigData config = 4;
+
+  // DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+  // and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+  // +listType=atomic
+  repeated string deletePaths = 5;
 }
 
 // SensitiveConfigStatus defines the observed state of SensitiveConfig
