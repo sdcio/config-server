@@ -352,9 +352,22 @@ func (m *DSConnManager) broadcast(ev Event) {
 	defer m.subsMu.RUnlock()
 
 	for ch := range m.subs {
-		// Non-blocking fan-out: drop if subscriber is slow.
+		sendLatest(ch, ev)
+	}
+}
+
+// sendLatest delivers ev without blocking. When the subscriber's buffer is
+// full the oldest queued event is discarded, so the newest transition is always
+// delivered and a slow consumer still ends on the current state.
+func sendLatest(ch chan Event, ev Event) {
+	for {
 		select {
 		case ch <- ev:
+			return
+		default:
+		}
+		select {
+		case <-ch:
 		default:
 		}
 	}
