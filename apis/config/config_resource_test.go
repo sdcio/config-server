@@ -66,3 +66,50 @@ func TestConfigAdmission(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigSetAdmission(t *testing.T) {
+	blob := []ConfigBlob{{Path: "/a", Value: runtime.RawExtension{Raw: []byte(`{}`)}}}
+	tests := []struct {
+		name    string
+		spec    ConfigSetSpec
+		wantErr string
+	}{
+		{"content", ConfigSetSpec{Config: blob}, ""},
+		{"sweeper", ConfigSetSpec{DeletePaths: []string{"/"}}, ""},
+		{"both", ConfigSetSpec{Config: blob, DeletePaths: []string{"/a"}}, "spec.deletePaths"},
+		{"neither", ConfigSetSpec{}, "spec.config"},
+		{"bad path", ConfigSetSpec{DeletePaths: []string{"/ok", "/a/[b"}}, "spec.deletePaths[1]"},
+	}
+	for _, tt := range tests {
+		mk := func() *ConfigSet {
+			s := tt.spec
+			s.Priority = 10
+			return &ConfigSet{Spec: s}
+		}
+		for _, op := range []string{"create", "update"} {
+			t.Run(op+"/"+tt.name, func(t *testing.T) {
+				cs := mk()
+				var joined string
+				var list []error
+				if op == "create" {
+					for _, e := range cs.ValidateCreate(context.Background(), cs) {
+						list = append(list, e)
+					}
+				} else {
+					for _, e := range cs.ValidateUpdate(context.Background(), cs, mk()) {
+						list = append(list, e)
+					}
+				}
+				for _, e := range list {
+					joined += e.Error() + ";"
+				}
+				if tt.wantErr == "" && joined != "" {
+					t.Fatalf("unexpected: %s", joined)
+				}
+				if tt.wantErr != "" && !strings.Contains(joined, tt.wantErr) {
+					t.Fatalf("%q does not mention %q", joined, tt.wantErr)
+				}
+			})
+		}
+	}
+}

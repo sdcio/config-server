@@ -294,8 +294,10 @@ func (r *ConfigSet) ValidateUpdate(ctx context.Context, obj, old runtime.Object)
 }
 
 func validateConfigSetSpec(cs *ConfigSet) field.ErrorList {
+	var allErrs field.ErrorList
 	if _, err := metav1.LabelSelectorAsSelector(cs.Spec.Target.TargetSelector); err != nil {
-		return field.ErrorList{field.Invalid(field.NewPath("spec", "target", "targetSelector"), cs.Spec.Target.TargetSelector, err.Error())}
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "target", "targetSelector"), cs.Spec.Target.TargetSelector, err.Error()))
 	}
-	return nil
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), cs.Spec.Config, cs.Spec.DeletePaths)...)
+	return allErrs
 }

@@ -103,6 +103,11 @@ message ConfigSetSpec {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
   repeated ConfigBlob config = 5;
+
+  // DeletePaths lists subtrees each generated Config deletes at its priority. Exactly one of
+  // config and deletePaths is set; a template carrying only deletePaths is a sweeper.
+  // +listType=atomic
+  repeated string deletePaths = 6;
 }
 
 // ConfigSetStatus defines the observed state of Config
