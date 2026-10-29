@@ -65,8 +65,22 @@ func runE(cmd *cobra.Command, args []string) error {
 		for _, gen := range generators {
 			// nolint:gosec
 			if gen == "openapi-gen" {
-				err := run(exec.Command("go", "install", "k8s.io/kube-openapi/cmd/openapi-gen@latest"))
+				// install openapi-gen pinned to the kube-openapi version in go.mod, into ./bin
+				out, err := exec.Command("go", "list", "-m", "-f",
+					"{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}",
+					"k8s.io/kube-openapi").Output()
 				if err != nil {
+					return fmt.Errorf("resolve kube-openapi version: %w", err)
+				}
+				ver := strings.TrimSpace(string(out))
+
+				wd, err := os.Getwd()
+				if err != nil {
+					return err
+				}
+				c := exec.Command("go", "install", "k8s.io/kube-openapi/cmd/openapi-gen@"+ver)
+				c.Env = append(os.Environ(), "GOBIN="+filepath.Join(wd, "bin"))
+				if err := run(c); err != nil {
 					return err
 				}
 			} else {
@@ -76,7 +90,32 @@ func runE(cmd *cobra.Command, args []string) error {
 				}
 			}
 			if gen == "go-to-protobuf" {
-				err := run(exec.Command("go", "mod", "vendor"))
+				// protoc needs protoc-gen-gogo on PATH; install it at the same
+				// code-generator version as go.mod. Using @version bypasses vendor/.
+				out, err := exec.Command("go", "list", "-mod=mod", "-m", "-f",
+					"{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}",
+					"k8s.io/code-generator").Output()
+				if err != nil {
+					return fmt.Errorf("resolve code-generator version: %w", err)
+				}
+				if err := run(exec.Command("go", "install",
+					"k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo@"+strings.TrimSpace(string(out)))); err != nil {
+					return err
+				}
+
+				// go-to-protobuf runs goimports on the generated files
+				out, err = exec.Command("go", "list", "-mod=mod", "-m", "-f",
+					"{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}",
+					"golang.org/x/tools").Output()
+				if err != nil {
+					return fmt.Errorf("resolve x/tools version: %w", err)
+				}
+				if err := run(exec.Command("go", "install",
+					"golang.org/x/tools/cmd/goimports@"+strings.TrimSpace(string(out)))); err != nil {
+					return err
+				}
+
+				err = run(exec.Command("go", "mod", "vendor"))
 				if err != nil {
 					return err
 				}
@@ -236,7 +275,13 @@ func doGen() error {
 		err := run(getProtoCmd(
 			"go-to-protobuf",
 			"--packages", strings.Join(protobufVersions, ","),
-			"--apimachinery-packages", "-k8s.io/apimachinery/pkg/api/resource,-k8s.io/apimachinery/pkg/runtime/schema,-k8s.io/apimachinery/pkg/runtime,-k8s.io/apimachinery/pkg/apis/meta/v1",
+			"--apimachinery-packages", strings.Join([]string{
+				"-k8s.io/apimachinery/pkg/api/resource",
+				"-k8s.io/apimachinery/pkg/runtime/schema",
+				"-k8s.io/apimachinery/pkg/runtime",
+				"-k8s.io/apimachinery/pkg/apis/meta/v1",
+				"-k8s.io/api/core/v1",
+			}, ","),
 			"--proto-import", "./vendor",
 		))
 		if err != nil {
@@ -338,8 +383,9 @@ func getCmd(cmd string, args ...string) *exec.Cmd {
 func getProtoCmd(cmd string, args ...string) *exec.Cmd {
 	// nolint:gosec
 	e := exec.Command(filepath.Join(bin, cmd), "--output-dir", output, "--go-header-file", header)
-
 	e.Args = append(e.Args, args...)
+	// go-to-protobuf runs protoc, which looks up protoc-gen-gogo on PATH
+	e.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return e
 }
 

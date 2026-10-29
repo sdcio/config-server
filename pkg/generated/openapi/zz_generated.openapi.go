@@ -587,13 +587,6 @@ func schema_config_server_apis_config_v1alpha1_Config(ref common.ReferenceCallba
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Config", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -638,13 +631,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigBlame(ref common.ReferenceC
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigBlameStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "ConfigBlame", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -889,13 +875,6 @@ func schema_config_server_apis_config_v1alpha1_ConfigSet(ref common.ReferenceCal
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSetStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "ConfigSet", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -1344,13 +1323,6 @@ func schema_config_server_apis_config_v1alpha1_Deviation(ref common.ReferenceCal
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Deviation", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.DeviationStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -1624,13 +1596,6 @@ func schema_config_server_apis_config_v1alpha1_RunningConfig(ref common.Referenc
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "RunningConfig", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.RunningConfigStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -1756,13 +1721,6 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfig(ref common.Refere
 							Default: map[string]interface{}{},
 							Ref:     ref("github.com/sdcio/config-server/apis/config/v1alpha1.SensitiveConfigStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "SensitiveConfig", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -2003,13 +1961,6 @@ func schema_config_server_apis_config_v1alpha1_Target(ref common.ReferenceCallba
 					},
 				},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "Target", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			"github.com/sdcio/config-server/apis/config/v1alpha1.TargetSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus", metav1.ObjectMeta{}.OpenAPIModelName()},
@@ -2052,13 +2003,6 @@ func schema_config_server_apis_config_v1alpha1_TargetClearDeviation(ref common.R
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("github.com/sdcio/config-server/apis/config/v1alpha1.TargetClearDeviationStatus"),
 						},
-					},
-				},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetClearDeviation", "version": "v1alpha1"},
 					},
 				},
 			},
@@ -2285,13 +2229,6 @@ func schema_config_server_apis_config_v1alpha1_TargetConfigBlame(ref common.Refe
 				},
 				Required: []string{"value"},
 			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetConfigBlame", "version": "v1alpha1"},
-					},
-				},
-			},
 		},
 		Dependencies: []string{
 			metav1.ObjectMeta{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
@@ -2381,15 +2318,15 @@ func schema_config_server_apis_config_v1alpha1_TargetRunningConfig(ref common.Re
 							Format:  "",
 						},
 					},
-				},
-				Required: []string{"value"},
-			},
-			VendorExtensible: spec.VendorExtensible{
-				Extensions: spec.Extensions{
-					"x-kubernetes-group-version-kind": []interface{}{
-						map[string]interface{}{"group": "config.sdcio.dev", "kind": "TargetRunningConfig", "version": "v1alpha1"},
+					"format": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
 					},
 				},
+				Required: []string{"value", "format"},
 			},
 		},
 		Dependencies: []string{
