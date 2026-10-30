@@ -65,20 +65,12 @@ genclients:
 		-g conversion-gen \
 		-g applyconfiguration-gen \
 		--module $(REPO)
-	$(MAKE) fix-openapi-gvk
 
 .PHONY: genproto
 genproto:
 	go run ./tools/apiserver-runtime-gen \
 		-g go-to-protobuf \
 		--module $(REPO) \
-
-.PHONY: fix-openapi-gvk
-fix-openapi-gvk:
-	go run ./tools/fix-openapi-gvk/main.go \
-  --file pkg/generated/openapi/zz_generated.openapi.go \
-	--group config.sdcio.dev \
-	--prefix config_server_apis_config_v1alpha1
 
 .PHONY: generate
 generate: controller-gen 
