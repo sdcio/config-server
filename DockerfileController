@@ -31,6 +31,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 COPY cmd/ cmd/
 COPY apis/ apis/
 COPY pkg/ pkg/
+COPY internal/ internal/
+
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
