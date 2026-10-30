@@ -40,11 +40,11 @@ type TargetRunningConfigOptions struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// Path filters the running config to a subtree
-	Path string `json:"path,omitempty"`
+	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
 	// Format controls output format (json, json_ietf, xml, proto)
 	// +kubebuilder:validation:Enum=json;json_ietf;xml;proto
 	// +kubebuilder:default=json
-	Format string `json:"format,omitempty"`
+	Format string `json:"format,omitempty" protobuf:"bytes,2,opt,name=format"`
 }
 
 // Format defines the output encoding format for running config
