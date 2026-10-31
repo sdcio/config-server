@@ -1048,6 +1048,11 @@ func (in *TargetConnectionProfileSpec) DeepCopyInto(out *TargetConnectionProfile
 		*out = new(string)
 		**out = **in
 	}
+	if in.DeviceProfile != nil {
+		in, out := &in.DeviceProfile, &out.DeviceProfile
+		*out = new(DeviceProfile)
+		**out = **in
+	}
 	return
 }
 

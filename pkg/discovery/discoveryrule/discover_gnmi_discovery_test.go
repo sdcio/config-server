@@ -70,11 +70,10 @@ func TestParseDiscoveryInformation(t *testing.T) {
 			expectedResult: &configv1alpha1.DiscoveryInfo{
 				Protocol:           "gnmi",
 				Provider:           "iosxr.cisco.sdcio.dev",
-				Version:            "24.4.1.26I",
-				Hostname:           "edge02",
-				Platform:           "Cisco IOS-XRv 9000 Centralized Virtual Router",
-				MacAddress:         "02:42:0a:0a:14:65",
-				SerialNumber:       "VSN-NPP2G7K",
+				Version:            "7.10.1",
+				Hostname:           "ixr01",
+				Platform:           "Cisco 8201-32FH System",
+				SerialNumber:       "FOC2217DLEX",
 				SupportedEncodings: []string{"JSON_IETF", "ASCII", "PROTO"},
 			},
 		},
@@ -305,14 +304,14 @@ func getCiscoResponse() *gnmi.GetResponse {
 			{
 				Update: []*gnmi.Update{
 					{
-						Path: &gnmi.Path{Origin: "openconfig-system",
+						Path: &gnmi.Path{Origin: "Cisco-IOS-XR-install-oper",
 							Elem: []*gnmi.PathElem{
-								{Name: "system"},
-								{Name: "state"},
-								{Name: "software-version"},
+								{Name: "install"},
+								{Name: "version"},
+								{Name: "label"},
 							}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_StringVal{StringVal: "24.4.1.26I"},
+							Value: &gnmi.TypedValue_StringVal{StringVal: "7.10.1"},
 						},
 					},
 				},
@@ -320,15 +319,14 @@ func getCiscoResponse() *gnmi.GetResponse {
 			{
 				Update: []*gnmi.Update{
 					{
-						Path: &gnmi.Path{Origin: "openconfig-platform",
+						Path: &gnmi.Path{Origin: "Cisco-IOS-XR-install-oper",
 							Elem: []*gnmi.PathElem{
-								{Name: "components"},
-								{Name: "component", Key: map[string]string{"name": "Rack 0"}},
-								{Name: "state"},
-								{Name: "part-no"},
+								{Name: "install"},
+								{Name: "version"},
+								{Name: "chassis-description"},
 							}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_StringVal{StringVal: "Cisco IOS-XRv 9000 Centralized Virtual Router"},
+							Value: &gnmi.TypedValue_StringVal{StringVal: "Cisco 8201-32FH System"},
 						},
 					},
 				},
@@ -336,14 +334,14 @@ func getCiscoResponse() *gnmi.GetResponse {
 			{
 				Update: []*gnmi.Update{
 					{
-						Path: &gnmi.Path{Origin: "openconfig-system",
+						Path: &gnmi.Path{Origin: "openconfig",
 							Elem: []*gnmi.PathElem{
 								{Name: "system"},
 								{Name: "state"},
 								{Name: "hostname"},
 							}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_StringVal{StringVal: "edge02"},
+							Value: &gnmi.TypedValue_StringVal{StringVal: "ixr01"},
 						},
 					},
 				},
@@ -351,7 +349,7 @@ func getCiscoResponse() *gnmi.GetResponse {
 			{
 				Update: []*gnmi.Update{
 					{
-						Path: &gnmi.Path{Origin: "openconfig-platform",
+						Path: &gnmi.Path{Origin: "openconfig",
 							Elem: []*gnmi.PathElem{
 								{Name: "components"},
 								{Name: "component", Key: map[string]string{"name": "Rack 0"}},
@@ -359,24 +357,7 @@ func getCiscoResponse() *gnmi.GetResponse {
 								{Name: "serial-no"},
 							}},
 						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_StringVal{StringVal: "VSN-NPP2G7K"},
-						},
-					},
-				},
-			},
-			{
-				Update: []*gnmi.Update{
-					{
-						Path: &gnmi.Path{Origin: "openconfig-interfaces",
-							Elem: []*gnmi.PathElem{
-								{Name: "interfaces"},
-								{Name: "interface", Key: map[string]string{"name": "MgmtEth0/RP0/CPU0/0"}},
-								{Name: "openconfig-if-ethernet:ethernet"},
-								{Name: "state"},
-								{Name: "mac-address"},
-							}},
-						Val: &gnmi.TypedValue{
-							Value: &gnmi.TypedValue_StringVal{StringVal: "02:42:0a:0a:14:65"},
+							Value: &gnmi.TypedValue_StringVal{StringVal: "FOC2217DLEX"},
 						},
 					},
 				},

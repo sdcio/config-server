@@ -1,0 +1,39 @@
+# translib (the sonic_yang gNMI northbound) registers one app per top-level
+# YANG module path prefix and hard-errors ("Path is empty") on a bare "/" Get
+# or Subscribe. Do NOT use a root path here — list one path per top-level
+# sonic_yang module container you intend to manage instead. Extend this list
+# for any additional modules in scope; there is no schema-driven "/" expansion
+# for this profile yet.
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: TargetSyncProfile
+metadata:
+  name: sonic-sync
+  namespace: default
+spec:
+  buffer: 0
+  workers: 10
+  validate: true
+  sync:
+  - name: sonic-srv6
+    protocol: gnmi
+    encoding: JSON_IETF
+    mode: onChange
+    paths:
+    - /SRV6_MY_LOCATORS
+    - /SRV6_MY_SIDS
+  - name: sonic-bgp
+    protocol: gnmi
+    encoding: JSON_IETF
+    mode: onChange
+    paths:
+    - /BGP_GLOBALS
+    - /BGP_NEIGHBOR
+    - /BGP_PEER_GROUP
+  - name: sonic-interface
+    protocol: gnmi
+    encoding: JSON_IETF
+    mode: onChange
+    paths:
+    - /PORT
+    - /INTERFACE
+    - /LOOPBACK_INTERFACE
