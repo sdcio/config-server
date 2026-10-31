@@ -1007,8 +1007,28 @@ func schema_config_server_apis_config_v1alpha1_ConfigSetSpec(ref common.Referenc
 							},
 						},
 					},
+					"deletePaths": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "DeletePaths lists subtrees each generated Config deletes at its priority. Exactly one of config and deletePaths is set; a template carrying only deletePaths is a sweeper.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"target", "config"},
+				Required: []string{"target"},
 			},
 		},
 		Dependencies: []string{
@@ -1205,8 +1225,27 @@ func schema_config_server_apis_config_v1alpha1_ConfigSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"deletePaths": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config and deletePaths is set; an intent carrying only deletePaths is a sweeper.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"config"},
 			},
 		},
 		Dependencies: []string{
@@ -1897,8 +1936,27 @@ func schema_config_server_apis_config_v1alpha1_SensitiveConfigSpec(ref common.Re
 							},
 						},
 					},
+					"deletePaths": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config and deletePaths is set; an intent carrying only deletePaths is a sweeper.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"config"},
 			},
 		},
 		Dependencies: []string{
