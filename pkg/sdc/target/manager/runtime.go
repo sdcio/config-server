@@ -83,6 +83,9 @@ type TargetRuntime struct {
 	// subscriptions
 	subscriptions *Subscriptions
 
+	subscriptionMu   sync.RWMutex
+	subscriptionPort uint32
+
 	// owned runtime components (only runtime starts/stops them)
 	watcher   *DeviationWatcher
 	collector *Collector
@@ -167,16 +170,20 @@ func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSch
 
 func (t *TargetRuntime) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
 	// update internal state
+	t.subscriptionMu.Lock()
+	t.subscriptionPort = sub.Spec.Port
+	t.subscriptionMu.Unlock()
 	t.ensureCollector()
+	portChanged := t.collector.GetPort() != uint(sub.Spec.Port)
 	t.collector.SetPort(uint(sub.Spec.Port))
 
 	if err := t.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}
 
-	// if runtime is running and collector not running -> start
-	st := t.Status()
-	if st.Phase == PhaseRunning && t.collector != nil && !t.collector.IsRunning() {
+	// start if the runtime is running; restart if the port changed, since the address is only set in Start
+	running := t.collector.IsRunning()
+	if (!running && t.Status().Phase == PhaseRunning) || (running && portChanged) {
 		req := t.getDesired()
 		if req != nil && req.Target != nil {
 			return t.collector.Start(ctx, req)
@@ -440,8 +447,11 @@ func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client, d
 		t.watcher = NewDeviationWatcher(t.key, t.client, cl)
 		t.watcher.Start(ctx)
 	}
-	if t.collector == nil {
-		t.collector = NewCollector(t.key, t.subscriptions)
+	if t.subscriptions.HasSubscriptions() {
+		t.ensureCollector()
+		if t.collector.IsRunning() {
+			return nil
+		}
 		if err := t.collector.Start(ctx, desired); err != nil {
 			return err
 		}
@@ -463,6 +473,10 @@ func (t *TargetRuntime) stopRuntime(ctx context.Context) {
 func (t *TargetRuntime) ensureCollector() {
 	if t.collector == nil {
 		t.collector = NewCollector(t.key, t.subscriptions)
+		t.subscriptionMu.RLock()
+		port := t.subscriptionPort
+		t.subscriptionMu.RUnlock()
+		t.collector.SetPort(uint(port))
 	}
 }
 
