@@ -1638,6 +1638,7 @@ func Convert_config_TargetList_To_v1alpha1_TargetList(in *config.TargetList, out
 func autoConvert_v1alpha1_TargetRunningConfig_To_config_TargetRunningConfig(in *TargetRunningConfig, out *config.TargetRunningConfig, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	out.Value = in.Value
+	out.Format = in.Format
 	return nil
 }
 
@@ -1649,6 +1650,7 @@ func Convert_v1alpha1_TargetRunningConfig_To_config_TargetRunningConfig(in *Targ
 func autoConvert_config_TargetRunningConfig_To_v1alpha1_TargetRunningConfig(in *config.TargetRunningConfig, out *TargetRunningConfig, s conversion.Scope) error {
 	out.ObjectMeta = in.ObjectMeta
 	out.Value = in.Value
+	out.Format = in.Format
 	return nil
 }
 
