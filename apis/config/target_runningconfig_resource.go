@@ -106,6 +106,6 @@ func (r *targetRunningConfigREST) Get(ctx context.Context, name string, options 
 			fmt.Errorf("expected *Target, got %T", obj))
 	}
 
-	return target.GetRunningConfig(ctx, opts)
+	return target.GetRunningConfig(ctx, opts, false)
 
 }

@@ -57,7 +57,6 @@ const (
 	Format_JSON_IETF TargetFormat = "json_ietf"
 	Format_XML       TargetFormat = "xml"
 	Format_PROTO     TargetFormat = "proto"
-	Format_XPATH     TargetFormat = "xpath"
 )
 
 var (

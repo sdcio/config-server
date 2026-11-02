@@ -20,20 +20,16 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 
-	//"time"
-
-	"github.com/go-logr/logr"
-	logf "github.com/henderiw/logger/log"
+	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	"github.com/sdcio/config-server/internal/verbosity"
+	"github.com/sdcio/config-server/pkg/keyring"
 	"github.com/sdcio/config-server/pkg/output/prometheusserver"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
@@ -41,15 +37,16 @@ import (
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -66,23 +63,18 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	verbosity.RegisterFlag()
-	flag.Parse()
-
-	logVerbosity := verbosity.FromArgs(os.Args[1:])
-	level := verbosity.LogLevel(logVerbosity)
-
-	l := logf.NewLogger(&logf.HandlerOptions{Name: "sdc-controller-logger", MinLevel: level, AddSource: false})
+	l := log.NewLogger(&log.HandlerOptions{Name: "sdc-controller-logger", AddSource: false})
 	slog.SetDefault(l)
-	ctx := logf.IntoContext(context.Background(), l)
-	log := logf.FromContext(ctx)
+	ctx := log.IntoContext(context.Background(), l)
+	log := log.FromContext(ctx)
 
-	// controller-runtime logs through logr and client-go through klog, so give
-	// them the same handler.
-	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
-	klog.SetSlogLogger(l)
+	opts := zap.Options{
+		TimeEncoder: zapcore.RFC3339NanoTimeEncoder,
+	}
 
-	log.Info("controller bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	log.Info("controller bootstrap", "version", version, "commit", commit)
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
@@ -116,6 +108,9 @@ func main() {
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
 		Metrics: metricsServerOptions,
+		//LeaderElection:         true,
+		//LeaderElectionID:       "sdc-controller.config.sdcio.dev",
+		//LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
@@ -172,6 +167,21 @@ func main() {
 			}
 		}()
 	}
+
+	// ── KeyRing ───────────────────────────────────────────────────────────────
+	// Loaded from a projected Secret volume, and optional here: whether a keyring
+	// is required depends on which reconcilers are enabled, and those reconcilers
+	// assert it themselves via ctrlCfg.RequireKeyRing during SetupWithManager.
+	//
+	// Load also registers keyring.FileWatcher on mgr, so rotation is picked up
+	// once mgr.Start runs — the watcher reloads this same *KeyRing in place and
+	// signals `rotation`, which the Resolver consumes with source.Channel.
+	kr, rotation, err := keyring.Load(ctx, mgr)
+	if err != nil {
+		log.Error("cannot load keyring", "err", err)
+		os.Exit(1)
+	}
+	ctrlCfg.SetKeyRing(kr, rotation)
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))

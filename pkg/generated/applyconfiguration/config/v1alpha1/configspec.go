@@ -31,6 +31,15 @@ type ConfigSpecApplyConfiguration struct {
 	Revertive *bool `json:"revertive,omitempty"`
 	// Config defines the configuration to be applied to a target device
 	Config []ConfigBlobApplyConfiguration `json:"config,omitempty"`
+	// Vars declares named variables referenced from Config blob values via the
+	// ${vars.<name>} placeholder. The controller resolves each variable and
+	// substitutes its value into the rendered configuration before it is sent to
+	// the target. Variables are the supported mechanism for injecting sensitive
+	// material: the referenced Secret value is resolved, encrypted into the
+	// SensitiveConfig payload, and every leaf it lands on is recorded as a
+	// sensitive path so the datastore redacts it in northbound responses.
+	// A Config with no variables is rendered verbatim.
+	Vars []ConfigVarApplyConfiguration `json:"vars,omitempty"`
 }
 
 // ConfigSpecApplyConfiguration constructs a declarative configuration of the ConfigSpec type for use with
@@ -72,6 +81,19 @@ func (b *ConfigSpecApplyConfiguration) WithConfig(values ...*ConfigBlobApplyConf
 			panic("nil value passed to WithConfig")
 		}
 		b.Config = append(b.Config, *values[i])
+	}
+	return b
+}
+
+// WithVars adds the given value to the Vars field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the Vars field.
+func (b *ConfigSpecApplyConfiguration) WithVars(values ...*ConfigVarApplyConfiguration) *ConfigSpecApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithVars")
+		}
+		b.Vars = append(b.Vars, *values[i])
 	}
 	return b
 }

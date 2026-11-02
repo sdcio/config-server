@@ -24,6 +24,7 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
+// +kubebuilder:skip
 
 // TargetRunningConfig is the Schema for the TargetRunning API
 type TargetRunningConfig struct {

@@ -25,28 +25,27 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/go-logr/logr"
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
-	logf "github.com/henderiw/logger/log"
+	"github.com/henderiw/logger/log"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	"github.com/sdcio/config-server/internal/verbosity"
 	"github.com/sdcio/config-server/pkg/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
 	"github.com/sdcio/config-server/pkg/registry/options"
 	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
 	"k8s.io/component-base/logs"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -62,22 +61,18 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	verbosity.RegisterFlag()
-
-	logVerbosity := verbosity.FromArgs(os.Args[1:])
-	level := verbosity.LogLevel(logVerbosity)
-
-	l := logf.NewLogger(&logf.HandlerOptions{Name: "sdc-api-server-logger", MinLevel: level, AddSource: false})
+	l := log.NewLogger(&log.HandlerOptions{Name: "sdc-api-server-logger", AddSource: false})
 	slog.SetDefault(l)
-	ctx := logf.IntoContext(context.Background(), l)
-	log := logf.FromContext(ctx)
+	ctx := log.IntoContext(context.Background(), l)
+	log := log.FromContext(ctx)
 
-	// controller-runtime logs through logr and the apiserver machinery through
-	// klog, so give them the same handler.
-	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
-	klog.SetSlogLogger(l)
+	opts := zap.Options{
+		TimeEncoder: zapcore.RFC3339NanoTimeEncoder,
+	}
 
-	log.Info("api-server bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	log.Info("api-server bootstrap", "version", version, "commit", commit)
 
 	// setup controllers
 	runScheme := runtime.NewScheme()
@@ -110,6 +105,9 @@ func main() {
 
 	mgr_options := ctrl.Options{
 		Scheme:  runScheme,
+		LeaderElection:         true,
+		LeaderElectionID:       "sdc-apiserver.config.sdcio.dev",
+		LeaderElectionNamespace: os.Getenv("POD_NAMESPACE"),
 		Metrics: metricsServerOptions,
 	}
 	if port := IsPProfEnabled(); port != nil {
@@ -155,19 +153,18 @@ func main() {
 
 	targetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTarget(), registryOptions)
 	configStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfig(), &configregistryOptions)
-	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), &configregistryOptions)
+	sensitiveconfigStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptySensitiveConfig(), registryOptions)
+	targetSnapshotStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyTargetSnapshot(), registryOptions)
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
 	// no storage required since the targetStore is acting as the storage for the running config resource
 	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
 		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
 	})
-	// no storage required since the targetStore is acting as the storage for the running config resource
+	// no storage required since the targetStore is acting as the storage for the configblame config resource
 	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
 		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
 	})
 
 	go func() {
@@ -180,6 +177,8 @@ func main() {
 			WithResourceAndHandler(&configv1alpha1.Config{}, configStorageProvider).
 			WithResourceAndHandler(&sdcconfig.SensitiveConfig{}, sensitiveconfigStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.SensitiveConfig{}, sensitiveconfigStorageProvider).
+			WithResourceAndHandler(&sdcconfig.TargetSnapshot{}, targetSnapshotStorageProvider).
+			WithResourceAndHandler(&configv1alpha1.TargetSnapshot{}, targetSnapshotStorageProvider).
 			WithResourceAndHandler(&sdcconfig.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).

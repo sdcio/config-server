@@ -57,8 +57,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.ConfigSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigStatus"):
 		return &configv1alpha1.ConfigStatusApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ConfigStatusLastKnownGoodSchema"):
-		return &configv1alpha1.ConfigStatusLastKnownGoodSchemaApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConfigVar"):
+		return &configv1alpha1.ConfigVarApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Deviation"):
 		return &configv1alpha1.DeviationApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("DeviationSpec"):
@@ -67,6 +67,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.DeviationStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("DiscoveryInfo"):
 		return &configv1alpha1.DiscoveryInfoApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("EncryptedPayload"):
+		return &configv1alpha1.EncryptedPayloadApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Lifecycle"):
 		return &configv1alpha1.LifecycleApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("RunningConfig"):
@@ -75,12 +77,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.RunningConfigStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfig"):
 		return &configv1alpha1.SensitiveConfigApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfigData"):
-		return &configv1alpha1.SensitiveConfigDataApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfigSpec"):
 		return &configv1alpha1.SensitiveConfigSpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfigStatus"):
-		return &configv1alpha1.SensitiveConfigStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Target"):
 		return &configv1alpha1.TargetApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("TargetSpec"):

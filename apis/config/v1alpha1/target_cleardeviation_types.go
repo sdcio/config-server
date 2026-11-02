@@ -46,7 +46,7 @@ type TargetClearDeviationStatus struct {
 
 type TargetClearDeviationConfigResult struct {
 	// Name of the config on which the paths should be cleared
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name" protobuf:"bytes,1,rep,name=paths"`
 	// Success indicates whether the clear deviation was successful
 	Success bool `json:"success" protobuf:"varint,2,opt,name=success"`
 	// Message provides detail on the outcome
