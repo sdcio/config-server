@@ -162,10 +162,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	msg, err := r.transactor.RecoverConfigs(ctx, target, dsctx)
 	if err != nil {
-		// This is bad since this means we cannot recover the applied config
-		// on a target. We set the target config status to Failed.
-		// Most likely a human intervention is needed
-		// recovery failed: keep retrying, nothing else re-triggers this reconciler
+		// The previously applied intents could not be replayed. The recovery
+		// condition and the Configs are marked Failed, and no Config change is
+		// transacted on this target until recovery succeeds. Retry periodically
+		// because nothing else re-triggers this reconciler.
 		return ctrl.Result{RequeueAfter: recoveryRetryInterval},
 			errors.Wrap(r.handleError(ctx, targetOrig, "setIntent failed", err), errUpdateStatus)
 	}
