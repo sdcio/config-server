@@ -55,6 +55,8 @@ func (*ConfigStatus) ProtoMessage() {}
 
 func (*ConfigStatusLastKnownGoodSchema) ProtoMessage() {}
 
+func (*ConfigVar) ProtoMessage() {}
+
 func (*Deviation) ProtoMessage() {}
 
 func (*DeviationList) ProtoMessage() {}
@@ -64,6 +66,8 @@ func (*DeviationSpec) ProtoMessage() {}
 func (*DeviationStatus) ProtoMessage() {}
 
 func (*DiscoveryInfo) ProtoMessage() {}
+
+func (*EncryptedPayload) ProtoMessage() {}
 
 func (*Lifecycle) ProtoMessage() {}
 
@@ -77,13 +81,9 @@ func (*RunningConfigStatus) ProtoMessage() {}
 
 func (*SensitiveConfig) ProtoMessage() {}
 
-func (*SensitiveConfigData) ProtoMessage() {}
-
 func (*SensitiveConfigList) ProtoMessage() {}
 
 func (*SensitiveConfigSpec) ProtoMessage() {}
-
-func (*SensitiveConfigStatus) ProtoMessage() {}
 
 func (*Target) ProtoMessage() {}
 
@@ -104,6 +104,16 @@ func (*TargetList) ProtoMessage() {}
 func (*TargetRunningConfig) ProtoMessage() {}
 
 func (*TargetRunningConfigOptions) ProtoMessage() {}
+
+func (*TargetSensitiveConfigBlame) ProtoMessage() {}
+
+func (*TargetSensitiveRunningConfig) ProtoMessage() {}
+
+func (*TargetSnapshot) ProtoMessage() {}
+
+func (*TargetSnapshotList) ProtoMessage() {}
+
+func (*TargetSnapshotSpec) ProtoMessage() {}
 
 func (*TargetSpec) ProtoMessage() {}
 

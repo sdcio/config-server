@@ -76,5 +76,5 @@ func (r *targetConfigBlameREST) Get(ctx context.Context, name string, options *m
 			fmt.Errorf("expected *Target, got %T", obj))
 	}
 
-	return target.GetConfigBlame(ctx)
+	return target.GetConfigBlame(ctx, false)
 }

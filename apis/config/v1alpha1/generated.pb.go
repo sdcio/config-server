@@ -22,7 +22,9 @@ import (
 	fmt "fmt"
 
 	io "io"
+	"sort"
 
+	v11 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	math_bits "math/bits"
@@ -64,6 +66,8 @@ func (m *ConfigStatus) Reset() { *m = ConfigStatus{} }
 
 func (m *ConfigStatusLastKnownGoodSchema) Reset() { *m = ConfigStatusLastKnownGoodSchema{} }
 
+func (m *ConfigVar) Reset() { *m = ConfigVar{} }
+
 func (m *Deviation) Reset() { *m = Deviation{} }
 
 func (m *DeviationList) Reset() { *m = DeviationList{} }
@@ -73,6 +77,8 @@ func (m *DeviationSpec) Reset() { *m = DeviationSpec{} }
 func (m *DeviationStatus) Reset() { *m = DeviationStatus{} }
 
 func (m *DiscoveryInfo) Reset() { *m = DiscoveryInfo{} }
+
+func (m *EncryptedPayload) Reset() { *m = EncryptedPayload{} }
 
 func (m *Lifecycle) Reset() { *m = Lifecycle{} }
 
@@ -86,13 +92,9 @@ func (m *RunningConfigStatus) Reset() { *m = RunningConfigStatus{} }
 
 func (m *SensitiveConfig) Reset() { *m = SensitiveConfig{} }
 
-func (m *SensitiveConfigData) Reset() { *m = SensitiveConfigData{} }
-
 func (m *SensitiveConfigList) Reset() { *m = SensitiveConfigList{} }
 
 func (m *SensitiveConfigSpec) Reset() { *m = SensitiveConfigSpec{} }
-
-func (m *SensitiveConfigStatus) Reset() { *m = SensitiveConfigStatus{} }
 
 func (m *Target) Reset() { *m = Target{} }
 
@@ -113,6 +115,16 @@ func (m *TargetList) Reset() { *m = TargetList{} }
 func (m *TargetRunningConfig) Reset() { *m = TargetRunningConfig{} }
 
 func (m *TargetRunningConfigOptions) Reset() { *m = TargetRunningConfigOptions{} }
+
+func (m *TargetSensitiveConfigBlame) Reset() { *m = TargetSensitiveConfigBlame{} }
+
+func (m *TargetSensitiveRunningConfig) Reset() { *m = TargetSensitiveRunningConfig{} }
+
+func (m *TargetSnapshot) Reset() { *m = TargetSnapshot{} }
+
+func (m *TargetSnapshotList) Reset() { *m = TargetSnapshotList{} }
+
+func (m *TargetSnapshotSpec) Reset() { *m = TargetSnapshotSpec{} }
 
 func (m *TargetSpec) Reset() { *m = TargetSpec{} }
 
@@ -773,6 +785,20 @@ func (m *ConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Vars) > 0 {
+		for iNdEx := len(m.Vars) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Vars[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
 	if len(m.Config) > 0 {
 		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -835,35 +861,6 @@ func (m *ConfigStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.DeviationGeneration != nil {
-		i = encodeVarintGenerated(dAtA, i, uint64(*m.DeviationGeneration))
-		i--
-		dAtA[i] = 0x20
-	}
-	if m.AppliedConfig != nil {
-		{
-			size, err := m.AppliedConfig.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	if m.LastKnownGoodSchema != nil {
-		{
-			size, err := m.LastKnownGoodSchema.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
 	{
 		size, err := m.ConditionedStatus.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -910,6 +907,46 @@ func (m *ConfigStatusLastKnownGoodSchema) MarshalToSizedBuffer(dAtA []byte) (int
 	i -= len(m.Type)
 	copy(dAtA[i:], m.Type)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Type)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ConfigVar) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ConfigVar) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ConfigVar) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.SecretRef != nil {
+		{
+			size, err := m.SecretRef.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -1159,6 +1196,46 @@ func (m *DiscoveryInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *EncryptedPayload) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *EncryptedPayload) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *EncryptedPayload) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Data != nil {
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
+		i = encodeVarintGenerated(dAtA, i, uint64(len(m.Data)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	i -= len(m.PlainHash)
+	copy(dAtA[i:], m.PlainHash)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.PlainHash)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.KeyID)
+	copy(dAtA[i:], m.KeyID)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.KeyID)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *Lifecycle) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1364,16 +1441,6 @@ func (m *SensitiveConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	var l int
 	_ = l
 	{
-		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x1a
-	{
 		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
@@ -1391,44 +1458,6 @@ func (m *SensitiveConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= size
 		i = encodeVarintGenerated(dAtA, i, uint64(size))
 	}
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SensitiveConfigData) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SensitiveConfigData) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SensitiveConfigData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	{
-		size, err := m.SecretKeyRef.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Path)
-	copy(dAtA[i:], m.Path)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -1501,20 +1530,54 @@ func (m *SensitiveConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Config) > 0 {
-		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Config[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
+	if len(m.SensitivePaths) > 0 {
+		for iNdEx := len(m.SensitivePaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SensitivePaths[iNdEx])
+			copy(dAtA[i:], m.SensitivePaths[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SensitivePaths[iNdEx])))
 			i--
-			dAtA[i] = 0x22
+			dAtA[i] = 0x42
 		}
 	}
+	{
+		size, err := m.Payload.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x3a
+	if len(m.SecretKeyHashes) > 0 {
+		keysForSecretKeyHashes := make([]string, 0, len(m.SecretKeyHashes))
+		for k := range m.SecretKeyHashes {
+			keysForSecretKeyHashes = append(keysForSecretKeyHashes, string(k))
+		}
+		sort.Strings(keysForSecretKeyHashes)
+		for iNdEx := len(keysForSecretKeyHashes) - 1; iNdEx >= 0; iNdEx-- {
+			v := m.SecretKeyHashes[string(keysForSecretKeyHashes[iNdEx])]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintGenerated(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(keysForSecretKeyHashes[iNdEx])
+			copy(dAtA[i:], keysForSecretKeyHashes[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForSecretKeyHashes[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	i -= len(m.ConfigHash)
+	copy(dAtA[i:], m.ConfigHash)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ConfigHash)))
+	i--
+	dAtA[i] = 0x2a
 	if m.Revertive != nil {
 		i--
 		if *m.Revertive {
@@ -1523,11 +1586,11 @@ func (m *SensitiveConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0
 		}
 		i--
-		dAtA[i] = 0x18
+		dAtA[i] = 0x20
 	}
 	i = encodeVarintGenerated(dAtA, i, uint64(m.Priority))
 	i--
-	dAtA[i] = 0x10
+	dAtA[i] = 0x18
 	if m.Lifecycle != nil {
 		{
 			size, err := m.Lifecycle.MarshalToSizedBuffer(dAtA[:i])
@@ -1538,70 +1601,11 @@ func (m *SensitiveConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintGenerated(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *SensitiveConfigStatus) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SensitiveConfigStatus) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SensitiveConfigStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.DeviationGeneration != nil {
-		i = encodeVarintGenerated(dAtA, i, uint64(*m.DeviationGeneration))
-		i--
-		dAtA[i] = 0x20
-	}
-	if m.AppliedSensitiveConfig != nil {
-		{
-			size, err := m.AppliedSensitiveConfig.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	if m.LastKnownGoodSchema != nil {
-		{
-			size, err := m.LastKnownGoodSchema.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
 		dAtA[i] = 0x12
 	}
-	{
-		size, err := m.ConditionedStatus.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
+	i = encodeVarintGenerated(dAtA, i, uint64(m.Generation))
 	i--
-	dAtA[i] = 0xa
+	dAtA[i] = 0x8
 	return len(dAtA) - i, nil
 }
 
@@ -2065,6 +2069,246 @@ func (m *TargetRunningConfigOptions) MarshalToSizedBuffer(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
+func (m *TargetSensitiveConfigBlame) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TargetSensitiveConfigBlame) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TargetSensitiveConfigBlame) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Value.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.ObjectMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *TargetSensitiveRunningConfig) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TargetSensitiveRunningConfig) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TargetSensitiveRunningConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Format)
+	copy(dAtA[i:], m.Format)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Format)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Value)
+	copy(dAtA[i:], m.Value)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.ObjectMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *TargetSnapshot) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TargetSnapshot) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TargetSnapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.ObjectMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *TargetSnapshotList) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TargetSnapshotList) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TargetSnapshotList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	{
+		size, err := m.ListMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *TargetSnapshotSpec) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TargetSnapshotSpec) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TargetSnapshotSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.LastKnownGoodSchema != nil {
+		{
+			size, err := m.LastKnownGoodSchema.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Configs) > 0 {
+		keysForConfigs := make([]string, 0, len(m.Configs))
+		for k := range m.Configs {
+			keysForConfigs = append(keysForConfigs, string(k))
+		}
+		sort.Strings(keysForConfigs)
+		for iNdEx := len(keysForConfigs) - 1; iNdEx >= 0; iNdEx-- {
+			v := m.Configs[string(keysForConfigs[iNdEx])]
+			baseI := i
+			{
+				size, err := (&v).MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+			i -= len(keysForConfigs[iNdEx])
+			copy(dAtA[i:], keysForConfigs[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForConfigs[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *TargetSpec) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2457,6 +2701,12 @@ func (m *ConfigSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if len(m.Vars) > 0 {
+		for _, e := range m.Vars {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -2468,17 +2718,6 @@ func (m *ConfigStatus) Size() (n int) {
 	_ = l
 	l = m.ConditionedStatus.Size()
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.LastKnownGoodSchema != nil {
-		l = m.LastKnownGoodSchema.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.AppliedConfig != nil {
-		l = m.AppliedConfig.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.DeviationGeneration != nil {
-		n += 1 + sovGenerated(uint64(*m.DeviationGeneration))
-	}
 	return n
 }
 
@@ -2494,6 +2733,21 @@ func (m *ConfigStatusLastKnownGoodSchema) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Version)
 	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *ConfigVar) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.SecretRef != nil {
+		l = m.SecretRef.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -2588,6 +2842,23 @@ func (m *DiscoveryInfo) Size() (n int) {
 	return n
 }
 
+func (m *EncryptedPayload) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.KeyID)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.PlainHash)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.Data != nil {
+		l = len(m.Data)
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
 func (m *Lifecycle) Size() (n int) {
 	if m == nil {
 		return 0
@@ -2661,21 +2932,6 @@ func (m *SensitiveConfig) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = m.Spec.Size()
 	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Status.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	return n
-}
-
-func (m *SensitiveConfigData) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Path)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = m.SecretKeyRef.Size()
-	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -2702,6 +2958,7 @@ func (m *SensitiveConfigSpec) Size() (n int) {
 	}
 	var l int
 	_ = l
+	n += 1 + sovGenerated(uint64(m.Generation))
 	if m.Lifecycle != nil {
 		l = m.Lifecycle.Size()
 		n += 1 + l + sovGenerated(uint64(l))
@@ -2710,33 +2967,23 @@ func (m *SensitiveConfigSpec) Size() (n int) {
 	if m.Revertive != nil {
 		n += 2
 	}
-	if len(m.Config) > 0 {
-		for _, e := range m.Config {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.ConfigHash)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.SecretKeyHashes) > 0 {
+		for k, v := range m.SecretKeyHashes {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
+			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
 		}
 	}
-	return n
-}
-
-func (m *SensitiveConfigStatus) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = m.ConditionedStatus.Size()
+	l = m.Payload.Size()
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.LastKnownGoodSchema != nil {
-		l = m.LastKnownGoodSchema.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.AppliedSensitiveConfig != nil {
-		l = m.AppliedSensitiveConfig.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.DeviationGeneration != nil {
-		n += 1 + sovGenerated(uint64(*m.DeviationGeneration))
+	if len(m.SensitivePaths) > 0 {
+		for _, s := range m.SensitivePaths {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
 	return n
 }
@@ -2911,6 +3158,86 @@ func (m *TargetRunningConfigOptions) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Format)
 	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *TargetSensitiveConfigBlame) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.ObjectMeta.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Value.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *TargetSensitiveRunningConfig) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.ObjectMeta.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Value)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Format)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *TargetSnapshot) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.ObjectMeta.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Spec.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *TargetSnapshotList) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.ListMeta.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *TargetSnapshotSpec) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Configs) > 0 {
+		for k, v := range m.Configs {
+			_ = k
+			_ = v
+			l = v.Size()
+			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + l + sovGenerated(uint64(l))
+			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
+		}
+	}
+	if m.LastKnownGoodSchema != nil {
+		l = m.LastKnownGoodSchema.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -3163,11 +3490,17 @@ func (this *ConfigSpec) String() string {
 		repeatedStringForConfig += strings.Replace(strings.Replace(f.String(), "ConfigBlob", "ConfigBlob", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForConfig += "}"
+	repeatedStringForVars := "[]ConfigVar{"
+	for _, f := range this.Vars {
+		repeatedStringForVars += strings.Replace(strings.Replace(f.String(), "ConfigVar", "ConfigVar", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForVars += "}"
 	s := strings.Join([]string{`&ConfigSpec{`,
 		`Lifecycle:` + strings.Replace(this.Lifecycle.String(), "Lifecycle", "Lifecycle", 1) + `,`,
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
 		`Config:` + repeatedStringForConfig + `,`,
+		`Vars:` + repeatedStringForVars + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3178,9 +3511,6 @@ func (this *ConfigStatus) String() string {
 	}
 	s := strings.Join([]string{`&ConfigStatus{`,
 		`ConditionedStatus:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ConditionedStatus), "ConditionedStatus", "v1alpha1.ConditionedStatus", 1), `&`, ``, 1) + `,`,
-		`LastKnownGoodSchema:` + strings.Replace(this.LastKnownGoodSchema.String(), "ConfigStatusLastKnownGoodSchema", "ConfigStatusLastKnownGoodSchema", 1) + `,`,
-		`AppliedConfig:` + strings.Replace(this.AppliedConfig.String(), "ConfigSpec", "ConfigSpec", 1) + `,`,
-		`DeviationGeneration:` + valueToStringGenerated(this.DeviationGeneration) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3193,6 +3523,17 @@ func (this *ConfigStatusLastKnownGoodSchema) String() string {
 		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
 		`Vendor:` + fmt.Sprintf("%v", this.Vendor) + `,`,
 		`Version:` + fmt.Sprintf("%v", this.Version) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ConfigVar) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ConfigVar{`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`SecretRef:` + strings.Replace(fmt.Sprintf("%v", this.SecretRef), "SecretKeySelector", "v11.SecretKeySelector", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3268,6 +3609,18 @@ func (this *DiscoveryInfo) String() string {
 	}, "")
 	return s
 }
+func (this *EncryptedPayload) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&EncryptedPayload{`,
+		`KeyID:` + fmt.Sprintf("%v", this.KeyID) + `,`,
+		`PlainHash:` + fmt.Sprintf("%v", this.PlainHash) + `,`,
+		`Data:` + valueToStringGenerated(this.Data) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func (this *Lifecycle) String() string {
 	if this == nil {
 		return "nil"
@@ -3332,18 +3685,6 @@ func (this *SensitiveConfig) String() string {
 	s := strings.Join([]string{`&SensitiveConfig{`,
 		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
 		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "SensitiveConfigSpec", "SensitiveConfigSpec", 1), `&`, ``, 1) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "SensitiveConfigStatus", "SensitiveConfigStatus", 1), `&`, ``, 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *SensitiveConfigData) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SensitiveConfigData{`,
-		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
-		`SecretKeyRef:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.SecretKeyRef), "SecretKeySelector", "v11.SecretKeySelector", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3368,29 +3709,25 @@ func (this *SensitiveConfigSpec) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForConfig := "[]SensitiveConfigData{"
-	for _, f := range this.Config {
-		repeatedStringForConfig += strings.Replace(strings.Replace(f.String(), "SensitiveConfigData", "SensitiveConfigData", 1), `&`, ``, 1) + ","
+	keysForSecretKeyHashes := make([]string, 0, len(this.SecretKeyHashes))
+	for k := range this.SecretKeyHashes {
+		keysForSecretKeyHashes = append(keysForSecretKeyHashes, k)
 	}
-	repeatedStringForConfig += "}"
+	sort.Strings(keysForSecretKeyHashes)
+	mapStringForSecretKeyHashes := "map[string]string{"
+	for _, k := range keysForSecretKeyHashes {
+		mapStringForSecretKeyHashes += fmt.Sprintf("%v: %v,", k, this.SecretKeyHashes[k])
+	}
+	mapStringForSecretKeyHashes += "}"
 	s := strings.Join([]string{`&SensitiveConfigSpec{`,
+		`Generation:` + fmt.Sprintf("%v", this.Generation) + `,`,
 		`Lifecycle:` + strings.Replace(this.Lifecycle.String(), "Lifecycle", "Lifecycle", 1) + `,`,
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
-		`Config:` + repeatedStringForConfig + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *SensitiveConfigStatus) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SensitiveConfigStatus{`,
-		`ConditionedStatus:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ConditionedStatus), "ConditionedStatus", "v1alpha1.ConditionedStatus", 1), `&`, ``, 1) + `,`,
-		`LastKnownGoodSchema:` + strings.Replace(this.LastKnownGoodSchema.String(), "ConfigStatusLastKnownGoodSchema", "ConfigStatusLastKnownGoodSchema", 1) + `,`,
-		`AppliedSensitiveConfig:` + strings.Replace(this.AppliedSensitiveConfig.String(), "SensitiveConfigSpec", "SensitiveConfigSpec", 1) + `,`,
-		`DeviationGeneration:` + valueToStringGenerated(this.DeviationGeneration) + `,`,
+		`ConfigHash:` + fmt.Sprintf("%v", this.ConfigHash) + `,`,
+		`SecretKeyHashes:` + mapStringForSecretKeyHashes + `,`,
+		`Payload:` + strings.Replace(strings.Replace(this.Payload.String(), "EncryptedPayload", "EncryptedPayload", 1), `&`, ``, 1) + `,`,
+		`SensitivePaths:` + fmt.Sprintf("%v", this.SensitivePaths) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3522,6 +3859,77 @@ func (this *TargetRunningConfigOptions) String() string {
 	s := strings.Join([]string{`&TargetRunningConfigOptions{`,
 		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
 		`Format:` + fmt.Sprintf("%v", this.Format) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TargetSensitiveConfigBlame) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&TargetSensitiveConfigBlame{`,
+		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
+		`Value:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Value), "RawExtension", "runtime.RawExtension", 1), `&`, ``, 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TargetSensitiveRunningConfig) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&TargetSensitiveRunningConfig{`,
+		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
+		`Value:` + fmt.Sprintf("%v", this.Value) + `,`,
+		`Format:` + fmt.Sprintf("%v", this.Format) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TargetSnapshot) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&TargetSnapshot{`,
+		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "TargetSnapshotSpec", "TargetSnapshotSpec", 1), `&`, ``, 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TargetSnapshotList) String() string {
+	if this == nil {
+		return "nil"
+	}
+	repeatedStringForItems := "[]TargetSnapshot{"
+	for _, f := range this.Items {
+		repeatedStringForItems += strings.Replace(strings.Replace(f.String(), "TargetSnapshot", "TargetSnapshot", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForItems += "}"
+	s := strings.Join([]string{`&TargetSnapshotList{`,
+		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
+		`Items:` + repeatedStringForItems + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *TargetSnapshotSpec) String() string {
+	if this == nil {
+		return "nil"
+	}
+	keysForConfigs := make([]string, 0, len(this.Configs))
+	for k := range this.Configs {
+		keysForConfigs = append(keysForConfigs, k)
+	}
+	sort.Strings(keysForConfigs)
+	mapStringForConfigs := "map[string]SensitiveConfigSpec{"
+	for _, k := range keysForConfigs {
+		mapStringForConfigs += fmt.Sprintf("%v: %v,", k, this.Configs[k])
+	}
+	mapStringForConfigs += "}"
+	s := strings.Join([]string{`&TargetSnapshotSpec{`,
+		`Configs:` + mapStringForConfigs + `,`,
+		`LastKnownGoodSchema:` + strings.Replace(this.LastKnownGoodSchema.String(), "ConfigStatusLastKnownGoodSchema", "ConfigStatusLastKnownGoodSchema", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -5447,6 +5855,40 @@ func (m *ConfigSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Vars", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Vars = append(m.Vars, ConfigVar{})
+			if err := m.Vars[len(m.Vars)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -5530,98 +5972,6 @@ func (m *ConfigStatus) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastKnownGoodSchema", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.LastKnownGoodSchema == nil {
-				m.LastKnownGoodSchema = &ConfigStatusLastKnownGoodSchema{}
-			}
-			if err := m.LastKnownGoodSchema.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppliedConfig", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.AppliedConfig == nil {
-				m.AppliedConfig = &ConfigSpec{}
-			}
-			if err := m.AppliedConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DeviationGeneration", wireType)
-			}
-			var v int64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.DeviationGeneration = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -5767,6 +6117,124 @@ func (m *ConfigStatusLastKnownGoodSchema) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Version = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ConfigVar) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ConfigVar: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ConfigVar: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecretRef", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SecretRef == nil {
+				m.SecretRef = &v11.SecretKeySelector{}
+			}
+			if err := m.SecretRef.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -6561,6 +7029,154 @@ func (m *DiscoveryInfo) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *EncryptedPayload) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: EncryptedPayload: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: EncryptedPayload: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field KeyID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.KeyID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PlainHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PlainHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
+			if m.Data == nil {
+				m.Data = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *Lifecycle) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -7137,154 +7753,6 @@ func (m *SensitiveConfig) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.Status.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *SensitiveConfigData) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: SensitiveConfigData: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SensitiveConfigData: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Path = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SecretKeyRef", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.SecretKeyRef.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -7453,6 +7921,25 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Generation", wireType)
+			}
+			m.Generation = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Generation |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Lifecycle", wireType)
 			}
@@ -7488,7 +7975,7 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Priority", wireType)
 			}
@@ -7507,7 +7994,7 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 3:
+		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Revertive", wireType)
 			}
@@ -7528,9 +8015,41 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.Revertive = &b
-		case 4:
+		case 5:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Config", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ConfigHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConfigHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SecretKeyHashes", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -7557,64 +8076,107 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Config = append(m.Config, SensitiveConfigData{})
-			if err := m.Config[len(m.Config)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
+			if m.SecretKeyHashes == nil {
+				m.SecretKeyHashes = make(map[string]string)
 			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowGenerated
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipGenerated(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.SecretKeyHashes[mapkey] = mapvalue
 			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *SensitiveConfigStatus) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: SensitiveConfigStatus: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SensitiveConfigStatus: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
+		case 7:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ConditionedStatus", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Payload", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -7641,15 +8203,15 @@ func (m *SensitiveConfigStatus) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.ConditionedStatus.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Payload.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 8:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastKnownGoodSchema", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SensitivePaths", wireType)
 			}
-			var msglen int
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowGenerated
@@ -7659,84 +8221,24 @@ func (m *SensitiveConfigStatus) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= int(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if msglen < 0 {
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthGenerated
 			}
-			postIndex := iNdEx + msglen
+			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.LastKnownGoodSchema == nil {
-				m.LastKnownGoodSchema = &ConfigStatusLastKnownGoodSchema{}
-			}
-			if err := m.LastKnownGoodSchema.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
+			m.SensitivePaths = append(m.SensitivePaths, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppliedSensitiveConfig", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.AppliedSensitiveConfig == nil {
-				m.AppliedSensitiveConfig = &SensitiveConfigSpec{}
-			}
-			if err := m.AppliedSensitiveConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DeviationGeneration", wireType)
-			}
-			var v int64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.DeviationGeneration = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -9078,6 +9580,717 @@ func (m *TargetRunningConfigOptions) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Format = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TargetSensitiveConfigBlame) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TargetSensitiveConfigBlame: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TargetSensitiveConfigBlame: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ObjectMeta", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ObjectMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Value.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TargetSensitiveRunningConfig) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TargetSensitiveRunningConfig: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TargetSensitiveRunningConfig: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ObjectMeta", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ObjectMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Value = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Format", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Format = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TargetSnapshot) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TargetSnapshot: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TargetSnapshot: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ObjectMeta", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ObjectMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Spec.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TargetSnapshotList) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TargetSnapshotList: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TargetSnapshotList: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ListMeta", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ListMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, TargetSnapshot{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TargetSnapshotSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TargetSnapshotSpec: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TargetSnapshotSpec: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Configs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Configs == nil {
+				m.Configs = make(map[string]SensitiveConfigSpec)
+			}
+			var mapkey string
+			mapvalue := &SensitiveConfigSpec{}
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowGenerated
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var mapmsglen int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapmsglen |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					if mapmsglen < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postmsgIndex := iNdEx + mapmsglen
+					if postmsgIndex < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postmsgIndex > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = &SensitiveConfigSpec{}
+					if err := mapvalue.Unmarshal(dAtA[iNdEx:postmsgIndex]); err != nil {
+						return err
+					}
+					iNdEx = postmsgIndex
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipGenerated(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Configs[mapkey] = *mapvalue
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastKnownGoodSchema", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LastKnownGoodSchema == nil {
+				m.LastKnownGoodSchema = &ConfigStatusLastKnownGoodSchema{}
+			}
+			if err := m.LastKnownGoodSchema.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -69,6 +69,7 @@ message ConfigBlob {
   optional string config = 1;
 
   // +kubebuilder:pruning:PreserveUnknownFields
+  // +structType=atomic
   optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
 }
 
@@ -172,6 +173,19 @@ message ConfigSpec {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
   repeated ConfigBlob config = 4;
+
+  // Vars declares named variables referenced from Config blob values via the
+  // ${vars.<name>} placeholder. The controller resolves each variable and
+  // substitutes its value into the rendered configuration before it is sent to
+  // the target. Variables are the supported mechanism for injecting sensitive
+  // material: the referenced Secret value is resolved, encrypted into the
+  // SensitiveConfig payload, and every leaf it lands on is recorded as a
+  // sensitive path so the datastore redacts it in northbound responses.
+  // A Config with no variables is rendered verbatim.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated ConfigVar vars = 5;
 }
 
 // ConfigStatus defines the observed state of Config
@@ -179,15 +193,6 @@ message ConfigStatus {
   // ConditionedStatus provides the status of the Readiness using conditions
   // if the condition is true the other attributes in the status are meaningful
   optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
-
-  // LastKnownGoodSchema identifies the last known good schema used to apply the config successfully
-  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2;
-
-  // AppliedConfig defines the config applied to the target
-  optional ConfigSpec appliedConfig = 3;
-
-  // Deviations generation used for the latest config apply
-  optional int64 deviationGeneration = 4;
 }
 
 message ConfigStatusLastKnownGoodSchema {
@@ -199,6 +204,25 @@ message ConfigStatusLastKnownGoodSchema {
 
   // Schema Version
   optional string version = 3;
+}
+
+// ConfigVar is a named variable referenced from Config blob values as
+// ${vars.<name>}. The name is the merge key for the Vars list and must be
+// unique within a single Config. Exactly one value source must be set; today
+// the only source is SecretRef.
+message ConfigVar {
+  // Name identifies the variable for reference as ${vars.<name>}.
+  // Must be unique within the Config's Vars list.
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.-]+$`
+  optional string name = 1;
+
+  // SecretRef resolves the variable's value from a key of a Secret in the
+  // same namespace as the Config. The resolved value is never stored in
+  // clear: it is encrypted into the SensitiveConfig payload, and the leaves
+  // it is substituted into are tracked as sensitive paths.
+  // +optional
+  optional .k8s.io.api.core.v1.SecretKeySelector secretRef = 2;
 }
 
 // Deviation is the Schema for the Deviation API
@@ -260,6 +284,21 @@ message DiscoveryInfo {
   repeated string supportedEncodings = 8;
 }
 
+// EncryptedPayload is the common encrypted structure used by both
+// SensitiveConfig and TargetSnapshot.
+message EncryptedPayload {
+  // KeyID identifies which key in the keyring was used for encryption.
+  // Used to detect key rotation without decryption.
+  optional string keyID = 1;
+
+  // PlainHash is a SHA-256 hash of the plaintext before encryption.
+  // Stored in clear for efficient change detection without decryption.
+  optional string plainHash = 2;
+
+  // Data contains the AES-GCM encrypted, JSON-marshaled payload.
+  optional bytes data = 3;
+}
+
 message Lifecycle {
   // DeletionPolicy specifies what will happen to the underlying resource
   // when this resource is deleted - either "delete" or "orphan" the
@@ -300,16 +339,6 @@ message SensitiveConfig {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional SensitiveConfigSpec spec = 2;
-
-  optional SensitiveConfigStatus status = 3;
-}
-
-message SensitiveConfigData {
-  // Path defines the path relative to which the value is applicable
-  optional string SensitiveConfig = 1;
-
-  // SecretKeyRef refers to a secret in the same namesapce as the config
-  optional .k8s.io.api.core.v1.SecretKeySelector secretKeyRef = 2;
 }
 
 // SensitiveConfigList contains a list of SensitiveConfigs
@@ -321,35 +350,36 @@ message SensitiveConfigList {
 
 // SensitiveConfigSpec defines the desired state of SensitiveConfig
 message SensitiveConfigSpec {
+  // Generation is the Config CR generation this was resolved from.
+  // Used during recovery to detect if the spec changed since last apply.
+  optional int64 generation = 1;
+
   // Lifecycle determines the lifecycle policies the resource e.g. delete is orphan or delete
   // will follow
-  optional Lifecycle lifecycle = 1;
+  optional Lifecycle lifecycle = 2;
 
   // Priority defines the priority of this SensitiveConfig
-  optional int64 priority = 2;
+  optional int64 priority = 3;
 
   // Revertive defines if this CR is enabled for revertive or non revertve operation
-  optional bool revertive = 3;
+  optional bool revertive = 4;
 
-  // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
-  // +listType=atomic
-  repeated SensitiveConfigData config = 4;
-}
+  // ConfigHash is SHA-256 of the original (unresolved) cfg.Spec.Config blobs.
+  optional string configHash = 5;
 
-// SensitiveConfigStatus defines the observed state of SensitiveConfig
-message SensitiveConfigStatus {
-  // ConditionedStatus provides the status of the Readiness using conditions
-  // if the condition is true the other attributes in the status are meaningful
-  optional .github.com.sdcio.config_server.apis.condition.v1alpha1.ConditionedStatus conditionedStatus = 1;
+  // SecretKeyHashes maps "secretName/keyName" → sha256(secret.Data[keyName]).
+  // Tracks only the specific key value — not the whole Secret object.
+  map<string, string> secretKeyHashes = 6;
 
-  // LastKnownGoodSchema identifies the last known good schema used to apply the SensitiveConfig successfully
-  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2;
+  // Payload contains the encrypted resolved []ConfigBlob.
+  // Plaintext is JSON-marshaled []ConfigBlob with all secret::name::key refs substituted.
+  optional EncryptedPayload payload = 7;
 
-  // AppliedSensitiveConfig defines the SensitiveConfig applied to the target
-  optional SensitiveConfigSpec appliedSensitiveConfig = 3;
-
-  // Deviations generation used for the latest SensitiveConfig apply
-  optional int64 deviationGeneration = 4;
+  // SensitivePaths holds keyless XPath strings (e.g. /interfaces/hash) for every
+  // leaf resolved from a secret. Passed to the dataserver as
+  // TransactionIntent.SensitivePaths so values are redacted northbound.
+  // Not secret: derivable from cfg.Spec.Config, stored in clear for transact-time use.
+  repeated string sensitivePaths = 8;
 }
 
 // Target is the Schema for the Target API
@@ -382,7 +412,7 @@ message TargetClearDeviationConfig {
 
 message TargetClearDeviationConfigResult {
   // Name of the config on which the paths should be cleared
-  optional string name = 1;
+  optional string paths = 1;
 
   // Success indicates whether the clear deviation was successful
   optional bool success = 2;
@@ -449,6 +479,49 @@ message TargetRunningConfigOptions {
   // +kubebuilder:validation:Enum=json;json_ietf;xml;proto
   // +kubebuilder:default=json
   optional string format = 2;
+}
+
+// TargetSensitiveConfigBlame is the Schema for the TargetSensitiveConfigBlame API
+message TargetSensitiveConfigBlame {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension value = 2;
+}
+
+// TargetSensitiveRunningConfig is the Schema for the TargetSensitiveRunningConfig API
+message TargetSensitiveRunningConfig {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional string value = 2;
+
+  optional string format = 3;
+}
+
+// TargetSnapshot defines the Schema for the SensitiveConfig API
+message TargetSnapshot {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional TargetSnapshotSpec spec = 2;
+}
+
+// SensitiveConfigList contains a list of SensitiveConfigs
+message TargetSnapshotList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated TargetSnapshot items = 2;
+}
+
+// SensitiveConfigSpec defines the desired state of SensitiveConfig
+message TargetSnapshotSpec {
+  // Configs maps Config name to the last successfully applied resolved state.
+  // Key is the Config CR name within the same namespace as the TargetSnapshot.
+  // Each entry is independently encrypted — change detection via Payload.PlainHash
+  // without decryption.
+  map<string, SensitiveConfigSpec> configs = 1;
+
+  // LastKnownGoodSchema identifies the last known good schema
+  optional ConfigStatusLastKnownGoodSchema lastKnownGoodSchema = 2;
 }
 
 // TargetSpec defines the desired state of Target

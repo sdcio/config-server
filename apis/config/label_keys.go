@@ -19,4 +19,11 @@ package config
 const (
 	TargetNameKey      = GroupName + "/" + "targetName"
 	TargetNamespaceKey = GroupName + "/" + "targetNamespace"
+	LabelKeyRingKey    = GroupName + "/" + "keyring"
+)
+
+const (
+    AnnotationConfigChanged  = GroupName + "/" + "change-config"
+    AnnotationSecretChanged  = GroupName + "/" + "change-secret"
+    AnnotationKeyringChanged = GroupName + "/" + "change-keyring"
 )
