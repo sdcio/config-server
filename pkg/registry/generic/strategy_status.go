@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
-	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
@@ -36,7 +35,7 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 )
 
-// NewStatusStrategy creates and returns a sttaus strategy instance
+// NewStatusStrategy creates and returns a status strategy instance
 func NewStatusStrategy(
 	obj resource.ObjectWithStatusSubResource,
 	typer runtime.ObjectTyper,
@@ -44,14 +43,19 @@ func NewStatusStrategy(
 	watcherManager watchermanager.WatcherManager,
 	opts *options.Options,
 ) *statusStrategy {
+	gr := obj.GetGroupVersionResource().GroupResource()
 	return &statusStrategy{
 		ObjectTyper:    typer,
 		NameGenerator:  names.SimpleNameGenerator,
-		gr:             obj.GetGroupVersionResource().GroupResource(),
+		gr:             gr,
 		obj:            obj,
 		storage:        storage,
 		watcherManager: watcherManager,
 		opts:           opts,
+		// the SAME allocator as the main strategy of this resource: a status
+		// update is a write to the same collection and must take the next
+		// collection-wide resourceVersion
+		rv: allocatorFor(gr),
 	}
 }
 
@@ -66,6 +70,7 @@ type statusStrategy struct {
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	opts           *options.Options
+	rv             *rvAllocator
 }
 
 func (r *statusStrategy) NamespaceScoped() bool { return r.obj.NamespaceScoped() }
@@ -91,7 +96,6 @@ func (r *statusStrategy) InvokeUpdate(ctx context.Context, obj, old runtime.Obje
 }
 
 func (r *statusStrategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-
 	if shouldLog(obj) {
 		logObject(ctx, "Update Status New", key, obj)
 		logObject(ctx, "Update Status Old", key, old)
@@ -106,18 +110,29 @@ func (r *statusStrategy) Update(ctx context.Context, key types.NamespacedName, o
 		return obj, nil
 	}
 
-	if err := utils.UpdateResourceVersion(obj, old); err != nil {
-		return obj, apierrors.NewInternalError(err)
-	}
-
-	if err := r.storage.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
-		return obj, apierrors.NewInternalError(err)
-	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Modified,
-		Object: obj,
+	r.rv.ensureInit(ctx, func(visit func(runtime.Object)) error {
+		return r.storage.List(ctx, func(_ context.Context, _ storebackend.Key, o runtime.Object) {
+			visit(o)
+		})
 	})
-	return obj, nil
+
+	// Same path as the main strategy: next collection-wide resourceVersion,
+	// persist, and publish the event under the allocator lock so status and
+	// spec events of this resource reach watchers in resourceVersion order.
+	// (A status update does not change the generation.)
+	err := r.rv.write(func(rv string) (*watch.Event, error) {
+		if err := setResourceVersion(obj, rv); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		if err := r.storage.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		return &watch.Event{Type: watch.Modified, Object: obj}, nil
+	}, func(event watch.Event) {
+		log.FromContext(ctx).With("eventType", event.Type).Debug("notify watcherManager")
+		r.watcherManager.WatchChan() <- event
+	})
+	return obj, err
 }
 
 func (r *statusStrategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
@@ -133,11 +148,4 @@ func (r *statusStrategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Se
 		),
 	}
 	return fields
-}
-
-func (r *statusStrategy) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Debug("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
 }
