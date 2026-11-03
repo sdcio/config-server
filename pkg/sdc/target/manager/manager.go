@@ -87,8 +87,8 @@ func (m *TargetManager) notifier(key storebackend.Key) func() {
 	return func() {
 		ev := event.GenericEvent{Object: &configv1alpha1.Target{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: key.NamespacedName.Namespace,
-				Name:      key.NamespacedName.Name,
+				Namespace: key.Namespace,
+				Name:      key.Name,
 			},
 		}}
 		select {
