@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Nokia.
+Copyright 2026 Nokia.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,149 +18,229 @@ package targetmanager
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/stretchr/testify/require"
 )
 
-func TestProcessTransactionResponse(t *testing.T) {
+// newTestRuntime builds a runtime without DS or k8s client; it is never
+// Start()ed, so only the pure decision logic and wiring are exercised.
+func newTestRuntime() *TargetRuntime {
+	return NewTargetRuntime(testTargetKey(), nil, nil)
+}
+
+func gnmiReq(address string, port uint32) *sdcpb.CreateDataStoreRequest {
+	return &sdcpb.CreateDataStoreRequest{
+		Target: &sdcpb.Target{
+			Type:    string(invv1alpha1.Protocol_GNMI),
+			Address: address,
+			Port:    port,
+		},
+	}
+}
+
+func withPort(sub *invv1alpha1.Subscription, port uint32) *invv1alpha1.Subscription {
+	sub.Spec.Port = port
+	return sub
+}
+
+func activeSub(crName string) *invv1alpha1.Subscription {
+	return newTestSub(crName, invv1alpha1.Encoding_ASCII,
+		onChange(crName, invv1alpha1.AdminState_ENABLED, testPath))
+}
+
+func TestCollectorAddress(t *testing.T) {
 	cases := map[string]struct {
-		rsp         *sdcpb.TransactionSetResponse
-		err         error
-		expected    string
-		expectErr   bool
-		recoverable bool
+		desired     *sdcpb.CreateDataStoreRequest
+		subs        []*invv1alpha1.Subscription
+		wantAddress string
+		wantReason  string // substring; "" means eligible
 	}{
-		"Success_NoWarningsOrErrors": {
-			rsp:       &sdcpb.TransactionSetResponse{},
-			err:       nil,
-			expected:  "",
-			expectErr: false,
+		"nil desired": {
+			desired:    nil,
+			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantReason: "no target",
 		},
-		"Recoverable gRPC Error": {
-			rsp:         nil,
-			err:         status.Error(codes.ResourceExhausted, "quota exceeded"),
-			expected:    "error: rpc error: code = ResourceExhausted desc = quota exceeded",
-			expectErr:   true,
-			recoverable: true,
+		"nil target": {
+			desired:    &sdcpb.CreateDataStoreRequest{},
+			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantReason: "no target",
 		},
-		"Non-Recoverable gRPC Error": {
-			rsp:         nil,
-			err:         status.Error(codes.InvalidArgument, "invalid request"),
-			expected:    "error: rpc error: code = InvalidArgument desc = invalid request",
-			expectErr:   true,
-			recoverable: false,
-		},
-		"Recoverable Unavailable (not connected)": {
-			rsp:         nil,
-			err:         status.Error(codes.Unavailable, "test.test is not connected"),
-			expected:    "error: rpc error: code = Unavailable desc = test.test is not connected",
-			expectErr:   true,
-			recoverable: true,
-		},
-		"Recoverable DeadlineExceeded": {
-			rsp:         nil,
-			err:         status.Error(codes.DeadlineExceeded, "context deadline exceeded"),
-			expected:    "error: rpc error: code = DeadlineExceeded desc = context deadline exceeded",
-			expectErr:   true,
-			recoverable: true,
-		},
-		"Non-Recoverable Unknown not connected (pre-fix data-server)": {
-			rsp:         nil,
-			err:         status.Error(codes.Unknown, "test.test is not connected"),
-			expected:    "error: rpc error: code = Unknown desc = test.test is not connected",
-			expectErr:   true,
-			recoverable: false,
-		},
-		"Intent Errors in Response": {
-			rsp: &sdcpb.TransactionSetResponse{
-				Intents: map[string]*sdcpb.TransactionSetResponseIntent{
-					"intent1": {Errors: []string{"failed to apply update"}},
-				},
+		"netconf target": {
+			desired: &sdcpb.CreateDataStoreRequest{
+				Target: &sdcpb.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
 			},
-			err:       nil,
-			expected:  "intent \"intent1\" error: \"failed to apply update\"",
-			expectErr: true,
+			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantReason: "not gnmi",
 		},
-		"Global Warnings Only": {
-			rsp: &sdcpb.TransactionSetResponse{
-				Warnings: []string{"slow transaction detected"},
-			},
-			err:       nil,
-			expected:  "global warning: \"slow transaction detected\"",
-			expectErr: false,
+		"empty address": {
+			desired:    gnmiReq("", 57400),
+			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantReason: "no address",
 		},
-		"Intent Warnings Only": {
-			rsp: &sdcpb.TransactionSetResponse{
-				Intents: map[string]*sdcpb.TransactionSetResponseIntent{
-					"intent1": {Warnings: []string{"potential inconsistency"}},
-				},
-			},
-			err:       nil,
-			expected:  "intent \"intent1\" warning: \"potential inconsistency\"",
-			expectErr: false,
+		"no subscriptions": {
+			desired:    gnmiReq("10.0.0.1", 57400),
+			wantReason: "no active subscription paths",
 		},
-		"Both Errors and Warnings": {
-			rsp: &sdcpb.TransactionSetResponse{
-				Warnings: []string{"global slow transaction"},
-				Intents: map[string]*sdcpb.TransactionSetResponseIntent{
-					"intent1": {Warnings: []string{"intent warning"}, Errors: []string{"intent error"}},
-				},
+		"only disabled subscriptions": {
+			desired: gnmiReq("10.0.0.1", 57400),
+			subs: []*invv1alpha1.Subscription{
+				newTestSub("sub1", invv1alpha1.Encoding_ASCII,
+					onChange("sub1", invv1alpha1.AdminState_DISABLED, testPath)),
 			},
-			err:       nil,
-			expected:  "intent \"intent1\" error: \"intent error\"",
-			expectErr: true,
+			wantReason: "no active subscription paths",
+		},
+		"no port anywhere": {
+			desired:    gnmiReq("10.0.0.1", 0),
+			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantReason: "no port",
+		},
+		"target port only": {
+			desired:     gnmiReq("10.0.0.1", 57400),
+			subs:        []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantAddress: "10.0.0.1:57400",
+		},
+		"subscription port only": {
+			desired:     gnmiReq("10.0.0.1", 0),
+			subs:        []*invv1alpha1.Subscription{withPort(activeSub("sub1"), 50051)},
+			wantAddress: "10.0.0.1:50051",
+		},
+		"subscription port overrides target port": {
+			desired:     gnmiReq("10.0.0.1", 57400),
+			subs:        []*invv1alpha1.Subscription{withPort(activeSub("sub1"), 50051)},
+			wantAddress: "10.0.0.1:50051",
+		},
+		"protocol is case-insensitive": {
+			desired: &sdcpb.CreateDataStoreRequest{
+				Target: &sdcpb.Target{Type: "GNMI", Address: "10.0.0.1", Port: 57400},
+			},
+			subs:        []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantAddress: "10.0.0.1:57400",
+		},
+		"ipv6 address": {
+			desired:     gnmiReq("2001:db8::1", 57400),
+			subs:        []*invv1alpha1.Subscription{activeSub("sub1")},
+			wantAddress: "[2001:db8::1]:57400",
 		},
 	}
 
-	ctx := context.Background()
-	//key := storebackend.ToKey("dummy")
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			warning, err := processTransactionResponse(ctx, tc.rsp, tc.err)
-
-			if tc.expectErr {
-				assert.Error(t, err, "expected an error but got none")
-				var txErr *TransactionError
-				assert.True(t, errors.As(err, &txErr))
-				if tc.recoverable {
-					assert.True(t, txErr.Recoverable, "Expected recoverable error")
-				} else {
-					assert.False(t, txErr.Recoverable, "Expected non-recoverable error")
-				}
-				assert.Contains(t, err.Error(), tc.expected)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expected, warning)
+			rt := newTestRuntime()
+			for _, s := range tc.subs {
+				require.NoError(t, rt.subscriptions.AddSubscription(s))
 			}
+
+			address, reason := rt.collectorAddress(tc.desired)
+			if tc.wantReason != "" {
+				assert.Contains(t, reason, tc.wantReason)
+				assert.Empty(t, address)
+				return
+			}
+			assert.Empty(t, reason)
+			assert.Equal(t, tc.wantAddress, address)
 		})
 	}
 }
 
-func TestIsRecoverableTransactionError(t *testing.T) {
+func TestSubscriptionsPortPrecedence(t *testing.T) {
+	t.Run("lowest nsn with a port wins", func(t *testing.T) {
+		subs := NewSubscriptions()
+		require.NoError(t, subs.AddSubscription(withPort(activeSub("b-sub"), 50052)))
+		require.NoError(t, subs.AddSubscription(withPort(activeSub("a-sub"), 50051)))
+		assert.Equal(t, uint(50051), subs.Port())
+	})
+
+	t.Run("zero port is ignored", func(t *testing.T) {
+		subs := NewSubscriptions()
+		require.NoError(t, subs.AddSubscription(activeSub("a-sub")))
+		require.NoError(t, subs.AddSubscription(withPort(activeSub("b-sub"), 50052)))
+		assert.Equal(t, uint(50052), subs.Port())
+	})
+
+	t.Run("delete clears port", func(t *testing.T) {
+		subs := NewSubscriptions()
+		s := withPort(activeSub("a-sub"), 50051)
+		require.NoError(t, subs.AddSubscription(s))
+		require.NoError(t, subs.DelSubscription(s))
+		assert.Equal(t, uint(0), subs.Port())
+	})
+}
+
+// Subscription changes must only update state and wake the run loop.
+func TestRuntimeSubscriptionWakes(t *testing.T) {
+	ctx := context.Background()
+	rt := newTestRuntime()
+	sub := activeSub("sub1")
+
+	require.NoError(t, rt.UpsertSubscription(ctx, sub))
+	assert.Equal(t, 1, len(rt.wakeCh), "upsert must wake")
+	assert.True(t, rt.subscriptions.HasActivePaths())
+	assert.Nil(t, rt.collector, "upsert must not touch the collector")
+
+	// coalesces
+	require.NoError(t, rt.UpsertSubscription(ctx, sub))
+	assert.Equal(t, 1, len(rt.wakeCh))
+
+	<-rt.wakeCh // drain
+
+	require.NoError(t, rt.DeleteSubscription(ctx, sub))
+	assert.Equal(t, 1, len(rt.wakeCh), "delete must wake")
+	assert.False(t, rt.subscriptions.HasSubscriptions())
+	assert.Nil(t, rt.collector, "delete must not touch the collector")
+}
+
+// When the target is no longer eligible, an existing collector is stopped
+// and released; when there is none, nothing is created.
+func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
+	ctx := context.Background()
+
 	cases := map[string]struct {
-		err  error
-		want bool
+		desired *sdcpb.CreateDataStoreRequest
+		subs    []*invv1alpha1.Subscription
 	}{
-		"nil":                      {err: nil, want: false},
-		"aborted (lock)":           {err: status.Error(codes.Aborted, "datastore is locked"), want: true},
-		"resource exhausted":       {err: status.Error(codes.ResourceExhausted, "backpressure"), want: true},
-		"unavailable not connected": {err: status.Error(codes.Unavailable, "test.test is not connected"), want: true},
-		"unavailable not ready":    {err: status.Error(codes.Unavailable, "not ready"), want: true},
-		"deadline exceeded":        {err: status.Error(codes.DeadlineExceeded, "timeout"), want: true},
-		"unknown (pre-fix)":        {err: status.Error(codes.Unknown, "test.test is not connected"), want: false},
-		"invalid argument":         {err: status.Error(codes.InvalidArgument, "bad"), want: false},
-		"not found":                {err: status.Error(codes.NotFound, "missing"), want: false},
-		"plain error":              {err: errors.New("boom"), want: false},
+		"no target": {
+			desired: nil,
+			subs:    []*invv1alpha1.Subscription{activeSub("sub1")},
+		},
+		"switched to netconf": {
+			desired: &sdcpb.CreateDataStoreRequest{
+				Target: &sdcpb.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
+			},
+			subs: []*invv1alpha1.Subscription{activeSub("sub1")},
+		},
+		"last subscription removed": {
+			desired: gnmiReq("10.0.0.1", 57400),
+		},
+		"no port": {
+			desired: gnmiReq("10.0.0.1", 0),
+			subs:    []*invv1alpha1.Subscription{activeSub("sub1")},
+		},
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, tc.want, isRecoverableTransactionError(tc.err))
+		t.Run(name+"/existing collector is stopped", func(t *testing.T) {
+			rt := newTestRuntime()
+			for _, s := range tc.subs {
+				require.NoError(t, rt.subscriptions.AddSubscription(s))
+			}
+			rt.collector = NewCollector(rt.key, rt.subscriptions)
+
+			rt.reconcileCollector(ctx, tc.desired)
+			assert.Nil(t, rt.collector)
+		})
+
+		t.Run(name+"/no collector is created", func(t *testing.T) {
+			rt := newTestRuntime()
+			for _, s := range tc.subs {
+				require.NoError(t, rt.subscriptions.AddSubscription(s))
+			}
+
+			rt.reconcileCollector(ctx, tc.desired)
+			assert.Nil(t, rt.collector)
 		})
 	}
 }

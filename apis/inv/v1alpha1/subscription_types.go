@@ -27,7 +27,7 @@ type AdminState string
 
 const (
 	AdminState_ENABLED   AdminState = "enabled"
-	AdminStaten_DISABLED AdminState = "disabled"
+	AdminState_DISABLED AdminState = "disabled"
 )
 
 // SubscriptionSpec defines the desired Subscription of Subscription
