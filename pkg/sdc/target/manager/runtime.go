@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -91,11 +92,16 @@ type TargetRuntime struct {
 	// Subscriptions is internally synchronized.
 	subscriptions *Subscriptions
 
-	// owned runtime components.
-	// INVARIANT: only the run goroutine (reconcileOnce / stopRuntime) touches
-	// watcher and collector, so they need no extra locking.
-	watcher   *DeviationWatcher
-	collector *Collector
+	// watcher is only touched by the run goroutine (reconcileOnce / stopRuntime).
+	watcher *DeviationWatcher
+
+	// collector is created, started and stopped only by the run goroutine,
+	// but it is READ concurrently by the metrics exporter (see Cache in
+	// exports.go). It is therefore published through an atomic pointer:
+	//   - stop:  Swap(nil) first (unpublish), then Stop the old collector
+	//   - start: Store the new collector, then Start it
+	//   - read:  Load exactly once and use that value
+	collector atomic.Pointer[Collector]
 
 	// control
 	runMu  sync.Mutex
@@ -177,7 +183,7 @@ func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSch
 
 // UpsertSubscription records the subscription and wakes the run loop, which
 // decides whether the collector should (still) run. It never touches the
-// collector directly: that would race with the run goroutine.
+// collector directly: the run loop owns its lifecycle.
 func (t *TargetRuntime) UpsertSubscription(_ context.Context, sub *invv1alpha1.Subscription) error {
 	if err := t.subscriptions.AddSubscription(sub); err != nil {
 		return err
@@ -434,36 +440,52 @@ func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client) e
 }
 
 // reconcileCollector converges the gNMI telemetry collector with the current
-// desired target and subscription state. Run-loop only (see INVARIANT).
+// desired target and subscription state. Run-loop only: it is the only
+// writer of t.collector.
 func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.CreateDataStoreRequest) {
 	log := log.FromContext(ctx).With("target", t.key.String())
 
 	address, reason := t.collectorAddress(desired)
 	if reason != "" {
-		if t.collector != nil {
-			log.Info("stopping collector", "reason", reason)
-			t.collector.Stop(ctx)
-			t.collector = nil
+		if t.stopCollector(ctx) {
+			log.Info("stopped collector", "reason", reason)
 		} else {
 			log.Debug("collector not started", "reason", reason)
 		}
 		return
 	}
 
+	c := t.collector.Load()
+
 	// Already running against the same endpoint: just push the new path set.
-	if t.collector != nil && t.collector.IsRunning() && t.collector.Address() == address {
-		t.collector.NotifySubscriptionChanged()
+	if c != nil && c.IsRunning() && c.Address() == address {
+		c.NotifySubscriptionChanged()
 		return
 	}
 
-	if t.collector == nil {
-		t.collector = NewCollector(t.key, t.subscriptions)
+	if c == nil {
+		c = NewCollector(t.key, t.subscriptions)
+		// publish before Start: readers get its cache, which is valid (empty)
+		// until the subscription fills it
+		t.collector.Store(c)
 	}
 	// Start stops any previous instance (e.g. the port changed).
-	if err := t.collector.Start(ctx, desired, address); err != nil {
+	if err := c.Start(ctx, desired, address); err != nil {
 		log.Error("collector start failed", "err", err, "retryIn", collectorRetryInterval)
 		time.AfterFunc(collectorRetryInterval, t.wake)
 	}
+}
+
+// stopCollector unpublishes the collector and then stops it, so concurrent
+// readers never obtain a collector that is being torn down. Returns true if
+// a collector was stopped.
+func (t *TargetRuntime) stopCollector(ctx context.Context) bool {
+	c := t.collector.Swap(nil)
+	if c == nil {
+		return false
+	}
+	c.Stop(ctx)
+	return true
 }
 
 // collectorAddress returns the gNMI address to subscribe to, or a non-empty
@@ -498,10 +520,7 @@ func (t *TargetRuntime) stopRuntime(ctx context.Context) {
 		t.watcher.Stop(ctx)
 		t.watcher = nil
 	}
-	if t.collector != nil {
-		t.collector.Stop(ctx)
-		t.collector = nil
-	}
+	t.stopCollector(ctx)
 }
 
 func (t *TargetRuntime) datastoreName() string {

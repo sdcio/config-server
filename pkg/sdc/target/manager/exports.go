@@ -22,31 +22,40 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
+// Accessors used by the metrics exporter. They run on the exporter's
+// goroutine, concurrently with the target run loop.
+
 func (t *TargetRuntime) Key() storebackend.Key { return t.key }
 
+// Cache returns the telemetry cache of the current collector, or nil when no
+// collector runs. The collector pointer is loaded exactly once: a concurrent
+// stop can never turn it nil between the check and the use.
 func (t *TargetRuntime) Cache() cache.Cache {
-	t.runningMu.RLock()
-	defer t.runningMu.RUnlock()
-	if t.collector == nil {
-		return nil
+	if c := t.collector.Load(); c != nil {
+		return c.cache
 	}
-	return t.collector.cache
+	return nil
 }
 
 func (t *TargetRuntime) PromLabels() []prompb.Label {
 	t.desiredMu.RLock()
 	defer t.desiredMu.RUnlock()
 
-	labels := make([]prompb.Label, 0, 4)
+	labels := make([]prompb.Label, 0, 5)
 	labels = append(labels, prompb.Label{Name: "target", Value: t.key.Name})
 	labels = append(labels, prompb.Label{Name: "namespace", Value: t.key.Namespace})
 
-	if t.desired != nil && t.desired.Schema != nil {
+	if t.desired == nil {
+		return labels
+	}
+	if t.desired.Schema != nil {
 		labels = append(labels,
 			prompb.Label{Name: "vendor", Value: t.desired.Schema.Vendor},
 			prompb.Label{Name: "version", Value: t.desired.Schema.Version},
-			prompb.Label{Name: "address", Value: t.desired.Target.Address},
 		)
+	}
+	if t.desired.Target != nil {
+		labels = append(labels, prompb.Label{Name: "address", Value: t.desired.Target.Address})
 	}
 	return labels
 }

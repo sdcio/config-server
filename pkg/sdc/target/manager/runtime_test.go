@@ -179,7 +179,7 @@ func TestRuntimeSubscriptionWakes(t *testing.T) {
 	require.NoError(t, rt.UpsertSubscription(ctx, sub))
 	assert.Equal(t, 1, len(rt.wakeCh), "upsert must wake")
 	assert.True(t, rt.subscriptions.HasActivePaths())
-	assert.Nil(t, rt.collector, "upsert must not touch the collector")
+	assert.Nil(t, rt.collector.Load(), "upsert must not touch the collector")
 
 	// coalesces
 	require.NoError(t, rt.UpsertSubscription(ctx, sub))
@@ -190,11 +190,11 @@ func TestRuntimeSubscriptionWakes(t *testing.T) {
 	require.NoError(t, rt.DeleteSubscription(ctx, sub))
 	assert.Equal(t, 1, len(rt.wakeCh), "delete must wake")
 	assert.False(t, rt.subscriptions.HasSubscriptions())
-	assert.Nil(t, rt.collector, "delete must not touch the collector")
+	assert.Nil(t, rt.collector.Load(), "delete must not touch the collector")
 }
 
 // When the target is no longer eligible, an existing collector is stopped
-// and released; when there is none, nothing is created.
+// and unpublished; when there is none, nothing is created.
 func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 	ctx := context.Background()
 
@@ -227,10 +227,11 @@ func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 			for _, s := range tc.subs {
 				require.NoError(t, rt.subscriptions.AddSubscription(s))
 			}
-			rt.collector = NewCollector(rt.key, rt.subscriptions)
+			rt.collector.Store(NewCollector(rt.key, rt.subscriptions))
 
 			rt.reconcileCollector(ctx, tc.desired)
-			assert.Nil(t, rt.collector)
+			assert.Nil(t, rt.collector.Load())
+			assert.Nil(t, rt.Cache(), "exporter must not see a stopped collector")
 		})
 
 		t.Run(name+"/no collector is created", func(t *testing.T) {
@@ -240,7 +241,7 @@ func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 			}
 
 			rt.reconcileCollector(ctx, tc.desired)
-			assert.Nil(t, rt.collector)
+			assert.Nil(t, rt.collector.Load())
 		})
 	}
 }
