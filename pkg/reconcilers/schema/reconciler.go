@@ -200,8 +200,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
-		r.recorder.Eventf(schema, nil, corev1.EventTypeNormal,
-			"schema", "loading", "")
+		reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeNormal, "schema", "loading")
 		repoStatuses, err := r.schemaLoader.Load(ctx, spec.GetKey())
 		if err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
@@ -276,7 +275,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 		return ctrl.Result{}, nil
 	}
 
-	r.recorder.Eventf(schema, nil, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready", "")
+	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
 
 	statusApply := invv1alpha1apply.SchemaStatus().
 		WithConditions(newCond)
@@ -312,7 +311,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 	}
 
 	log.Error(msg)
-	r.recorder.Eventf(schema, nil, corev1.EventTypeWarning, crName, msg, "")
+	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeWarning, crName, msg)
 
 	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
 		WithStatus(invv1alpha1apply.SchemaStatus().

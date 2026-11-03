@@ -183,7 +183,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 	}
 
 	log.Info("handleSuccess -> change", "condition change", true)
-	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "config recovery ready", "")
+	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeNormal, configv1alpha1.TargetKind, "config recovery ready")
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().
@@ -217,7 +217,7 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 
 	log.Warn(msg, "error", err)
 	log.Info("handleError -> change", "condition change", true)
-	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
+	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg)
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().

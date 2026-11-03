@@ -356,7 +356,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet
 		return nil
 	}
 
-	r.recorder.Eventf(configSet, nil, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready", "")
+	reconcilers.RecordEvent(r.recorder, configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
 
 	statusApply := configv1alpha1apply.ConfigSetStatus().
 		WithConditions(newCond).
@@ -387,7 +387,7 @@ func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *
 	}
 
 	log.Error(msg)
-	r.recorder.Eventf(configSet, nil, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg, "")
+	reconcilers.RecordEvent(r.recorder, configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
 
 	statusApply := configv1alpha1apply.ConfigSetStatus().
 		WithConditions(newCond).
