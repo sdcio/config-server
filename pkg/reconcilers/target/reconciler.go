@@ -143,9 +143,9 @@ func (r *reconciler) updateCondition(ctx context.Context, target *configv1alpha1
 
 	// Optional: emit different event types
 	if newReady {
-		r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "ready", "")
+		reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeNormal, configv1alpha1.TargetKind, "ready")
 	} else {
-		r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, "not ready", "")
+		reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeWarning, configv1alpha1.TargetKind, "not ready")
 	}
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).

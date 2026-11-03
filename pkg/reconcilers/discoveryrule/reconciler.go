@@ -299,7 +299,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 
 	if changed {
 		statusApply = statusApply.WithStartTime(metav1.Now())
-		r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready", "")
+		reconcilers.RecordEvent(r.recorder, discoveryRule, corev1.EventTypeNormal, invv1alpha1.DiscoveryRuleKind, "ready")
 	}
 
 	applyConfig := invv1alpha1apply.DiscoveryRule(discoveryRule.Name, discoveryRule.Namespace).
@@ -326,7 +326,7 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 	_ = oldCond
 
 	log.Error(msg)
-	r.recorder.Eventf(discoveryRule, nil, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg, "")
+	reconcilers.RecordEvent(r.recorder, discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
 
 	applyConfig := invv1alpha1apply.DiscoveryRule(discoveryRule.Name, discoveryRule.Namespace).
 		WithStatus(invv1alpha1apply.DiscoveryRuleStatus().

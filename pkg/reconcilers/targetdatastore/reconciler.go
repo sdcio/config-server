@@ -240,7 +240,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 		"usedRefs change", !equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences),
 	)
 
-	r.recorder.Eventf(target, nil, corev1.EventTypeNormal, configv1alpha1.TargetKind, "datastore ready", "")
+	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeNormal, configv1alpha1.TargetKind, "datastore ready")
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().
@@ -284,7 +284,7 @@ func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Tar
 		"usedRefs change", !equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences),
 	)
 	log.Error(msg, "error", err)
-	r.recorder.Eventf(target, nil, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg, "")
+	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg)
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().
