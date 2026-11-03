@@ -32,8 +32,10 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
@@ -101,6 +103,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 				1*time.Second, 60*time.Second),
 		}).
 		For(&configv1alpha1.Target{}).
+		// Config events are mapped onto the Target named in the Config's labels.
+		// This controller is therefore the only one that sees a Config whose
+		// Target does not exist, and must report it (sdcio/config-server#469).
 		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
 		Complete(r)
 }
@@ -128,12 +133,14 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
-		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
 			log.Error(errGetCr, "error", err)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
-		return ctrl.Result{}, nil
+		// The Target does not exist: never created, or already deleted.
+		// Configs referencing it are only reconciled through this controller,
+		// so they would otherwise keep an empty (or stale) status.
+		return r.reconcileTargetNotFound(ctx, req.NamespacedName)
 	}
 
 	targetOrig := target.DeepCopy()
@@ -166,7 +173,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		err := r.transactor.SetConfigsTargetConditionForTarget(
 			ctx,
 			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not ready"),
+			configv1alpha1.TargetForConfigFailed("target not ready: "+targetOrig.NotReadyReason()),
 		)
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
 			errors.Wrap(r.handleError(ctx, targetOrig,
@@ -177,41 +184,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	dsctx, ok := r.targetMgr.GetDatastore(ctx, targetKey)
 	if !ok || dsctx == nil {
+		msg := "target runtime not ready"
+		if dsctx != nil {
+			msg = fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
+				dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError)
+		}
 		err := r.transactor.SetConfigsTargetConditionForTarget(
 			ctx,
 			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not ready (no dsctx yet)"),
+			configv1alpha1.TargetForConfigFailed("target not ready (runtime)"),
 		)
 		return ctrl.Result{RequeueAfter: 5 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig,
-				"target runtime not ready (no dsctx yet)",
-				err),
-				errUpdateStatus)
-	}
-
-	if dsctx.Client == nil {
-		err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not ready (no dsctx client)"),
-		)
-		return ctrl.Result{RequeueAfter: 5 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig,
-				fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
-					dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError),
-				err),
-				errUpdateStatus)
-	}
-
-	// if the config is not receovered we stop the reconcile loop
-	if !dsctx.Status.Recovered {
-		err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not recovered"),
-		)
-		log.Info("config transaction -> target not recovered yet")
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, err
+			errors.Wrap(r.handleError(ctx, targetOrig, msg, err), errUpdateStatus)
 	}
 
 	retry, err := r.transactor.Transact(ctx, targetOrig, dsctx, configv1alpha1.TargetForConfigReady("target ready"))
@@ -254,6 +238,30 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+}
+
+// reconcileTargetNotFound marks every Config that references the missing
+// Target. No requeue: creating the Target triggers this controller through
+// For(&Target{}), and the normal path takes over.
+func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.NamespacedName) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// SetConfigsTargetConditionForTarget selects the Configs by the target
+	// name/namespace, so a stub carrying only those is sufficient.
+	missing := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{
+		Namespace: key.Namespace,
+		Name:      key.Name,
+	}}
+	if err := r.transactor.SetConfigsTargetConditionForTarget(
+		ctx,
+		missing,
+		configv1alpha1.TargetForConfigFailed(fmt.Sprintf("target %s not found", key.String())),
+	); err != nil {
+		// e.g. apiserver hiccup: retry with backoff
+		return ctrl.Result{}, errors.Wrap(err, "cannot update config status for missing target")
+	}
+	log.Debug("target not found, configs updated")
+	return ctrl.Result{}, nil
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target) error {
