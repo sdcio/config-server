@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -32,15 +33,31 @@ import (
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	"github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+)
+
+// runtimeEventBuffer sizes the runtime -> reconciler notification channel.
+// Sends never block: a dropped event is covered by the reconciler's
+// fallback requeue.
+const runtimeEventBuffer = 1024
+
+const (
+	// runtimeStopTimeout bounds one wait for a runtime's run loop to exit.
+	runtimeStopTimeout = 15 * time.Second
+	// datastoreDeleteTimeout bounds the DeleteDataStore RPC during finalization.
+	datastoreDeleteTimeout = 10 * time.Second
 )
 
 type TargetManager struct {
-	ds  *dsmanager.DSConnManager
-	k8s client.Client
+	ds         *dsmanager.DSConnManager
+	k8s        client.Client
+	transactor *Transactor // shared by all runtimes for config recovery
+	events     chan event.GenericEvent
 
 	mu      sync.RWMutex
 	targets map[storebackend.Key]*TargetRuntime
@@ -48,9 +65,36 @@ type TargetManager struct {
 
 func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client) *TargetManager {
 	return &TargetManager{
-		ds:      ds,
-		k8s:     k8s,
-		targets: make(map[storebackend.Key]*TargetRuntime),
+		ds:         ds,
+		k8s:        k8s,
+		transactor: NewTransactor(k8s, "transactor"),
+		events:     make(chan event.GenericEvent, runtimeEventBuffer),
+		targets:    make(map[storebackend.Key]*TargetRuntime),
+	}
+}
+
+// Events emits a GenericEvent for a Target whenever its runtime status
+// changes. The reconciler that owns the Target Ready condition watches it:
+//
+//	WatchesRawSource(source.Channel(targetMgr.Events(), &handler.EnqueueRequestForObject{}))
+//
+// Only ONE controller may consume it.
+func (m *TargetManager) Events() <-chan event.GenericEvent {
+	return m.events
+}
+
+func (m *TargetManager) notifier(key storebackend.Key) func() {
+	return func() {
+		ev := event.GenericEvent{Object: &configv1alpha1.Target{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: key.NamespacedName.Namespace,
+				Name:      key.NamespacedName.Name,
+			},
+		}}
+		select {
+		case m.events <- ev:
+		default: // full: the reconciler's fallback requeue covers it
+		}
 	}
 }
 
@@ -61,7 +105,7 @@ func (m *TargetManager) GetOrCreate(key storebackend.Key) *TargetRuntime {
 	if rt, ok := m.targets[key]; ok {
 		return rt
 	}
-	rt := NewTargetRuntime(key, m.ds, m.k8s)
+	rt := NewTargetRuntime(key, m.ds, m.k8s, m.transactor, m.notifier(key))
 	m.targets[key] = rt
 	return rt
 }
@@ -79,6 +123,14 @@ func (m *TargetManager) ApplyDesired(
 	rt.SetDesired(req, refs, hash)
 }
 
+// SetRecoveryRetryToken forwards the Target's AnnotationRecoveryRetry value to
+// its runtime; a new value releases a latched recovery failure.
+// Call it BEFORE ApplyDesired so the token is known before the first recovery
+// attempt (otherwise an existing annotation would look like a fresh retry).
+func (m *TargetManager) SetRecoveryRetryToken(_ context.Context, key storebackend.Key, token string) {
+	m.GetOrCreate(key).SetRecoveryRetryToken(token)
+}
+
 // ClearDesired is useful when the Target is being deleted or disabled.
 func (m *TargetManager) ClearDesired(_ context.Context, key storebackend.Key) {
 	m.mu.Lock()
@@ -90,19 +142,68 @@ func (m *TargetManager) ClearDesired(_ context.Context, key storebackend.Key) {
 	}
 }
 
-func (m *TargetManager) Delete(_ context.Context, key storebackend.Key) {
-	m.mu.Lock()
+// Delete stops the runtime and waits until its run loop has exited; only then
+// is it removed from the manager. On timeout it returns an error and keeps the
+// runtime registered, so a retry waits for the same runtime again.
+//
+// Delete does NOT delete the datastore: call DeleteDatastore afterwards.
+func (m *TargetManager) Delete(_ context.Context, key storebackend.Key) error {
+	m.mu.RLock()
 	rt := m.targets[key]
-	delete(m.targets, key)
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
-	if rt != nil {
-		rt.Stop()
+	if rt == nil {
+		return nil
 	}
+	if err := rt.Stop(runtimeStopTimeout); err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	if m.targets[key] == rt {
+		delete(m.targets, key)
+	}
+	m.mu.Unlock()
+	return nil
+}
+
+// DeleteDatastore deletes the target's datastore in the data-server and
+// returns nil only when it is confirmed gone (deleted or NotFound).
+// It needs no runtime, so it also works after a config-server restart.
+// Call it after Delete, so no runtime can recreate the datastore.
+func (m *TargetManager) DeleteDatastore(ctx context.Context, key storebackend.Key) error {
+	var cl dsclient.Client
+	if m.ds != nil {
+		cl = m.ds.Client()
+	}
+	if cl == nil {
+		return fmt.Errorf("delete datastore %q: dataserver not available", key.String())
+	}
+	return deleteDatastore(ctx, cl, key.String())
+}
+
+// datastoreDeleter is the part of the dataserver client finalization needs.
+type datastoreDeleter interface {
+	DeleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error)
+}
+
+func deleteDatastore(ctx context.Context, cl datastoreDeleter, name string) error {
+	// bounded, and independent of any (cancelled) runtime context
+	ctx, cancel := context.WithTimeout(ctx, datastoreDeleteTimeout)
+	defer cancel()
+
+	if _, err := cl.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: name}); err != nil {
+		if isUnknownDatastoreErr(err) {
+			return nil // already gone
+		}
+		return fmt.Errorf("delete datastore %q: %w", name, err)
+	}
+	return nil
 }
 
 // GetClient returns a datastore-scoped DS client for this target,
-// only if DS is ready AND datastore is ready.
+// only if DS is ready AND datastore is ready AND configs are recovered
+// (PhaseRunning implies all three).
 func (m *TargetManager) GetClient(_ context.Context, key storebackend.Key) (dsclient.Client, RuntimeStatus, bool) {
 	m.mu.Lock()
 	rt := m.targets[key]
@@ -132,6 +233,8 @@ type DatastoreHandle struct {
 	Status        RuntimeStatus
 }
 
+// GetDatastore returns a handle for config reconcilers. It is only usable
+// once the runtime is Running, which implies the configs have been recovered.
 func (m *TargetManager) GetDatastore(_ context.Context, key storebackend.Key) (*DatastoreHandle, bool) {
 	m.mu.Lock()
 	rt := m.targets[key]
@@ -156,7 +259,14 @@ func (m *TargetManager) GetDatastore(_ context.Context, key storebackend.Key) (*
 		Client:        cl,
 		Schema:        rt.GetSchema(),
 		Status:        st,
-		MarkRecovered: func(b bool) { rt.setRecovered(b) },
+		// An external MarkRecovered(false) means "recover again": wake the
+		// runtime so it re-runs recovery instead of waiting for another event.
+		MarkRecovered: func(b bool) {
+			rt.setRecovered(b)
+			if !b {
+				rt.wake()
+			}
+		},
 	}, true
 }
 

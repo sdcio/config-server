@@ -113,7 +113,7 @@ func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName
 			Provider: provider,
 			Address:  address,
 			TargetProfile: invv1alpha1.TargetProfile{
-				Credentials:       targetProfile.Credentials,
+				Credentials: targetProfile.Credentials,
 				// TODO TLSSecret:
 				ConnectionProfile: targetProfile.ConnectionProfile,
 				SyncProfile:       targetProfile.SyncProfile,
