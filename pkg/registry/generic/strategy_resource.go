@@ -264,7 +264,7 @@ func (r *strategy) predicate(ctx context.Context, options *metainternalversion.L
 		return nil, err
 	}
 
-	var labelSelector labels.Selector = options.LabelSelector
+	var labelSelector = options.LabelSelector
 	ns, hasNS := genericapirequest.NamespaceFrom(ctx)
 	scoped := r.obj.NamespaceScoped()
 
