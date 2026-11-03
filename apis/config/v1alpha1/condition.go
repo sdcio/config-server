@@ -28,13 +28,10 @@ const (
 	ConditionTypeTargetForConfigReady condv1alpha1.ConditionType = "TargetForConfigReady"
 
 	// Target relation conditions
-	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
 	ConditionTypeTargetDiscoveryReady condv1alpha1.ConditionType = "TargetDiscoveryReady"
-	// ConditionTypeDatastoreReady represents the resource datastore ready condition
+	// legacy - to be removed
 	ConditionTypeTargetDatastoreReady condv1alpha1.ConditionType = "TargetDatastoreReady"
-	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
 	ConditionTypeTargetConfigRecoveryReady condv1alpha1.ConditionType = "TargetConfigRecoveryReady"
-	// ConditionTypeTargetConnectionReady represents the resource target ready condition
 	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
 )
 

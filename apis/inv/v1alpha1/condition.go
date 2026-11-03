@@ -23,17 +23,6 @@ import (
 
 // Condition Types.
 const (
-	/*
-		// ConditionTypeDiscoveryReady represents the resource discovery ready condition
-		ConditionTypeDiscoveryReady condv1alpha1.ConditionType = "DiscoveryReady"
-		// ConditionTypeDatastoreReady represents the resource datastore ready condition
-		ConditionTypeDatastoreReady condv1alpha1.ConditionType = "DatastoreReady"
-		// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
-		ConditionTypeConfigRecoveryReady condv1alpha1.ConditionType = "ConfigRecoveryReady"
-		// ConditionTypeTargetConnectionReady represents the resource target ready condition
-		ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
-	*/
-
 	// Rollout Conditions
 	ConditionTypeConfigApply   condv1alpha1.ConditionType = "ConfigApply"
 	ConditionTypeConfigConfirm condv1alpha1.ConditionType = "ConfigConfirm"
