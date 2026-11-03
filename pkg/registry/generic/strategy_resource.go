@@ -29,6 +29,7 @@ import (
 	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -188,9 +189,10 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return obj, nil
 	}
 
-	// keeps the existing generation handling; the resourceVersion it sets is
-	// overwritten below with the collection-wide value
-	if err := utils.UpdateResourceVersionAndGeneration(obj, old); err != nil {
+	// BeforeUpdate already reset generation to the old value; bump it only
+	// when the spec changed or deletion started. The resourceVersion is set
+	// below from the collection-wide counter.
+	if err := setNextGeneration(obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}
 
@@ -249,6 +251,53 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return deleted, nil
 }
 
+// setNextGeneration applies the Kubernetes generation rule: generation
+// changes only when the spec changes or when deletionTimestamp is set.
+// Metadata (labels, annotations, finalizers, ownerReferences) and status
+// changes leave it untouched, so GenerationChangedPredicate and
+// observedGeneration keep their meaning.
+func setNextGeneration(obj, old runtime.Object) error {
+	gen, err := nextGeneration(obj, old)
+	if err != nil {
+		return err
+	}
+	acc, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+	acc.SetGeneration(gen)
+	return nil
+}
+
+func nextGeneration(obj, old runtime.Object) (int64, error) {
+	newAcc, err := meta.Accessor(obj)
+	if err != nil {
+		return 0, err
+	}
+	oldAcc, err := meta.Accessor(old)
+	if err != nil {
+		return 0, err
+	}
+	gen := oldAcc.GetGeneration()
+
+	if oldAcc.GetDeletionTimestamp() == nil && newAcc.GetDeletionTimestamp() != nil {
+		return gen + 1, nil
+	}
+
+	newU, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return 0, err
+	}
+	oldU, err := runtime.DefaultUnstructuredConverter.ToUnstructured(old)
+	if err != nil {
+		return 0, err
+	}
+	if !equality.Semantic.DeepEqual(newU["spec"], oldU["spec"]) {
+		return gen + 1, nil
+	}
+	return gen, nil
+}
+
 // predicate returns the filter shared by List and Watch: namespace scoping,
 // label selector and field selector. It returns true if obj is selected.
 func (r *strategy) predicate(ctx context.Context, options *metainternalversion.ListOptions) (func(context.Context, runtime.Object) bool, error) {
@@ -264,7 +313,7 @@ func (r *strategy) predicate(ctx context.Context, options *metainternalversion.L
 		return nil, err
 	}
 
-	var labelSelector = options.LabelSelector
+	var labelSelector labels.Selector = options.LabelSelector
 	ns, hasNS := genericapirequest.NamespaceFrom(ctx)
 	scoped := r.obj.NamespaceScoped()
 
