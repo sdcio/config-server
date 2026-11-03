@@ -353,10 +353,10 @@ func (r *reconciler) handleStatus(
 	}
 
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
-		r.recorder.Eventf(rollout, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref), "")
+		reconcilers.RecordEvent(r.recorder, rollout, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref))
 	} else {
 		log.Error(condition.Message)
-		r.recorder.Eventf(rollout, nil, corev1.EventTypeWarning, crName, condition.Message, "")
+		reconcilers.RecordEvent(r.recorder, rollout, corev1.EventTypeWarning, crName, condition.Message)
 	}
 
 	statusApply := invv1alpha1apply.RolloutStatus().

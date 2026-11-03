@@ -17,6 +17,13 @@ Config-server is part of Schema Driven Configuration (SDC)
 
 The paradigm of schema-driven API approaches is gaining increasing popularity as it facilitates programmatic interaction with systems by both machines and humans. While OpenAPI schema stands out as a widely embraced system, there are other notable schema approaches like YANG, among others. This project endeavors to empower users with a declarative and idempotent method for seamless interaction with API systems, providing a robust foundation for effective system configuration."
 
+## Controller Events
+
+Reconciler Events use `Reconcile` as the action and put human-readable messages
+in the Event note, displayed as Message by `kubectl describe`. Notes longer than
+1024 bytes are truncated at a UTF-8 character boundary and marked with `...`.
+Event types and reasons are unchanged.
+
 ## Join us
 
 Have questions, ideas, bug reports or just want to chat? Come join [our discord server](https://discord.com/channels/1240272304294985800/1311031796372344894).
@@ -26,4 +33,3 @@ Have questions, ideas, bug reports or just want to chat? Come join [our discord 
 Code is under the [Apache License 2.0](LICENSE), documentation is [CC BY 4.0](LICENSE-documentation).
 
 The SDC project is following the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md). More information and links about the CNCF Code of Conduct are [here](code-of-conduct.md).
-

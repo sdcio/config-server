@@ -149,7 +149,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 		return ctrl.Result{}, nil
 	}
 
-	r.recorder.Eventf(state, nil, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready", "")
+	reconcilers.RecordEvent(r.recorder, state, corev1.EventTypeNormal, invv1alpha1.SubscriptionKind, "ready")
 
 	applyConfig := invv1alpha1apply.Subscription(state.Name, state.Namespace).
 		WithStatus(invv1alpha1apply.SubscriptionStatus().
@@ -180,7 +180,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 	}
 
 	log.Error(msg)
-	r.recorder.Eventf(state, nil, corev1.EventTypeWarning, crName, msg, "")
+	reconcilers.RecordEvent(r.recorder, state, corev1.EventTypeWarning, crName, msg)
 
 	applyConfig := invv1alpha1apply.Subscription(state.Name, state.Namespace).
 		WithStatus(invv1alpha1apply.SubscriptionStatus().

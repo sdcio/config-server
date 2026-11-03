@@ -201,10 +201,10 @@ func (r *reconciler) handleStatus(
 	}
 
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
-		r.recorder.Eventf(workspace, nil, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref), "")
+		reconcilers.RecordEvent(r.recorder, workspace, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref))
 	} else {
 		log.Error(condition.Message)
-		r.recorder.Eventf(workspace, nil, corev1.EventTypeWarning, crName, condition.Message, "")
+		reconcilers.RecordEvent(r.recorder, workspace, corev1.EventTypeWarning, crName, condition.Message)
 	}
 
 	applyConfig := invv1alpha1apply.Workspace(workspace.Name, workspace.Namespace).
