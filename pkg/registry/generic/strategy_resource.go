@@ -19,6 +19,7 @@ package generic
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -54,15 +55,17 @@ func NewStrategy(
 	watcherManager watchermanager.WatcherManager,
 	opts *options.Options,
 ) *strategy {
-
+	gr := obj.GetGroupVersionResource().GroupResource()
 	return &strategy{
 		ObjectTyper:    typer,
 		NameGenerator:  names.SimpleNameGenerator,
-		gr:             obj.GetGroupVersionResource().GroupResource(),
+		gr:             gr,
 		obj:            obj,
 		storage:        storage,
 		watcherManager: watcherManager,
 		opts:           opts,
+		// shared with every other strategy of this GroupResource (e.g. status)
+		rv: allocatorFor(gr),
 	}
 }
 
@@ -82,26 +85,27 @@ type strategy struct {
 	storage        storebackend.Storer[runtime.Object]
 	watcherManager watchermanager.WatcherManager
 	opts           *options.Options
+	rv             *rvAllocator
 }
 
 func (r *strategy) NamespaceScoped() bool { return r.obj.NamespaceScoped() }
 
 func (r *strategy) Canonicalize(obj runtime.Object) {}
 
+// initRV makes sure the resourceVersion counter starts above every stored object.
+func (r *strategy) initRV(ctx context.Context) {
+	r.rv.ensureInit(ctx, func(visit func(runtime.Object)) error {
+		return r.storage.List(ctx, func(_ context.Context, _ storebackend.Key, obj runtime.Object) {
+			visit(obj)
+		})
+	})
+}
+
 func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
 	obj, err := r.storage.Get(ctx, storebackend.KeyFromNSN(key))
 	if err != nil {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
-	/*
-		accessor, _ := meta.Accessor(obj)
-		log.FromContext(ctx).Info("strategy.Get",
-			"key", key,
-			"managedFieldsCount", len(accessor.GetManagedFields()),
-			"labelsCount", len(accessor.GetLabels()),
-			"finalizersCount", len(accessor.GetFinalizers()),
-		)
-	*/
 	return obj, nil
 }
 
@@ -130,14 +134,19 @@ func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj run
 		}
 		return obj, nil
 	}
-	if err := r.storage.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
-		return obj, apierrors.NewInternalError(err)
-	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Added,
-		Object: obj,
-	})
-	return obj, nil
+
+	r.initRV(ctx)
+	err := r.rv.write(func(rv string) (*watch.Event, error) {
+		// replaces the "0" set by Store.Create
+		if err := setResourceVersion(obj, rv); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		if err := r.storage.Create(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		return &watch.Event{Type: watch.Added, Object: obj}, nil
+	}, r.publish(ctx))
+	return obj, err
 }
 
 func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {
@@ -179,18 +188,23 @@ func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, ol
 		return obj, nil
 	}
 
+	// keeps the existing generation handling; the resourceVersion it sets is
+	// overwritten below with the collection-wide value
 	if err := utils.UpdateResourceVersionAndGeneration(obj, old); err != nil {
 		return obj, apierrors.NewInternalError(err)
 	}
 
-	if err := r.storage.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
-		return obj, apierrors.NewInternalError(err)
-	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Modified,
-		Object: obj,
-	})
-	return obj, nil
+	r.initRV(ctx)
+	err := r.rv.write(func(rv string) (*watch.Event, error) {
+		if err := setResourceVersion(obj, rv); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		if err := r.storage.Update(ctx, storebackend.KeyFromNSN(key), obj); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		return &watch.Event{Type: watch.Modified, Object: obj}, nil
+	}, r.publish(ctx))
+	return obj, err
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
@@ -217,31 +231,70 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 		return obj, nil
 	}
 
-	if err := r.storage.Delete(ctx, storebackend.KeyFromNSN(key)); err != nil {
-		return obj, apierrors.NewInternalError(err)
+	r.initRV(ctx)
+	// a delete is a write: the Deleted event carries a new resourceVersion
+	deleted := obj.DeepCopyObject()
+	err := r.rv.write(func(rv string) (*watch.Event, error) {
+		if err := r.storage.Delete(ctx, storebackend.KeyFromNSN(key)); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		if err := setResourceVersion(deleted, rv); err != nil {
+			return nil, apierrors.NewInternalError(err)
+		}
+		return &watch.Event{Type: watch.Deleted, Object: deleted}, nil
+	}, r.publish(ctx))
+	if err != nil {
+		return obj, err
 	}
-	r.notifyWatcher(ctx, watch.Event{
-		Type:   watch.Deleted,
-		Object: obj,
-	})
-	return obj, nil
+	return deleted, nil
+}
+
+// predicate returns the filter shared by List and Watch: namespace scoping,
+// label selector and field selector. It returns true if obj is selected.
+func (r *strategy) predicate(ctx context.Context, options *metainternalversion.ListOptions) (func(context.Context, runtime.Object) bool, error) {
+	var filter resource.Filter
+	var err error
+	var fieldSelector = options.FieldSelector
+	if r.obj.FieldSelector() != nil {
+		filter, err = r.obj.FieldSelector()(ctx, fieldSelector)
+	} else {
+		filter, err = utils.ParseFieldSelector(ctx, fieldSelector)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var labelSelector labels.Selector = options.LabelSelector
+	ns, hasNS := genericapirequest.NamespaceFrom(ctx)
+	scoped := r.obj.NamespaceScoped()
+
+	return func(ctx context.Context, obj runtime.Object) bool {
+		accessor, err := meta.Accessor(obj)
+		if err != nil {
+			log.FromContext(ctx).Error("cannot get meta from object", "error", err.Error())
+			return false
+		}
+		// Always enforce namespace scoping for namespace-scoped resources
+		if scoped && hasNS && ns != "" && accessor.GetNamespace() != ns {
+			return false
+		}
+		if labelSelector != nil && !labelSelector.Matches(labels.Set(accessor.GetLabels())) {
+			return false
+		}
+		// Filter returns true when the object is filtered OUT
+		if filter != nil && filter.Filter(ctx, obj) {
+			return false
+		}
+		return true
+	}, nil
 }
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
 	log := log.FromContext(ctx)
 
-	var filter resource.Filter
-	var err error
-	if r.obj.FieldSelector() != nil {
-		filter, err = r.obj.FieldSelector()(ctx, options.FieldSelector)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		filter, err = utils.ParseFieldSelector(ctx, options.FieldSelector)
-		if err != nil {
-			return nil, err
-		}
+	selected, err := r.predicate(ctx, options)
+	if err != nil {
+		return nil, err
 	}
 
 	newListObj := r.obj.NewList()
@@ -250,48 +303,26 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 		return nil, err
 	}
 
-	listFunc := func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
-		accessor, err := meta.Accessor(obj)
-		if err != nil {
-			log.Error("cannot get meta from object", "error", err.Error())
-			return
-		}
+	// Read the resourceVersion BEFORE iterating: every write up to it is in
+	// storage. A concurrent later write may also show up in the list; the
+	// client then sees it once more on the watch, which is harmless.
+	r.initRV(ctx)
+	listRV := r.rv.Current()
 
-		// Always enforce namespace scoping for namespace-scoped resources
-		if r.obj.NamespaceScoped() {
-			ns, ok := genericapirequest.NamespaceFrom(ctx)
-			if ok && ns != "" && accessor.GetNamespace() != ns {
-				return
-			}
-		}
-
-		if options.LabelSelector != nil || filter != nil {
-			f := true
-			if options.LabelSelector != nil {
-				if options.LabelSelector.Matches(labels.Set(accessor.GetLabels())) {
-					f = false
-				}
-			} else {
-				// if no labels selector is present don't filter
-				f = false
-			}
-			// if filtered we dont have to run this section since the label requirement was not met
-			if filter != nil && !f {
-				f = filter.Filter(ctx, obj)
-			}
-
-			if !f {
-				utils.AppendItem(v, obj)
-			}
-		} else {
+	if err := r.storage.List(ctx, func(ctx context.Context, key storebackend.Key, obj runtime.Object) {
+		if selected(ctx, obj) {
 			utils.AppendItem(v, obj)
 		}
-	}
-
-	if err := r.storage.List(ctx, listFunc); err != nil {
+	}); err != nil {
 		log.Error("list failed", "err", err)
 		return nil, err
 	}
+
+	listAcc, err := meta.ListAccessor(newListObj)
+	if err != nil {
+		return nil, apierrors.NewInternalError(err)
+	}
+	listAcc.SetResourceVersion(strconv.FormatUint(listRV, 10))
 	return newListObj, nil
 }
 
@@ -300,13 +331,7 @@ func (r *strategy) BeginWatch(ctx context.Context) error { return nil }
 func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListOptions) (watch.Interface, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	w := &watcher{
-		cancel:         cancel,
-		resultChan:     make(chan watch.Event),
-		watcherManager: r.watcherManager,
-		obj:            r.obj,
-	}
-
+	w := newWatcher(cancel, r.watcherManager)
 	go w.listAndWatch(ctx, r, options)
 
 	return w, nil
@@ -323,11 +348,14 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 	return fields
 }
 
-func (r *strategy) notifyWatcher(ctx context.Context, event watch.Event) {
-	log := log.FromContext(ctx).With("eventType", event.Type)
-	log.Debug("notify watcherManager")
-
-	r.watcherManager.WatchChan() <- event
+// publish returns the function that hands an event to the watcherManager.
+// It is called with the allocator lock held, so events are ordered by
+// resourceVersion. Watcher callbacks never block (see watcher.OnChange).
+func (r *strategy) publish(ctx context.Context) func(watch.Event) {
+	return func(event watch.Event) {
+		log.FromContext(ctx).With("eventType", event.Type).Debug("notify watcherManager")
+		r.watcherManager.WatchChan() <- event
+	}
 }
 
 func shouldLog(obj runtime.Object) bool {
