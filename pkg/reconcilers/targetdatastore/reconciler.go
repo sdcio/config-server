@@ -331,12 +331,10 @@ func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Targ
 	// events only on transitions (status or reason), not on message churn
 	if oldCond.Status != newCond.Status || oldCond.Reason != newCond.Reason {
 		eventType := corev1.EventTypeNormal
-		msg := "ready"
 		if !newCond.IsTrue() {
 			eventType = corev1.EventTypeWarning
-			msg = "notReady"
 		}
-		reconcilers.RecordEvent(r.recorder, target, eventType, configv1alpha1.TargetKind, msg)
+		reconcilers.RecordEvent(r.recorder, target, eventType, configv1alpha1.TargetKind, newCond.Message)
 	}
 
 	log.Info("applyReady",
