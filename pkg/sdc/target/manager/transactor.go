@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -340,10 +341,10 @@ func (r *Transactor) setIntents(
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError", 
-		"config", cfg.GetName(), 
-		"recoverable", recoverable, 
-		"msg", msg, 
+	log.Warn("updateConfigWithError",
+		"config", cfg.GetName(),
+		"recoverable", recoverable,
+		"msg", msg,
 		"err", err,
 	)
 
@@ -365,10 +366,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 	if recoverable {
 		newConfigCond = configv1alpha1.ConfigFailed(msg)
 	} else {
-		newMessage := condv1alpha1.UnrecoverableMessage{
-			ResourceVersion: current.GetResourceVersion(),
-			Message:         msg,
-		}
+		newMessage := nextUnrecoverableMarker(ctx, current, msg)
 		newmsg, err := json.Marshal(newMessage)
 		if err != nil {
 			return err
@@ -402,6 +400,46 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 			ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
 		},
 	)
+}
+
+// WakeParkedConfigs makes parked Configs of the target retryable again by
+// rewriting their ConfigReady condition as a recoverable failure; the resulting
+// Config event re-queues the target. With all unset only Configs whose retry
+// backoff elapsed are woken. It returns when the next parked Config becomes due
+// (0 when none is waiting).
+func (r *Transactor) WakeParkedConfigs(ctx context.Context, target *configv1alpha1.Target, all bool, reason string) (time.Duration, error) {
+	log := log.FromContext(ctx)
+
+	list := &configv1alpha1.ConfigList{}
+	if err := r.client.List(ctx, list,
+		client.InNamespace(target.GetNamespace()),
+		client.MatchingLabels{
+			config.TargetNamespaceKey: target.GetNamespace(),
+			config.TargetNameKey:      target.GetName(),
+		},
+	); err != nil {
+		return 0, err
+	}
+
+	wake, next := selectParkedToWake(ctx, list.Items, time.Now(), all)
+	for _, cfg := range wake {
+		log.Info("waking parked config", "config", cfg.GetName(), "reason", reason)
+		tmp := cfg.DeepCopy()
+		wakeCond := parkedWakeCondition(cfg, reason)
+		tmp.SetConditions(wakeCond)
+		overall := configv1alpha1.GetOverallCondition(tmp)
+		if err := r.client.Status().Apply(ctx,
+			configv1alpha1apply.Config(cfg.Name, cfg.Namespace).
+				WithStatus(configv1alpha1apply.ConfigStatus().
+					WithConditions(condv1alpha1.DedupeConditions(wakeCond, overall)...)),
+			&client.SubResourceApplyOptions{
+				ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
+			},
+		); err != nil {
+			return 0, err
+		}
+	}
+	return next, nil
 }
 
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
@@ -456,7 +494,6 @@ func (r *Transactor) updateConfigWithSuccess(
 		log.Debug("skip success update: config is deleting")
 		return nil
 	}
-	
 
 	newConfigCond := configv1alpha1.ConfigReady(msg)
 
@@ -874,11 +911,11 @@ func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.Config
 	if s == nil {
 		return nil
 	}
-	
+
 	a := configv1alpha1apply.ConfigSpec().
-			WithPriority(s.Priority)
-	
-	if s.Revertive != nil {	
+		WithPriority(s.Priority)
+
+	if s.Revertive != nil {
 		a.WithRevertive(*s.Revertive)
 	}
 

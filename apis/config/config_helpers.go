@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -59,23 +60,31 @@ func (r *Config) IsRevertive() bool {
 	return true
 }
 
+// SpecHash identifies the current spec; a parked marker is valid only for the spec it was written for.
+func (r *Config) SpecHash(ctx context.Context) string {
+	sum := r.Spec.GetShaSum(ctx)
+	return hex.EncodeToString(sum[:])
+}
+
+// IsRecoverable reports false while the Config is parked: its ConfigReady
+// condition is Unrecoverable and the marker's spec hash matches the current spec.
+// Status writes do not affect the result; a spec change or a marker without a
+// spec hash makes the Config recoverable again.
 func (r *Config) IsRecoverable(ctx context.Context) bool {
 	logger := log.FromContext(ctx)
 	c := r.GetCondition(ConditionTypeConfigReady)
-	if c.Reason == string(condition.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condition.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			logger.Error("is recoverable json unmarchal failed", "error", err)
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			logger.Info("is recoverable resource version changed", "old/new",
-				fmt.Sprintf("%s/%s", unrecoverableMessage.ResourceVersion, r.GetResourceVersion()))
-			return true
-		}
-		return false
+	if c.Reason != string(condition.ConditionReasonUnrecoverable) {
+		return true
 	}
-	return true
+	unrecoverableMessage := &condition.UnrecoverableMessage{}
+	if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
+		logger.Error("is recoverable json unmarchal failed", "error", err)
+		return true
+	}
+	if unrecoverableMessage.SpecHash == "" || unrecoverableMessage.SpecHash != r.SpecHash(ctx) {
+		return true
+	}
+	return false
 }
 
 func (r *Config) IsConfigConditionReady() bool {
