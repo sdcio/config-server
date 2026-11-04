@@ -27,213 +27,133 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+const testPath = "/interfaces/interface[name=eth0]/state/counters"
+
+func newTestSub(crName string, enc invv1alpha1.Encoding, params ...invv1alpha1.SubscriptionParameters) *invv1alpha1.Subscription {
+	sub := &invv1alpha1.Subscription{
+		Spec: invv1alpha1.SubscriptionSpec{
+			Encoding:      ptr.To(enc),
+			Subscriptions: params,
+		},
+	}
+	sub.SetNamespace("default")
+	sub.SetName(crName)
+	return sub
+}
+
+func onChange(name string, admin invv1alpha1.AdminState, paths ...string) invv1alpha1.SubscriptionParameters {
+	return invv1alpha1.SubscriptionParameters{
+		Name:       name,
+		Mode:       "onChange",
+		Paths:      paths,
+		AdminState: ptr.To(admin),
+	}
+}
+
+func sample30s(name string, paths ...string) invv1alpha1.SubscriptionParameters {
+	return invv1alpha1.SubscriptionParameters{
+		Name:       name,
+		Mode:       "sample",
+		Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
+		Paths:      paths,
+		AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
+	}
+}
+
 func TestAddSubscription(t *testing.T) {
 	subscriptions := NewSubscriptions()
+	sub1 := newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))
+	sub2 := newTestSub("sub2", invv1alpha1.Encoding_ASCII, sample30s("sub2", testPath))
 
-	// Define the first subscription (onChange)
-	sub1 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub1",
-					Mode:       "onChange",
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub1.SetNamespace("default")
-	sub1.SetName("sub1")
+	assert.NoError(t, subscriptions.AddSubscription(sub1))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 
-	// Define the second subscription (sample, 30s interval)
-	sub2 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub2",
-					Mode:       "sample",
-					Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub2.SetNamespace("default")
-	sub2.SetName("sub2")
-
-	// Add the first subscription
-	err := subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
-
-	// Verify that the path exists and is associated with the onChange subscription
-	paths := subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
-
-	// Add the second subscription
-	err = subscriptions.AddSubscription(sub2)
-	assert.NoError(t, err)
-
-	// Verify the path still prioritizes the onChange subscription (interval 0)
-	paths = subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
-
+	assert.NoError(t, subscriptions.AddSubscription(sub2))
+	// onChange (interval 0) keeps priority
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 }
 
 func TestDelSubscription(t *testing.T) {
 	subscriptions := NewSubscriptions()
+	sub1 := newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))
 
-	// Define and add a subscription
-	sub1 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub1",
-					Mode:       "onChange",
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
+	for i := 0; i < 3; i++ {
+		assert.NoError(t, subscriptions.AddSubscription(sub1))
 	}
-	sub1.SetNamespace("default")
-	sub1.SetName("sub1")
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 
-	err := subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
+	assert.NoError(t, subscriptions.DelSubscription(sub1))
+	assert.Empty(t, subscriptions.GetPaths())
+	assert.False(t, subscriptions.HasSubscriptions())
 
-	err = subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
-
-	err = subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
-
-	// Verify the path exists
-	paths := subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
-
-	// Delete the subscription
-	err = subscriptions.DelSubscription(sub1)
-	assert.NoError(t, err)
-
-	// Verify the path is removed
-	paths = subscriptions.GetPaths()
-	assert.Empty(t, paths)
-
-	// Verify the internal store no longer contains the path
-	_, err = subscriptions.Paths.Get(store.ToKey("/interfaces/interface[name=eth0]/state/counters"))
+	_, err := subscriptions.Paths.Get(store.ToKey(testPath))
 	assert.Error(t, err)
 }
 
 func TestPromotionAfterRemoval(t *testing.T) {
 	subscriptions := NewSubscriptions()
+	sub1 := newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))
+	sub2 := newTestSub("sub2", invv1alpha1.Encoding_ASCII, sample30s("sub2", testPath))
 
-	// Define the first subscription (onChange)
-	sub1 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub1",
-					Mode:       "onChange",
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub1.SetNamespace("default")
-	sub1.SetName("sub1")
+	assert.NoError(t, subscriptions.AddSubscription(sub1))
+	assert.NoError(t, subscriptions.AddSubscription(sub2))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 
-	// Define the second subscription (sample, 30s interval)
-	sub2 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub2",
-					Mode:       "sample",
-					Interval:   ptr.To(metav1.Duration{Duration: 30 * time.Second}),
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub2.SetNamespace("default")
-	sub2.SetName("sub2")
-
-	// Add both subscriptions
-	err := subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
-	err = subscriptions.AddSubscription(sub2)
-	assert.NoError(t, err)
-
-	// Verify that the onChange subscription is prioritized
-	paths := subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
-
-	// Delete the onChange subscription
-	err = subscriptions.DelSubscription(sub1)
-	assert.NoError(t, err)
-
-	// Verify that the 30s subscription is now Current
-	paths = subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 30}}, paths[invv1alpha1.Encoding_ASCII])
+	assert.NoError(t, subscriptions.DelSubscription(sub1))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 30}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 }
 
 func TestModifyEncoding(t *testing.T) {
 	subscriptions := NewSubscriptions()
+	sub1 := newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))
+	sub1Proto := newTestSub("sub1", invv1alpha1.Encoding_PROTO, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))
 
-	// Define the first subscription (onChange)
-	sub1 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_ASCII),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub1",
-					Mode:       "onChange",
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub1.SetNamespace("default")
-	sub1.SetName("sub1")
+	assert.NoError(t, subscriptions.AddSubscription(sub1))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
 
-	// Define the second subscription (sample, 30s interval)
-	sub2 := &invv1alpha1.Subscription{
-		Spec: invv1alpha1.SubscriptionSpec{
-			Encoding: ptr.To(invv1alpha1.Encoding_PROTO),
-			Subscriptions: []invv1alpha1.SubscriptionParameters{
-				{
-					Name:       "sub1",
-					Mode:       "onChange",
-					Paths:      []string{"/interfaces/interface[name=eth0]/state/counters"},
-					AdminState: ptr.To(invv1alpha1.AdminState_ENABLED),
-				},
-			},
-		},
-	}
-	sub2.SetNamespace("default")
-	sub2.SetName("sub1")
-
-	// Add both subscriptions
-	err := subscriptions.AddSubscription(sub1)
-	assert.NoError(t, err)
-
+	assert.NoError(t, subscriptions.AddSubscription(sub1Proto))
 	paths := subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_ASCII])
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, paths[invv1alpha1.Encoding_PROTO])
+	assert.Empty(t, paths[invv1alpha1.Encoding_ASCII])
+}
 
-	err = subscriptions.AddSubscription(sub2)
-	assert.NoError(t, err)
+// A path dropped from the CR spec must be pruned on the next Add.
+func TestPrunePathRemovedFromSpec(t *testing.T) {
+	const other = "/system/name"
+	subscriptions := NewSubscriptions()
 
-	// Verify paths for each interval
-	paths = subscriptions.GetPaths()
-	assert.Equal(t, []Path{{Path: "/interfaces/interface[name=eth0]/state/counters", Interval: 0}}, paths[invv1alpha1.Encoding_PROTO])
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath, other))))
+	assert.Len(t, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII], 2)
+
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 0}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
+
+	_, err := subscriptions.Paths.Get(store.ToKey(other))
+	assert.Error(t, err)
+}
+
+// Disabling the current subscription must promote the next best one.
+func TestDisableCurrentPromotes(t *testing.T) {
+	subscriptions := NewSubscriptions()
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_ENABLED, testPath))))
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub2", invv1alpha1.Encoding_ASCII, sample30s("sub2", testPath))))
+
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_DISABLED, testPath))))
+	assert.Equal(t, []Path{{Path: testPath, Interval: 30}}, subscriptions.GetPaths()[invv1alpha1.Encoding_ASCII])
+}
+
+// Only-disabled subscriptions: known, but nothing for the collector to do.
+func TestNoActivePathsWhenAllDisabled(t *testing.T) {
+	subscriptions := NewSubscriptions()
+	assert.False(t, subscriptions.HasActivePaths())
+
+	assert.NoError(t, subscriptions.AddSubscription(
+		newTestSub("sub1", invv1alpha1.Encoding_ASCII, onChange("sub1", invv1alpha1.AdminState_DISABLED, testPath))))
+	assert.True(t, subscriptions.HasSubscriptions())
+	assert.False(t, subscriptions.HasActivePaths())
 }

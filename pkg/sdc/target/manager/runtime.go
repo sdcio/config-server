@@ -19,8 +19,11 @@ package targetmanager
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -37,7 +40,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const fieldManagerTargetRuntime = "TargetRuntime"
+const (
+	fieldManagerTargetRuntime = "TargetRuntime"
+	// collectorRetryInterval is how long we wait before re-attempting a
+	// collector start that failed (e.g. device unreachable on the gNMI port).
+	collectorRetryInterval = 10 * time.Second
+)
 
 type TargetPhase string
 
@@ -80,12 +88,20 @@ type TargetRuntime struct {
 	lastConnValid bool
 	lastConn      bool
 
-	// subscriptions
+	// subscriptions: written by the subscription reconciler, read by the run loop.
+	// Subscriptions is internally synchronized.
 	subscriptions *Subscriptions
 
-	// owned runtime components (only runtime starts/stops them)
-	watcher   *DeviationWatcher
-	collector *Collector
+	// watcher is only touched by the run goroutine (reconcileOnce / stopRuntime).
+	watcher *DeviationWatcher
+
+	// collector is created, started and stopped only by the run goroutine,
+	// but it is READ concurrently by the metrics exporter (see Cache in
+	// exports.go). It is therefore published through an atomic pointer:
+	//   - stop:  Swap(nil) first (unpublish), then Stop the old collector
+	//   - start: Store the new collector, then Start it
+	//   - read:  Load exactly once and use that value
+	collector atomic.Pointer[Collector]
 
 	// control
 	runMu  sync.Mutex
@@ -165,49 +181,23 @@ func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSch
 	}
 }
 
-func (t *TargetRuntime) UpsertSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	// update internal state
-	t.ensureCollector()
-	t.collector.SetPort(uint(sub.Spec.Port))
-
+// UpsertSubscription records the subscription and wakes the run loop, which
+// decides whether the collector should (still) run. It never touches the
+// collector directly: the run loop owns its lifecycle.
+func (t *TargetRuntime) UpsertSubscription(_ context.Context, sub *invv1alpha1.Subscription) error {
 	if err := t.subscriptions.AddSubscription(sub); err != nil {
 		return err
 	}
-
-	// if runtime is running and collector not running -> start
-	st := t.Status()
-	if st.Phase == PhaseRunning && t.collector != nil && !t.collector.IsRunning() {
-		req := t.getDesired()
-		if req != nil && req.Target != nil {
-			return t.collector.Start(ctx, req)
-		}
-	}
-
-	// otherwise just notify update
-	if t.collector != nil && t.collector.IsRunning() {
-		t.collector.NotifySubscriptionChanged()
-	}
+	t.wake()
 	return nil
 }
 
-func (t *TargetRuntime) DeleteSubscription(ctx context.Context, sub *invv1alpha1.Subscription) error {
-	if t.subscriptions == nil {
-		return nil
-	}
+// DeleteSubscription removes the subscription and wakes the run loop.
+func (t *TargetRuntime) DeleteSubscription(_ context.Context, sub *invv1alpha1.Subscription) error {
 	if err := t.subscriptions.DelSubscription(sub); err != nil {
 		return err
 	}
-
-	if t.collector == nil || !t.collector.IsRunning() {
-		return nil
-	}
-
-	if !t.subscriptions.HasSubscriptions() {
-		t.collector.Stop(ctx)
-		return nil
-	}
-
-	t.collector.NotifySubscriptionChanged()
+	t.wake()
 	return nil
 }
 
@@ -321,12 +311,16 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	}
 
 	// Ensure runtime components are running
-	if err := t.ensureRuntime(ctx, cl, desired); err != nil {
+	if err := t.ensureRuntime(ctx, cl); err != nil {
 		t.setPhase(ctx, PhaseDegraded, err)
 		return
 	}
 
 	t.setPhase(ctx, PhaseRunning, nil)
+
+	// Telemetry is best-effort: collector problems never change the target
+	// phase, so a broken gNMI subscription cannot block config management.
+	t.reconcileCollector(ctx, desired)
 }
 
 func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client, desired *sdcpb.CreateDataStoreRequest) error {
@@ -356,7 +350,7 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 
 	// 2) Exists. If hash differs, recreate.
 	if haveHash != "" && wantHash != "" && haveHash != wantHash {
-		// stop runtime first (watch streams etc)
+		// stop runtime first (watch streams, collector etc)
 		t.stopRuntime(ctx)
 
 		// delete datastore
@@ -435,18 +429,90 @@ func (t *TargetRuntime) ensureDatastoreDeleted(ctx context.Context) {
 	t.setRunningHash("")
 }
 
-func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client, desired *sdcpb.CreateDataStoreRequest) error {
+// ensureRuntime starts the components required for config management.
+// The telemetry collector is handled separately by reconcileCollector.
+func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client) error {
 	if t.watcher == nil {
 		t.watcher = NewDeviationWatcher(t.key, t.client, cl)
 		t.watcher.Start(ctx)
 	}
-	if t.collector == nil {
-		t.collector = NewCollector(t.key, t.subscriptions)
-		if err := t.collector.Start(ctx, desired); err != nil {
-			return err
-		}
-	}
 	return nil
+}
+
+// reconcileCollector converges the gNMI telemetry collector with the current
+// desired target and subscription state. Run-loop only: it is the only
+// writer of t.collector.
+func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.CreateDataStoreRequest) {
+	log := log.FromContext(ctx).With("target", t.key.String())
+
+	address, reason := t.collectorAddress(desired)
+	if reason != "" {
+		if t.stopCollector(ctx) {
+			log.Info("stopped collector", "reason", reason)
+		} else {
+			log.Debug("collector not started", "reason", reason)
+		}
+		return
+	}
+
+	c := t.collector.Load()
+
+	// Already running against the same endpoint: just push the new path set.
+	if c != nil && c.IsRunning() && c.Address() == address {
+		c.NotifySubscriptionChanged()
+		return
+	}
+
+	if c == nil {
+		c = NewCollector(t.key, t.subscriptions)
+		// publish before Start: readers get its cache, which is valid (empty)
+		// until the subscription fills it
+		t.collector.Store(c)
+	}
+	// Start stops any previous instance (e.g. the port changed).
+	if err := c.Start(ctx, desired, address); err != nil {
+		log.Error("collector start failed", "err", err, "retryIn", collectorRetryInterval)
+		time.AfterFunc(collectorRetryInterval, t.wake)
+	}
+}
+
+// stopCollector unpublishes the collector and then stops it, so concurrent
+// readers never obtain a collector that is being torn down. Returns true if
+// a collector was stopped.
+func (t *TargetRuntime) stopCollector(ctx context.Context) bool {
+	c := t.collector.Swap(nil)
+	if c == nil {
+		return false
+	}
+	c.Stop(ctx)
+	return true
+}
+
+// collectorAddress returns the gNMI address to subscribe to, or a non-empty
+// reason why the collector must not run.
+//
+// Port precedence: subscription port, then the target's port.
+func (t *TargetRuntime) collectorAddress(desired *sdcpb.CreateDataStoreRequest) (string, string) {
+	if desired == nil || desired.Target == nil {
+		return "", "no target"
+	}
+	if !strings.EqualFold(desired.Target.Type, string(invv1alpha1.Protocol_GNMI)) {
+		return "", fmt.Sprintf("target protocol %q is not gnmi", desired.Target.Type)
+	}
+	if desired.Target.Address == "" {
+		return "", "target has no address"
+	}
+	if !t.subscriptions.HasActivePaths() {
+		return "", "no active subscription paths"
+	}
+	port := t.subscriptions.Port()
+	if port == 0 {
+		port = uint(desired.Target.Port)
+	}
+	if port == 0 {
+		return "", "no port defined on subscription or target"
+	}
+	return net.JoinHostPort(desired.Target.Address, strconv.FormatUint(uint64(port), 10)), ""
 }
 
 func (t *TargetRuntime) stopRuntime(ctx context.Context) {
@@ -454,16 +520,7 @@ func (t *TargetRuntime) stopRuntime(ctx context.Context) {
 		t.watcher.Stop(ctx)
 		t.watcher = nil
 	}
-	if t.collector != nil {
-		t.collector.Stop(ctx)
-		t.collector = nil
-	}
-}
-
-func (t *TargetRuntime) ensureCollector() {
-	if t.collector == nil {
-		t.collector = NewCollector(t.key, t.subscriptions)
-	}
+	t.stopCollector(ctx)
 }
 
 func (t *TargetRuntime) datastoreName() string {
@@ -516,7 +573,7 @@ func (t *TargetRuntime) getLastErr() error {
 	return t.lastError
 }
 
-func (t *TargetRuntime) setDSReady(_ctx context.Context, ready bool, err error) {
+func (t *TargetRuntime) setDSReady(_ context.Context, ready bool, err error) {
 	t.actualMu.Lock()
 	defer t.actualMu.Unlock()
 	t.dsReady = ready
@@ -530,7 +587,7 @@ func (t *TargetRuntime) setDSReady(_ctx context.Context, ready bool, err error) 
 	}
 }
 
-func (t *TargetRuntime) setPhase(_ctx context.Context, p TargetPhase, err error) {
+func (t *TargetRuntime) setPhase(_ context.Context, p TargetPhase, err error) {
 	t.actualMu.Lock()
 	defer t.actualMu.Unlock()
 	t.phase = p

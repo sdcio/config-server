@@ -35,21 +35,23 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
+const subscriptionRetryBackoff = 5 * time.Second
+
 type Collector struct {
 	targetKey     storebackend.Key
-	subChan       chan struct{}
+	subChan       chan struct{} // buffered(1): coalescing, never loses a notification
 	subscriptions *Subscriptions
 	cache         cache.Cache
 
-	m      sync.RWMutex
-	target *target.Target
-	port   uint
-	paths  map[invv1alpha1.Encoding][]Path
+	m       sync.RWMutex
+	target  *target.Target
+	address string // host:port the gNMI client was created for
+	paths   map[invv1alpha1.Encoding][]Path
 
 	// collector lifetime
 	cancel context.CancelFunc
 
-	// subscription lifetime (ONLY for curr
+	// subscription lifetime (only for the current path snapshot)
 	subscriptionCancel context.CancelFunc
 }
 
@@ -58,7 +60,7 @@ func NewCollector(targetKey storebackend.Key, subscriptions *Subscriptions) *Col
 	return &Collector{
 		targetKey:     targetKey,
 		subscriptions: subscriptions,
-		subChan:       make(chan struct{}),
+		subChan:       make(chan struct{}, 1),
 		cache:         cache,
 	}
 }
@@ -70,16 +72,11 @@ func (r *Collector) NotifySubscriptionChanged() {
 	}
 }
 
-func (r *Collector) SetPort(port uint) {
-	r.m.Lock()
-	defer r.m.Unlock()
-	r.port = port
-}
-
-func (r *Collector) GetPort() uint {
+// Address returns the endpoint the running collector is connected to ("" when stopped).
+func (r *Collector) Address() string {
 	r.m.RLock()
 	defer r.m.RUnlock()
-	return r.port
+	return r.address
 }
 
 func (r *Collector) IsRunning() bool {
@@ -112,58 +109,69 @@ func (r *Collector) Stop(ctx context.Context) {
 		}
 		r.target = nil
 	}
+	r.address = ""
 	r.paths = nil
 }
 
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest) error {
+// Start (re)connects the collector to address using the target's credentials
+// and TLS settings. Eligibility (gnmi, port, active paths) is decided by the
+// runtime; the checks here are only defensive.
+func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest, address string) error {
+	if req == nil || req.Target == nil {
+		return fmt.Errorf("collector: no target")
+	}
+	if address == "" {
+		return fmt.Errorf("collector: no address")
+	}
+
 	// stop existing (safe)
 	r.Stop(ctx)
 
-	r.m.Lock()
-	// start collector lifetime
-	runCtx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
 
-	// build target (needs port)
 	tOpts := []gapi.TargetOption{
 		gapi.Name(r.targetKey.String()),
-		gapi.Address(fmt.Sprintf("%s:%d", req.Target.Address, req.Target.Port)),
-		gapi.Username(string(req.Target.Credentials.Username)),
-		gapi.Password(string(req.Target.Credentials.Password)),
+		gapi.Address(address),
 		gapi.Timeout(5 * time.Second),
+	}
+	if c := req.Target.Credentials; c != nil {
+		tOpts = append(tOpts,
+			gapi.Username(string(c.Username)),
+			gapi.Password(string(c.Password)),
+		)
 	}
 	if req.Target.Tls == nil {
 		tOpts = append(tOpts, gapi.Insecure(true))
 	} else {
-		tOpts = append(tOpts, gapi.SkipVerify(req.Target.Tls.SkipVerify))
-		tOpts = append(tOpts, gapi.TLSCA(req.Target.Tls.Ca))
-		tOpts = append(tOpts, gapi.TLSCert(req.Target.Tls.Cert))
-		tOpts = append(tOpts, gapi.TLSKey(req.Target.Tls.Key))
+		tOpts = append(tOpts,
+			gapi.SkipVerify(req.Target.Tls.SkipVerify),
+			gapi.TLSCA(req.Target.Tls.Ca),
+			gapi.TLSCert(req.Target.Tls.Cert),
+			gapi.TLSKey(req.Target.Tls.Key),
+		)
 	}
 
-	var err error
-	r.target, err = gapi.NewTarget(tOpts...)
+	tg, err := gapi.NewTarget(tOpts...)
 	if err != nil {
-		r.cancel = nil
-		r.m.Unlock()
-		log.Error("cannot create gnmi target", "err", err)
-		return err
-	}
-	if err := r.target.CreateGNMIClient(runCtx); err != nil {
-		_ = r.target.Close()
-		r.target = nil
-		r.cancel = nil
-		r.m.Unlock()
-		log.Error("cannot create gnmi client", "err", err)
-		return err
+		return fmt.Errorf("create gnmi target %s: %w", address, err)
 	}
 
-	// reset path snapshot so first update triggers
-	r.paths = nil
+	runCtx, cancel := context.WithCancel(ctx)
+	// dial outside the lock
+	if err := tg.CreateGNMIClient(runCtx); err != nil {
+		cancel()
+		_ = tg.Close()
+		return fmt.Errorf("create gnmi client %s: %w", address, err)
+	}
+
+	r.m.Lock()
+	r.target = tg
+	r.address = address
+	r.cancel = cancel
+	r.paths = nil // reset path snapshot so first update triggers
 	r.m.Unlock()
 
+	log.Info("collector started", "address", address)
 	go r.start(runCtx)
 	return nil
 }
@@ -190,6 +198,12 @@ func (r *Collector) update(ctx context.Context) {
 	defer r.m.Unlock()
 
 	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+
+	// Stop() cancels ctx while holding r.m, so this reliably detects a stale
+	// loop from a previous Start and keeps it off the new target's state.
+	if ctx.Err() != nil || r.target == nil {
+		return
+	}
 
 	if r.subscriptions == nil {
 		log.Debug("no subscriptions")
@@ -219,10 +233,11 @@ func (r *Collector) update(ctx context.Context) {
 		return
 	}
 
-	// start new subscription loop with its own cancel
+	// start new subscription loop with its own cancel; pass the target
+	// explicitly so the loop never dereferences r.target after Stop().
 	subCtx, cancel := context.WithCancel(ctx)
 	r.subscriptionCancel = cancel
-	go r.startSubscription(subCtx, newPaths)
+	go r.runSubscription(subCtx, r.target, newPaths)
 }
 
 func (r *Collector) stopSubscriptionLocked() {
@@ -238,6 +253,7 @@ func (r *Collector) stopSubscriptionLocked() {
 
 func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bool {
 	// IMPORTANT: caller holds r.m.Lock()
+	// GetPaths returns paths sorted per encoding, so index comparison is safe.
 	old := r.paths
 	if old == nil && len(newPaths) == 0 {
 		return false
@@ -253,7 +269,6 @@ func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bo
 		if len(op) != len(np) {
 			return true
 		}
-		// If order is not guaranteed, you should sort; see section 4 below.
 		for i := range op {
 			if op[i].Path != np[i].Path || op[i].Interval != np[i].Interval {
 				return true
@@ -274,74 +289,112 @@ func (r *Collector) StopSubscription(ctx context.Context) {
 	r.stopSubscriptionLocked()
 }
 
-func (r *Collector) startSubscription(ctx context.Context, paths map[invv1alpha1.Encoding][]Path) {
+// runSubscription keeps the subscriptions for one path snapshot alive until
+// ctx is cancelled, restarting the streams with a backoff on failure.
+func (r *Collector) runSubscription(ctx context.Context, tg *target.Target, paths map[invv1alpha1.Encoding][]Path) {
 	log := log.FromContext(ctx).With("target", r.targetKey.String())
 	log.Info("starting subscription collector", "paths", paths)
 
-START:
-	// subscribe using received paths
-	for subEncoding, paths := range paths {
-		opts := make([]gapi.GNMIOption, 0)
-		for _, path := range paths {
-			subscriptionOpts := []gapi.GNMIOption{
-				gapi.Path(path.Path),
-			}
-			if path.Interval == 0 {
-				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeON_CHANGE())
-			} else {
-				subscriptionOpts = append(subscriptionOpts, gapi.SubscriptionModeSAMPLE())
-				subscriptionOpts = append(subscriptionOpts, gapi.SampleInterval(time.Duration(path.Interval)*time.Second))
-			}
-			opts = append(opts, gapi.Subscription(subscriptionOpts...))
-		}
-		opts = append(opts,
-			gapi.EncodingCustom(encoding(subEncoding.String())),
-			gapi.SubscriptionListModeSTREAM(),
-		)
-		subReq, err := gapi.NewSubscribeRequest(opts...)
-		if err != nil {
-			log.Error("subscription failed", "err", err)
-			time.Sleep(5 * time.Second)
-			goto START
-		}
-		log.Info("subscription request", "req", prototext.Format(subReq))
-		go r.target.Subscribe(ctx, subReq, fmt.Sprintf("configserver %s", subEncoding.String()))
+	reqs, err := buildSubscribeRequests(paths)
+	if err != nil {
+		// deterministic for a given snapshot: retrying would not help
+		log.Error("cannot build subscribe request", "err", err)
+		return
 	}
 
-	// stop the subscriptions once stopped
-	defer r.target.StopSubscriptions()
-	rspch, errCh := r.target.ReadSubscriptions()
-
+	defer tg.StopSubscriptions()
 	for {
+		r.stream(ctx, tg, reqs)
+		tg.StopSubscriptions()
+
 		select {
 		case <-ctx.Done():
 			log.Info("subscription collector stopped")
 			return
-		case rsp := <-rspch:
-			log.Debug("subscription update", "update", rsp.Response)
-			switch rsp := rsp.Response.ProtoReflect().Interface().(type) {
-			case *gnmi.SubscribeResponse:
-				switch rsp := rsp.GetResponse().(type) {
-				case *gnmi.SubscribeResponse_Update:
-					if rsp.Update.GetPrefix() == nil {
-						rsp.Update.Prefix = new(gnmi.Path)
-					}
-					if rsp.Update.GetPrefix().GetTarget() == "" {
-						rsp.Update.Prefix.Target = r.targetKey.String()
-					}
-				}
-			}
+		case <-time.After(subscriptionRetryBackoff):
+			log.Info("restarting subscriptions")
+		}
+	}
+}
 
-			r.cache.Write(ctx, "", rsp.Response)
-		case err := <-errCh:
-			if err.Err != nil {
-				r.target.StopSubscriptions()
-				log.Error("subscription failed", "err", err)
-				time.Sleep(time.Second)
-				goto START
+// stream runs the subscriptions until ctx is done or a stream fails.
+func (r *Collector) stream(ctx context.Context, tg *target.Target, reqs map[string]*gnmi.SubscribeRequest) {
+	log := log.FromContext(ctx).With("target", r.targetKey.String())
+
+	for name, req := range reqs {
+		log.Info("subscription request", "name", name, "req", prototext.Format(req))
+		go tg.Subscribe(ctx, req, name)
+	}
+
+	rspCh, errCh := tg.ReadSubscriptions()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case rsp, ok := <-rspCh:
+			if !ok {
+				return
+			}
+			r.handleResponse(ctx, rsp)
+		case tErr, ok := <-errCh:
+			if !ok {
+				return
+			}
+			if tErr != nil && tErr.Err != nil {
+				log.Error("subscription failed", "err", tErr.Err)
+				return
 			}
 		}
 	}
+}
+
+func (r *Collector) handleResponse(ctx context.Context, rsp *target.SubscribeResponse) {
+	if rsp == nil || rsp.Response == nil {
+		return
+	}
+	log.FromContext(ctx).Debug("subscription update", "update", rsp.Response)
+
+	switch resp := rsp.Response.ProtoReflect().Interface().(type) {
+	case *gnmi.SubscribeResponse:
+		if u, ok := resp.GetResponse().(*gnmi.SubscribeResponse_Update); ok {
+			if u.Update.GetPrefix() == nil {
+				u.Update.Prefix = new(gnmi.Path)
+			}
+			if u.Update.GetPrefix().GetTarget() == "" {
+				u.Update.Prefix.Target = r.targetKey.String()
+			}
+		}
+	}
+	r.cache.Write(ctx, "", rsp.Response)
+}
+
+func buildSubscribeRequests(paths map[invv1alpha1.Encoding][]Path) (map[string]*gnmi.SubscribeRequest, error) {
+	reqs := make(map[string]*gnmi.SubscribeRequest, len(paths))
+	for enc, encPaths := range paths {
+		opts := make([]gapi.GNMIOption, 0, len(encPaths)+2)
+		for _, p := range encPaths {
+			subOpts := []gapi.GNMIOption{gapi.Path(p.Path)}
+			if p.Interval == 0 {
+				subOpts = append(subOpts, gapi.SubscriptionModeON_CHANGE())
+			} else {
+				subOpts = append(subOpts,
+					gapi.SubscriptionModeSAMPLE(),
+					gapi.SampleInterval(time.Duration(p.Interval)*time.Second),
+				)
+			}
+			opts = append(opts, gapi.Subscription(subOpts...))
+		}
+		opts = append(opts,
+			gapi.EncodingCustom(encoding(enc.String())),
+			gapi.SubscriptionListModeSTREAM(),
+		)
+		req, err := gapi.NewSubscribeRequest(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("encoding %s: %w", enc.String(), err)
+		}
+		reqs[fmt.Sprintf("configserver %s", enc.String())] = req
+	}
+	return reqs, nil
 }
 
 func encoding(e string) int {

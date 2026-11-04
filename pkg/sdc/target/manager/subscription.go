@@ -20,6 +20,7 @@ import (
 	errors "errors"
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/henderiw/store"
 	"github.com/henderiw/store/memory"
@@ -27,17 +28,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-const maxInterval = 1000
-
-//var supportIntervals []int = []int{0, 1, 15, 30, 60}
-
+// Subscriptions is written by the subscription reconciler and read by the
+// target run loop / collector, so every exported method takes mu.
 type Subscriptions struct {
+	mu    sync.RWMutex
 	Paths store.Storer[*PathSubscriptions]
+	// ports holds the port requested by each Subscription CR (key: CR nsn).
+	ports map[string]uint
 }
 
 type PathSubscriptions struct {
 	Current *Subscription
-	// AllSubscriptions list all the subscriptions that are in the system, the key is name of the subscription CR
+	// AllSubscriptions list all the subscriptions that are in the system, the key is <cr nsn>.<subscription name>
 	AllSubscriptions map[string]*Subscription
 }
 
@@ -55,147 +57,147 @@ type Subscription struct {
 func NewSubscriptions() *Subscriptions {
 	return &Subscriptions{
 		Paths: memory.NewStore[*PathSubscriptions](nil),
+		ports: map[string]uint{},
 	}
 }
 
+// HasSubscriptions reports whether any path is known, enabled or not.
 func (r *Subscriptions) HasSubscriptions() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.Paths.Len() != 0
 }
 
-// Add or update a subscription
+// HasActivePaths reports whether at least one path has an enabled subscription,
+// i.e. whether there is anything for the collector to subscribe to.
+func (r *Subscriptions) HasActivePaths() bool {
+	return len(r.GetPaths()) > 0
+}
+
+// Port returns the port the collector should dial, 0 if no CR defines one.
+// If several CRs define different ports, the CR with the lowest nsn wins so
+// the choice is stable across reconciles.
+func (r *Subscriptions) Port() uint {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	nsns := make([]string, 0, len(r.ports))
+	for nsn, p := range r.ports {
+		if p != 0 {
+			nsns = append(nsns, nsn)
+		}
+	}
+	if len(nsns) == 0 {
+		return 0
+	}
+	sort.Strings(nsns)
+	return r.ports[nsns[0]]
+}
+
+// AddSubscription adds or updates all subscriptions of a CR, and prunes
+// paths/subscriptions the CR previously owned but no longer declares.
 func (r *Subscriptions) AddSubscription(subscription *invv1alpha1.Subscription) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	subscriptionNSN := subscription.GetNamespacedName().String()
+	r.ports[subscriptionNSN] = uint(subscription.Spec.Port)
+
 	var errs error
-
-	// check update of the subscription by validating the existing subscriptions against the cache
-	existingCRSubscriptions := r.getExistingCRSubscription(subscriptionNSN)
+	desired := map[string]sets.Set[string]{} // path -> <nsn>.<name> declared now
 	for _, subParam := range subscription.Spec.Subscriptions {
-		for _, path := range subParam.Paths {
-			key := store.ToKey(path)
-			// we could have the same path defined in the subscription accross multiple subscriptions
-			subscriptionNSNName := getSubscriptionNSNName(subscriptionNSN, subParam.Name)
-			// remove the item from the exesting list otherwise it will be deleted
-			existingCRPathSubscriptionSet, ok := existingCRSubscriptions[path]
-			if ok {
-				existingCRPathSubscriptionSet.Delete(path)
-				existingCRSubscriptions[path] = existingCRPathSubscriptionSet
-				if len(existingCRPathSubscriptionSet) == 0 {
-					delete(existingCRPathSubscriptionSet, path)
-				}
-			}
+		subscriptionNSNName := getSubscriptionNSNName(subscriptionNSN, subParam.Name)
+		newSubscription := getSubscription(subscriptionNSN, subParam, subscription.GetEncoding())
 
-			// convert the subscriptions parameters to a subscription we manage in this cache
-			newSubscription := getSubscription(subscriptionNSN, subParam, subscription.GetEncoding())
-			// check if the path exists in the existing path subscriptions
+		for _, path := range subParam.Paths {
+			if desired[path] == nil {
+				desired[path] = sets.New[string]()
+			}
+			desired[path].Insert(subscriptionNSNName)
+
+			key := store.ToKey(path)
 			pathSubscriptions, err := r.Paths.Get(key)
 			if err != nil {
 				pathSubscriptions = &PathSubscriptions{
 					AllSubscriptions: make(map[string]*Subscription),
 				}
 			}
-
 			pathSubscriptions.AllSubscriptions[subscriptionNSNName] = newSubscription
+			pathSubscriptions.recomputeCurrent()
 
-			// check if we need to update current
-			if newSubscription.Enabled {
-				if pathSubscriptions.Current == nil {
-					// if no current subscription exists and we get an enabled subsription this subscription becomes current
-					pathSubscriptions.Current = newSubscription
-				} else {
-					// it can be that the parameters changed
-					if subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
-						pathSubscriptions.Current = newSubscription
-					}
-					// current exists
-					if newSubscription.Interval < pathSubscriptions.Current.Interval {
-						pathSubscriptions.Current = newSubscription
-					}
-				}
-			}
-
-			// ignoring error for now
 			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
 				errs = errors.Join(errs, err)
 			}
 		}
 	}
 
-	for path, existingCRPathSubscriptionSet := range existingCRSubscriptions {
-		// TODO delete these
-		for _, subscriptionNSNName := range existingCRPathSubscriptionSet.UnsortedList() {
-			key := store.ToKey(path)
-			pathSubscriptions, err := r.Paths.Get(key)
-			if err != nil {
-				// strange since we just listed them
-				continue
-			}
-			delete(pathSubscriptions.AllSubscriptions, subscriptionNSN)
-			if len(pathSubscriptions.AllSubscriptions) == 0 {
-				// if no subscriptions exist we can delete the path from the cache
-				if err := r.Paths.Delete(key); err != nil {
-					errs = errors.Join(errs, err)
-				}
-				continue
-			}
-			// pick a new current subscription since this was the current one
-			if pathSubscriptions.Current != nil && subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
-				interval := 1000
-				pathSubscriptions.Current = nil
-				for _, subscription := range pathSubscriptions.AllSubscriptions {
-					if subscription.Interval < interval && subscription.Enabled {
-						interval = subscription.Interval
-						pathSubscriptions.Current = subscription
-					}
-				}
-			}
-			// ignoring error for now
-			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
-				errs = errors.Join(errs, err)
-			}
+	// prune what this CR owned before but no longer declares
+	for path, owned := range r.getExistingCRSubscription(subscriptionNSN) {
+		stale := owned.Difference(desired[path])
+		if stale.Len() == 0 {
+			continue
+		}
+		if err := r.removeLocked(path, stale.UnsortedList()...); err != nil {
+			errs = errors.Join(errs, err)
 		}
 	}
 	return errs
 }
 
+// DelSubscription removes everything the CR owns. It works on ownership,
+// not on the CR spec, so entries from older spec versions are removed too.
 func (r *Subscriptions) DelSubscription(subscription *invv1alpha1.Subscription) error {
-	subscriptionNSN := subscription.GetNamespacedName().String()
-	var errs error
-	for _, subParam := range subscription.Spec.Subscriptions {
-		for _, path := range subParam.Paths {
-			key := store.ToKey(path)
-			// we could have the same path defined in the subscription accross multiple subscriptions
-			subscriptionNSNName := getSubscriptionNSNName(subscriptionNSN, subParam.Name)
-			pathSubscriptions, err := r.Paths.Get(key)
-			if err != nil {
-				continue
-			}
-			delete(pathSubscriptions.AllSubscriptions, subscriptionNSNName)
-			if len(pathSubscriptions.AllSubscriptions) == 0 {
-				// if no subscriptions exist we can delete the path from the cache
-				if err := r.Paths.Delete(key); err != nil {
-					errs = errors.Join(errs, err)
-				}
-				continue
-			}
-			// pick a new current subscription since this was the current one
-			if pathSubscriptions.Current != nil && subscriptionNSNName == getSubscriptionNSNName(pathSubscriptions.Current.NSN, pathSubscriptions.Current.Name) {
-				interval := maxInterval
-				pathSubscriptions.Current = nil
-				for _, subscription := range pathSubscriptions.AllSubscriptions {
-					if subscription.Interval < interval && subscription.Enabled {
-						interval = subscription.Interval
-						pathSubscriptions.Current = subscription
-					}
-				}
-			}
-			// ignoring error for now
-			if err := r.Paths.Apply(key, pathSubscriptions); err != nil {
-				errs = errors.Join(errs, err)
-			}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
+	subscriptionNSN := subscription.GetNamespacedName().String()
+	delete(r.ports, subscriptionNSN)
+
+	var errs error
+	for path, owned := range r.getExistingCRSubscription(subscriptionNSN) {
+		if err := r.removeLocked(path, owned.UnsortedList()...); err != nil {
+			errs = errors.Join(errs, err)
 		}
 	}
 	return errs
+}
+
+// removeLocked removes the named subscriptions from a path; caller holds mu.
+func (r *Subscriptions) removeLocked(path string, subscriptionNSNNames ...string) error {
+	key := store.ToKey(path)
+	pathSubscriptions, err := r.Paths.Get(key)
+	if err != nil {
+		return nil // already gone
+	}
+	for _, n := range subscriptionNSNNames {
+		delete(pathSubscriptions.AllSubscriptions, n)
+	}
+	if len(pathSubscriptions.AllSubscriptions) == 0 {
+		return r.Paths.Delete(key)
+	}
+	pathSubscriptions.recomputeCurrent()
+	return r.Paths.Apply(key, pathSubscriptions)
+}
+
+// recomputeCurrent picks the enabled subscription with the lowest interval
+// (0 = onChange wins). Ties are broken by key so the result is deterministic.
+func (ps *PathSubscriptions) recomputeCurrent() {
+	names := make([]string, 0, len(ps.AllSubscriptions))
+	for n := range ps.AllSubscriptions {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	ps.Current = nil
+	for _, n := range names {
+		s := ps.AllSubscriptions[n]
+		if !s.Enabled {
+			continue
+		}
+		if ps.Current == nil || s.Interval < ps.Current.Interval {
+			ps.Current = s
+		}
+	}
 }
 
 type Path struct {
@@ -203,25 +205,23 @@ type Path struct {
 	Interval int
 }
 
+// GetPaths returns the active (Current) paths per encoding, sorted by path.
 func (r *Subscriptions) GetPaths() map[invv1alpha1.Encoding][]Path {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	encodingPaths := map[invv1alpha1.Encoding][]Path{}
 	r.Paths.List(func(k store.Key, subscriptions *PathSubscriptions) {
 		if subscriptions.Current != nil {
-			paths, ok := encodingPaths[subscriptions.Current.Encoding]
-			if !ok {
-				paths = make([]Path, 0)
-			}
-			paths = append(paths, Path{Path: k.Name, Interval: subscriptions.Current.Interval})
-			encodingPaths[subscriptions.Current.Encoding] = paths
+			enc := subscriptions.Current.Encoding
+			encodingPaths[enc] = append(encodingPaths[enc], Path{Path: k.Name, Interval: subscriptions.Current.Interval})
 		}
 	})
-	for encoding, paths := range encodingPaths {
+	for _, paths := range encodingPaths {
 		sort.Slice(paths, func(i, j int) bool {
 			return paths[i].Path < paths[j].Path
 		})
-		encodingPaths[encoding] = paths
 	}
-
 	return encodingPaths
 }
 
@@ -237,6 +237,7 @@ func getSubscription(nsn string, param invv1alpha1.SubscriptionParameters, encod
 	}
 }
 
+// getExistingCRSubscription returns path -> set(<nsn>.<name>) owned by the CR; caller holds mu.
 func (r *Subscriptions) getExistingCRSubscription(nsn string) map[string]sets.Set[string] {
 	existingCRSubscriptions := map[string]sets.Set[string]{}
 	r.Paths.List(func(k store.Key, ps *PathSubscriptions) {
