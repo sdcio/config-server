@@ -820,7 +820,7 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 		))
 
 		statusApply := configv1alpha1apply.ConfigStatus().
-			WithConditions(targetCond, configCond, newReadyCond)
+			WithConditions(targetStatusConditions(targetCond, configCond, newReadyCond)...)
 
 		// preserve schema + appliedConfig so SSA doesn't strip them
 		if v1cfg.Status.LastKnownGoodSchema != nil {
@@ -844,6 +844,13 @@ func (r *Transactor) SetConfigsTargetConditionForTarget(
 		}
 	}
 	return nil
+}
+
+// targetStatusConditions returns the conditions to apply, one per type.
+// targetCond may itself be a ConfigReady condition (recovery path), which
+// would otherwise duplicate configCond and be rejected by SSA list-map keys.
+func targetStatusConditions(targetCond, configCond, readyCond condv1alpha1.Condition) []condv1alpha1.Condition {
+	return condv1alpha1.DedupeConditions(targetCond, configCond, readyCond)
 }
 
 func schemaToApply(s *configv1alpha1.ConfigStatusLastKnownGoodSchema) *configv1alpha1apply.ConfigStatusLastKnownGoodSchemaApplyConfiguration {
