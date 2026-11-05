@@ -68,8 +68,6 @@ const (
 	fallbackRequeue = 30 * time.Second
 	schemaRequeue   = 10 * time.Second
 	deleteRequeue   = 5 * time.Second
-
-	maxConditionMessage = 512
 )
 
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets,verbs=get;list;watch;create;update;patch;delete
@@ -313,10 +311,10 @@ func readyFromRuntime(st targetmanager.RuntimeStatus) (cond condv1alpha1.Conditi
 func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Target, newCond condv1alpha1.Condition, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
 
-	if len(newCond.Message) > maxConditionMessage {
-		newCond.Message = newCond.Message[:maxConditionMessage]
-	}
-
+	// No truncation here: TargetReady/TargetNotReady build the condition via
+	// condv1alpha1.NewCondition, which bounds the message (MaxMessageBytes)
+	// at a rune boundary and marks the cut. The bound is deterministic, so
+	// the no-change guard below stays stable for repeated long errors.
 	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
 	if newCond.Equal(oldCond) && equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
 		log.Debug("applyReady -> no change", "ready", newCond.IsTrue(), "reason", newCond.Reason)
@@ -334,7 +332,8 @@ func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Targ
 		if !newCond.IsTrue() {
 			eventType = corev1.EventTypeWarning
 		}
-		reconcilers.RecordEvent(r.recorder, target, eventType, configv1alpha1.TargetKind, newCond.Message)
+		// RecordEvent bounds the note to the Event limit itself
+		reconcilers.RecordEvent(r.recorder, target, eventType, newCond.Reason, newCond.Message)
 	}
 
 	log.Info("applyReady",

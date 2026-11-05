@@ -189,14 +189,10 @@ func TargetReady(msg string) condv1alpha1.Condition {
 }
 
 // TargetNotReady returns the Ready=False condition with a pipeline reason.
+// The message is bounded (condv1alpha1.MaxMessageBytes) at a rune boundary,
+// with the cut marked, so long dataserver/device errors stay valid and readable.
 func TargetNotReady(reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(condv1alpha1.ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(reason),
-		Message:            msg,
-	}}
+	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
 }
 
 // LegacyTargetConditionTypes are no longer written. They are removed once

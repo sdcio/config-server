@@ -57,9 +57,9 @@ func (c Condition) Equal(other Condition) bool {
 }
 
 // WithMessage returns a condition by adding the provided message to existing
-// condition.
+// condition. The message is bounded to MaxMessageBytes.
 func (c Condition) WithMessage(msg string) Condition {
-	c.Message = msg
+	c.Message = TruncateMessage(msg, MaxMessageBytes)
 	return c
 }
 
@@ -165,69 +165,35 @@ func (r *ConditionedStatus) IsConditionTrue(t ConditionType) bool {
 // Ready returns a condition that indicates the resource is
 // ready for use.
 func Ready() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionTrue, ConditionReasonReady, "")
 }
 
-// Ready returns a condition that indicates the resource is
-// ready for use.
+// ReadyWithMsg returns a condition that indicates the resource is
+// ready for use, with a (bounded) message, e.g. warnings.
 func ReadyWithMsg(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonReady),
-		Message:            msg,
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionTrue, ConditionReasonReady, msg)
 }
 
 // Unknown returns a condition that indicates the resource is in an
 // unknown status.
 func Unknown() Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonUnknown),
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionFalse, ConditionReasonUnknown, "")
 }
 
 // Failed returns a condition that indicates the resource
 // failed to get reconciled.
 func Failed(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonFailed),
-		Message:            msg,
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionFalse, ConditionReasonFailed, msg)
 }
 
 func FailedUnRecoverable(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonUnrecoverable),
-		Message:            msg,
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionFalse, ConditionReasonUnrecoverable, msg)
 }
 
 // Rollout returns a condition that indicates the resource
 // is being rolled out.
 func Rollout(msg string) Condition {
-	return Condition{metav1.Condition{
-		Type:               string(ConditionTypeReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(ConditionReasonRollout),
-		Message:            msg,
-	}}
+	return NewCondition(ConditionTypeReady, metav1.ConditionFalse, ConditionReasonRollout, msg)
 }
 
 type UnrecoverableMessage struct {
