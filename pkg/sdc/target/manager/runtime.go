@@ -128,11 +128,14 @@ type TargetRuntime struct {
 	//   - read:  Load exactly once and use that value
 	collector atomic.Pointer[Collector]
 
-	// control
-	runMu  sync.Mutex
-	cancel context.CancelFunc
-	done   chan struct{} // closed when the current run loop has exited
-	wakeCh chan struct{} // coalescing trigger
+	// lifecycle: one-shot. A runtime runs at most one loop and never runs
+	// again after Stop; TargetManager creates a new runtime instead. This
+	// rules out two concurrent loops by construction, without a mutex.
+	startOnce sync.Once
+	stopOnce  sync.Once
+	stopCh    chan struct{} // closed by Stop
+	done      chan struct{} // closed when the run loop has exited (or by Stop if it never started)
+	wakeCh    chan struct{} // coalescing trigger
 }
 
 // NewTargetRuntime creates a runtime. onChange (may be nil) is called from the
@@ -146,6 +149,8 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 		onChange:      onChange,
 		subscriptions: NewSubscriptions(),
 		phase:         PhasePending,
+		stopCh:        make(chan struct{}),
+		done:          make(chan struct{}),
 		wakeCh:        make(chan struct{}, 1),
 	}
 }
@@ -247,45 +252,23 @@ func (t *TargetRuntime) DeleteSubscription(_ context.Context, sub *invv1alpha1.S
 	return nil
 }
 
+// Start launches the run loop. Idempotent (called on every ApplyDesired);
+// a no-op after Stop.
 func (r *TargetRuntime) Start(ctx context.Context) {
-	r.runMu.Lock()
-	defer r.runMu.Unlock()
-
-	if r.cancel != nil {
-		return // already running
-	}
-	runCtx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-	r.done = make(chan struct{})
-	if r.wakeCh == nil {
-		r.wakeCh = make(chan struct{}, 1)
-	}
-	go r.run(runCtx, r.done)
+	r.startOnce.Do(func() { go r.run(ctx) })
 }
 
-// Stop cancels the run loop and waits up to timeout for it to exit.
-// It returns nil only once the loop has exited: from then on the runtime can
-// no longer create or touch the datastore. On timeout it returns an error and
-// can be called again to keep waiting.
+// Stop ends the run loop and waits up to timeout for it to exit. It returns
+// nil only once the loop has exited: from then on the runtime can no longer
+// create or touch the datastore. On timeout it returns an error; calling it
+// again keeps waiting for the same loop.
 func (r *TargetRuntime) Stop(timeout time.Duration) error {
-	r.runMu.Lock()
-	if r.cancel != nil {
-		r.cancel()
-		r.cancel = nil
-	}
-	done := r.done
-	r.runMu.Unlock()
+	r.stopOnce.Do(func() { close(r.stopCh) })
+	// Never started: nothing to wait for, and any later Start is a no-op.
+	r.startOnce.Do(func() { close(r.done) })
 
-	if done == nil {
-		return nil // never started, or already stopped
-	}
 	select {
-	case <-done:
-		r.runMu.Lock()
-		if r.done == done {
-			r.done = nil
-		}
-		r.runMu.Unlock()
+	case <-r.done:
 		return nil
 	case <-time.After(timeout):
 		return fmt.Errorf("target runtime %s did not stop within %s", r.key.String(), timeout)
@@ -293,17 +276,14 @@ func (r *TargetRuntime) Stop(timeout time.Duration) error {
 }
 
 func (r *TargetRuntime) wake() {
-	if r.wakeCh == nil {
-		return
-	}
 	select {
 	case r.wakeCh <- struct{}{}:
 	default:
 	}
 }
 
-func (r *TargetRuntime) run(ctx context.Context, done chan struct{}) {
-	defer close(done)
+func (r *TargetRuntime) run(ctx context.Context) {
+	defer close(r.done)
 	dsEvents, dsCancel := r.ds.Subscribe(8)
 	defer dsCancel()
 
@@ -312,16 +292,12 @@ func (r *TargetRuntime) run(ctx context.Context, done chan struct{}) {
 
 	for {
 		select {
+		case <-r.stopCh:
+			r.shutdown(ctx)
+			return
+
 		case <-ctx.Done():
-			// ctx is cancelled: stop components on a detached, bounded context.
-			// The datastore is NOT deleted here: on target deletion the
-			// reconciler deletes it synchronously after Stop has returned
-			// (so the deletion is retried and blocks the finalizer); on a
-			// plain shutdown it must survive.
-			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
-			r.setPhase(cleanupCtx, PhaseDeleting, nil)
-			r.stopRuntime(cleanupCtx)
-			cancel()
+			r.shutdown(ctx)
 			return
 
 		case ev, ok := <-dsEvents:
@@ -337,6 +313,18 @@ func (r *TargetRuntime) run(ctx context.Context, done chan struct{}) {
 			r.reconcileOnce(ctx)
 		}
 	}
+}
+
+// shutdown stops the components on a detached, bounded context (ctx may
+// already be cancelled). The datastore is NOT deleted here: on target
+// deletion the reconciler deletes it synchronously after Stop has returned
+// (so the deletion is retried and blocks the finalizer); on a plain shutdown
+// it must survive.
+func (r *TargetRuntime) shutdown(ctx context.Context) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+	defer cancel()
+	r.setPhase(cleanupCtx, PhaseDeleting, nil)
+	r.stopRuntime(cleanupCtx)
 }
 
 func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
@@ -695,7 +683,6 @@ func (t *TargetRuntime) setRunningHash(h string) {
 	t.runningMu.Lock()
 	defer t.runningMu.Unlock()
 	t.runningHash = h
-
 }
 
 func (t *TargetRuntime) setDatastoreReady(ready bool) {

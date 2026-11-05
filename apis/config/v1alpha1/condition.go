@@ -30,9 +30,9 @@ const (
 	// Target relation conditions
 	ConditionTypeTargetDiscoveryReady condv1alpha1.ConditionType = "TargetDiscoveryReady"
 	// legacy - to be removed
-	ConditionTypeTargetDatastoreReady condv1alpha1.ConditionType = "TargetDatastoreReady"
+	ConditionTypeTargetDatastoreReady      condv1alpha1.ConditionType = "TargetDatastoreReady"
 	ConditionTypeTargetConfigRecoveryReady condv1alpha1.ConditionType = "TargetConfigRecoveryReady"
-	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+	ConditionTypeTargetConnectionReady     condv1alpha1.ConditionType = "TargetConnectionReady"
 )
 
 // Reasons a resource is ready or not

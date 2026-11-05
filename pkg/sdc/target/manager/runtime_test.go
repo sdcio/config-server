@@ -19,6 +19,7 @@ package targetmanager
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -363,29 +364,37 @@ func TestRuntimeStopNotStarted(t *testing.T) {
 	assert.NoError(t, rt.Stop(time.Second))
 }
 
-// Stop returns nil only once the run loop has exited; on timeout it reports an
-// error and a later Stop keeps waiting for the same loop (sdcio/config-server#516).
+// Stop succeeds only once the loop has exited; a retry after a timeout keeps
+// waiting for the same loop (sdcio/config-server#516).
 func TestRuntimeStopWaitsForRunLoop(t *testing.T) {
 	rt := newTestRuntime()
-	cancelled := make(chan struct{})
-	done := make(chan struct{})
-	rt.cancel = func() { close(cancelled) }
-	rt.done = done
+	rt.startOnce.Do(func() {}) // pretend the loop is running
 
-	// loop has not exited yet: timeout
-	err := rt.Stop(20 * time.Millisecond)
-	assert.Error(t, err)
+	assert.Error(t, rt.Stop(20*time.Millisecond), "loop has not exited yet")
 	select {
-	case <-cancelled:
+	case <-rt.stopCh:
 	default:
-		t.Fatal("Stop must cancel the run loop")
+		t.Fatal("Stop must signal the loop")
 	}
+	assert.Error(t, rt.Stop(20*time.Millisecond), "retry keeps waiting, no double close")
 
-	// retry while the loop is still busy: still an error, no double cancel panic
-	assert.Error(t, rt.Stop(20*time.Millisecond))
-
-	// loop exits: Stop succeeds and forgets the loop
-	close(done)
+	close(rt.done) // loop exits
 	assert.NoError(t, rt.Stop(time.Second))
-	assert.Nil(t, rt.done)
+}
+
+// Concurrent Start/Stop never panics (double close) and Stop always returns.
+func TestRuntimeConcurrentStartStop(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		rt := newTestRuntime()
+		rt.startOnce.Do(func() { close(rt.done) }) // a loop that exits at once
+
+		var wg sync.WaitGroup
+		for j := 0; j < 4; j++ {
+			wg.Add(2)
+			go func() { defer wg.Done(); rt.Start(context.Background()) }()
+			go func() { defer wg.Done(); _ = rt.Stop(time.Second) }()
+		}
+		wg.Wait()
+		assert.NoError(t, rt.Stop(time.Second))
+	}
 }

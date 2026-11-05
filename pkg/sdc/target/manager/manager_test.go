@@ -49,12 +49,12 @@ func TestDeleteDatastore(t *testing.T) {
 		err     error
 		wantErr bool
 	}{
-		"deleted":                {err: nil, wantErr: false},
-		"already absent (grpc)":  {err: status.Error(codes.NotFound, "missing"), wantErr: false},
-		"already absent (text)":  {err: errors.New("unknown datastore default/dev1"), wantErr: false},
-		"rpc failure keeps fin.": {err: status.Error(codes.Internal, "boom"), wantErr: true},
-		"timeout keeps fin.":     {err: status.Error(codes.DeadlineExceeded, "timeout"), wantErr: true},
-		"canceled keeps fin.":    {err: status.Error(codes.Canceled, "context canceled"), wantErr: true},
+		"deleted":                         {err: nil, wantErr: false},
+		"already absent (grpc NotFound)":  {err: status.Error(codes.NotFound, "missing"), wantErr: false},
+		"already absent (message)":        {err: errors.New("unknown datastore default/dev1"), wantErr: false},
+		"rpc failure keeps finalizer":     {err: status.Error(codes.Internal, "boom"), wantErr: true},
+		"timeout keeps finalizer":         {err: status.Error(codes.DeadlineExceeded, "timeout"), wantErr: true},
+		"cancellation keeps finalizer":    {err: status.Error(codes.Canceled, "context canceled"), wantErr: true},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestDeleteDatastoreBoundedContext(t *testing.T) {
 }
 
 // Dataserver unavailable: deletion fails, so the finalizer is retained.
-// Also covers "no in-memory runtime": DeleteDatastore does not need one.
+// DeleteDatastore needs no in-memory runtime (e.g. after a restart).
 func TestManagerDeleteDatastoreWithoutDataserver(t *testing.T) {
 	m := NewTargetManager(nil, nil)
 	assert.Error(t, m.DeleteDatastore(context.Background(), testTargetKey()))
@@ -93,23 +93,31 @@ func TestManagerDeleteWithoutRuntime(t *testing.T) {
 	assert.NoError(t, m.Delete(context.Background(), testTargetKey()))
 }
 
-// A runtime that does not stop in time stays registered, so the retry waits
-// for the same runtime instead of racing it.
+// Delete of a runtime that was created but never started returns at once
+// and unregisters it.
+func TestManagerDeleteNeverStartedRuntime(t *testing.T) {
+	m := NewTargetManager(nil, nil)
+	key := testTargetKey()
+	m.GetOrCreate(key)
+
+	assert.NoError(t, m.Delete(context.Background(), key))
+	assert.Nil(t, m.GetRuntimeForTarget(context.Background(), key))
+}
+
+// A runtime whose loop has not exited stays registered, so the retry waits
+// for the same runtime instead of racing it (sdcio/config-server#516).
 func TestManagerDeleteKeepsRuntimeUntilStopped(t *testing.T) {
 	m := NewTargetManager(nil, nil)
 	key := testTargetKey()
 	rt := m.GetOrCreate(key)
-	done := make(chan struct{})
-	rt.cancel = func() {}
-	rt.done = done
+	rt.startOnce.Do(func() {}) // pretend the loop is running (run needs a dataserver)
 
-	// shorten the wait for the test
 	errCh := make(chan error, 1)
 	go func() { errCh <- m.Delete(context.Background(), key) }()
 	time.Sleep(50 * time.Millisecond)
 	assert.NotNil(t, m.GetRuntimeForTarget(context.Background(), key), "runtime must stay registered while stopping")
 
-	close(done)
+	close(rt.done) // the loop exits
 	select {
 	case err := <-errCh:
 		assert.NoError(t, err)
