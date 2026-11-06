@@ -18,6 +18,7 @@ package targetmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -28,23 +29,31 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// The runtime writes nothing to the Target status. It is a state machine that
+// reports through Status() and calls onChange whenever that status changes;
+// the target datastore reconciler is the single writer of the Ready condition.
+
 const (
-	fieldManagerTargetRuntime = "TargetRuntime"
 	// collectorRetryInterval is how long we wait before re-attempting a
 	// collector start that failed (e.g. device unreachable on the gNMI port).
 	collectorRetryInterval = 10 * time.Second
+	// recoveryRetryInterval is the backoff for transient recovery failures
+	// (device not connected, datastore locked, backpressure, ...).
+	// Non-recoverable failures are never retried automatically.
+	recoveryRetryInterval = 5 * time.Second
+	// cleanupTimeout bounds stopping the watcher/collector when the run loop exits.
+	cleanupTimeout = 10 * time.Second
 )
 
 type TargetPhase string
@@ -53,22 +62,30 @@ const (
 	PhasePending           TargetPhase = "Pending"
 	PhaseWaitingForDS      TargetPhase = "WaitingForDS"
 	PhaseEnsuringDatastore TargetPhase = "EnsuringDatastore"
-	PhaseRunning           TargetPhase = "Running"
-	PhaseDegraded          TargetPhase = "Degraded"
-	PhaseDeleting          TargetPhase = "Deleting"
+	PhaseRecovering        TargetPhase = "Recovering"
+	// PhaseRecoveryFailed: the configs could not be replayed (non-recoverable).
+	// Terminal until a human intervenes: the target definition changes
+	// (desired hash) or the recovery retry annotation gets a new value.
+	PhaseRecoveryFailed TargetPhase = "RecoveryFailed"
+	PhaseRunning        TargetPhase = "Running"
+	PhaseDegraded       TargetPhase = "Degraded"
+	PhaseDeleting       TargetPhase = "Deleting"
 )
 
 type TargetRuntime struct {
 	key storebackend.Key
 
-	ds     *dsmanager.DSConnManager
-	client client.Client // k8 client
+	ds         *dsmanager.DSConnManager
+	client     client.Client // k8 client
+	transactor *Transactor   // replays configs into a (re)created datastore
 
 	// desired (from reconciler)
 	desiredMu   sync.RWMutex
 	desired     *sdcpb.CreateDataStoreRequest
 	desiredRefs *configv1alpha1.TargetStatusUsedReferences
 	desiredHash string
+	// recoveryToken mirrors the recovery retry annotation; part of the recovery key
+	recoveryToken string
 
 	// running state
 	runningMu   sync.RWMutex
@@ -81,12 +98,20 @@ type TargetRuntime struct {
 	dsReady        bool
 	datastoreReady bool
 	recovered      bool
+	recoveryMsg    string // warnings returned by the last successful recovery
+	recoveryErr    error  // error of the last failed recovery attempt
+	// recovery latch: set on a non-recoverable failure. While failedKey equals
+	// the current recoveryKey() no recovery is attempted. Deliberately NOT
+	// cleared by datastore resets (DS restart, recreate): the configs are
+	// still the same, so replaying them would fail the same way.
+	recoveryFailedKey string
+	recoveryFailedErr error
 
-	// sync connection status
-	statusMu      sync.Mutex
-	lastPushed    time.Time
-	lastConnValid bool
-	lastConn      bool
+	// change notification towards the reconciler (Ready condition owner).
+	// lastNotified is only touched by the run goroutine.
+	onChange          func()
+	lastNotified      RuntimeStatus
+	lastNotifiedValid bool
 
 	// subscriptions: written by the subscription reconciler, read by the run loop.
 	// Subscriptions is internally synchronized.
@@ -103,19 +128,29 @@ type TargetRuntime struct {
 	//   - read:  Load exactly once and use that value
 	collector atomic.Pointer[Collector]
 
-	// control
-	runMu  sync.Mutex
-	cancel context.CancelFunc
-	wakeCh chan struct{} // coalescing trigger
+	// lifecycle: one-shot. A runtime runs at most one loop and never runs
+	// again after Stop; TargetManager creates a new runtime instead. This
+	// rules out two concurrent loops by construction, without a mutex.
+	startOnce sync.Once
+	stopOnce  sync.Once
+	stopCh    chan struct{} // closed by Stop
+	done      chan struct{} // closed when the run loop has exited (or by Stop if it never started)
+	wakeCh    chan struct{} // coalescing trigger
 }
 
-func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s client.Client) *TargetRuntime {
+// NewTargetRuntime creates a runtime. onChange (may be nil) is called from the
+// run loop whenever Status() changes; it must not block.
+func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s client.Client, transactor *Transactor, onChange func()) *TargetRuntime {
 	return &TargetRuntime{
 		key:           key,
 		ds:            ds,
 		client:        k8s,
+		transactor:    transactor,
+		onChange:      onChange,
 		subscriptions: NewSubscriptions(),
 		phase:         PhasePending,
+		stopCh:        make(chan struct{}),
+		done:          make(chan struct{}),
 		wakeCh:        make(chan struct{}, 1),
 	}
 }
@@ -129,12 +164,26 @@ func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *conf
 	r.wake()
 }
 
+// SetRecoveryRetryToken records the value of the recovery retry annotation
+// (configv1alpha1.AnnotationRecoveryRetry).
+// A changed value releases a latched recovery failure and wakes the runtime.
+func (r *TargetRuntime) SetRecoveryRetryToken(token string) {
+	r.desiredMu.Lock()
+	changed := r.recoveryToken != token
+	r.recoveryToken = token
+	r.desiredMu.Unlock()
+	if changed {
+		r.wake()
+	}
+}
+
 type RuntimeStatus struct {
 	Phase        TargetPhase
 	DSReady      bool
 	DSStoreReady bool
 	RunningHash  string
 	Recovered    bool
+	RecoveryMsg  string // warnings of the last successful recovery
 	LastError    string
 }
 
@@ -145,6 +194,7 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 	dsReady := t.dsReady
 	dsStoreReady := t.datastoreReady
 	recovered := t.recovered
+	recoveryMsg := t.recoveryMsg
 	err := t.lastError
 	t.actualMu.RUnlock()
 
@@ -159,6 +209,7 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 		DSStoreReady: dsStoreReady,
 		RunningHash:  rh,
 		Recovered:    recovered,
+		RecoveryMsg:  recoveryMsg,
 	}
 	if err != nil {
 		s.LastError = err.Error()
@@ -201,36 +252,30 @@ func (t *TargetRuntime) DeleteSubscription(_ context.Context, sub *invv1alpha1.S
 	return nil
 }
 
+// Start launches the run loop. Idempotent (called on every ApplyDesired);
+// a no-op after Stop.
 func (r *TargetRuntime) Start(ctx context.Context) {
-	r.runMu.Lock()
-	defer r.runMu.Unlock()
-
-	if r.cancel != nil {
-		return // already running
-	}
-	runCtx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-	if r.wakeCh == nil {
-		r.wakeCh = make(chan struct{}, 1)
-	}
-	go r.run(runCtx)
+	r.startOnce.Do(func() { go r.run(ctx) })
 }
 
-func (r *TargetRuntime) Stop() {
-	r.runMu.Lock()
-	cancel := r.cancel
-	r.cancel = nil
-	r.runMu.Unlock()
+// Stop ends the run loop and waits up to timeout for it to exit. It returns
+// nil only once the loop has exited: from then on the runtime can no longer
+// create or touch the datastore. On timeout it returns an error; calling it
+// again keeps waiting for the same loop.
+func (r *TargetRuntime) Stop(timeout time.Duration) error {
+	r.stopOnce.Do(func() { close(r.stopCh) })
+	// Never started: nothing to wait for, and any later Start is a no-op.
+	r.startOnce.Do(func() { close(r.done) })
 
-	if cancel != nil {
-		cancel()
+	select {
+	case <-r.done:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("target runtime %s did not stop within %s", r.key.String(), timeout)
 	}
 }
 
 func (r *TargetRuntime) wake() {
-	if r.wakeCh == nil {
-		return
-	}
 	select {
 	case r.wakeCh <- struct{}{}:
 	default:
@@ -238,6 +283,7 @@ func (r *TargetRuntime) wake() {
 }
 
 func (r *TargetRuntime) run(ctx context.Context) {
+	defer close(r.done)
 	dsEvents, dsCancel := r.ds.Subscribe(8)
 	defer dsCancel()
 
@@ -246,9 +292,12 @@ func (r *TargetRuntime) run(ctx context.Context) {
 
 	for {
 		select {
+		case <-r.stopCh:
+			r.shutdown(ctx)
+			return
+
 		case <-ctx.Done():
-			r.setPhase(ctx, PhaseDeleting, ctx.Err())
-			r.stopRuntime(ctx)
+			r.shutdown(ctx)
 			return
 
 		case ev, ok := <-dsEvents:
@@ -266,11 +315,20 @@ func (r *TargetRuntime) run(ctx context.Context) {
 	}
 }
 
+// shutdown stops the components on a detached, bounded context (ctx may
+// already be cancelled). The datastore is NOT deleted here: on target
+// deletion the reconciler deletes it synchronously after Stop has returned
+// (so the deletion is retried and blocks the finalizer); on a plain shutdown
+// it must survive.
+func (r *TargetRuntime) shutdown(ctx context.Context) {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+	defer cancel()
+	r.setPhase(cleanupCtx, PhaseDeleting, nil)
+	r.stopRuntime(cleanupCtx)
+}
+
 func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
-	defer func() {
-		c, msg := t.connSnapshot()
-		t.pushConnIfChanged(ctx, c, msg)
-	}()
+	defer t.notifyIfChanged()
 
 	desired := t.getDesired()
 	if desired == nil {
@@ -294,7 +352,12 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 		return
 	}
 
-	t.setPhase(ctx, PhaseEnsuringDatastore, nil)
+	// Don't regress a Running target to EnsuringDatastore on every wake
+	// (subscription changes, retries, ...): GetDatastore/GetClient would
+	// briefly report not-ready to the config reconcilers.
+	if t.Status().Phase != PhaseRunning {
+		t.setPhase(ctx, PhaseEnsuringDatastore, nil)
+	}
 
 	// Get DS client (should be Ready already because DS manager blocks Start->Ready)
 	cl := t.ds.Client()
@@ -310,7 +373,36 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 		return
 	}
 
-	// Ensure runtime components are running
+	// Replay the configs into the datastore before it is handed out:
+	// Running implies recovered, so config reconcilers never write into a
+	// datastore that is still missing its intents.
+	if !t.isRecovered() {
+		// A previous non-recoverable failure for this exact target definition
+		// and retry token: don't touch the datastore, wait for a human.
+		if failErr, latched := t.recoveryLatched(); latched {
+			t.setPhase(ctx, PhaseRecoveryFailed, failErr)
+			return
+		}
+
+		t.setPhase(ctx, PhaseRecovering, nil)
+		if err := t.recoverConfigs(ctx, cl); err != nil {
+			var txErr *TransactionError
+			if errors.As(err, &txErr) && !txErr.Recoverable {
+				// The configs we accepted before cannot be replayed:
+				// latch and stop. No retry is scheduled.
+				t.latchRecoveryFailure(err)
+				t.setPhase(ctx, PhaseRecoveryFailed, err)
+				return
+			}
+			// transient (device not connected, locked, apiserver hiccup, ...)
+			t.setPhase(ctx, PhaseRecovering, err)
+			t.wakeAfter(recoveryRetryInterval)
+			return
+		}
+	}
+
+	// Ensure runtime components are running (after recovery, so the
+	// deviation watcher does not observe the replay)
 	if err := t.ensureRuntime(ctx, cl); err != nil {
 		t.setPhase(ctx, PhaseDegraded, err)
 		return
@@ -335,11 +427,15 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 	if err != nil {
 		// Treat "not found" as create.
 		if isUnknownDatastoreErr(err) {
+			// datastore vanished (or never existed): leave Running before we
+			// touch it, so nobody gets a client to a datastore without intents
+			t.setPhase(ctx, PhaseEnsuringDatastore, nil)
 			if _, err := cl.CreateDataStore(ctx, desired); err != nil {
 				return fmt.Errorf("create datastore %q: %w", name, err)
 			}
 			t.setRunningHash(wantHash)
 			t.setDatastoreReady(true)
+			t.setRecovered(false) // fresh datastore holds no intents
 			return nil
 		}
 
@@ -350,7 +446,9 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 
 	// 2) Exists. If hash differs, recreate.
 	if haveHash != "" && wantHash != "" && haveHash != wantHash {
-		// stop runtime first (watch streams, collector etc)
+		// leave Running first: the datastore is about to disappear
+		t.setPhase(ctx, PhaseEnsuringDatastore, nil)
+		// stop runtime (watch streams, collector etc)
 		t.stopRuntime(ctx)
 
 		// delete datastore
@@ -367,6 +465,7 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 
 		t.setRunningHash(wantHash)
 		t.setDatastoreReady(true)
+		t.setRecovered(false) // recreated datastore holds no intents
 		return nil
 	}
 
@@ -472,7 +571,7 @@ func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.C
 	// Start stops any previous instance (e.g. the port changed).
 	if err := c.Start(ctx, desired, address); err != nil {
 		log.Error("collector start failed", "err", err, "retryIn", collectorRetryInterval)
-		time.AfterFunc(collectorRetryInterval, t.wake)
+		t.wakeAfter(collectorRetryInterval)
 	}
 }
 
@@ -515,6 +614,47 @@ func (t *TargetRuntime) collectorAddress(desired *sdcpb.CreateDataStoreRequest) 
 	return net.JoinHostPort(desired.Target.Address, strconv.FormatUint(uint64(port), 10)), ""
 }
 
+// recoverConfigs replays all configs of this target into the datastore.
+// Run-loop only. A plain (non-TransactionError) error is treated as
+// recoverable by the caller.
+func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) error {
+	log := log.FromContext(ctx).With("target", t.key.String())
+
+	if t.transactor == nil {
+		return fmt.Errorf("no transactor configured")
+	}
+
+	target := &configv1alpha1.Target{}
+	if err := t.client.Get(ctx, t.key.NamespacedName, target); err != nil {
+		return fmt.Errorf("get target: %w", err)
+	}
+
+	handle := &DatastoreHandle{
+		Key:           t.key,
+		DatastoreName: t.datastoreName(),
+		Client:        cl,
+		Schema:        t.GetSchema(),
+		Status:        t.Status(),
+		MarkRecovered: t.setRecovered,
+	}
+
+	log.Info("config recovery start")
+	msg, err := t.transactor.RecoverConfigs(ctx, target, handle)
+	if err != nil {
+		log.Error("config recovery failed", "err", err)
+		t.setRecoveryResult("", err)
+		return err
+	}
+	t.setRecoveryResult(ptr.Deref(msg, ""), nil)
+	log.Info("config recovery done")
+	return nil
+}
+
+// wakeAfter schedules a coalesced wake of the run loop.
+func (t *TargetRuntime) wakeAfter(d time.Duration) {
+	time.AfterFunc(d, t.wake)
+}
+
 func (t *TargetRuntime) stopRuntime(ctx context.Context) {
 	if t.watcher != nil {
 		t.watcher.Stop(ctx)
@@ -543,7 +683,6 @@ func (t *TargetRuntime) setRunningHash(h string) {
 	t.runningMu.Lock()
 	defer t.runningMu.Unlock()
 	t.runningHash = h
-
 }
 
 func (t *TargetRuntime) setDatastoreReady(ready bool) {
@@ -598,116 +737,68 @@ func (t *TargetRuntime) setRecovered(b bool) {
 	t.actualMu.Lock()
 	defer t.actualMu.Unlock()
 	t.recovered = b
+	if !b {
+		t.recoveryMsg = ""
+		t.recoveryErr = nil
+	}
 }
 
-func (t *TargetRuntime) connSnapshot() (bool, string) {
+func (t *TargetRuntime) setRecoveryResult(msg string, err error) {
+	t.actualMu.Lock()
+	defer t.actualMu.Unlock()
+	t.recovered = err == nil
+	t.recoveryMsg = msg
+	t.recoveryErr = err
+	if err == nil {
+		t.recoveryFailedKey = ""
+		t.recoveryFailedErr = nil
+	}
+}
+
+// recoveryKey identifies "what we tried to recover": the target definition
+// (desired hash) plus the human retry token.
+func (t *TargetRuntime) recoveryKey() string {
+	t.desiredMu.RLock()
+	defer t.desiredMu.RUnlock()
+	return t.desiredHash + "|" + t.recoveryToken
+}
+
+func (t *TargetRuntime) latchRecoveryFailure(err error) {
+	key := t.recoveryKey() // desiredMu before actualMu, never nested
+	t.actualMu.Lock()
+	defer t.actualMu.Unlock()
+	t.recoveryFailedKey = key
+	t.recoveryFailedErr = err
+}
+
+// recoveryLatched reports whether a non-recoverable failure blocks recovery
+// for the current recovery key.
+func (t *TargetRuntime) recoveryLatched() (error, bool) {
+	key := t.recoveryKey()
+	t.actualMu.RLock()
+	defer t.actualMu.RUnlock()
+	if t.recoveryFailedErr == nil || t.recoveryFailedKey != key {
+		return nil, false
+	}
+	return t.recoveryFailedErr, true
+}
+
+func (t *TargetRuntime) isRecovered() bool {
+	t.actualMu.RLock()
+	defer t.actualMu.RUnlock()
+	return t.recovered
+}
+
+// notifyIfChanged calls onChange when Status() differs from the last
+// notification. Run-loop only.
+func (t *TargetRuntime) notifyIfChanged() {
 	st := t.Status()
-
-	if st.Phase == PhaseRunning && st.DSReady && st.DSStoreReady {
-		return true, ""
-	}
-
-	// pick a helpful message
-	if !st.DSReady {
-		if st.LastError != "" {
-			return false, "dataserver not ready: " + st.LastError
-		}
-		return false, "dataserver not ready"
-	}
-	if !st.DSStoreReady {
-		if st.LastError != "" {
-			return false, "datastore not ready: " + st.LastError
-		}
-		return false, "datastore not ready"
-	}
-	if st.Phase == PhaseDegraded && st.LastError != "" {
-		return false, "degraded: " + st.LastError
-	}
-	if st.Phase == PhaseWaitingForDS {
-		return false, "waiting for dataserver"
-	}
-	if st.Phase == PhaseEnsuringDatastore {
-		return false, "ensuring datastore"
-	}
-	if st.Phase == PhasePending {
-		return false, "pending"
-	}
-	return false, string(st.Phase)
-}
-
-func (r *TargetRuntime) pushConnIfChanged(ctx context.Context, connected bool, msg string) {
-	log := log.FromContext(ctx)
-	log.Info("pushConnIfChanged entry")
-
-	r.statusMu.Lock()
-	if r.lastConnValid && r.lastConn == connected && time.Since(r.lastPushed) < 2*time.Second {
-		r.statusMu.Unlock()
+	if t.lastNotifiedValid && t.lastNotified == st {
 		return
 	}
-	//we're about to push, but don't mark as "done" yet unless apply succeeds
-	pushing := connected
-	pushingMsg := msg
-	r.statusMu.Unlock()
-
-	target := &configv1alpha1.Target{}
-	if err := r.client.Get(ctx, r.key.NamespacedName, target); err != nil {
-		log.Error("target fetch failed", "error", err)
-		return
+	t.lastNotified = st
+	t.lastNotifiedValid = true
+	if t.onChange != nil {
+		t.onChange()
 	}
-
-	var newCond condv1alpha1.Condition
-	if connected {
-		newCond = configv1alpha1.TargetConnectionReady()
-	} else {
-		newCond = configv1alpha1.TargetConnectionFailed(msg)
-	}
-
-	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetConnectionReady)
-	if newCond.Equal(oldCond) {
-		log.Info("pushConnIfChanged -> no change",
-			"connected", connected,
-			"phase", r.Status().Phase,
-			"msg", msg,
-		)
-		// Already correct in storage — mark as pushed so we don't retry needlessly
-		r.statusMu.Lock()
-		r.lastConnValid = true
-		r.lastConn = pushing
-		r.lastPushed = time.Now()
-		r.statusMu.Unlock()
-		return
-	}
-
-	log.Info("pushConnIfChanged -> applying",
-		"connected", pushing,
-		"phase", r.Status().Phase,
-		"msg", pushingMsg,
-	)
-
-	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(configv1alpha1apply.TargetStatus().
-			WithConditions(newCond),
-		)
-
-	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: fieldManagerTargetRuntime,
-		},
-	}); err != nil {
-		log.Error("target status patch failed", "error", err)
-		return
-	}
-
-	// Only mark as successfully pushed AFTER Apply succeeds
-	r.statusMu.Lock()
-	r.lastConnValid = true
-	r.lastConn = pushing
-	r.lastPushed = time.Now()
-	r.statusMu.Unlock()
-
-	log.Info("pushConnIfChanged -> updated",
-		"connected", connected,
-		"phase", r.Status().Phase,
-		"msg", msg,
-	)
 }

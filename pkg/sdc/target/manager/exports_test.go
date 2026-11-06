@@ -31,7 +31,7 @@ import (
 
 func exportsTestRuntime() *TargetRuntime {
 	key := storebackend.KeyFromNSN(types.NamespacedName{Namespace: "default", Name: "dev1"})
-	return NewTargetRuntime(key, nil, nil)
+	return NewTargetRuntime(key, nil, nil, nil, nil)
 }
 
 // The exporter reads the collector while the run loop starts/stops it.

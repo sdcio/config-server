@@ -26,7 +26,7 @@ import (
 type AdminState string
 
 const (
-	AdminState_ENABLED   AdminState = "enabled"
+	AdminState_ENABLED  AdminState = "enabled"
 	AdminState_DISABLED AdminState = "disabled"
 )
 

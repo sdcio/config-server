@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strings"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,10 +41,38 @@ func (r *Target) IsConditionReady() bool {
 	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
+// IsReady reports whether the target is fully instantiated: discovered,
+// datastore created and configs recovered. Ready aggregates all of that
+// (discovery is the first stage of the Ready pipeline), so it is the only
+// condition to check.
+func (r *Target) IsReady() bool {
+	return r.IsConditionReady()
+}
+
+// NotReadyReason returns a human readable explanation of why the target is
+// not ready, taken from the Ready condition.
+func (r *Target) NotReadyReason() string {
+	cond := r.GetCondition(condv1alpha1.ConditionTypeReady)
+	if cond.Status == metav1.ConditionTrue {
+		return "target ready"
+	}
+	if cond.Reason == "" {
+		return "target not ready"
+	}
+	if cond.Message == "" {
+		return cond.Reason
+	}
+	return fmt.Sprintf("%s: %s", cond.Reason, cond.Message)
+}
+
+// GetOwnerReference returns an owner reference to this Target.
+// APIVersion/Kind come from the scheme, not TypeMeta: objects read through a
+// typed client usually have an empty TypeMeta, which yields an invalid owner
+// reference that garbage collection cannot resolve.
 func (r *Target) GetOwnerReference() metav1.OwnerReference {
 	return metav1.OwnerReference{
-		APIVersion: r.APIVersion,
-		Kind:       r.Kind,
+		APIVersion: SchemeGroupVersion.String(),
+		Kind:       TargetKind,
 		Name:       r.Name,
 		UID:        r.UID,
 		Controller: ptr.To(true),
@@ -56,97 +83,10 @@ func (r *Target) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
 }
 
-func (r *Target) SetOverallStatus(target *Target) {
-	ready := true
-	msg := "target ready"
-	if ready && !target.GetCondition(ConditionTypeTargetDiscoveryReady).IsTrue() {
-		ready = false
-		msg = "discovery not ready" // target.GetCondition(ConditionTypeDiscoveryReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetDatastoreReady).IsTrue() {
-		ready = false
-		msg = "datastore not ready" // target.GetCondition(ConditionTypeDatastoreReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetConfigRecoveryReady).IsTrue() {
-		ready = false
-		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
-		ready = false
-		msg = "datastore connection not ready" // target.GetCondition(ConditionTypeTargetConnectionReady).Message)
-	}
-	if ready {
-		r.Status.SetConditions(condv1alpha1.Ready())
-	} else {
-		r.Status.SetConditions(condv1alpha1.Failed(msg))
-	}
-}
-
-func GetOverallStatus(target *Target) condv1alpha1.Condition {
-	ready := true
-	msg := "target ready"
-	if ready && !target.GetCondition(ConditionTypeTargetDiscoveryReady).IsTrue() {
-		ready = false
-		msg = "discovery not ready" // target.GetCondition(ConditionTypeDiscoveryReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetDatastoreReady).IsTrue() {
-		ready = false
-		msg = "datastore not ready" // target.GetCondition(ConditionTypeDatastoreReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetConfigRecoveryReady).IsTrue() {
-		ready = false
-		msg = "config not ready" //, target.GetCondition(ConditionTypeConfigReady).Message)
-	}
-	if ready && !target.GetCondition(ConditionTypeTargetConnectionReady).IsTrue() {
-		ready = false
-		msg = "datastore connection not ready" // target.GetCondition(ConditionTypeTargetConnectionReady).Message)
-	}
-	if !ready {
-		return condv1alpha1.Failed(msg)
-	}
-	return condv1alpha1.Ready()
-}
-
-func (r *Target) IsDatastoreReady() bool {
-	return r.GetCondition(ConditionTypeTargetDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
-}
-
-func (r *Target) IsReady() bool {
-	return r.GetCondition(condv1alpha1.ConditionTypeReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
-}
-
-func (r *Target) NotReadyReason() string {
-	reasons := []string{}
-
-	check := func(name string, cond condv1alpha1.Condition) {
-		if cond.Status != metav1.ConditionTrue {
-			reasons = append(reasons,
-				fmt.Sprintf("%s: %s (Reason: %s, Msg: %s)",
-					name, cond.Status, cond.Reason, cond.Message))
-		}
-	}
-
-	check("DiscoveryReady", r.GetCondition(ConditionTypeTargetDiscoveryReady))
-	check("DatastoreReady", r.GetCondition(ConditionTypeTargetDatastoreReady))
-	check("ConfigReady", r.GetCondition(ConditionTypeTargetConfigRecoveryReady))
-	check("ConnectionReady", r.GetCondition(ConditionTypeTargetConnectionReady))
-
-	if len(reasons) == 0 {
-		return "All conditions are ready"
-	}
-
-	return strings.Join(reasons, "; ")
-}
-
 func (r *TargetList) GetItems() []client.Object {
-	objs := []client.Object{}
-	for _, r := range r.Items {
-		objs = append(objs, &r)
+	objs := make([]client.Object, 0, len(r.Items))
+	for i := range r.Items {
+		objs = append(objs, &r.Items[i])
 	}
 	return objs
 }

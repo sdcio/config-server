@@ -33,8 +33,8 @@ import (
 
 const (
 	defaultDataServerService = "data-server"
-    defaultDataServerPort    = "56000"
-    defaultNamespace         = "sdc-system"
+	defaultDataServerPort    = "56000"
+	defaultNamespace         = "sdc-system"
 )
 
 func GetDataServerAddress() string {
@@ -47,24 +47,24 @@ func GetLocalDataServerAddress() string {
 
 func getDataServerAddress(local bool) string {
 	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
-        return address
-    }
+		return address
+	}
 
-    ns := envOrDefault("POD_NAMESPACE", defaultNamespace)
-    svc := envOrDefault("SDC_DATA_SERVER_SERVICE", defaultDataServerService)
-    port := envOrDefault("SDC_DATA_SERVER_PORT", defaultDataServerPort)
+	ns := envOrDefault("POD_NAMESPACE", defaultNamespace)
+	svc := envOrDefault("SDC_DATA_SERVER_SERVICE", defaultDataServerService)
+	port := envOrDefault("SDC_DATA_SERVER_PORT", defaultDataServerPort)
 
 	if local {
 		return fmt.Sprintf("localhost:%s", port)
 	}
-   	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
+	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
 }
 
 func envOrDefault(key, fallback string) string {
-    if v, ok := os.LookupEnv(key); ok && v != "" {
-        return v
-    }
-    return fallback
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		return v
+	}
+	return fallback
 }
 
 type Config struct {

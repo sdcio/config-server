@@ -141,11 +141,11 @@ func TestEncoding(t *testing.T) {
 		in   string
 		want int
 	}{
-		"upper":     {in: "ASCII", want: int(gnmi.Encoding_ASCII)},
-		"lower":     {in: "json_ietf", want: int(gnmi.Encoding_JSON_IETF)},
-		"numeric":   {in: "2", want: 2},
-		"unknown":   {in: "bogus", want: 0},
-		"empty":     {in: "", want: 0},
+		"upper":   {in: "ASCII", want: int(gnmi.Encoding_ASCII)},
+		"lower":   {in: "json_ietf", want: int(gnmi.Encoding_JSON_IETF)},
+		"numeric": {in: "2", want: 2},
+		"unknown": {in: "bogus", want: 0},
+		"empty":   {in: "", want: 0},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -18,7 +18,10 @@ package targetmanager
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -29,7 +32,7 @@ import (
 // newTestRuntime builds a runtime without DS or k8s client; it is never
 // Start()ed, so only the pure decision logic and wiring are exercised.
 func newTestRuntime() *TargetRuntime {
-	return NewTargetRuntime(testTargetKey(), nil, nil)
+	return NewTargetRuntime(testTargetKey(), nil, nil, nil, nil)
 }
 
 func gnmiReq(address string, port uint32) *sdcpb.CreateDataStoreRequest {
@@ -243,5 +246,155 @@ func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 			rt.reconcileCollector(ctx, tc.desired)
 			assert.Nil(t, rt.collector.Load())
 		})
+	}
+}
+
+// A non-recoverable recovery failure latches until the target definition
+// (desired hash) or the human retry token changes.
+func TestRecoveryLatch(t *testing.T) {
+	// latch takes any error; the TransactionError classification happens in
+	// reconcileOnce, so a plain error keeps this test independent of its fields
+	failure := errors.New(`intent "cfg1" error: "invalid value"`)
+
+	t.Run("latched for same hash and token", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.SetRecoveryRetryToken("t1")
+		rt.latchRecoveryFailure(failure)
+
+		err, latched := rt.recoveryLatched()
+		assert.True(t, latched)
+		assert.Equal(t, failure, err)
+	})
+
+	t.Run("survives datastore reset", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.latchRecoveryFailure(failure)
+
+		rt.setRecovered(false)
+		rt.setDatastoreReady(false)
+		_, latched := rt.recoveryLatched()
+		assert.True(t, latched)
+	})
+
+	t.Run("released by new retry token", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.SetRecoveryRetryToken("t1")
+		rt.latchRecoveryFailure(failure)
+		<-rt.wakeCh // drain
+
+		rt.SetRecoveryRetryToken("t2")
+		_, latched := rt.recoveryLatched()
+		assert.False(t, latched)
+		assert.Equal(t, 1, len(rt.wakeCh), "new token must wake the runtime")
+	})
+
+	t.Run("same token does not wake", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetRecoveryRetryToken("t1")
+		<-rt.wakeCh // drain
+		rt.SetRecoveryRetryToken("t1")
+		assert.Equal(t, 0, len(rt.wakeCh))
+	})
+
+	t.Run("released by target definition change", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.latchRecoveryFailure(failure)
+
+		rt.SetDesired(gnmiReq("10.0.0.2", 57400), nil, "h2")
+		_, latched := rt.recoveryLatched()
+		assert.False(t, latched)
+	})
+
+	t.Run("cleared by successful recovery", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.latchRecoveryFailure(failure)
+
+		rt.setRecoveryResult("", nil)
+		_, latched := rt.recoveryLatched()
+		assert.False(t, latched)
+	})
+
+	t.Run("status carries the failure for the Ready condition", func(t *testing.T) {
+		rt := newTestRuntime()
+		rt.SetDesired(gnmiReq("10.0.0.1", 57400), nil, "h1")
+		rt.latchRecoveryFailure(failure)
+		rt.setPhase(context.Background(), PhaseRecoveryFailed, failure)
+
+		st := rt.Status()
+		assert.Equal(t, PhaseRecoveryFailed, st.Phase)
+		assert.False(t, st.Recovered)
+		assert.Equal(t, failure.Error(), st.LastError)
+	})
+}
+
+// The runtime notifies the Ready-condition owner only when its status changes.
+func TestRuntimeNotifiesOnStatusChange(t *testing.T) {
+	ctx := context.Background()
+	calls := 0
+	rt := NewTargetRuntime(testTargetKey(), nil, nil, nil, func() { calls++ })
+
+	rt.notifyIfChanged()
+	assert.Equal(t, 1, calls, "first status is always notified")
+
+	rt.notifyIfChanged()
+	assert.Equal(t, 1, calls, "unchanged status must not notify")
+
+	rt.setPhase(ctx, PhaseRecovering, nil)
+	rt.notifyIfChanged()
+	assert.Equal(t, 2, calls, "phase change must notify")
+
+	rt.setPhase(ctx, PhaseRecovering, errors.New("not connected"))
+	rt.notifyIfChanged()
+	assert.Equal(t, 3, calls, "error change must notify")
+
+	rt.setRecoveryResult("1 warning", nil)
+	rt.notifyIfChanged()
+	assert.Equal(t, 4, calls, "recovery result must notify")
+	assert.Equal(t, "1 warning", rt.Status().RecoveryMsg)
+}
+
+// Stop on a runtime that was never started must not block.
+func TestRuntimeStopNotStarted(t *testing.T) {
+	rt := newTestRuntime()
+	assert.NoError(t, rt.Stop(time.Second))
+}
+
+// Stop succeeds only once the loop has exited; a retry after a timeout keeps
+// waiting for the same loop (sdcio/config-server#516).
+func TestRuntimeStopWaitsForRunLoop(t *testing.T) {
+	rt := newTestRuntime()
+	rt.startOnce.Do(func() {}) // pretend the loop is running
+
+	assert.Error(t, rt.Stop(20*time.Millisecond), "loop has not exited yet")
+	select {
+	case <-rt.stopCh:
+	default:
+		t.Fatal("Stop must signal the loop")
+	}
+	assert.Error(t, rt.Stop(20*time.Millisecond), "retry keeps waiting, no double close")
+
+	close(rt.done) // loop exits
+	assert.NoError(t, rt.Stop(time.Second))
+}
+
+// Concurrent Start/Stop never panics (double close) and Stop always returns.
+func TestRuntimeConcurrentStartStop(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		rt := newTestRuntime()
+		rt.startOnce.Do(func() { close(rt.done) }) // a loop that exits at once
+
+		var wg sync.WaitGroup
+		for j := 0; j < 4; j++ {
+			wg.Add(2)
+			go func() { defer wg.Done(); rt.Start(context.Background()) }()
+			go func() { defer wg.Done(); _ = rt.Stop(time.Second) }()
+		}
+		wg.Wait()
+		assert.NoError(t, rt.Stop(time.Second))
 	}
 }

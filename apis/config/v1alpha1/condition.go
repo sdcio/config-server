@@ -28,14 +28,11 @@ const (
 	ConditionTypeTargetForConfigReady condv1alpha1.ConditionType = "TargetForConfigReady"
 
 	// Target relation conditions
-	// ConditionTypeDiscoveryReady represents the resource discovery ready condition
 	ConditionTypeTargetDiscoveryReady condv1alpha1.ConditionType = "TargetDiscoveryReady"
-	// ConditionTypeDatastoreReady represents the resource datastore ready condition
-	ConditionTypeTargetDatastoreReady condv1alpha1.ConditionType = "TargetDatastoreReady"
-	// ConditionTypeConfigRecoveryReady represents the resource config recovery ready condition
+	// legacy - to be removed
+	ConditionTypeTargetDatastoreReady      condv1alpha1.ConditionType = "TargetDatastoreReady"
 	ConditionTypeTargetConfigRecoveryReady condv1alpha1.ConditionType = "TargetConfigRecoveryReady"
-	// ConditionTypeTargetConnectionReady represents the resource target ready condition
-	ConditionTypeTargetConnectionReady condv1alpha1.ConditionType = "TargetConnectionReady"
+	ConditionTypeTargetConnectionReady     condv1alpha1.ConditionType = "TargetConnectionReady"
 )
 
 // Reasons a resource is ready or not
@@ -43,6 +40,34 @@ const (
 	ConditionReasonCreating condv1alpha1.ConditionReason = "creating"
 	ConditionReasonUpdating condv1alpha1.ConditionReason = "updating"
 )
+
+// A Target carries two conditions:
+//
+//   - TargetDiscoveryReady, owned by the discovery controller
+//
+//   - Ready, owned by the target datastore controller. It aggregates the
+//     instantiation of the target; when False, the Reason names the first
+//     stage of the pipeline that blocks:
+//
+//     discovery -> schema -> configuration -> dataserver -> datastore -> recovery -> ready
+const (
+	TargetReasonDiscoveryNotReady    condv1alpha1.ConditionReason = "DiscoveryNotReady"
+	TargetReasonSchemaNotReady       condv1alpha1.ConditionReason = "SchemaNotReady"
+	TargetReasonInvalidConfiguration condv1alpha1.ConditionReason = "InvalidConfiguration"
+	TargetReasonInitializing         condv1alpha1.ConditionReason = "Initializing"
+	TargetReasonDataServerNotReady   condv1alpha1.ConditionReason = "DataServerNotReady"
+	TargetReasonDatastoreNotReady    condv1alpha1.ConditionReason = "DatastoreNotReady"
+	TargetReasonDatastoreFailed      condv1alpha1.ConditionReason = "DatastoreFailed"
+	TargetReasonRecovering           condv1alpha1.ConditionReason = "Recovering"
+	TargetReasonRecoveryFailed       condv1alpha1.ConditionReason = "RecoveryFailed"
+	TargetReasonDeleting             condv1alpha1.ConditionReason = "Deleting"
+)
+
+// AnnotationRecoveryRetry on a Target requests a new config recovery attempt
+// after a non-recoverable recovery failure. Any new value triggers one retry:
+//
+//	kubectl annotate target <name> config.sdcio.dev/recovery-retry=$(date +%s) --overwrite
+const AnnotationRecoveryRetry = "config.sdcio.dev/recovery-retry"
 
 // Creating returns a condition that indicates a create transaction
 // is ongoing
@@ -130,77 +155,7 @@ func TargetForConfigFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// Target related conditions
-
-// TargetDatastoreReady indicates the datastire is ready
-func TargetDatastoreReady() condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetDatastoreReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-	}}
-}
-
-// TargetDatastoreFailed returns a condition that indicates the datastore
-// failed to get reconciled.
-func TargetDatastoreFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetDatastoreReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// TargetDatastoreSchemaNotReady returns a condition that indicates the schema
-// of the datastore is not ready.
-func TargetDatastoreSchemaNotReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetDatastoreReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string("schema not ready"),
-		Message:            msg,
-	}}
-}
-
-// TargetConfigRecoveryReady return a condition that indicates the config
-// get re-applied when the target became ready
-func TargetConfigRecoveryReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConfigRecoveryReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-		Message:            msg,
-	}}
-}
-
-// TargetConfigRecoveryFailed returns a condition that indicates the config
-// is in failed condition due to a dependency
-func TargetConfigRecoveryFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConfigRecoveryReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
-}
-
-// TargetConfigRecoveryReApplyFailed returns a condition that indicates the config
-// we we reapplied to the target
-func TargetConfigRecoveryReApplyFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConfigRecoveryReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string("recovery config transaction failed"),
-		Message:            msg,
-	}}
-}
+// Target Discovery related conditions
 
 // TargetDiscoveryReady return a condition that indicates the discovery
 // is ready
@@ -225,25 +180,26 @@ func TargetDiscoveryFailed(msg string) condv1alpha1.Condition {
 	}}
 }
 
-// TargetConnectionReady return a condition that indicates the target connection
-// is ready
-func TargetConnectionReady() condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConnectionReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-	}}
+// Target DataStaore consitions
+
+// TargetReady returns the Ready=True condition. msg may carry warnings
+// (e.g. from config recovery).
+func TargetReady(msg string) condv1alpha1.Condition {
+	return condv1alpha1.ReadyWithMsg(msg)
 }
 
-// TargetConnectionFailed returns a condition that indicates the target connection
-// is in failed condition
-func TargetConnectionFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetConnectionReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
+// TargetNotReady returns the Ready=False condition with a pipeline reason.
+// The message is bounded (condv1alpha1.MaxMessageBytes) at a rune boundary,
+// with the cut marked, so long dataserver/device errors stay valid and readable.
+func TargetNotReady(reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
+	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
+}
+
+// LegacyTargetConditionTypes are no longer written. They are removed once
+// from existing Targets by the target datastore controller.
+// Delete this (and the constants) once all deployments have been upgraded.
+var LegacyTargetConditionTypes = []condv1alpha1.ConditionType{
+	ConditionTypeTargetDatastoreReady,
+	ConditionTypeTargetConnectionReady,
+	ConditionTypeTargetConfigRecoveryReady,
 }

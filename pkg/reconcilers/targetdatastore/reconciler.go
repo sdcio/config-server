@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -37,14 +38,16 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 func init() {
@@ -57,15 +60,23 @@ const (
 	reconcilerName        = "TargetDataStoreController"
 	finalizer             = "targetdatastore.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
-	errUpdateStatus    = "cannot update status"
+	errGetCr        = "cannot get cr"
+	errUpdateStatus = "cannot update status"
+
+	// The runtime notifies every status change (Events channel); these
+	// requeues only cover a dropped notification or slow external state.
+	fallbackRequeue = 30 * time.Second
+	schemaRequeue   = 10 * time.Second
+	deleteRequeue   = 5 * time.Second
 )
 
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=inv.sdcio.dev,resources=targets/status,verbs=get;update;patch
 
 // SetupWithManager sets up the controller with the Manager.
+//
+// This controller owns the target instantiation and is the single writer of
+// the Target Ready condition. The discovery controller owns TargetDiscoveryReady.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
 	cfg, ok := c.(*ctrlconfig.ControllerConfig)
 	if !ok {
@@ -99,6 +110,8 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		Watches(&invv1alpha1.TargetSyncProfile{}, &eventhandler.TargetSyncProfileForTargetEventHandler{Client: mgr.GetClient()}).
 		Watches(&corev1.Secret{}, &eventhandler.SecretForTargetEventHandler{Client: mgr.GetClient()}).
 		Watches(&invv1alpha1.Schema{}, &eventhandler.SchemaForTargetEventHandler{Client: mgr.GetClient()}).
+		// runtime status changes (datastore, recovery, ...) of each target
+		WatchesRawSource(source.Channel(r.targetMgr.Events(), &handler.EnqueueRequestForObject{})).
 		Complete(r)
 }
 
@@ -126,121 +139,207 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	targetOrig := target.DeepCopy()
+	// one-time migration: drop the conditions folded into Ready.
+	// The patch triggers a new reconcile on the cleaned object.
+	if dropped, err := r.dropLegacyConditions(ctx, target); err != nil || dropped {
+		return ctrl.Result{}, err
+	}
 
-	if !targetOrig.GetDeletionTimestamp().IsZero() {
-		if len(target.GetFinalizers()) > 1 {
-			// this should be the last finalizer to be removed as this deletes the target from the targetStore
-			log.Debug("requeue delete, not all finalizers removed", "finalizers", targetOrig.GetFinalizers())
-			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, targetOrig, "deleting target, not all finalizers removed", nil, true), errUpdateStatus)
-		}
-		log.Debug("deleting targetstore...")
-		// check if this is the last one -> if so stop the client to the dataserver
-
-		if r.targetMgr != nil {
-			r.targetMgr.ClearDesired(ctx, targetKey)
-			r.targetMgr.Delete(ctx, targetKey)
-		}
-
-		// remove the finalizer
-		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
-			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, targetOrig, "cannot delete finalizer", err, true), errUpdateStatus)
-		}
-
-		log.Debug("Successfully deleted resource")
-		return ctrl.Result{}, nil
+	if !target.GetDeletionTimestamp().IsZero() {
+		return r.reconcileDelete(ctx, target, targetKey)
 	}
 
 	if err := r.finalizer.AddFinalizer(ctx, target); err != nil {
-		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, targetOrig, "cannot add finalizer", err, true), errUpdateStatus)
+		return ctrl.Result{}, errors.Wrap(err, "cannot add finalizer")
 	}
 
+	// --- pipeline: the first stage that blocks sets the Ready reason ---
+
+	// 1) discovery
 	// We dont act as long the target is not discoveredReady (ready state is handled by the discovery controller)
-	// Ready -> NotReady: happens only when the discovery fails => we keep the target as is do not delete the datatore/etc
-	log.Info("target discovery ready condition", "status", targetOrig.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status)
-	if target.Status.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady).Status != metav1.ConditionTrue {
-		if r.targetMgr != nil {
-			r.targetMgr.ClearDesired(ctx, targetKey)
-		}
-		// target not ready so we can wait till the target goes to ready state
-		return ctrl.Result{},
-			errors.Wrap(r.handleError(ctx, targetOrig, "discovery not ready", nil, true), errUpdateStatus)
+	discovery := target.GetCondition(configv1alpha1.ConditionTypeTargetDiscoveryReady)
+	if !discovery.IsTrue() {
+		r.targetMgr.ClearDesired(ctx, targetKey)
+		return ctrl.Result{}, r.applyReady(ctx, target,
+			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDiscoveryNotReady, discovery.Message),
+			nil)
 	}
 
-	isSchemaReady, _, err := r.isSchemaReady(ctx, target)
+	// 2) schema
+	schemaReady, schemaMsg, err := r.isSchemaReady(ctx, target)
 	if err != nil {
-		// this means the apiserver had issues retrieving the schema
-		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, targetOrig, "cannot get schema ready state", err, true), errUpdateStatus)
+		// the apiserver had issues retrieving the schema: report and back off
+		_ = r.applyReady(ctx, target,
+			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonSchemaNotReady, "cannot get schema ready state: "+err.Error()),
+			nil)
+		return ctrl.Result{}, errors.Wrap(err, "cannot get schema ready state")
 	}
-	if !isSchemaReady {
-		return ctrl.Result{RequeueAfter: 10 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig, "schema not ready", err, true), errUpdateStatus)
+	if !schemaReady {
+		return ctrl.Result{RequeueAfter: schemaRequeue}, r.applyReady(ctx, target,
+			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonSchemaNotReady, schemaMsg),
+			nil)
 	}
 
-	// Now that the target is up and the schema s available we can create the datastore
+	// 3) configuration (profiles, secrets): watched, so no requeue needed
 	dsReq, usedRefs, err := r.getCreateDataStoreRequest(ctx, target)
 	if err != nil {
-		msg := fmt.Sprintf("cannot create datastore request from CR/Profiles: %s", err)
-		_ = r.handleError(ctx, targetOrig, msg, nil, false)
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.applyReady(ctx, target,
+			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonInvalidConfiguration, err.Error()),
+			target.Status.UsedReferences)
 	}
 
-	// Compute desired hash (must be stable)
+	// 4) runtime: dataserver -> datastore -> recovery -> running
 	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs)
-
-	// Drive runtime
+	// token BEFORE desired: the first recovery attempt must already see it
+	r.targetMgr.SetRecoveryRetryToken(ctx, targetKey,
+		target.GetAnnotations()[configv1alpha1.AnnotationRecoveryRetry])
 	r.targetMgr.ApplyDesired(ctx, targetKey, dsReq, usedRefs, hash)
 
-	// Read runtime status
-	rt := r.targetMgr.GetOrCreate(targetKey)
-	st := rt.Status()
+	// This is the runtime status *before* it processed the new desired state;
+	// the runtime notifies us when it moves on.
+	st := r.targetMgr.GetOrCreate(targetKey).Status()
+	cond, requeue, datastoreUp := readyFromRuntime(st)
+
+	refs := target.Status.UsedReferences
+	if datastoreUp {
+		refs = usedRefs
+	}
+	return ctrl.Result{RequeueAfter: requeue}, r.applyReady(ctx, target, cond, refs)
+}
+
+func (r *reconciler) reconcileDelete(ctx context.Context, target *configv1alpha1.Target, targetKey storebackend.Key) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	if len(target.GetFinalizers()) > 1 {
+		// we must be the last finalizer: the runtime and datastore have to
+		// outlive the other finalizers (e.g. config cleanup)
+		log.Debug("requeue delete, not all finalizers removed", "finalizers", target.GetFinalizers())
+		return ctrl.Result{RequeueAfter: deleteRequeue}, r.applyReady(ctx, target,
+			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDeleting, "waiting for other finalizers"),
+			target.Status.UsedReferences)
+	}
+
+	// Finalization is synchronous and error-returning; any failure keeps the
+	// finalizer and retries (sdcio/config-server#516):
+	//
+	// 1) stop the runtime and wait until its run loop has exited, so nothing
+	//    can (re)create the datastore or rewrite the Deviation afterwards
+	if err := r.targetMgr.Delete(ctx, targetKey); err != nil {
+		return r.retryDelete(ctx, target, "cannot stop target runtime", err)
+	}
+	// 2) delete the datastore; NotFound counts as deleted. Works without an
+	//    in-memory runtime (e.g. after a config-server restart).
+	if err := r.targetMgr.DeleteDatastore(ctx, targetKey); err != nil {
+		return r.retryDelete(ctx, target, "cannot delete datastore", err)
+	}
+
+	// 3) Deviation
+	if err := r.deleteDeviation(ctx, target); err != nil {
+		return r.retryDelete(ctx, target, "cannot delete deviation", err)
+	}
+
+	if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "cannot remove finalizer")
+	}
+
+	log.Debug("Successfully deleted resource")
+	return ctrl.Result{}, nil
+}
+
+// retryDelete keeps the finalizer, surfaces the failure on Ready and retries
+// at a fixed interval (not exponential backoff: the dataserver may be down
+// for a while and deletion should resume promptly when it is back).
+func (r *reconciler) retryDelete(ctx context.Context, target *configv1alpha1.Target, msg string, err error) (ctrl.Result, error) {
+	log.FromContext(ctx).Warn("target finalization blocked, retrying", "msg", msg, "err", err, "retryIn", deleteRequeue)
+	return ctrl.Result{RequeueAfter: deleteRequeue}, r.applyReady(ctx, target,
+		configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDeleting, msg+": "+err.Error()),
+		target.Status.UsedReferences)
+}
+
+// readyFromRuntime maps the runtime phase onto the Ready condition.
+// datastoreUp reports whether the datastore exists with the desired refs.
+func readyFromRuntime(st targetmanager.RuntimeStatus) (cond condv1alpha1.Condition, requeue time.Duration, datastoreUp bool) {
+	withErr := func(msg string) string {
+		if st.LastError == "" {
+			return msg
+		}
+		return msg + ": " + st.LastError
+	}
 
 	switch st.Phase {
 	case targetmanager.PhaseRunning:
-		return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig, usedRefs), errUpdateStatus)
+		return configv1alpha1.TargetReady(st.RecoveryMsg), 0, true
 
-	case targetmanager.PhaseWaitingForDS, targetmanager.PhaseEnsuringDatastore, targetmanager.PhasePending:
-		// not ready yet; update status as failed/degraded but requeue soon
-		msg := fmt.Sprintf("runtime phase=%s dsReady=%t dsStoreReady=%t err=%s",
-			st.Phase, st.DSReady, st.DSStoreReady, st.LastError)
+	case targetmanager.PhaseRecovering:
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonRecovering,
+			withErr("recovering configs")), fallbackRequeue, true
 
-		_ = r.handleError(ctx, targetOrig, msg, nil, false)
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	case targetmanager.PhaseRecoveryFailed:
+		// terminal: only a human (annotation / target change) moves this on
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonRecoveryFailed,
+			fmt.Sprintf("config recovery failed, manual intervention required: %s; fix the configs, then set annotation %s to a new value to retry",
+				st.LastError, configv1alpha1.AnnotationRecoveryRetry)), 0, true
 
 	case targetmanager.PhaseDegraded:
-		msg := fmt.Sprintf("runtime degraded: %s", st.LastError)
-		_ = r.handleError(ctx, targetOrig, msg, nil, false)
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDatastoreFailed,
+			withErr("datastore failed")), fallbackRequeue, false
+
+	case targetmanager.PhaseEnsuringDatastore:
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDatastoreNotReady,
+			withErr("ensuring datastore")), fallbackRequeue, false
+
+	case targetmanager.PhaseWaitingForDS:
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDataServerNotReady,
+			withErr("waiting for dataserver")), fallbackRequeue, false
+
+	case targetmanager.PhasePending:
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonInitializing,
+			"initializing target runtime"), fallbackRequeue, false
+
+	case targetmanager.PhaseDeleting:
+		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDeleting,
+			"target runtime stopping"), fallbackRequeue, false
 
 	default:
-		_ = r.handleError(ctx, targetOrig, "runtime unknown phase", nil, false)
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		return configv1alpha1.TargetNotReady(condv1alpha1.ConditionReasonUnknown,
+			fmt.Sprintf("unknown runtime phase %q", st.Phase)), fallbackRequeue, false
 	}
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
+// applyReady is the ONLY writer of the Ready condition (and usedReferences).
+// usedRefs == nil clears them.
+func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Target, newCond condv1alpha1.Condition, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
 	log := log.FromContext(ctx)
-	//log.Info("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
-	// take a snapshot of the current object
-	newCond := configv1alpha1.TargetDatastoreReady()
-	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDatastoreReady)
 
-	// we don't update the resource if no condition changed
-	if newCond.Equal(oldCond) &&
-		equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
-		log.Info("handleSuccess -> no change")
+	// No truncation here: TargetReady/TargetNotReady build the condition via
+	// condv1alpha1.NewCondition, which bounds the message (MaxMessageBytes)
+	// at a rune boundary and marks the cut. The bound is deterministic, so
+	// the no-change guard below stays stable for repeated long errors.
+	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
+	if newCond.Equal(oldCond) && equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
+		log.Debug("applyReady -> no change", "ready", newCond.IsTrue(), "reason", newCond.Reason)
 		return nil
 	}
-	log.Info("handleSuccess",
-		"condition change", !newCond.Equal(oldCond),
-		"usedRefs change", !equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences),
-	)
 
-	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeNormal, configv1alpha1.TargetKind, "datastore ready")
+	// lastTransitionTime only moves when the status flips
+	if oldCond.Status == newCond.Status && !oldCond.LastTransitionTime.IsZero() {
+		newCond.LastTransitionTime = oldCond.LastTransitionTime
+	}
+
+	// events only on transitions (status or reason), not on message churn
+	if oldCond.Status != newCond.Status || oldCond.Reason != newCond.Reason {
+		eventType := corev1.EventTypeNormal
+		if !newCond.IsTrue() {
+			eventType = corev1.EventTypeWarning
+		}
+		// RecordEvent bounds the note to the Event limit itself
+		reconcilers.RecordEvent(r.recorder, target, eventType, newCond.Reason, newCond.Message)
+	}
+
+	log.Info("applyReady",
+		"ready", newCond.IsTrue(), "reason", newCond.Reason, "msg", newCond.Message,
+		"usedRefsChanged", !equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences),
+	)
 
 	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
 		WithStatus(configv1alpha1apply.TargetStatus().
@@ -248,55 +347,52 @@ func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.T
 			WithUsedReferences(usedRefsToApply(usedRefs)),
 		)
 
-	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+	return errors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
+			// takes over Ready from the retired TargetController field manager
+			Force: ptr.To(true),
 		},
-	})
+	}), errUpdateStatus)
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error, resetUsedRefs bool) error {
-	log := log.FromContext(ctx)
-
-	if err != nil {
-		msg = fmt.Sprintf("%q err %q", msg, err.Error())
+// dropLegacyConditions removes condition types that were folded into Ready.
+// SSA cannot remove entries owned by other (retired) field managers, so this
+// uses a plain status patch. Returns true if it patched.
+func (r *reconciler) dropLegacyConditions(ctx context.Context, target *configv1alpha1.Target) (bool, error) {
+	kept := make([]condv1alpha1.Condition, 0, len(target.Status.Conditions))
+	for _, c := range target.Status.Conditions {
+		if slices.Contains(configv1alpha1.LegacyTargetConditionTypes, condv1alpha1.ConditionType(c.Type)) {
+			continue
+		}
+		kept = append(kept, c)
 	}
-	if len(msg) > 128 {
-		msg = msg[:128]
-	}
-
-	newCond := configv1alpha1.TargetDatastoreFailed(msg)
-	oldCond := target.GetCondition(configv1alpha1.ConditionTypeTargetDatastoreReady)
-
-	var newUsedRefs *configv1alpha1.TargetStatusUsedReferences
-	if !resetUsedRefs {
-		newUsedRefs = target.Status.UsedReferences
+	if len(kept) == len(target.Status.Conditions) {
+		return false, nil
 	}
 
-	if newCond.Equal(oldCond) &&
-		equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences) {
-		log.Info("handleError -> no change")
-		return nil
+	log.FromContext(ctx).Info("removing legacy target conditions",
+		"removed", len(target.Status.Conditions)-len(kept))
+
+	orig := target.DeepCopy()
+	target.Status.Conditions = kept
+	if err := r.client.Status().Patch(ctx, target,
+		client.MergeFromWithOptions(orig, client.MergeFromWithOptimisticLock{})); err != nil {
+		return false, errors.Wrap(err, "cannot remove legacy conditions")
 	}
+	return true, nil
+}
 
-	log.Info("handleError",
-		"condition change", !newCond.Equal(oldCond),
-		"usedRefs change", !equality.Semantic.DeepEqual(newUsedRefs, target.Status.UsedReferences),
-	)
-	log.Error(msg, "error", err)
-	reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeWarning, configv1alpha1.TargetKind, msg)
-
-	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(configv1alpha1apply.TargetStatus().
-			WithConditions(newCond).
-			WithUsedReferences(usedRefsToApply(newUsedRefs)),
-		)
-
-	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: reconcilerName,
-		},
-	})
+func (r *reconciler) deleteDeviation(ctx context.Context, target *configv1alpha1.Target) error {
+	deviation := &configv1alpha1.Deviation{}
+	deviation.Name = target.Name
+	deviation.Namespace = target.Namespace
+	if err := r.client.Delete(ctx, deviation); err != nil {
+		if resource.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, "cannot delete deviation")
+		}
+	}
+	return nil
 }
 
 func (r *reconciler) getConnProfile(ctx context.Context, key types.NamespacedName) (*invv1alpha1.TargetConnectionProfile, error) {
@@ -330,28 +426,31 @@ func (r *reconciler) getSecret(ctx context.Context, key types.NamespacedName) (*
 }
 
 func (r *reconciler) isSchemaReady(ctx context.Context, target *configv1alpha1.Target) (bool, string, error) {
-	//log := log.FromContext(ctx)
+	if target.Status.DiscoveryInfo == nil {
+		return false, "target has no discovery info", nil
+	}
+
 	schemaList := &invv1alpha1.SchemaList{}
 	opts := []client.ListOption{
 		client.InNamespace(target.Namespace),
 	}
-
 	if err := r.client.List(ctx, schemaList, opts...); err != nil {
 		return false, "", err
 	}
 
 	for _, schema := range schemaList.Items {
-		if target.Status.DiscoveryInfo == nil {
-			return false, "target has no discovery info", nil
-		}
 		if schema.Spec.Provider == target.Status.DiscoveryInfo.Provider &&
 			schema.Spec.Version == target.Status.DiscoveryInfo.Version {
 			schemaCondition := schema.GetCondition(condv1alpha1.ConditionTypeReady)
-			return schemaCondition.IsTrue(), schemaCondition.Message, nil
+			msg := schemaCondition.Message
+			if !schemaCondition.IsTrue() && msg == "" {
+				msg = fmt.Sprintf("schema %s/%s not ready", schema.Spec.Provider, schema.Spec.Version)
+			}
+			return schemaCondition.IsTrue(), msg, nil
 		}
 	}
-	return false, "schema referenced by target not found", nil
-
+	return false, fmt.Sprintf("schema %s/%s referenced by target not found",
+		target.Status.DiscoveryInfo.Provider, target.Status.DiscoveryInfo.Version), nil
 }
 
 func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *configv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *configv1alpha1.TargetStatusUsedReferences, error) {

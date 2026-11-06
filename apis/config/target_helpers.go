@@ -92,10 +92,7 @@ func BuildEmptyTarget() *Target {
 }
 
 func (r *Target) IsReady() bool {
-	return r.GetCondition(condition.ConditionTypeReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetDiscoveryReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetDatastoreReady).Status == metav1.ConditionTrue &&
-		r.GetCondition(ConditionTypeTargetConnectionReady).Status == metav1.ConditionTrue
+	return r.GetCondition(condition.ConditionTypeReady).Status == metav1.ConditionTrue
 }
 
 func (r *Target) GetNamespacedName() types.NamespacedName {

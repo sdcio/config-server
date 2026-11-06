@@ -22,13 +22,11 @@ import (
 
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/events"
@@ -81,6 +79,9 @@ type reconciler struct {
 	recorder  events.EventRecorder
 }
 
+// Reconcile only cleans up the Target's Deviation on deletion. The Target
+// Ready condition is owned by the target datastore controller; the former
+// aggregation (updateCondition / GetOverallStatus) is gone.
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
 	log := log.FromContext(ctx)
@@ -108,58 +109,5 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	changed, newReady, err := r.updateCondition(ctx, target)
-	if err != nil {
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, pkgerrors.Wrap(err, errUpdateStatus)
-	}
-
-	// "One more kick": if after computing/updating Ready it is still not ready,
-	// requeue once soon. Using changed==true avoids periodic requeues.
-	// If you want the kick even when Ready didn't change, drop `changed &&`.
-	if changed && !newReady {
-		log.Info("overall Ready still false; requeueing for one more kick", "after", "5s")
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
-	}
-
 	return ctrl.Result{}, nil
-}
-
-func (r *reconciler) updateCondition(ctx context.Context, target *configv1alpha1.Target) (changed bool, newReady bool, err error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
-
-	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
-	newCond := configv1alpha1.GetOverallStatus(target)
-
-	changed = !newCond.Equal(oldCond)
-	newReady = newCond.IsTrue()
-
-	if !changed {
-		log.Info("updateCondition -> no change", "ready", newReady)
-		return false, newReady, nil
-	}
-
-	log.Info("updateCondition -> change", "ready", newReady)
-
-	// Optional: emit different event types
-	if newReady {
-		reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeNormal, configv1alpha1.TargetKind, "ready")
-	} else {
-		reconcilers.RecordEvent(r.recorder, target, corev1.EventTypeWarning, configv1alpha1.TargetKind, "not ready")
-	}
-
-	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(configv1alpha1apply.TargetStatus().
-			WithConditions(newCond),
-		)
-
-	if err := r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: reconcilerName,
-		},
-	}); err != nil {
-		return false, false, err
-	}
-
-	return true, newReady, nil
 }
