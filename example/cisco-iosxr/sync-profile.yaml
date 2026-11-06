@@ -1,0 +1,45 @@
+# Cisco IOS-XR gNMI sync profile (UM models). Syncs interfaces plus router
+# static, BGP, and OSPF configuration subtrees. Apply after discovery/schema
+# are in place; name matches the common cluster resource cisco-ixr-sync.
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: TargetSyncProfile
+metadata:
+  name: cisco-ixr-sync
+  namespace: default
+spec:
+  buffer: 0
+  workers: 10
+  validate: false
+  sync:
+  - name: interfaces
+    protocol: gnmi
+    port: 57400
+    encoding: JSON_IETF
+    mode: get
+    interval: 15s
+    paths:
+    - /Cisco-IOS-XR-um-interface-cfg:interfaces
+  - name: static-routes
+    protocol: gnmi
+    port: 57400
+    encoding: JSON_IETF
+    mode: get
+    interval: 15s
+    paths:
+    - /Cisco-IOS-XR-um-router-static-cfg:router
+  - name: bgp
+    protocol: gnmi
+    port: 57400
+    encoding: JSON_IETF
+    mode: get
+    interval: 15s
+    paths:
+    - /Cisco-IOS-XR-um-router-bgp-cfg:router
+  - name: ospf
+    protocol: gnmi
+    port: 57400
+    encoding: JSON_IETF
+    mode: get
+    interval: 15s
+    paths:
+    - /Cisco-IOS-XR-um-router-ospf-cfg:router

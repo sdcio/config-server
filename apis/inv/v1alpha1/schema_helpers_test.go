@@ -114,6 +114,10 @@ func TestExampleSchemas(t *testing.T) {
 			path:        "../../../example/schemas/schema-arista-4.31.1f.yaml",
 			expectedErr: nil,
 		},
+		"CiscoIOSXR": {
+			path:        "../../../example/schemas/schema-cisco-iosxr-7.10.1.yaml",
+			expectedErr: nil,
+		},
 	}
 
 	for name, tc := range cases {
