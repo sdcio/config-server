@@ -18,7 +18,6 @@ package targetmanager
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
@@ -29,110 +28,74 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// These tests exercise the exact condition-computation chain that
-// Transactor.updateConfigWithError's non-recoverable branch relies on
-// (configv1alpha1.ConfigFailedUnrecoverable -> GetOverallCondition ->
-// DedupeConditions), reproducing it inline rather than going through
-// updateConfigWithError's client.Status().Apply call, since Server-Side
-// Apply against a CRD status subresource isn't reliably emulated by the
-// controller-runtime fake client. This is the exact logic that was buggy:
-// before the fix, condv1alpha1.FailedUnRecoverable stamped Type: "Ready"
-// (colliding with the overall condition's Type), so DedupeConditions
-// silently dropped the failure and the persisted status kept a stale
-// Ready=True.
+// These tests exercise the condition chain updateConfigWithError builds
+// (ConfigFailed[Unrecoverable] -> ReadyFromApplied) and the internal
+// Config.IsRecoverable(ctx) the transaction classification relies on,
+// without the client.Status().Apply call (SSA on a status subresource is not
+// reliably emulated by the controller-runtime fake client).
 func newConfigWithPriorSuccess(name string) *configv1alpha1.Config {
 	cfg := &configv1alpha1.Config{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       "default",
-			ResourceVersion: "10",
+			Name:       name,
+			Namespace:  "default",
+			Generation: 10,
 		},
 	}
-	cfg.SetConditions(
-		configv1alpha1.ConfigReady("applied"),
-		configv1alpha1.TargetForConfigReady("target ready"),
-	)
+	cfg.SetConditions(configv1alpha1.ConfigReady(10, ""))
+	cfg.SetConditions(cfg.ReadyFromApplied())
 	return cfg
 }
 
-func TestUpdateConfigWithError_NonRecoverable_StampsConfigReadyAndOverallFalse(t *testing.T) {
-	current := newConfigWithPriorSuccess("cfg-nonrecoverable")
+func TestUpdateConfigWithError_NonRecoverable(t *testing.T) {
+	cfg := newConfigWithPriorSuccess("cfg-nonrecoverable")
 
-	newMessage := condv1alpha1.UnrecoverableMessage{
-		ResourceVersion: current.GetResourceVersion(),
-		Message:         "apply failed: malformed intent",
-	}
-	raw, err := json.Marshal(newMessage)
-	require.NoError(t, err)
+	cfg.SetConditions(configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), "apply failed: malformed intent"))
+	cfg.SetConditions(cfg.ReadyFromApplied())
 
-	newConfigCond := configv1alpha1.ConfigFailedUnrecoverable(string(raw))
+	applied := cfg.GetCondition(configv1alpha1.ConditionTypeConfigReady)
+	assert.Equal(t, metav1.ConditionFalse, applied.Status)
+	assert.Equal(t, string(condv1alpha1.ConditionReasonUnrecoverable), applied.Reason)
+	assert.Equal(t, int64(10), applied.ObservedGeneration)
 
-	// Same Type as ConfigFailed/ConfigReady: this is what makes SetConditions
-	// below overwrite the real ConfigReady slot instead of colliding with the
-	// generic top-level Ready slot.
-	require.Equal(t, string(configv1alpha1.ConditionTypeConfigReady), newConfigCond.Type)
+	ready := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+	assert.Equal(t, metav1.ConditionFalse, ready.Status, "Ready must not stay True after the failure")
+	assert.Equal(t, string(condv1alpha1.ConditionReasonUnrecoverable), ready.Reason)
+	assert.Equal(t, "apply failed: malformed intent", ready.Message)
 
-	tmp := current.DeepCopy()
-	tmp.SetConditions(newConfigCond)
-	newOverallCond := configv1alpha1.GetOverallCondition(tmp)
-
-	assert.Equal(t, metav1.ConditionFalse, newOverallCond.Status,
-		"overall Ready must be recomputed to False, not remain stale True from before the failure")
-
-	deduped := condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)
-	require.Len(t, deduped, 2,
-		"ConfigReady and Ready are different Types now, so both must survive dedupe (pre-fix, both were Type Ready and only one survived)")
-
-	byType := map[string]condv1alpha1.Condition{}
-	for _, c := range deduped {
-		byType[c.Type] = c
-	}
-
-	cfgReady, ok := byType[string(configv1alpha1.ConditionTypeConfigReady)]
-	require.True(t, ok, "deduped conditions must include ConfigReady")
-	assert.Equal(t, metav1.ConditionFalse, cfgReady.Status)
-	assert.Equal(t, string(condv1alpha1.ConditionReasonUnrecoverable), cfgReady.Reason)
-
-	overallReady, ok := byType[string(condv1alpha1.ConditionTypeReady)]
-	require.True(t, ok, "deduped conditions must include the overall Ready")
-	assert.Equal(t, metav1.ConditionFalse, overallReady.Status)
-
-	// Apply the resulting condition onto the actual object (as updateConfigWithError
-	// does before persisting) and confirm the internal Config.IsRecoverable(ctx)
-	// contract this bug fix is supposed to restore.
-	final := current.DeepCopy()
-	final.SetConditions(deduped...)
-
-	internalCfg := toInternalConfig(t, final)
+	internalCfg := toInternalConfig(t, cfg)
 	ctx := context.Background()
-	assert.False(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must report false immediately after (same ResourceVersion)")
+	assert.False(t, internalCfg.IsRecoverable(ctx), "same generation: not recoverable")
 
-	// Simulate a spec edit bumping ResourceVersion: IsRecoverable should flip back to true.
-	internalCfg.ResourceVersion = "11"
-	assert.True(t, internalCfg.IsRecoverable(ctx), "IsRecoverable must flip back to true once ResourceVersion changes (spec edit)")
+	// a spec edit bumps the generation: recoverable again
+	internalCfg.Generation = 11
+	assert.True(t, internalCfg.IsRecoverable(ctx), "new generation: recoverable")
 }
 
-func TestUpdateConfigWithError_Recoverable_UnchangedBehavior(t *testing.T) {
-	current := newConfigWithPriorSuccess("cfg-recoverable")
+func TestUpdateConfigWithError_Recoverable(t *testing.T) {
+	cfg := newConfigWithPriorSuccess("cfg-recoverable")
 
-	newConfigCond := configv1alpha1.ConfigFailed("apply failed: transient EOF")
-	require.Equal(t, string(configv1alpha1.ConditionTypeConfigReady), newConfigCond.Type)
-	require.Equal(t, string(condv1alpha1.ConditionReasonFailed), newConfigCond.Reason)
+	cfg.SetConditions(configv1alpha1.ConfigFailed(cfg.GetGeneration(), "apply failed: transient EOF"))
+	cfg.SetConditions(cfg.ReadyFromApplied())
 
-	tmp := current.DeepCopy()
-	tmp.SetConditions(newConfigCond)
-	newOverallCond := configv1alpha1.GetOverallCondition(tmp)
-	assert.Equal(t, metav1.ConditionFalse, newOverallCond.Status)
+	ready := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+	assert.Equal(t, metav1.ConditionFalse, ready.Status)
+	assert.Equal(t, string(condv1alpha1.ConditionReasonFailed), ready.Reason)
 
-	deduped := condv1alpha1.DedupeConditions(newConfigCond, newOverallCond)
-	require.Len(t, deduped, 2)
+	internalCfg := toInternalConfig(t, cfg)
+	assert.True(t, internalCfg.IsRecoverable(context.Background()))
+	assert.False(t, internalCfg.IsConfigConditionReady(), "a failed config is retried")
+}
 
-	final := current.DeepCopy()
-	final.SetConditions(deduped...)
+// A target outage only changes Ready: the transaction state survives, so an
+// unrecoverable config stays out of the next transaction.
+func TestTargetNotReady_KeepsUnrecoverable(t *testing.T) {
+	cfg := newConfigWithPriorSuccess("cfg-target-down")
+	cfg.SetConditions(configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), "malformed intent"))
+	cfg.SetConditions(configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonTargetNotReady, "Recovering: recovering configs"))
 
-	internalCfg := toInternalConfig(t, final)
-	assert.True(t, internalCfg.IsRecoverable(context.Background()),
-		"recoverable failures must still report IsRecoverable == true (regression guard for the untouched branch)")
+	assert.Equal(t, string(configv1alpha1.ConfigReasonTargetNotReady),
+		cfg.GetCondition(condv1alpha1.ConditionTypeReady).Reason)
+	assert.False(t, toInternalConfig(t, cfg).IsRecoverable(context.Background()))
 }
 
 // toInternalConfig converts a versioned configv1alpha1.Config to the internal

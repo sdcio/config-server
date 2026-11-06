@@ -84,7 +84,7 @@ manifests: controller-gen crds artifacts ## Generate WebhookConfiguration, Clust
 .PHONY: crds
 crds: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	mkdir -p crds
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/..." output:crd:artifacts:config=crds
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./apis/inv/..." output:crd:artifacts:config=crds
 
 .PHONY: artifacts
 artifacts: kform

@@ -25,6 +25,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -32,6 +33,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -58,6 +60,9 @@ const (
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
+
+	// runtimeRequeue polls the target runtime, its transitions are not watched
+	runtimeRequeue = 5 * time.Second
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -133,9 +138,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
-		if resource.IgnoreNotFound(err) != nil {
+		if !apierrors.IsNotFound(err) {
 			log.Error(errGetCr, "error", err)
-			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
+			return ctrl.Result{}, errors.Wrap(err, errGetCr)
 		}
 		// The Target does not exist: never created, or already deleted.
 		// Configs referencing it are only reconciled through this controller,
@@ -143,145 +148,102 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.reconcileTargetNotFound(ctx, req.NamespacedName)
 	}
 
-	targetOrig := target.DeepCopy()
-	if !targetOrig.GetDeletionTimestamp().IsZero() {
-		if err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not available"),
+	if !target.GetDeletionTimestamp().IsZero() {
+		if err := r.setConfigsNotReady(ctx, target,
+			configv1alpha1.ConfigReasonTargetDeleting, "target is being deleted",
 		); err != nil {
-			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, targetOrig, "cannot update config status", err), errUpdateStatus)
+			return ctrl.Result{}, err
 		}
-
-		// remove the finalizer
-		if err := r.finalizer.RemoveFinalizer(ctx, targetOrig); err != nil {
-			return ctrl.Result{Requeue: true},
-				errors.Wrap(r.handleError(ctx, targetOrig, "cannot delete finalizer", err), errUpdateStatus)
+		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "cannot remove finalizer")
 		}
-
 		log.Debug("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.finalizer.AddFinalizer(ctx, targetOrig); err != nil {
-		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, targetOrig, "cannot add finalizer", err), errUpdateStatus)
+	if err := r.finalizer.AddFinalizer(ctx, target); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "cannot add finalizer")
 	}
 
-	if !targetOrig.IsReady() {
-		err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not ready: "+targetOrig.NotReadyReason()),
-		)
-		return ctrl.Result{RequeueAfter: 5 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig,
-				"target not ready",
-				err),
-				errUpdateStatus)
+	// --- the first target stage that blocks sets the Config Ready reason ---
+
+	// 1) Target Ready, owned by the target datastore controller. Its reason
+	// (the blocking target pipeline stage) goes into the message.
+	// No requeue: Target status changes trigger this controller (For(&Target{})).
+	if !target.IsReady() {
+		return ctrl.Result{}, r.setConfigsNotReady(ctx, target,
+			configv1alpha1.ConfigReasonTargetNotReady, target.NotReadyReason())
 	}
 
+	// 2) runtime: Target Ready can lag the runtime (or the runtime moved on
+	// since), and runtime transitions do not trigger this controller -> requeue.
 	dsctx, ok := r.targetMgr.GetDatastore(ctx, targetKey)
 	if !ok || dsctx == nil {
 		msg := "target runtime not ready"
 		if dsctx != nil {
-			msg = fmt.Sprintf("target runtime not ready phase=%s dsReady=%t dsStoreReady=%t recovered=%t err=%v",
-				dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered, dsctx.Status.LastError)
+			msg = fmt.Sprintf("target runtime not ready: phase=%s dsReady=%t dsStoreReady=%t recovered=%t",
+				dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered)
+			if dsctx.Status.LastError != "" {
+				msg += ": " + dsctx.Status.LastError
+			}
 		}
-		err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigFailed("target not ready (runtime)"),
-		)
-		return ctrl.Result{RequeueAfter: 5 * time.Second},
-			errors.Wrap(r.handleError(ctx, targetOrig, msg, err), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: runtimeRequeue}, r.setConfigsNotReady(ctx, target,
+			configv1alpha1.ConfigReasonTargetRuntimeNotReady, msg)
 	}
 
-	retry, err := r.transactor.Transact(ctx, targetOrig, dsctx, configv1alpha1.TargetForConfigReady("target ready"))
+	// 3) transact: the transaction writes Ready for the configs it touched
+	// (from their ConfigReady). The others follow their ConfigReady below.
+	retry, err := r.transactor.Transact(ctx, target, dsctx)
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
-		if retry {
-			if serr := r.transactor.SetConfigsTargetConditionForTarget(
-				ctx,
-				targetOrig,
-				configv1alpha1.TargetForConfigReady("target ready"),
-			); serr != nil {
-				return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", serr), errUpdateStatus)
-			}
-			// Recoverable failure: trigger backoff
-			return ctrl.Result{}, err
+		if !retry {
+			// non recoverable: the failure is reported on the Configs by the
+			// transaction; retrying does not help.
+			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
+		// recoverable: back off and retry
+		if serr := r.setConfigsReadyFromApplied(ctx, target); serr != nil {
+			return ctrl.Result{}, serr
+		}
+		return ctrl.Result{}, err
 	}
 	log.Info("config transaction success", "retry", retry)
+
+	// also when the transaction did nothing
+	if err := r.setConfigsReadyFromApplied(ctx, target); err != nil {
+		return ctrl.Result{}, err
+	}
 	if retry {
-		if err := r.transactor.SetConfigsTargetConditionForTarget(
-			ctx,
-			targetOrig,
-			configv1alpha1.TargetForConfigReady("target ready"),
-		); err != nil {
-			return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
-		}
-		return ctrl.Result{
-				RequeueAfter: 500 * time.Millisecond,
-				Requeue:      true,
-			},
-			errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+		return ctrl.Result{RequeueAfter: 500 * time.Millisecond}, nil
 	}
-	// set status if transact did nothing
-	if err := r.transactor.SetConfigsTargetConditionForTarget(
-		ctx,
-		targetOrig,
-		configv1alpha1.TargetForConfigReady("target ready"),
-	); err != nil {
-		return ctrl.Result{}, errors.Wrap(r.handleError(ctx, targetOrig, "", err), errUpdateStatus)
-	}
-	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, targetOrig), errUpdateStatus)
+	return ctrl.Result{}, nil
 }
 
 // reconcileTargetNotFound marks every Config that references the missing
 // Target. No requeue: creating the Target triggers this controller through
 // For(&Target{}), and the normal path takes over.
 func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.NamespacedName) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// SetConfigsTargetConditionForTarget selects the Configs by the target
-	// name/namespace, so a stub carrying only those is sufficient.
+	// The Configs are selected by the target name/namespace, so a stub
+	// carrying only those is sufficient.
 	missing := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{
 		Namespace: key.Namespace,
 		Name:      key.Name,
 	}}
-	if err := r.transactor.SetConfigsTargetConditionForTarget(
-		ctx,
-		missing,
-		configv1alpha1.TargetForConfigFailed(fmt.Sprintf("target %s not found", key.String())),
-	); err != nil {
-		// e.g. apiserver hiccup: retry with backoff
-		return ctrl.Result{}, errors.Wrap(err, "cannot update config status for missing target")
-	}
-	log.Debug("target not found, configs updated")
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, r.setConfigsNotReady(ctx, missing,
+		configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", key.String()))
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, target *configv1alpha1.Target) error {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", target.GetNamespacedName(), "status old", target.DeepCopy().Status)
-	return nil
-
+// setConfigsNotReady sets Ready=False with a target stage reason on the
+// Configs of the target. The message is bounded by the condition constructor.
+// A failed status update is returned, so the request is retried with backoff.
+func (r *reconciler) setConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, reason condv1alpha1.ConditionReason, msg string) error {
+	log.FromContext(ctx).Debug("setConfigsNotReady", "reason", reason, "msg", msg)
+	return errors.Wrap(r.transactor.SetConfigsNotReady(ctx, target,
+		configv1alpha1.ConfigNotReady(reason, msg)), errUpdateStatus)
 }
 
-func (r *reconciler) handleError(ctx context.Context, target *configv1alpha1.Target, msg string, err error) error {
-	log := log.FromContext(ctx)
-
-	if err != nil {
-		msg = fmt.Sprintf("%q err %q", msg, err.Error())
-	}
-	if len(msg) > 128 {
-		msg = msg[:128]
-	}
-
-	log.Warn("config transaction failed", "msg", msg, "err", err)
-	return nil
-
+// setConfigsReadyFromApplied sets Ready on the Configs of the target from the
+// outcome of their last transaction (ConfigReady).
+func (r *reconciler) setConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target) error {
+	return errors.Wrap(r.transactor.SetConfigsReadyFromApplied(ctx, target), errUpdateStatus)
 }

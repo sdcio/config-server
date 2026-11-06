@@ -23,9 +23,8 @@ import (
 
 // Condition Types.
 const (
-	// Config related conditions
-	ConditionTypeConfigReady          condv1alpha1.ConditionType = "ConfigReady"
-	ConditionTypeTargetForConfigReady condv1alpha1.ConditionType = "TargetForConfigReady"
+	// Config related conditions, see below
+	ConditionTypeConfigReady condv1alpha1.ConditionType = "ConfigReady"
 
 	// Target relation conditions
 	ConditionTypeTargetDiscoveryReady condv1alpha1.ConditionType = "TargetDiscoveryReady"
@@ -63,6 +62,36 @@ const (
 	TargetReasonDeleting             condv1alpha1.ConditionReason = "Deleting"
 )
 
+// A Config carries two conditions:
+//
+//   - Ready, for users. When False, the Reason names the first stage that
+//     blocks the config:
+//
+//     TargetNotFound -> TargetDeleting -> TargetNotReady -> TargetRuntimeNotReady ->
+//     Pending -> Failed | Unrecoverable
+//
+//     The target stages are written by the target config controller, the
+//     outcome stages (Pending, Ready, Failed, Unrecoverable) follow ConfigReady.
+//
+//   - ConfigReady, for the controllers: the outcome of the last transaction
+//     of this config. It is kept while the target is not ready, and drives the
+//     next transaction: Failed configs are retried, Unrecoverable configs are
+//     skipped until the spec changes (ObservedGeneration != metadata.generation).
+const (
+	ConfigReasonTargetNotFound        condv1alpha1.ConditionReason = "TargetNotFound"
+	ConfigReasonTargetDeleting        condv1alpha1.ConditionReason = "TargetDeleting"
+	ConfigReasonTargetNotReady        condv1alpha1.ConditionReason = "TargetNotReady"
+	ConfigReasonTargetRuntimeNotReady condv1alpha1.ConditionReason = "TargetRuntimeNotReady"
+	ConfigReasonPending               condv1alpha1.ConditionReason = "Pending"
+)
+
+// LegacyConfigConditionTypes are no longer written. The transactor field
+// manager wrote them, so its next status apply on a Config removes them.
+// Delete this once all deployments have been upgraded.
+var LegacyConfigConditionTypes = []condv1alpha1.ConditionType{
+	"TargetForConfigReady",
+}
+
 // AnnotationRecoveryRetry on a Target requests a new config recovery attempt
 // after a non-recoverable recovery failure. Any new value triggers one retry:
 //
@@ -93,66 +122,35 @@ func Updating() condv1alpha1.Condition {
 	}}
 }
 
-// ConfigReady return a condition that indicates the config
-// get re-applied when the target became ready
-func ConfigReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-		Message:            msg,
-	}}
+// ConfigReady returns the ConfigReady=True condition: the config of the
+// given generation is applied on the target.
+func ConfigReady(generation int64, msg string) condv1alpha1.Condition {
+	return configCondition(generation, metav1.ConditionTrue, condv1alpha1.ConditionReasonReady, msg)
 }
 
-// ConfigFailed returns a condition that indicates the config
-// is in failed condition due to a dependency
-func ConfigFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
+// ConfigFailed returns the ConfigReady=False condition for a recoverable
+// failure: the config is retried in the next transaction.
+func ConfigFailed(generation int64, msg string) condv1alpha1.Condition {
+	return configCondition(generation, metav1.ConditionFalse, condv1alpha1.ConditionReasonFailed, msg)
 }
 
-// ConfigFailedUnrecoverable returns a condition that indicates the config
-// failed to apply for a reason considered unrecoverable without a spec
-// change. msg is expected to already be the marshaled condv1alpha1.UnrecoverableMessage
-// JSON payload, matching IsRecoverable's unmarshal expectations.
-func ConfigFailedUnrecoverable(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeConfigReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonUnrecoverable),
-		Message:            msg,
-	}}
+// ConfigFailedUnrecoverable returns the ConfigReady=False condition for a
+// failure that only a spec change can fix: the config is not retried as long
+// as its generation equals ObservedGeneration (see Config.IsRecoverable).
+func ConfigFailedUnrecoverable(generation int64, msg string) condv1alpha1.Condition {
+	return configCondition(generation, metav1.ConditionFalse, condv1alpha1.ConditionReasonUnrecoverable, msg)
 }
 
-// TargetForConfigReady return a condition that indicates
-// the target became ready
-func TargetForConfigReady(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetForConfigReady),
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonReady),
-		Message:            msg,
-	}}
+func configCondition(generation int64, status metav1.ConditionStatus, reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
+	c := condv1alpha1.NewCondition(ConditionTypeConfigReady, status, reason, msg)
+	c.ObservedGeneration = generation
+	return c
 }
 
-// TargetForConfigFailed returns a condition that indicates the config
-// is in failed condition due to a dependency
-func TargetForConfigFailed(msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(ConditionTypeTargetForConfigReady),
-		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             string(condv1alpha1.ConditionReasonFailed),
-		Message:            msg,
-	}}
+// ConfigNotReady returns the Ready=False condition of a Config for one of the
+// target stages (ConfigReasonTarget*).
+func ConfigNotReady(reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
+	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
 }
 
 // Target Discovery related conditions
