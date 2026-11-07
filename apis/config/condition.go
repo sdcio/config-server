@@ -23,7 +23,6 @@ import (
 // Condition Types.
 const (
 	ConditionTypeConfigReady cond.ConditionType = "ConfigReady"
-	ConditionTypeTargetReady cond.ConditionType = "TargetReady"
 )
 
 const (

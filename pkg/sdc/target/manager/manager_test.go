@@ -49,12 +49,12 @@ func TestDeleteDatastore(t *testing.T) {
 		err     error
 		wantErr bool
 	}{
-		"deleted":                         {err: nil, wantErr: false},
-		"already absent (grpc NotFound)":  {err: status.Error(codes.NotFound, "missing"), wantErr: false},
-		"already absent (message)":        {err: errors.New("unknown datastore default/dev1"), wantErr: false},
-		"rpc failure keeps finalizer":     {err: status.Error(codes.Internal, "boom"), wantErr: true},
-		"timeout keeps finalizer":         {err: status.Error(codes.DeadlineExceeded, "timeout"), wantErr: true},
-		"cancellation keeps finalizer":    {err: status.Error(codes.Canceled, "context canceled"), wantErr: true},
+		"deleted":                        {err: nil, wantErr: false},
+		"already absent (grpc NotFound)": {err: status.Error(codes.NotFound, "missing"), wantErr: false},
+		"already absent (message)":       {err: errors.New("unknown datastore default/dev1"), wantErr: false},
+		"rpc failure keeps finalizer":    {err: status.Error(codes.Internal, "boom"), wantErr: true},
+		"timeout keeps finalizer":        {err: status.Error(codes.DeadlineExceeded, "timeout"), wantErr: true},
+		"cancellation keeps finalizer":   {err: status.Error(codes.Canceled, "context canceled"), wantErr: true},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -74,19 +74,12 @@ func (r *Config) IsRevertive() bool {
 	return true
 }
 
+// IsRecoverable returns false when the last transaction failed unrecoverably
+// for the current spec. A spec change (new generation) makes it recoverable.
 func (r *Config) IsRecoverable() bool {
-	c := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	if c.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condv1alpha1.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			return true
-		}
-		return false
-	}
-	return true
+	c := r.GetCondition(ConditionTypeConfigReady)
+	return c.Reason != string(condv1alpha1.ConditionReasonUnrecoverable) ||
+		c.ObservedGeneration != r.GetGeneration()
 }
 
 func (r *Config) HashDeviationGenerationChanged(deviation Deviation) bool {
@@ -273,68 +266,16 @@ func (r *Config) DeepObjectCopy() client.Object {
 	return r.DeepCopy()
 }
 
-func (r *Config) SetOverallStatus() {
-	cfgC := r.GetCondition(ConditionTypeConfigReady)
-	tgtC := r.GetCondition(ConditionTypeTargetForConfigReady)
-
-	ready := cfgC.IsTrue() && tgtC.IsTrue()
-
-	if ready {
-		// important: only set overall Ready type, do not drop other conditions
-		r.Status.SetConditions(condv1alpha1.ReadyWithMsg(""))
-		return
+// ReadyFromApplied returns the Ready condition once the target can take the
+// config: it follows ConfigReady, the outcome of the last transaction.
+func (r *Config) ReadyFromApplied() condv1alpha1.Condition {
+	if !r.Status.HasCondition(ConditionTypeConfigReady) {
+		return ConfigNotReady(ConfigReasonPending, "config not applied yet")
 	}
-
-	// pick a useful message
-	msg := ""
-	switch {
-	case !cfgC.IsTrue():
-		if cfgC.Message != "" {
-			msg = cfgC.Message
-		} else {
-			msg = "config not applied"
-		}
-	case !tgtC.IsTrue():
-		if tgtC.Message != "" {
-			msg = tgtC.Message
-		} else {
-			msg = "target not ready"
-		}
-	default:
-		msg = "not ready"
+	c := r.GetCondition(ConditionTypeConfigReady)
+	if c.IsTrue() {
+		return condv1alpha1.ReadyWithMsg(c.Message)
 	}
-
-	r.Status.SetConditions(condv1alpha1.Failed(msg))
-}
-
-func GetOverallCondition(r *Config) condv1alpha1.Condition {
-	cfgC := r.GetCondition(ConditionTypeConfigReady)
-	tgtC := r.GetCondition(ConditionTypeTargetForConfigReady)
-
-	ready := cfgC.IsTrue() && tgtC.IsTrue()
-
-	if ready {
-		return condv1alpha1.ReadyWithMsg("applied")
-	}
-
-	// pick a useful message
-	msg := ""
-	switch {
-	case !cfgC.IsTrue():
-		if cfgC.Message != "" {
-			msg = cfgC.Message
-		} else {
-			msg = "config not applied"
-		}
-	case !tgtC.IsTrue():
-		if tgtC.Message != "" {
-			msg = tgtC.Message
-		} else {
-			msg = "target not ready"
-		}
-	default:
-		msg = "not ready"
-	}
-
-	return condv1alpha1.Failed(msg)
+	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse,
+		condv1alpha1.ConditionReason(c.Reason), c.Message)
 }

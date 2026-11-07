@@ -59,23 +59,19 @@ func (r *Config) IsRevertive() bool {
 	return true
 }
 
+// IsRecoverable returns false when the last transaction failed unrecoverably
+// for the current spec. A spec change (new generation) makes it recoverable.
 func (r *Config) IsRecoverable(ctx context.Context) bool {
-	logger := log.FromContext(ctx)
 	c := r.GetCondition(ConditionTypeConfigReady)
-	if c.Reason == string(condition.ConditionReasonUnrecoverable) {
-		unrecoverableMessage := &condition.UnrecoverableMessage{}
-		if err := json.Unmarshal([]byte(c.Message), unrecoverableMessage); err != nil {
-			logger.Error("is recoverable json unmarchal failed", "error", err)
-			return true
-		}
-		if unrecoverableMessage.ResourceVersion != r.GetResourceVersion() {
-			logger.Info("is recoverable resource version changed", "old/new",
-				fmt.Sprintf("%s/%s", unrecoverableMessage.ResourceVersion, r.GetResourceVersion()))
-			return true
-		}
-		return false
+	if c.Reason != string(condition.ConditionReasonUnrecoverable) {
+		return true
 	}
-	return true
+	if c.ObservedGeneration != r.GetGeneration() {
+		log.FromContext(ctx).Debug("unrecoverable config changed, retrying",
+			"observedGeneration", c.ObservedGeneration, "generation", r.GetGeneration())
+		return true
+	}
+	return false
 }
 
 func (r *Config) IsConfigConditionReady() bool {

@@ -60,26 +60,12 @@ spec:
           value: "true"
         - name: ENABLE_SUBSCRIPTION
           value: "true"
-        - name: ENABLE_TARGET
-          value: "true"
         - name: ENABLE_TARGETDATASTORE
           value: "true"
         - name: ENABLE_TARGETCONFIG
           value: "true"
-        - name: ENABLE_TARGETRECOVERYCONFIG
-          value: "true"
-        #- name: ENABLE_DISCOVERYRULE
-        #  value: "true"
         - name: ENABLE_SCHEMA
           value: "true"
-        #- name: ENABLE_CONFIG
-        #  value: "true"
-        #- name: ENABLE_CONFIGSET
-        #  value: "true"
-        #- name: ENABLE_WORKSPACE
-        #  value: "true"
-        #- name: ENABLE_ROLLOUT
-        #  value: "true"
         volumeMounts:
         - name: schema-store
           mountPath: /schemas
