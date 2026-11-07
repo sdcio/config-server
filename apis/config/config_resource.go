@@ -24,6 +24,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
 	"github.com/sdcio/config-server/apis/condition"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -309,6 +310,7 @@ func (r *Config) ValidateCreate(ctx context.Context, obj runtime.Object) field.E
 			"priority should be bigger 2",
 		))
 	}
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), len(newobj.Spec.Config), newobj.Spec.DeletePaths)...)
 
 	return allErrs
 }
@@ -367,6 +369,28 @@ func (r *Config) ValidateUpdate(ctx context.Context, obj, old runtime.Object) fi
 			obj,
 			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
 		))
+	}
+	newobj := obj.(*Config)
+	allErrs = append(allErrs, validateIntentContent(field.NewPath("spec"), len(newobj.Spec.Config), newobj.Spec.DeletePaths)...)
+	return allErrs
+}
+
+// validateIntentContent enforces that exactly one of config and deletePaths is set and
+// that every deletePaths entry parses.
+func validateIntentContent(fldPath *field.Path, numConfig int, deletePaths []string) field.ErrorList {
+	var allErrs field.ErrorList
+	switch {
+	case numConfig == 0 && len(deletePaths) == 0:
+		allErrs = append(allErrs, field.Required(fldPath.Child("config"),
+			"one of config or deletePaths must be set"))
+	case numConfig != 0 && len(deletePaths) != 0:
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("deletePaths"), deletePaths,
+			"config and deletePaths are mutually exclusive: remove config or remove deletePaths"))
+	}
+	for i, p := range deletePaths {
+		if _, err := sdcpb.ParsePath(p); err != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("deletePaths").Index(i), p, err.Error()))
+		}
 	}
 	return allErrs
 }

@@ -19,6 +19,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
@@ -309,6 +310,7 @@ func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object
 			"priority should be bigger 2",
 		))
 	}
+	allErrs = append(allErrs, validateSensitiveIntent(newobj)...)
 
 	return allErrs
 }
@@ -367,6 +369,18 @@ func (r *SensitiveConfig) ValidateUpdate(ctx context.Context, obj, old runtime.O
 			obj,
 			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
 		))
+	}
+	allErrs = append(allErrs, validateSensitiveIntent(obj.(*SensitiveConfig))...)
+	return allErrs
+}
+
+// validateSensitiveIntent applies the content rules and, for a sweeper, requires the
+// 64-bit priority to fit the data-server's 32-bit priority.
+func validateSensitiveIntent(c *SensitiveConfig) field.ErrorList {
+	allErrs := validateIntentContent(field.NewPath("spec"), len(c.Spec.Config), c.Spec.DeletePaths)
+	if len(c.Spec.DeletePaths) > 0 && (c.Spec.Priority > math.MaxInt32 || c.Spec.Priority < math.MinInt32) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec.priority"), c.Spec.Priority,
+			"priority of a sweeper must fit in 32 bits"))
 	}
 	return allErrs
 }

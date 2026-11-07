@@ -227,12 +227,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			// TODO better logic to validate changes
 			TargetsStatus[i].Condition = oldConfig.GetCondition(condv1alpha1.ConditionTypeReady)
 			newConfig = oldConfig.DeepCopy()
-			newConfig.Spec = configv1alpha1.ConfigSpec{
-				Lifecycle: configSet.Spec.Lifecycle,
-				Priority:  configSet.Spec.Priority,
-				Revertive: configSet.Spec.Revertive,
-				Config:    configSet.Spec.Config,
-			}
+			newConfig.Spec = buildConfigSpec(configSet)
 			if len(newConfig.GetLabels()) == 0 {
 				newConfig.Labels = make(map[string]string, len(configSet.GetLabels()))
 			}
@@ -312,6 +307,17 @@ func (r *reconciler) getOrphanConfigsFromConfigSet(ctx context.Context, configSe
 	return existingConfigs
 }
 
+// buildConfigSpec returns the Config spec generated from the ConfigSet template.
+func buildConfigSpec(configSet *configv1alpha1.ConfigSet) configv1alpha1.ConfigSpec {
+	return configv1alpha1.ConfigSpec{
+		Lifecycle:   configSet.Spec.Lifecycle,
+		Priority:    configSet.Spec.Priority,
+		Revertive:   configSet.Spec.Revertive,
+		Config:      configSet.Spec.Config,
+		DeletePaths: configSet.Spec.DeletePaths,
+	}
+}
+
 func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target types.NamespacedName) *configv1alpha1.Config {
 	labels := configSet.Labels
 	if len(labels) == 0 {
@@ -336,12 +342,7 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 				},
 			},
 		},
-		configv1alpha1.ConfigSpec{
-			Lifecycle: configSet.Spec.Lifecycle,
-			Priority:  configSet.Spec.Priority,
-			Config:    configSet.Spec.Config,
-			Revertive: configSet.Spec.Revertive,
-		},
+		buildConfigSpec(configSet),
 		configv1alpha1.ConfigStatus{},
 	)
 }
