@@ -385,7 +385,7 @@ func (r *reconciler) dropLegacyConditions(ctx context.Context, target *configv1a
 
 func (r *reconciler) deleteDeviation(ctx context.Context, target *configv1alpha1.Target) error {
 	deviation := &configv1alpha1.Deviation{}
-	deviation.Name = target.Name
+	deviation.Name = configv1alpha1.DeviationName(configv1alpha1.DeviationType_TARGET, target.Name)
 	deviation.Namespace = target.Namespace
 	if err := r.client.Delete(ctx, deviation); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
