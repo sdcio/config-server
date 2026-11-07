@@ -35,10 +35,8 @@ import (
 	"github.com/sdcio/config-server/internal/verbosity"
 	"github.com/sdcio/config-server/pkg/openapi"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
-	configblameregistry "github.com/sdcio/config-server/pkg/registry/configblame"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
 	"github.com/sdcio/config-server/pkg/registry/options"
-	runningconfigregistry "github.com/sdcio/config-server/pkg/registry/runningconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
@@ -159,17 +157,7 @@ func main() {
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
-	// no storage required since the targetStore is acting as the storage for the running config resource
-	runningConfigStorageProvider := runningconfigregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyRunningConfig(), &options.Options{
-		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
-	})
-	// no storage required since the targetStore is acting as the storage for the running config resource
-	configBlameStorageProvider := configblameregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigBlame(), &options.Options{
-		Client: mgr.GetClient(),
-		//TargetStore: targetStore,
-	})
-
+	
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
@@ -184,10 +172,6 @@ func main() {
 			WithResourceAndHandler(&configv1alpha1.ConfigSet{}, configSetStorageProvider).
 			WithResourceAndHandler(&sdcconfig.Deviation{}, deviationStorageProvider).
 			WithResourceAndHandler(&configv1alpha1.Deviation{}, deviationStorageProvider).
-			WithResourceAndHandler(&sdcconfig.RunningConfig{}, runningConfigStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.RunningConfig{}, runningConfigStorageProvider).
-			WithResourceAndHandler(&sdcconfig.ConfigBlame{}, configBlameStorageProvider).
-			WithResourceAndHandler(&configv1alpha1.ConfigBlame{}, configBlameStorageProvider).
 			WithoutEtcd().
 			Execute(ctx); err != nil {
 			log.Info("cannot start config-server")
