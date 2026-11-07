@@ -408,7 +408,7 @@ func (r *reconciler) determineOverallStatus(_ context.Context, configSet *config
 	var sb strings.Builder
 	for _, targetStatus := range configSet.Status.Targets {
 		if targetStatus.Status == metav1.ConditionFalse {
-			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Message))
+			fmt.Fprintf(&sb, "target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Message)
 		}
 	}
 	return sb.String()
