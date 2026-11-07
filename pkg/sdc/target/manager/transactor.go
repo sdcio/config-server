@@ -738,6 +738,43 @@ func (r *Transactor) SetConfigsReadyFromApplied(ctx context.Context, target *con
 	})
 }
 
+// ReleaseOrphanConfigs removes the finalizer of the Configs of a Target that
+// does not exist and that are being deleted with the orphan deletion policy.
+// Orphan keeps the config on the device, and without the Target there is no
+// datastore holding the intent (deleting the Target deletes its datastore),
+// so nothing is left to clean up and such a Config would otherwise wait
+// forever for a Target that may never come back.
+// Configs with the delete policy keep their finalizer: their config can only
+// be removed from the device once the Target exists again.
+func (r *Transactor) ReleaseOrphanConfigs(ctx context.Context, target *configv1alpha1.Target) error {
+	log := log.FromContext(ctx)
+
+	cfgList, err := r.ListConfigsPerTarget(ctx, target)
+	if err != nil {
+		return err
+	}
+	for i := range cfgList.Items {
+		cfg := &cfgList.Items[i]
+		if cfg.GetDeletionTimestamp() == nil || !cfg.Orphan() {
+			continue
+		}
+		v1alpha1cfg, err := toV1Alpha1Config(cfg)
+		if err != nil {
+			return err
+		}
+		log.Info("release orphan config of a target that does not exist", "config", v1alpha1cfg.GetNamespacedName().String())
+		// delete the deviation first: once the finalizer is gone the Config
+		// is deleted and does not trigger a retry anymore
+		if err := r.deleteDeviation(ctx, v1alpha1cfg); err != nil {
+			return err
+		}
+		if err := r.deleteFinalizer(ctx, v1alpha1cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // setRecoveredConfigs sets ConfigReady on the Configs that were part of the
 // recovery (the ones with an applied config). Ready is left to the target
 // config controller: the target is not ready yet while recovering.
