@@ -18,138 +18,122 @@ package configblame
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
 	"github.com/henderiw/logger/log"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-// implements the watchermanager Watcher interface
-// implenents the k8s watch.Interface interface
+// watcher implements watch.Interface for one client and
+// watchermanager.Watcher to receive events from the watcherManager.
+//
+// Lifecycle: Stop() cancels ctx. Every send selects on ctx, so a cancelled
+// watch never blocks on resultChan, OnChange releases the lock, setDone()
+// completes, and only then is resultChan closed (no send-on-closed panic).
 type watcher struct {
-	// interfce to the observer
 	cancel         func()
 	resultChan     chan watch.Event
 	watcherManager watchermanager.WatcherManager
-	obj            resource.Object
 
-	// protection against concurrent access
+	// protects eventCallback and done
 	m             sync.Mutex
 	eventCallback func(eventType watch.EventType, obj runtime.Object) bool
 	done          bool
 }
 
 var _ watch.Interface = &watcher{}
+var _ watchermanager.Watcher = &watcher{}
 
-// Stop stops watching. Will close the channel returned by ResultChan(). Releases
-// any resources used by the watch.
-func (r *watcher) Stop() {
-	r.cancel()
-}
+// Stop stops watching. ResultChan is closed once the watch goroutine exits.
+func (r *watcher) Stop() { r.cancel() }
 
-// ResultChan returns a chan which will receive all the events. If an error occurs
-// or Stop() is called, the implementation will close this channel and
-// release any resources used by the watch.
-func (r *watcher) ResultChan() <-chan watch.Event {
-	return r.resultChan
-}
+// ResultChan returns the event channel; it is closed when the watch ends.
+func (r *watcher) ResultChan() <-chan watch.Event { return r.resultChan }
 
-// Implement the watcchermanafer.Watcher interface
-// OnChange is the callback called when a object changes.
+// OnChange is called by the watcherManager for every change.
 func (r *watcher) OnChange(eventType watch.EventType, obj runtime.Object) bool {
 	r.m.Lock()
 	defer r.m.Unlock()
-
+	if r.eventCallback == nil {
+		return !r.done
+	}
 	return r.eventCallback(eventType, obj)
 }
 
 func (r *watcher) listAndWatch(ctx context.Context, l rest.RESTListStrategy, options *metainternalversion.ListOptions) {
-	log := log.FromContext(ctx)
-	if err := r.innerListAndWatch(ctx, l, options); err != nil {
-		// Most likely happens when we cancel a context, stop a watch
-		log.Debug("sending error to watch stream", "error", err)
-		ev := watch.Event{
-			Type:   watch.Error,
-			Object: r.obj,
-		}
-		r.resultChan <- ev
+	// deferred in reverse: cancel (unblocks any pending send), setDone
+	// (no further callback sends), then close.
+	defer close(r.resultChan)
+	defer r.setDone()
+	defer r.cancel()
+
+	err := r.innerListAndWatch(ctx, l, options)
+	if err == nil || ctx.Err() != nil {
+		// normal termination: client stopped, timeout, or server shutdown
+		return
 	}
-	r.cancel()
-	close(r.resultChan)
+
+	log.FromContext(ctx).Info("watch failed", "error", err)
+	status := toStatus(err)
+	r.sendWatchEvent(ctx, watch.Event{Type: watch.Error, Object: &status})
 }
 
-// innerListAndWatch provides the callback handler
-// 1. add a callback handler to receive any event we get while collecting the list of existing resources
-// 2.
+// innerListAndWatch registers with the watcherManager (buffering changes in a
+// backlog), sends the initial list, replays the backlog and then streams
+// changes until ctx is done. It returns nil on normal termination and an
+// error only for genuine failures.
 func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy, options *metainternalversion.ListOptions) error {
 	log := log.FromContext(ctx)
 
-	errorResult := make(chan error)
-
-	// backlog logs the events during startup
+	// backlog collects events arriving while we list
 	var backlog []watch.Event
-	// Make sure we hold the lock when setting the eventCallback, as it
-	// will be read by other goroutines when events happen.
 	r.m.Lock()
 	r.eventCallback = func(eventType watch.EventType, obj runtime.Object) bool {
 		if r.done {
 			return false
 		}
-
-		backlog = append(backlog, watch.Event{
-			Type:   eventType,
-			Object: obj,
-		})
-
+		backlog = append(backlog, watch.Event{Type: eventType, Object: obj})
 		return true
 	}
 	r.m.Unlock()
 
-	// we add the watcher to the watchermanager and start building a backlog for intermediate changes
-	// while we startup, the backlog will be replayed once synced
 	log.Debug("starting watch")
 	if err := r.watcherManager.Add(ctx, options, r); err != nil {
-		return err
+		return apierrors.NewTooManyRequests(err.Error(), 1)
 	}
 
-	// options.Watch means watch only no listing
+	// options.Watch means watch only, no listing
 	if !options.Watch {
 		log.Debug("starting list watch")
 		obj, err := l.List(ctx, options)
 		if err != nil {
-			r.setDone()
 			return err
 		}
-
 		items, err := meta.ExtractList(obj)
 		if err != nil {
-			r.setDone()
-			return fmt.Errorf("expecting list type, got: %s, err: %s", reflect.TypeOf(obj).Name(), err.Error())
+			return fmt.Errorf("expecting list type, got: %s, err: %w", reflect.TypeOf(obj).Name(), err)
 		}
-
 		for _, obj := range items {
-			obj := obj
-			ev := watch.Event{
-				Type:   watch.Added,
-				Object: obj,
+			if !r.sendWatchEvent(ctx, watch.Event{Type: watch.Added, Object: obj}) {
+				return nil
 			}
-			r.sendWatchEvent(ctx, ev)
 		}
-
 		log.Debug("finished list watch")
 	} else {
 		log.Debug("watch only, no list")
 	}
 
-	// Repeatedly flush the backlog until we catch up
+	// repeatedly flush the backlog until we catch up
 	for {
 		r.m.Lock()
 		chunk := backlog
@@ -159,77 +143,68 @@ func (r *watcher) innerListAndWatch(ctx context.Context, l rest.RESTListStrategy
 		if len(chunk) == 0 {
 			break
 		}
-
 		log.Debug("flushing backlog", "chunk length", len(chunk))
-
 		for _, ev := range chunk {
-			r.sendWatchEvent(ctx, ev)
+			if !r.sendWatchEvent(ctx, ev) {
+				return nil
+			}
 		}
 	}
 
+	// under the lock: pick up anything that squeezed in, then switch to
+	// streaming so no event can fall between the backlog and the stream
 	r.m.Lock()
-	// Pick up anything that squeezed in
 	for _, ev := range backlog {
-		r.sendWatchEvent(ctx, ev)
-	}
-
-	// Send bookmark event to signal initial list is complete
-	/*
-		bookmarkObj := r.obj.New()
-		accessor, _ := meta.Accessor(bookmarkObj)
-		// Set resourceVersion so the client knows where it is
-		if accessor.GetResourceVersion() == "" {
-			accessor.SetResourceVersion("0")
+		if !r.sendWatchEvent(ctx, ev) {
+			r.m.Unlock()
+			return nil
 		}
-		r.sendWatchEvent(ctx, watch.Event{
-			Type:   watch.Bookmark,
-			Object: bookmarkObj,
-		})
-	*/
+	}
+	backlog = nil
 
 	log.Debug("moving into streaming mode")
 	r.eventCallback = func(eventType watch.EventType, obj runtime.Object) bool {
-		accessor, _ := meta.Accessor(obj)
-		log.Debug("eventCallBack", "eventType", eventType, "nsn", fmt.Sprintf("%s/%s", accessor.GetNamespace(), accessor.GetName()))
 		if r.done {
 			return false
 		}
-		ev := watch.Event{
-			Type:   eventType,
-			Object: obj,
-		}
-		r.sendWatchEvent(ctx, ev)
-		return true
+		return r.sendWatchEvent(ctx, watch.Event{Type: eventType, Object: obj})
 	}
 	r.m.Unlock()
 
-	select {
-	case <-ctx.Done():
-		r.setDone()
-		return ctx.Err()
-
-	case err := <-errorResult:
-		r.setDone()
-		return err
-	}
+	<-ctx.Done()
+	return nil
 }
 
-func (r *watcher) sendWatchEvent(ctx context.Context, event watch.Event) {
-	// TODO: Handle the case that the watch channel is full?
-	if event.Object != nil {
-		accessor, _ := meta.Accessor(event.Object)
-		log := log.FromContext(ctx).With("event", event.Type, "nsn", fmt.Sprintf("%s/%s", accessor.GetNamespace(), accessor.GetName()))
-		log.Debug("sending watch event")
+// sendWatchEvent delivers ev unless the watch is cancelled first.
+// It returns false when the watch is over and the caller should stop.
+func (r *watcher) sendWatchEvent(ctx context.Context, ev watch.Event) bool {
+	if acc, err := meta.Accessor(ev.Object); err == nil {
+		log.FromContext(ctx).Debug("sending watch event", "event", ev.Type,
+			"nsn", fmt.Sprintf("%s/%s", acc.GetNamespace(), acc.GetName()))
 	} else {
-		log := log.FromContext(ctx).With("event", event.Type)
-		log.Debug("sending watch event")
+		log.FromContext(ctx).Debug("sending watch event", "event", ev.Type)
 	}
 
-	r.resultChan <- event
+	select {
+	case <-ctx.Done():
+		return false
+	case r.resultChan <- ev:
+		return true
+	}
 }
 
 func (r *watcher) setDone() {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.done = true
+}
+
+// toStatus converts err into the metav1.Status client-go expects in an
+// ERROR watch event, keeping API errors (code, reason) intact.
+func toStatus(err error) metav1.Status {
+	var apiStatus apierrors.APIStatus
+	if errors.As(err, &apiStatus) {
+		return apiStatus.Status()
+	}
+	return apierrors.NewInternalError(err).ErrStatus
 }

@@ -18,7 +18,6 @@ package runningconfig
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/utils"
@@ -87,7 +86,7 @@ func (r *strategy) NamespaceScoped() bool { return r.obj.NamespaceScoped() }
 func (r *strategy) Canonicalize(obj runtime.Object) {}
 
 func (r *strategy) BeginCreate(ctx context.Context) error {
-	return apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "create")
+	return apierrors.NewMethodNotSupported(r.gr, "create")
 }
 
 func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
@@ -103,7 +102,7 @@ func (r *strategy) InvokeCreate(ctx context.Context, obj runtime.Object, recursi
 }
 
 func (r *strategy) Create(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	return obj, apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "create")
+	return obj, apierrors.NewMethodNotSupported(r.gr, "create")
 }
 
 func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {
@@ -111,7 +110,7 @@ func (r *strategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []s
 }
 
 func (r *strategy) BeginUpdate(ctx context.Context) error {
-	return apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "update")
+	return apierrors.NewMethodNotSupported(r.gr, "update")
 }
 
 func (r *strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
@@ -131,7 +130,7 @@ func (r *strategy) InvokeUpdate(ctx context.Context, obj, old runtime.Object, re
 }
 
 func (r *strategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
-	return obj, apierrors.NewMethodNotSupported(r.obj.GetGroupVersionResource().GroupResource(), "update")
+	return obj, apierrors.NewMethodNotSupported(r.gr, "update")
 }
 
 func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
@@ -148,29 +147,27 @@ func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj run
 	return obj, nil
 }
 
+// getRunningConfig fetches the running intent of a target from the data
+// server. A target that is not ready yields NotFound.
 func (r *strategy) getRunningConfig(ctx context.Context, target *configv1alpha1.Target, key types.NamespacedName) (*config.RunningConfig, error) {
 	if !target.IsReady() {
 		return nil, apierrors.NewNotFound(r.gr, key.Name)
 	}
 
-	cfg := &dsclient.Config{
+	dsc, closeFn, err := dsclient.NewEphemeral(ctx, &dsclient.Config{
 		Address:  dsclient.GetDataServerAddress(),
 		Insecure: true,
-	}
-
-	dsclient, closeFn, err := dsclient.NewEphemeral(ctx, cfg)
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err := closeFn(); err != nil {
-			// You can use your preferred logging framework here
-			fmt.Printf("failed to close connection: %v\n", err)
+			log.FromContext(ctx).Error("failed to close data server connection", "error", err)
 		}
 	}()
 
-	// check if the schema exists; this is == nil check; in case of err it does not exist
-	rsp, err := dsclient.GetIntent(ctx, &sdcpb.GetIntentRequest{
+	rsp, err := dsc.GetIntent(ctx, &sdcpb.GetIntentRequest{
 		DatastoreName: storebackend.KeyFromNSN(key).String(),
 		Intent:        "running",
 		Format:        sdcpb.Format_Intent_Format_JSON,
@@ -186,12 +183,9 @@ func (r *strategy) getRunningConfig(ctx context.Context, target *configv1alpha1.
 		},
 		config.RunningConfigSpec{},
 		config.RunningConfigStatus{
-			Value: runtime.RawExtension{
-				Raw: rsp.GetBlob(),
-			},
+			Value: runtime.RawExtension{Raw: rsp.GetBlob()},
 		},
 	)
-
 	rc.SetCreationTimestamp(target.CreationTimestamp)
 	rc.SetResourceVersion(target.ResourceVersion)
 	rc.SetAnnotations(target.Annotations)
@@ -202,7 +196,10 @@ func (r *strategy) getRunningConfig(ctx context.Context, target *configv1alpha1.
 func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.Object, error) {
 	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, key, target); err != nil {
-		return nil, apierrors.NewNotFound(r.gr, key.Name)
+		if apierrors.IsNotFound(err) {
+			return nil, apierrors.NewNotFound(r.gr, key.Name)
+		}
+		return nil, err
 	}
 	return r.getRunningConfig(ctx, target, key)
 }
@@ -226,11 +223,17 @@ func (r *strategy) List(ctx context.Context, opts *metainternalversion.ListOptio
 		return nil, err
 	}
 
-	for _, target := range targets.Items {
+	for i := range targets.Items {
+		target := &targets.Items[i]
 		key := target.GetNamespacedName()
-		obj, err := r.getRunningConfig(ctx, &target, key)
+		obj, err := r.getRunningConfig(ctx, target, key)
 		if err != nil {
-			log.Error("cannot get configblame", "key", key.String(), "error", err.Error())
+			if apierrors.IsNotFound(err) {
+				// target not ready: nothing to report, not an error
+				log.Debug("skipping runningconfig, target not ready", "key", key.String())
+				continue
+			}
+			log.Error("cannot get runningconfig", "key", key.String(), "error", err.Error())
 			continue
 		}
 		utils.AppendItem(v, obj)
@@ -248,7 +251,6 @@ func (r *strategy) Watch(ctx context.Context, options *metainternalversion.ListO
 		cancel:         cancel,
 		resultChan:     make(chan watch.Event),
 		watcherManager: r.watcherManager,
-		obj:            r.obj,
 	}
 
 	go w.listAndWatch(ctx, r, options)
@@ -264,6 +266,5 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 			fieldpath.MakePathOrDie("status"),
 		),
 	}
-
 	return fields
 }
