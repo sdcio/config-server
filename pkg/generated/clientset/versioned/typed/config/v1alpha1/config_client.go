@@ -28,10 +28,8 @@ import (
 type ConfigV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ConfigsGetter
-	ConfigBlamesGetter
 	ConfigSetsGetter
 	DeviationsGetter
-	RunningConfigsGetter
 	SensitiveConfigsGetter
 	TargetsGetter
 }
@@ -45,20 +43,12 @@ func (c *ConfigV1alpha1Client) Configs(namespace string) ConfigInterface {
 	return newConfigs(c, namespace)
 }
 
-func (c *ConfigV1alpha1Client) ConfigBlames(namespace string) ConfigBlameInterface {
-	return newConfigBlames(c, namespace)
-}
-
 func (c *ConfigV1alpha1Client) ConfigSets(namespace string) ConfigSetInterface {
 	return newConfigSets(c, namespace)
 }
 
 func (c *ConfigV1alpha1Client) Deviations(namespace string) DeviationInterface {
 	return newDeviations(c, namespace)
-}
-
-func (c *ConfigV1alpha1Client) RunningConfigs(namespace string) RunningConfigInterface {
-	return newRunningConfigs(c, namespace)
 }
 
 func (c *ConfigV1alpha1Client) SensitiveConfigs(namespace string) SensitiveConfigInterface {

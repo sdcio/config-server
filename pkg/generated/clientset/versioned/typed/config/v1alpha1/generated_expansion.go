@@ -19,13 +19,9 @@ package v1alpha1
 
 type ConfigExpansion interface{}
 
-type ConfigBlameExpansion interface{}
-
 type ConfigSetExpansion interface{}
 
 type DeviationExpansion interface{}
-
-type RunningConfigExpansion interface{}
 
 type SensitiveConfigExpansion interface{}
 

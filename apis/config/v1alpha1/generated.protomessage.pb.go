@@ -23,14 +23,6 @@ package v1alpha1
 
 func (*Config) ProtoMessage() {}
 
-func (*ConfigBlame) ProtoMessage() {}
-
-func (*ConfigBlameList) ProtoMessage() {}
-
-func (*ConfigBlameSpec) ProtoMessage() {}
-
-func (*ConfigBlameStatus) ProtoMessage() {}
-
 func (*ConfigBlob) ProtoMessage() {}
 
 func (*ConfigDeviation) ProtoMessage() {}
@@ -66,14 +58,6 @@ func (*DeviationStatus) ProtoMessage() {}
 func (*DiscoveryInfo) ProtoMessage() {}
 
 func (*Lifecycle) ProtoMessage() {}
-
-func (*RunningConfig) ProtoMessage() {}
-
-func (*RunningConfigList) ProtoMessage() {}
-
-func (*RunningConfigSpec) ProtoMessage() {}
-
-func (*RunningConfigStatus) ProtoMessage() {}
 
 func (*SensitiveConfig) ProtoMessage() {}
 

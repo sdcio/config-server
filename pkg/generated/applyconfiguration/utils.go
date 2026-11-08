@@ -35,10 +35,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 	// Group=config.sdcio.dev, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithKind("Config"):
 		return &configv1alpha1.ConfigApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ConfigBlame"):
-		return &configv1alpha1.ConfigBlameApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("ConfigBlameStatus"):
-		return &configv1alpha1.ConfigBlameStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigBlob"):
 		return &configv1alpha1.ConfigBlobApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConfigDeviation"):
@@ -69,10 +65,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &configv1alpha1.DiscoveryInfoApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Lifecycle"):
 		return &configv1alpha1.LifecycleApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("RunningConfig"):
-		return &configv1alpha1.RunningConfigApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("RunningConfigStatus"):
-		return &configv1alpha1.RunningConfigStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfig"):
 		return &configv1alpha1.SensitiveConfigApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("SensitiveConfigData"):
