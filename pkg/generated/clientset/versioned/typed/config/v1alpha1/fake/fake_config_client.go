@@ -31,20 +31,12 @@ func (c *FakeConfigV1alpha1) Configs(namespace string) v1alpha1.ConfigInterface 
 	return newFakeConfigs(c, namespace)
 }
 
-func (c *FakeConfigV1alpha1) ConfigBlames(namespace string) v1alpha1.ConfigBlameInterface {
-	return newFakeConfigBlames(c, namespace)
-}
-
 func (c *FakeConfigV1alpha1) ConfigSets(namespace string) v1alpha1.ConfigSetInterface {
 	return newFakeConfigSets(c, namespace)
 }
 
 func (c *FakeConfigV1alpha1) Deviations(namespace string) v1alpha1.DeviationInterface {
 	return newFakeDeviations(c, namespace)
-}
-
-func (c *FakeConfigV1alpha1) RunningConfigs(namespace string) v1alpha1.RunningConfigInterface {
-	return newFakeRunningConfigs(c, namespace)
 }
 
 func (c *FakeConfigV1alpha1) SensitiveConfigs(namespace string) v1alpha1.SensitiveConfigInterface {

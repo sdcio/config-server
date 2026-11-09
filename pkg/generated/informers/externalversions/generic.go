@@ -55,14 +55,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=config.sdcio.dev, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("configs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().Configs().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("configblames"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigBlames().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("configsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().ConfigSets().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("deviations"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().Deviations().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("runningconfigs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().RunningConfigs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("sensitiveconfigs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Config().V1alpha1().SensitiveConfigs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("targets"):
