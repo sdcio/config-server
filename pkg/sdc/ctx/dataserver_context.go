@@ -20,8 +20,8 @@ import (
 	"context"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -34,7 +34,7 @@ type DSContext struct {
 }
 
 func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.Storer[DSContext], client client.Client) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// This is for the local connection from the controller to the dataserver on the same local pod
 	dsConfig := &dsclient.Config{
@@ -42,11 +42,11 @@ func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.St
 	}
 	dsClient, err := dsclient.New(dsConfig)
 	if err != nil {
-		log.Error("cannot initialize dataserver client", "err", err)
+		log.Error(err, "cannot initialize dataserver client")
 		return err
 	}
 	if err := dsClient.Start(ctx); err != nil {
-		log.Error("cannot start dataserver client", "err", err)
+		log.Error(err, "cannot start dataserver client")
 		return err
 	}
 	dsCtx := DSContext{
@@ -55,7 +55,7 @@ func CreateDataServerClient(ctx context.Context, dataServerStore storebackend.St
 		DSClient: dsClient,
 	}
 	if err := dataServerStore.Create(ctx, storebackend.ToKey(dsclient.GetLocalDataServerAddress()), dsCtx); err != nil {
-		log.Error("cannot store datastore context in dataserver", "err", err)
+		log.Error(err, "cannot store datastore context in dataserver")
 		return err
 	}
 	log.Info("dataserver client created")

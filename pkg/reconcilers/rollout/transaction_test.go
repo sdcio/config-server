@@ -26,7 +26,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -157,12 +157,12 @@ func TestTransactionManager(t *testing.T) {
 
 func getTransctionManager(targets map[string]*target.MockContext, updates, deletes int) *transactionManager {
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	targetStore := memstore.NewStore[*target.MockContext]()
 	for name, mctx := range targets {
 		targetKey := storebackend.KeyFromNSN(types.NamespacedName{Name: name, Namespace: namespace})
 		if err := targetStore.Create(context.Background(), targetKey, mctx); err != nil {
-			log.Error("cannot create target", "err", err)
+			log.Error(err, "cannot create target")
 		}
 	}
 	//mockHandler := target.NewMockTargetHandler(targetStore)
@@ -176,20 +176,20 @@ func getTransctionManager(targets map[string]*target.MockContext, updates, delet
 
 		for i := 0; i < updates; i++ {
 			if err := updateConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("update-%d", i), Namespace: namespace}), &config.Config{}); err != nil {
-				log.Error("cannot update store", "err", err)
+				log.Error(err, "cannot update store")
 			}
 		}
 		for i := 0; i < deletes; i++ {
 			if err := deleteConfigStore.Create(context.Background(), storebackend.KeyFromNSN(types.NamespacedName{Name: fmt.Sprintf("delete-%d", i), Namespace: namespace}), &config.Config{}); err != nil {
-				log.Error("cannot delete store", "err", err)
+				log.Error(err, "cannot delete store")
 			}
 		}
 		if err := updateStore.Create(context.Background(), targetKey, updateConfigStore); err != nil {
-			log.Error("cannot create store", "err", err)
+			log.Error(err, "cannot create store")
 		}
 
 		if err := deleteStore.Create(context.Background(), targetKey, deleteConfigStore); err != nil {
-			log.Error("cannot delete store", "err", err)
+			log.Error(err, "cannot delete store")
 		}
 	}
 

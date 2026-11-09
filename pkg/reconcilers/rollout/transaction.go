@@ -25,11 +25,11 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	v1 "k8s.io/api/flowcontrol/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,17 +72,17 @@ func NewTransactionManager(
 }
 
 func (r *transactionManager) calculateTargets(ctx context.Context) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err := r.newTargetUpdateConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
 		r.targets.Insert(k.NamespacedName)
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 	if err := r.newTargetDeleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*config.Config]) {
 		r.targets.Insert(k.NamespacedName)
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 }
 
@@ -91,7 +91,7 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 	ctx, globalCancel := context.WithTimeout(ctx, r.globalTimeout)
 	defer globalCancel()
 
-	log := log.FromContext(ctx).With("transactionID", transactionID)
+	log := logf.FromContext(ctx).WithValues("transactionID", transactionID)
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, r.targets.Len())
@@ -128,7 +128,7 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 			defer wg.Done()
 			select {
 			case <-ctx.Done():
-				log.Error("global timeout reached")
+				log.Error(nil, "global timeout reached")
 				// Timeout reached, exit goroutine
 				targetStatus.SetConditions(invv1alpha1.ConfigApplyFailed("transaction timeout"))
 				_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
@@ -136,14 +136,14 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 			default:
 				if err := r.applyConfigToTarget(ctx, targetKey, transactionID); err != nil {
 					// Apply failed
-					log.Error("apply failed", "target", targetKey.String(), "error", err.Error())
+					log.Error(err, "apply failed", "target", targetKey.String())
 					targetStatus.SetConditions(invv1alpha1.ConfigApplyFailed(err.Error()))
 					_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 					errChan <- fmt.Errorf("target %s failed: %w", targetKey.String(), err)
 					return
 				}
 				// Apply success
-				log.Debug("apply success", "target", targetKey.String())
+				log.V(logf.VDebug).Info("apply success", "target", targetKey.String())
 				targetStatus.SetConditions(invv1alpha1.ConfigApplyReady())
 				_ = r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus)
 				return
@@ -176,7 +176,7 @@ func (r *transactionManager) TransactToAllTargets(ctx context.Context, transacti
 
 func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID string) {
 	var wg sync.WaitGroup
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	for _, targetKey := range r.targets.UnsortedList() {
 		targetStatus, err := r.targetStatus.Get(ctx, storebackend.KeyFromNSN(targetKey))
@@ -184,7 +184,7 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
 			if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
-				log.Error("target status update failed", "err", err)
+				log.Error(err, "target status update failed")
 			}
 			continue
 		}
@@ -199,7 +199,7 @@ func (r *transactionManager) RollbackTargets(ctx context.Context, transactionID 
 					targetStatus.SetConditions(invv1alpha1.ConfigCancelReady())
 				}
 				if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
-					log.Error("target status update failed", "err", err)
+					log.Error(err, "target status update failed")
 				}
 			}(targetKey)
 		}
@@ -211,7 +211,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs error
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	for _, targetKey := range r.targets.UnsortedList() {
 		// We dont check the skip flag here since this is covered when we enter the loop
@@ -220,7 +220,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 			targetStatus := invv1alpha1.RolloutTargetStatus{Name: targetKey.String()}
 			targetStatus.SetConditions(invv1alpha1.ConfigApplyUnknown())
 			if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
-				log.Error("target status update failed", "err", err)
+				log.Error(err, "target status update failed")
 			}
 			continue
 		}
@@ -238,7 +238,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 					targetStatus.SetConditions(invv1alpha1.ConfigConfirmReady())
 				}
 				if err := r.targetStatus.Update(ctx, storebackend.KeyFromNSN(targetKey), targetStatus); err != nil {
-					log.Error("target status update failed", "err", err)
+					log.Error(err, "target status update failed")
 				}
 			}(targetKey)
 		}
@@ -248,7 +248,7 @@ func (r *transactionManager) ConfirmTargets(ctx context.Context, transactionID s
 }
 
 func (r *transactionManager) cancel(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
-	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
+	log := logf.FromContext(ctx).WithValues("target", targetKey.String(), "transactionID", transactionID)
 	log.Info("transaction rollback")
 
 	cancelCtx, cancel := context.WithTimeout(ctx, r.targetTimeout)
@@ -278,19 +278,19 @@ func (r *transactionManager) cancel(ctx context.Context, targetKey types.Namespa
 	select {
 	case err := <-done:
 		if err != nil {
-			log.Error("Transaction cancel failed", "error", err)
+			log.Error(err, "Transaction cancel failed")
 			return err
 		}
-		log.Debug("Transaction cancel successfully")
+		log.V(logf.VDebug).Info("Transaction cancel successfully")
 		return nil
 	case <-cancelCtx.Done():
-		log.Warn("Context timeout while cancelling transaction")
+		log.Info("Context timeout while cancelling transaction")
 		return fmt.Errorf("transaction timeout reached before cancelling transaction to %s", targetKey)
 	}
 }
 
 func (r *transactionManager) confirm(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
-	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
+	log := logf.FromContext(ctx).WithValues("target", targetKey.String(), "transactionID", transactionID)
 	log.Info("transaction confirm")
 
 	cancelCtx, cancel := context.WithTimeout(ctx, r.targetTimeout)
@@ -320,19 +320,19 @@ func (r *transactionManager) confirm(ctx context.Context, targetKey types.Namesp
 	select {
 	case err := <-done:
 		if err != nil {
-			log.Error("Transaction confirm failed", "error", err)
+			log.Error(err, "Transaction confirm failed")
 			return err
 		}
-		log.Debug("Transaction confirm successfully")
+		log.V(logf.VDebug).Info("Transaction confirm successfully")
 		return nil
 	case <-cancelCtx.Done():
-		log.Warn("Context timeout while confirming transaction")
+		log.Info("Context timeout while confirming transaction")
 		return fmt.Errorf("transaction timeout reached before confirming transaction to %s", targetKey)
 	}
 }
 
 func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey types.NamespacedName, transactionID string) error {
-	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
+	log := logf.FromContext(ctx).WithValues("target", targetKey.String(), "transactionID", transactionID)
 
 	configUpdates := map[string]*config.Config{}
 	configDeletes := map[string]*config.Config{}
@@ -341,7 +341,7 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 		if err := storeConfigUpdates.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
 			configUpdates[config.GetNamespacedName().String()] = config
 		}); err != nil {
-			log.Error("cannot list config", "err", err)
+			log.Error(err, "cannot list config")
 		}
 	}
 	storeConfigDeletes, err := r.newTargetDeleteConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
@@ -349,7 +349,7 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 		if err := storeConfigDeletes.List(ctx, func(ctx context.Context, k storebackend.Key, config *config.Config) {
 			configDeletes[config.GetNamespacedName().String()] = config
 		}); err != nil {
-			log.Error("cannot list config", "err", err)
+			log.Error(err, "cannot list config")
 		}
 	}
 
@@ -384,13 +384,13 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 	select {
 	case err := <-done:
 		if err != nil {
-			log.Error("Transaction apply failed", "error", err)
+			log.Error(err, "Transaction apply failed")
 			return err
 		}
-		log.Debug("Transaction applied successfully")
+		log.V(logf.VDebug).Info("Transaction applied successfully")
 		return nil
 	case <-cancelCtx.Done():
-		log.Warn("Context timeout while applying transaction")
+		log.Info("Context timeout while applying transaction")
 		return fmt.Errorf("transaction timeout reached before applying config to %s", targetKey)
 	}
 }

@@ -19,20 +19,20 @@ package workspace
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
 func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha1.Workspace) (*invv1alpha1.Rollout, condv1alpha1.Condition) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	rollout := &invv1alpha1.Rollout{}
 	if err := r.client.Get(ctx, workspace.GetNamespacedName(), rollout); err != nil {
 		if !k8serrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return nil, RolloutGetFailed(err.Error())
 		}
 		return nil, RolloutDone_NoMatchRefNew()
@@ -51,7 +51,7 @@ func (r *reconciler) getRolloutStatus(ctx context.Context, workspace *invv1alpha
 }
 
 func (r *reconciler) applyRollout(ctx context.Context, workspace *invv1alpha1.Workspace, rollout *invv1alpha1.Rollout) error {
-	//log := log.FromContext(ctx)
+	//log := logf.FromContext(ctx)
 
 	if rollout == nil {
 		rollout := invv1alpha1.BuildRollout(

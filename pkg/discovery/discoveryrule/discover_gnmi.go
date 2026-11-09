@@ -27,13 +27,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"go.starlark.net/starlark"
 	"go.starlark.net/syntax"
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +41,7 @@ import (
 )
 
 func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	secret := &corev1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{
 		Namespace: r.cfg.CR.GetNamespace(),
@@ -56,14 +56,14 @@ func (r *dr) discoverWithGNMI(ctx context.Context, h *hostInfo, connProfile *inv
 	if err != nil {
 		return err
 	}
-	log.Debug("Creating gNMI client")
+	log.V(logf.VDebug).Info("Creating gNMI client")
 	err = t.CreateGNMIClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := t.Close(); err != nil {
-			log.Error("closing gNMI target", "err", err)
+			log.Error(err, "closing gNMI target")
 		}
 	}()
 	capRsp, err := t.Capabilities(ctx)
@@ -202,7 +202,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 	capRsp *gnmi.CapabilityResponse,
 	getRsp *gnmi.GetResponse,
 ) (*configv1alpha1.DiscoveryInfo, error) {
-	log := log.FromContext(ctx).With("provider", r.Provider)
+	log := logf.FromContext(ctx).WithValues("provider", r.Provider)
 
 	di := &configv1alpha1.DiscoveryInfo{
 		Protocol:           string(invv1alpha1.Protocol_GNMI),
@@ -235,7 +235,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 				gnmiPath = strings.Join(strings.Split(gnmiPath, ":")[1:], ":")
 			}
 
-			log.Debug("discovery", "path", preserveNamespace)
+			log.V(logf.VDebug).Info("discovery", "path", preserveNamespace)
 
 			// SRLINUX a path that was requested without keys is returned as a JSON blob up to the first element
 			// for which the first key was found
@@ -244,16 +244,16 @@ func (r *Discoverer) parseDiscoveryInformation(
 
 			if param, exists := pathMap[gnmiPath]; exists {
 				if targetField, found := fieldMapping[param.Key]; found {
-					log.Debug("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
+					log.V(logf.VDebug).Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
 
 					string_value, err := getStringValue(upd.GetVal())
 					if err != nil {
-						log.Error("discovery unexpected value", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
+						log.Error(nil, "discovery unexpected value", "path", gnmiPath, "key", param.Key, "value", upd.GetVal())
 					}
 
 					*targetField = string_value
 
-					log.Debug("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
+					log.V(logf.VDebug).Info("discovery before transform", "path", gnmiPath, "key", param.Key, "value", *targetField)
 
 					// Apply transformations (Regex + Starlark)
 					transformedValue, err := applyTransformations(ctx, param, *targetField)
@@ -261,7 +261,7 @@ func (r *Discoverer) parseDiscoveryInformation(
 						return nil, fmt.Errorf("failed to process transformation for %q: %w", param.Key, err)
 					}
 
-					log.Debug("discovery after transform", "path", gnmiPath, "key", param.Key, "value", transformedValue)
+					log.V(logf.VDebug).Info("discovery after transform", "path", gnmiPath, "key", param.Key, "value", transformedValue)
 					*targetField = transformedValue
 				}
 			}

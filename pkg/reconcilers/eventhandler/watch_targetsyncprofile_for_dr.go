@@ -19,8 +19,8 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -60,8 +60,8 @@ func (r *TargetSyncProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 		return
 	}
 	//ctx := context.Background()
-	log := log.FromContext(ctx)
-	log.Debug("event", "gvk", invv1alpha1.TargetSyncProfileGroupVersionKind.String(), "name", cr.GetName())
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("event", "gvk", invv1alpha1.TargetSyncProfileGroupVersionKind.String(), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -70,7 +70,7 @@ func (r *TargetSyncProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 	}
 	drs := &invv1alpha1.DiscoveryRuleList{}
 	if err := r.Client.List(ctx, drs, opts...); err != nil {
-		log.Error("cannot list discovery rules", "error", err)
+		log.Error(err, "cannot list discovery rules")
 		return
 	}
 	for _, dr := range drs.GetItems() {
@@ -81,7 +81,7 @@ func (r *TargetSyncProfileForDiscoveryRuleEventHandler) add(ctx context.Context,
 			key := types.NamespacedName{
 				Namespace: dr.GetNamespace(),
 				Name:      dr.GetName()}
-			log.Debug("event requeue discovery rule", "key", key.String())
+			log.V(logf.VDebug).Info("event requeue discovery rule", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 			break
 		}

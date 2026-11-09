@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -62,8 +62,8 @@ func (r *TargetSyncProfileForTargetEventHandler) add(ctx context.Context, obj ru
 		return
 	}
 	//ctx := context.Background()
-	log := log.FromContext(ctx)
-	log.Debug("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -72,7 +72,7 @@ func (r *TargetSyncProfileForTargetEventHandler) add(ctx context.Context, obj ru
 	}
 	targets := &configv1alpha1.TargetList{}
 	if err := r.Client.List(ctx, targets, opts...); err != nil {
-		log.Error("cannot list targets", "error", err)
+		log.Error(err, "cannot list targets")
 		return
 	}
 	for _, target := range targets.Items {
@@ -82,7 +82,7 @@ func (r *TargetSyncProfileForTargetEventHandler) add(ctx context.Context, obj ru
 		key := types.NamespacedName{
 			Namespace: target.Namespace,
 			Name:      target.Name}
-		log.Debug("event requeue target", "key", key.String())
+		log.V(logf.VDebug).Info("event requeue target", "key", key.String())
 		queue.Add(reconcile.Request{NamespacedName: key})
 	}
 }

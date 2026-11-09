@@ -30,7 +30,6 @@ import (
 	//"time"
 
 	"github.com/go-logr/logr"
-	logf "github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/internal/verbosity"
@@ -41,6 +40,7 @@ import (
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
@@ -72,14 +72,19 @@ func main() {
 	logVerbosity := verbosity.FromArgs(os.Args[1:])
 	level := verbosity.LogLevel(logVerbosity)
 
-	l := logf.NewLogger(&logf.HandlerOptions{Name: "sdc-controller-logger", MinLevel: level, AddSource: false})
+	l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:       level,
+		ReplaceAttr: logf.ReplaceTimeAttr,
+	})).With("logger", "sdc-controller")
 	slog.SetDefault(l)
-	ctx := logf.IntoContext(context.Background(), l)
+	logger := logr.FromSlogHandler(l.Handler()).WithName("controller")
+	logf.SetDefaultLogger(logger)
+	ctx := logf.IntoContext(context.Background(), logger)
 	log := logf.FromContext(ctx)
 
 	// controller-runtime logs through logr and client-go through klog, so give
 	// them the same handler.
-	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
+	ctrl.SetLogger(logger)
 	klog.SetSlogLogger(l)
 
 	log.Info("controller bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
@@ -93,7 +98,7 @@ func main() {
 		invv1alpha1.AddToScheme,
 	}) {
 		if err := api(runScheme); err != nil {
-			log.Error("cannot add scheme", "err", err)
+			log.Error(err, "cannot add scheme")
 			os.Exit(1)
 		}
 	}
@@ -126,7 +131,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgr_options)
 	if err != nil {
-		log.Error("cannot start manager", "err", err)
+		log.Error(err, "cannot start manager")
 		os.Exit(1)
 	}
 
@@ -152,7 +157,7 @@ func main() {
 		}
 		dsConnMgr := dsmanager.New(ctx, dsCfg)
 		if err := dsConnMgr.AddToManager(mgr); err != nil {
-			log.Error("cannot add dataserver conn manager", "err", err)
+			log.Error(err, "cannot add dataserver conn manager")
 			os.Exit(1)
 		}
 		ctrlCfg.DataServerManager = dsConnMgr
@@ -167,7 +172,7 @@ func main() {
 		})
 		go func() {
 			if err := promserver.Start(ctx); err != nil {
-				log.Error("cannot start promerver", "err", err.Error())
+				log.Error(err, "cannot start promerver")
 				os.Exit(1)
 			}
 		}()
@@ -178,24 +183,24 @@ func main() {
 		if IsReconcilerEnabled(name) {
 			_, err := reconciler.SetupWithManager(ctx, mgr, ctrlCfg)
 			if err != nil {
-				log.Error("cannot add controllers to manager", "err", err.Error())
+				log.Error(err, "cannot add controllers to manager")
 				os.Exit(1)
 			}
 		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Error("unable to set up health check", "error", err.Error())
+		log.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Error("unable to set up ready check", "error", err.Error())
+		log.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
 	log.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
-		log.Error("problem running manager", "error", err.Error())
+		log.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }

@@ -25,12 +25,12 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 )
@@ -48,7 +48,7 @@ func NewReader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 }
 
 func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (storebackend.Storer[storebackend.Storer[*config.Config]], error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	repo, err := git.NewRepo(rollout.Spec.RepoURL)
 	if err != nil {
@@ -69,7 +69,7 @@ func (r *Reader) GetConfigs(ctx context.Context, rollout *invv1alpha1.Rollout) (
 		if err != nil {
 			return nil, err
 		}
-		log.Debug("SetProxy", "proxy", rollout.Spec.Proxy.URL)
+		log.V(logf.VDebug).Info("SetProxy", "proxy", rollout.Spec.Proxy.URL)
 	}
 	if err := goGit.CheckoutCommit(ctx, rollout.Spec.Ref); err != nil {
 		return nil, err

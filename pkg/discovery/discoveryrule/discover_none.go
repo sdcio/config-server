@@ -19,13 +19,13 @@ package discoveryrule
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 )
 
 func (r *dr) discoverWithNone(ctx context.Context, h *hostInfo, connProfile *invv1alpha1.TargetConnectionProfile) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("discover protocol none", "hostName", h.hostName)
 	provider := r.cfg.DefaultSchema.Provider
 	version := r.cfg.DefaultSchema.Version

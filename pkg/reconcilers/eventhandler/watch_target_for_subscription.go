@@ -19,10 +19,10 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -65,9 +65,9 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	log.Debug("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.V(logf.VDebug).Info("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list the configsets and see
 	opts := []client.ListOption{
@@ -75,24 +75,24 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 	}
 	subscriptions := &invv1alpha1.SubscriptionList{}
 	if err := r.Client.List(ctx, subscriptions, opts...); err != nil {
-		log.Error("cannot list configsets", "error", err)
+		log.Error(err, "cannot list configsets")
 		return
 	}
 
 	for _, subscription := range subscriptions.Items {
 		selector, err := metav1.LabelSelectorAsSelector(subscription.Spec.Target.TargetSelector)
 		if err != nil {
-			log.Error("cannot get label selector from configset", "name", subscription.Name, "error", err.Error())
+			log.Error(err, "cannot get label selector from configset", "name", subscription.Name)
 			continue
 		}
 		found := false
 		if selector.Matches(labels.Set(target.GetLabels())) {
-			log.Debug("event target selector matches")
+			log.V(logf.VDebug).Info("event target selector matches")
 			// we always requeue since it allows to handle delete of targets that were previously there
 			key := types.NamespacedName{
 				Namespace: subscription.Namespace,
 				Name:      subscription.Name}
-			log.Debug("event requeue subscription with target create", "key", key.String(), "target", target.GetName())
+			log.V(logf.VDebug).Info("event requeue subscription with target create", "key", key.String(), "target", target.GetName())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
@@ -106,7 +106,7 @@ func (r *TargetForSubscriptionEventHandler) add(ctx context.Context, obj runtime
 				key := types.NamespacedName{
 					Namespace: subscription.Namespace,
 					Name:      subscription.Name}
-				log.Debug("event requeue subscription with target delete", "key", key.String(), "target", target.GetName())
+				log.V(logf.VDebug).Info("event requeue subscription with target delete", "key", key.String(), "target", target.GetName())
 				queue.Add(reconcile.Request{NamespacedName: key})
 			}
 		}

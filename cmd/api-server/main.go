@@ -28,7 +28,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/henderiw/apiserver-builder/pkg/builder"
 	"github.com/henderiw/apiserver-store/pkg/db/badgerdb"
-	logf "github.com/henderiw/logger/log"
 	sdcconfig "github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/apis/config/handlers"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -37,6 +36,7 @@ import (
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	genericregistry "github.com/sdcio/config-server/pkg/registry/generic"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // register auth plugins
@@ -65,14 +65,19 @@ func main() {
 	logVerbosity := verbosity.FromArgs(os.Args[1:])
 	level := verbosity.LogLevel(logVerbosity)
 
-	l := logf.NewLogger(&logf.HandlerOptions{Name: "sdc-api-server-logger", MinLevel: level, AddSource: false})
+	l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:       level,
+		ReplaceAttr: logf.ReplaceTimeAttr,
+	})).With("logger", "sdc-api-server")
 	slog.SetDefault(l)
-	ctx := logf.IntoContext(context.Background(), l)
+	logger := logr.FromSlogHandler(l.Handler()).WithName("api-server")
+	logf.SetDefaultLogger(logger)
+	ctx := logf.IntoContext(context.Background(), logger)
 	log := logf.FromContext(ctx)
 
 	// controller-runtime logs through logr and the apiserver machinery through
 	// klog, so give them the same handler.
-	ctrl.SetLogger(logr.FromSlogHandler(l.Handler()))
+	ctrl.SetLogger(logger)
 	klog.SetSlogLogger(l)
 
 	log.Info("api-server bootstrap", "version", version, "commit", commit, "verbosity", logVerbosity)
@@ -86,7 +91,7 @@ func main() {
 		//invv1alpha1.AddToScheme,
 	}) {
 		if err := api(runScheme); err != nil {
-			log.Error("cannot add scheme", "err", err)
+			log.Error(err, "cannot add scheme")
 			os.Exit(1)
 		}
 	}
@@ -116,7 +121,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgr_options)
 	if err != nil {
-		log.Error("cannot start manager", "err", err)
+		log.Error(err, "cannot start manager")
 		os.Exit(1)
 	}
 
@@ -127,7 +132,7 @@ func main() {
 
 	db, err := badgerdb.OpenDB(ctx, configDir)
 	if err != nil {
-		log.Error("cannot open db", "err", err.Error())
+		log.Error(err, "cannot open db")
 		os.Exit(1)
 	}
 
@@ -157,7 +162,7 @@ func main() {
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
-	
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").
@@ -179,17 +184,17 @@ func main() {
 	}()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Error("unable to set up health check", "error", err.Error())
+		log.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Error("unable to set up ready check", "error", err.Error())
+		log.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
 	log.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
-		log.Error("problem running manager", "error", err.Error())
+		log.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }

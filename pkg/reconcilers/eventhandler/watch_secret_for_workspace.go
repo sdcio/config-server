@@ -19,9 +19,9 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -63,11 +63,11 @@ func (r *SecretForWorkspaceEventHandler) add(ctx context.Context, obj runtime.Ob
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "secret-event", Name: secret.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	workspaceList := &invv1alpha1.WorkspaceList{}
 	if err := r.Client.List(ctx, workspaceList); err != nil {
-		log.Error("cannot list object", "error", err)
+		log.Error(err, "cannot list object")
 		return
 	}
 
@@ -78,7 +78,7 @@ func (r *SecretForWorkspaceEventHandler) add(ctx context.Context, obj runtime.Ob
 				Name:      workspace.GetName(),
 				Namespace: workspace.GetNamespace(),
 			}
-			log.Debug("event requeue", "key", key.String())
+			log.V(logf.VDebug).Info("event requeue", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 			return // these should be 1 configset for a config
 		}

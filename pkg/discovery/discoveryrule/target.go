@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -42,10 +42,10 @@ const (
 )
 
 func (r *dr) createTarget(ctx context.Context, provider, address string, di *configv1alpha1.DiscoveryInfo) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("createTarget start", "hostname", di.Hostname, "address", address)
 	if err := r.children.Apply(ctx, storebackend.ToKey(getTargetName(di.Hostname)), ""); err != nil {
-		log.Warn("children.apply", "error", err)
+		log.Info("children.apply", "error", err)
 		return err
 	}
 
@@ -56,20 +56,20 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *con
 
 	log.Info("applyTargetSpec start", "target", targetKey)
 	if err := r.applyTargetSpec(ctx, targetKey, provider, address); err != nil {
-		log.Error("dynamic target creation failed", "error", err)
+		log.Error(err, "dynamic target creation failed")
 		return err
 	}
 
 	log.Info("applyTargetSpec done", "target", targetKey)
 	target, err := r.applyTargetStatus(ctx, targetKey, di)
 	if err != nil {
-		log.Error("dynamic target status apply failed", "error", err)
+		log.Error(err, "dynamic target status apply failed")
 		return err
 	}
 	log.Info("applyTargetStatus done", "target", targetKey)
 
 	if err := r.applyTargetDeviationCR(ctx, target); err != nil {
-		log.Error("apply deviation failed", "error", err)
+		log.Error(err, "apply deviation failed")
 		return err
 	}
 	log.Info("createTarget done", "target", targetKey)
@@ -78,7 +78,7 @@ func (r *dr) createTarget(ctx context.Context, provider, address string, di *con
 
 func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName, provider, address string) error {
 	//di := newTarget.Status.DiscoveryInfo.DeepCopy()
-	log := log.FromContext(ctx).With("target", targetKey)
+	log := logf.FromContext(ctx).WithValues("target", targetKey)
 
 	labels, err := r.cfg.CR.GetDiscoveryParameters().GetTargetLabels(r.cfg.CR.GetName())
 	if err != nil {
@@ -123,7 +123,7 @@ func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName
 	if err := r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
 		FieldManager: specFieldManager,
 	}); err != nil {
-		log.Error("failed to apply target spec", "err", err)
+		log.Error(err, "failed to apply target spec")
 		return err
 	}
 	return nil
@@ -131,7 +131,7 @@ func (r *dr) applyTargetSpec(ctx context.Context, targetKey types.NamespacedName
 
 // applyTargetStatus applies status (condition + discoveryInfo) via SSA on the status subresource
 func (r *dr) applyTargetStatus(ctx context.Context, targetKey types.NamespacedName, di *configv1alpha1.DiscoveryInfo) (*configv1alpha1.Target, error) {
-	log := log.FromContext(ctx).With("targetKey", targetKey)
+	log := logf.FromContext(ctx).WithValues("targetKey", targetKey)
 
 	// Check current state to avoid unnecessary updates
 	target := &configv1alpha1.Target{}
@@ -172,7 +172,7 @@ func (r *dr) applyTargetStatus(ctx context.Context, targetKey types.NamespacedNa
 			FieldManager: statusFieldManager,
 		},
 	}); err != nil {
-		log.Error("failed to apply target status", "err", err)
+		log.Error(err, "failed to apply target status")
 		return nil, err
 	}
 

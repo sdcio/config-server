@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -35,6 +34,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -124,7 +124,7 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
@@ -133,7 +133,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -208,12 +208,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *reconciler) reconcileDelete(ctx context.Context, target *configv1alpha1.Target, targetKey storebackend.Key) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if len(target.GetFinalizers()) > 1 {
 		// we must be the last finalizer: the runtime and datastore have to
 		// outlive the other finalizers (e.g. config cleanup)
-		log.Debug("requeue delete, not all finalizers removed", "finalizers", target.GetFinalizers())
+		log.V(logf.VDebug).Info("requeue delete, not all finalizers removed", "finalizers", target.GetFinalizers())
 		return ctrl.Result{RequeueAfter: deleteRequeue}, r.applyReady(ctx, target,
 			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDeleting, "waiting for other finalizers"),
 			target.Status.UsedReferences)
@@ -242,7 +242,7 @@ func (r *reconciler) reconcileDelete(ctx context.Context, target *configv1alpha1
 		return ctrl.Result{}, errors.Wrap(err, "cannot remove finalizer")
 	}
 
-	log.Debug("Successfully deleted resource")
+	log.V(logf.VDebug).Info("Successfully deleted resource")
 	return ctrl.Result{}, nil
 }
 
@@ -250,7 +250,7 @@ func (r *reconciler) reconcileDelete(ctx context.Context, target *configv1alpha1
 // at a fixed interval (not exponential backoff: the dataserver may be down
 // for a while and deletion should resume promptly when it is back).
 func (r *reconciler) retryDelete(ctx context.Context, target *configv1alpha1.Target, msg string, err error) (ctrl.Result, error) {
-	log.FromContext(ctx).Warn("target finalization blocked, retrying", "msg", msg, "err", err, "retryIn", deleteRequeue)
+	logf.FromContext(ctx).Info("target finalization blocked, retrying", "msg", msg, "err", err, "retryIn", deleteRequeue)
 	return ctrl.Result{RequeueAfter: deleteRequeue}, r.applyReady(ctx, target,
 		configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDeleting, msg+": "+err.Error()),
 		target.Status.UsedReferences)
@@ -309,7 +309,7 @@ func readyFromRuntime(st targetmanager.RuntimeStatus) (cond condv1alpha1.Conditi
 // applyReady is the ONLY writer of the Ready condition (and usedReferences).
 // usedRefs == nil clears them.
 func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Target, newCond condv1alpha1.Condition, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// No truncation here: TargetReady/TargetNotReady build the condition via
 	// condv1alpha1.NewCondition, which bounds the message (MaxMessageBytes)
@@ -317,7 +317,7 @@ func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Targ
 	// the no-change guard below stays stable for repeated long errors.
 	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
 	if newCond.Equal(oldCond) && equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
-		log.Debug("applyReady -> no change", "ready", newCond.IsTrue(), "reason", newCond.Reason)
+		log.V(logf.VDebug).Info("applyReady -> no change", "ready", newCond.IsTrue(), "reason", newCond.Reason)
 		return nil
 	}
 
@@ -371,7 +371,7 @@ func (r *reconciler) dropLegacyConditions(ctx context.Context, target *configv1a
 		return false, nil
 	}
 
-	log.FromContext(ctx).Info("removing legacy target conditions",
+	logf.FromContext(ctx).Info("removing legacy target conditions",
 		"removed", len(target.Status.Conditions)-len(kept))
 
 	orig := target.DeepCopy()

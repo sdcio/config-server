@@ -23,8 +23,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -143,10 +143,10 @@ type RecoverySensitiveConfig struct {
 }
 
 func (r *SensitiveConfigSpec) GetShaSum(ctx context.Context) [20]byte {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	appliedSpec, err := json.Marshal(r)
 	if err != nil {
-		log.Error("cannot marshal appliedConfig", "error", err)
+		log.Error(err, "cannot marshal appliedConfig")
 		return [20]byte{}
 	}
 	return sha1.Sum(appliedSpec)

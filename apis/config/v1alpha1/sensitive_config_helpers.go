@@ -26,10 +26,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	"github.com/sdcio/config-server/pkg/testhelper"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -202,10 +202,10 @@ func GetSensitiveConfigFromFile(path string) (*SensitiveConfig, error) {
 
 // GetShaSum calculates the shasum of the confgiSpec
 func (r *SensitiveConfigSpec) GetShaSum(ctx context.Context) [20]byte {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	appliedSpec, err := json.Marshal(r)
 	if err != nil {
-		log.Error("cannot marshal appliedSensitiveConfig", "error", err)
+		log.Error(err, "cannot marshal appliedSensitiveConfig")
 		return [20]byte{}
 	}
 	return sha1.Sum(appliedSpec)

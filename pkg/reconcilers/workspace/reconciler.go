@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -32,6 +31,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	workspaceloader "github.com/sdcio/config-server/pkg/workspace"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -110,14 +110,14 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	workspace := &invv1alpha1.Workspace{}
 	if err := r.client.Get(ctx, req.NamespacedName, workspace); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -189,7 +189,7 @@ func (r *reconciler) handleStatus(
 	requeue bool,
 	err error,
 ) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
@@ -203,7 +203,7 @@ func (r *reconciler) handleStatus(
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
 		reconcilers.RecordEvent(r.recorder, workspace, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", workspace.Spec.Ref))
 	} else {
-		log.Error(condition.Message)
+		log.Error(nil, condition.Message)
 		reconcilers.RecordEvent(r.recorder, workspace, corev1.EventTypeWarning, crName, condition.Message)
 	}
 

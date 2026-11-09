@@ -25,8 +25,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -67,7 +67,7 @@ func (r *Config) IsRecoverable(ctx context.Context) bool {
 		return true
 	}
 	if c.ObservedGeneration != r.GetGeneration() {
-		log.FromContext(ctx).Debug("unrecoverable config changed, retrying",
+		logf.FromContext(ctx).V(logf.VDebug).Info("unrecoverable config changed, retrying",
 			"observedGeneration", c.ObservedGeneration, "generation", r.GetGeneration())
 		return true
 	}
@@ -168,10 +168,10 @@ type RecoveryConfig struct {
 }
 
 func (r *ConfigSpec) GetShaSum(ctx context.Context) [20]byte {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	appliedSpec, err := json.Marshal(r)
 	if err != nil {
-		log.Error("cannot marshal appliedConfig", "error", err)
+		log.Error(err, "cannot marshal appliedConfig")
 		return [20]byte{}
 	}
 	return sha1.Sum(appliedSpec)

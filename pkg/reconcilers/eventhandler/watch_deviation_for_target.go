@@ -19,9 +19,9 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -62,11 +62,11 @@ func (r *DeviationForTargetEventHandler) add(ctx context.Context, obj runtime.Ob
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "deviation-event", Name: deviation.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	targetKey, err := deviation.GetTargetNamespaceName()
 	if err != nil {
-		log.Error(err.Error())
+		log.Error(nil, err.Error())
 	}
 	queue.Add(reconcile.Request{NamespacedName: *targetKey})
 }

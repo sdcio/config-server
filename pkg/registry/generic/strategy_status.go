@@ -23,8 +23,8 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	logf "github.com/sdcio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -129,7 +129,7 @@ func (r *statusStrategy) Update(ctx context.Context, key types.NamespacedName, o
 		}
 		return &watch.Event{Type: watch.Modified, Object: obj}, nil
 	}, func(event watch.Event) {
-		log.FromContext(ctx).With("eventType", event.Type).Debug("notify watcherManager")
+		logf.FromContext(ctx).WithValues("eventType", event.Type).V(logf.VDebug).Info("notify watcherManager")
 		r.watcherManager.WatchChan() <- event
 	})
 	return obj, err

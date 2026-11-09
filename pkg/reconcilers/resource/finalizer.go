@@ -19,7 +19,7 @@ package resource
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,10 +54,10 @@ func (r *APIFinalizer) AddFinalizer(ctx context.Context, obj client.Object) erro
 	if FinalizerExists(obj, r.finalizer) {
 		return nil
 	}
-	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "finalizer", r.finalizer)
+	logf.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "finalizer", r.finalizer)
 	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace(), r.finalizer)
 
-	log.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
+	logf.FromContext(ctx).Info("SSA applying finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
 
 	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
 		FieldManager: r.fieldManager,
@@ -71,7 +71,7 @@ func (r *APIFinalizer) RemoveFinalizer(ctx context.Context, obj client.Object) e
 	// Apply with no finalizers — SSA removes only what this field manager owns
 	applyConfig := r.buildApply(obj.GetName(), obj.GetNamespace())
 
-	log.FromContext(ctx).Info("SSA removing finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
+	logf.FromContext(ctx).Info("SSA removing finalizer", "fieldManager", r.fieldManager, "applyConfig", applyConfig)
 
 	return r.client.Apply(ctx, applyConfig, &client.ApplyOptions{
 		FieldManager: r.fieldManager,

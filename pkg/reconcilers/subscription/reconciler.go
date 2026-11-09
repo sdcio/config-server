@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -32,6 +31,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -95,14 +95,14 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	subscription := &invv1alpha1.Subscription{}
 	if err := r.client.Get(ctx, req.NamespacedName, subscription); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, pkgerrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -137,8 +137,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subscription, targets []string) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("handleSuccess", "key", state.GetNamespacedName(), "status old", state.DeepCopy().Status)
 
 	newCond := condv1alpha1.Ready()
 	oldCond := state.GetCondition(condv1alpha1.ConditionTypeReady)
@@ -165,7 +165,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, state *invv1alpha1.Subsc
 }
 
 func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscription, msg string, err error) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -179,7 +179,7 @@ func (r *reconciler) handleError(ctx context.Context, state *invv1alpha1.Subscri
 		return ctrl.Result{}, nil
 	}
 
-	log.Error(msg)
+	log.Error(nil, msg)
 	reconcilers.RecordEvent(r.recorder, state, corev1.EventTypeWarning, crName, msg)
 
 	applyConfig := invv1alpha1apply.Subscription(state.Name, state.Namespace).

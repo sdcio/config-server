@@ -23,7 +23,6 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	errors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -33,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -101,7 +101,7 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	key := storebackend.KeyFromNSN(req.NamespacedName)
@@ -110,7 +110,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err := r.client.Get(ctx, req.NamespacedName, discoveryRule); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -163,12 +163,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// gather the references from the CR in a normalized format
 	newDRConfig, err := r.getDRConfig(ctx, discoveryRule)
 	if err != nil {
-		//log.Error("cannot get discovery rule config", "error", err)
+		//log.Error(err, "cannot get discovery rule config")
 		if isDRRunning {
 			// we stop the discovery rule
 			dr.Stop(ctx)
 			if err := r.discoveryStore.Delete(ctx, key); err != nil { // we don't fail
-				log.Error("cannot delete discovery rule from store", "error", err)
+				log.Error(err, "cannot delete discovery rule from store")
 			}
 		}
 		return ctrl.Result{}, // do no requeue
@@ -183,7 +183,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// refs changed -> we stop the discovery rule
 		dr.Stop(ctx)
 		if err = r.discoveryStore.Delete(ctx, key); err != nil { // we dont fail
-			log.Error("cannot delete discovery rule from store", "error", err)
+			log.Error(err, "cannot delete discovery rule from store")
 		}
 	}
 	// create a new discoveryRule with the latest parameters
@@ -197,7 +197,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	go func() {
 		if err := dr.Run(r.baseCtx); err != nil {
-			log.Error("run error", "err", err)
+			log.Error(err, "run error")
 		}
 	}()
 
@@ -205,7 +205,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfig *discoveryrule.DiscoveryRuleConfig) bool {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// if the resource version changed the config has changed
 
@@ -283,8 +283,8 @@ func (r *reconciler) HasChanged(ctx context.Context, newDRConfig, currentDRConfi
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, changed bool) error {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("handleSuccess", "key", discoveryRule.GetNamespacedName(), "status old", discoveryRule.DeepCopy().Status)
 
 	newCond := condv1alpha1.Ready()
 	oldCond := discoveryRule.GetCondition(condv1alpha1.ConditionTypeReady)
@@ -313,7 +313,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, discoveryRule *invv1alph
 }
 
 func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1.DiscoveryRule, msg string, err error) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -325,7 +325,7 @@ func (r *reconciler) handleError(ctx context.Context, discoveryRule *invv1alpha1
 	// always update on error since StartTime changes
 	_ = oldCond
 
-	log.Error(msg)
+	log.Error(nil, msg)
 	reconcilers.RecordEvent(r.recorder, discoveryRule, corev1.EventTypeWarning, invv1alpha1.DiscoveryRuleKind, msg)
 
 	applyConfig := invv1alpha1apply.DiscoveryRule(discoveryRule.Name, discoveryRule.Namespace).

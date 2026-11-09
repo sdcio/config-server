@@ -25,12 +25,12 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 )
@@ -89,7 +89,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop collector")
 
 	// stop subscription loop
@@ -105,7 +105,7 @@ func (r *Collector) Stop(ctx context.Context) {
 	if r.target != nil {
 		r.target.StopSubscriptions()
 		if err := r.target.Close(); err != nil {
-			log.Error("close error", "err", err)
+			log.Error(err, "close error")
 		}
 		r.target = nil
 	}
@@ -127,7 +127,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 	// stop existing (safe)
 	r.Stop(ctx)
 
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetCollector", "target", r.targetKey.String())
 
 	tOpts := []gapi.TargetOption{
 		gapi.Name(r.targetKey.String()),
@@ -177,7 +177,7 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 }
 
 func (r *Collector) start(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("start collector")
 
 	// initial apply
@@ -197,7 +197,7 @@ func (r *Collector) update(ctx context.Context) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetCollector", "target", r.targetKey.String())
 
 	// Stop() cancels ctx while holding r.m, so this reliably detects a stale
 	// loop from a previous Start and keeps it off the new target's state.
@@ -206,20 +206,20 @@ func (r *Collector) update(ctx context.Context) {
 	}
 
 	if r.subscriptions == nil {
-		log.Debug("no subscriptions")
+		log.V(logf.VDebug).Info("no subscriptions")
 		r.stopSubscriptionLocked()
 		r.paths = nil
 		return
 	}
 
 	newPaths := r.subscriptions.GetPaths()
-	log.Debug("subscription update received", "newPaths", newPaths)
+	log.V(logf.VDebug).Info("subscription update received", "newPaths", newPaths)
 
 	if !r.hasPathsChanged(newPaths) {
-		log.Debug("subscription did not change")
+		log.V(logf.VDebug).Info("subscription did not change")
 		return
 	}
-	log.Debug("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
+	log.V(logf.VDebug).Info("subscription changed", "newPaths", newPaths, "existingPaths", r.paths)
 
 	// stop current subscription loop
 	r.stopSubscriptionLocked()
@@ -279,7 +279,7 @@ func (r *Collector) hasPathsChanged(newPaths map[invv1alpha1.Encoding][]Path) bo
 }
 
 func (r *Collector) StopSubscription(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetCollector", "target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetCollector", "target", r.targetKey.String())
 	log.Info("stop subscription")
 
 	r.m.Lock()
@@ -292,13 +292,13 @@ func (r *Collector) StopSubscription(ctx context.Context) {
 // runSubscription keeps the subscriptions for one path snapshot alive until
 // ctx is cancelled, restarting the streams with a backoff on failure.
 func (r *Collector) runSubscription(ctx context.Context, tg *target.Target, paths map[invv1alpha1.Encoding][]Path) {
-	log := log.FromContext(ctx).With("target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("target", r.targetKey.String())
 	log.Info("starting subscription collector", "paths", paths)
 
 	reqs, err := buildSubscribeRequests(paths)
 	if err != nil {
 		// deterministic for a given snapshot: retrying would not help
-		log.Error("cannot build subscribe request", "err", err)
+		log.Error(err, "cannot build subscribe request")
 		return
 	}
 
@@ -319,7 +319,7 @@ func (r *Collector) runSubscription(ctx context.Context, tg *target.Target, path
 
 // stream runs the subscriptions until ctx is done or a stream fails.
 func (r *Collector) stream(ctx context.Context, tg *target.Target, reqs map[string]*gnmi.SubscribeRequest) {
-	log := log.FromContext(ctx).With("target", r.targetKey.String())
+	log := logf.FromContext(ctx).WithValues("target", r.targetKey.String())
 
 	for name, req := range reqs {
 		log.Info("subscription request", "name", name, "req", prototext.Format(req))
@@ -341,7 +341,7 @@ func (r *Collector) stream(ctx context.Context, tg *target.Target, reqs map[stri
 				return
 			}
 			if tErr != nil && tErr.Err != nil {
-				log.Error("subscription failed", "err", tErr.Err)
+				log.Error(tErr.Err, "subscription failed")
 				return
 			}
 		}
@@ -352,7 +352,7 @@ func (r *Collector) handleResponse(ctx context.Context, rsp *target.SubscribeRes
 	if rsp == nil || rsp.Response == nil {
 		return
 	}
-	log.FromContext(ctx).Debug("subscription update", "update", rsp.Response)
+	logf.FromContext(ctx).V(logf.VDebug).Info("subscription update", "update", rsp.Response)
 
 	switch resp := rsp.Response.ProtoReflect().Interface().(type) {
 	case *gnmi.SubscribeResponse:

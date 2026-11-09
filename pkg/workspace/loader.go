@@ -20,11 +20,11 @@ import (
 	"context"
 	"path"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -46,7 +46,7 @@ func NewLoader(workspaceDir string, credentialResolver auth.CredentialResolver) 
 }
 
 func (r *Loader) EnsureCommit(ctx context.Context, workspace *invv1alpha1.Workspace) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	repo, err := git.NewRepo(workspace.Spec.RepoURL)
 	if err != nil {
@@ -67,7 +67,7 @@ func (r *Loader) EnsureCommit(ctx context.Context, workspace *invv1alpha1.Worksp
 		if err != nil {
 			return "", err
 		}
-		log.Debug("SetProxy", "proxy", workspace.Spec.Proxy.URL)
+		log.V(logf.VDebug).Info("SetProxy", "proxy", workspace.Spec.Proxy.URL)
 	}
 	return goGit.EnsureCommit(ctx, workspace.Spec.Ref)
 }

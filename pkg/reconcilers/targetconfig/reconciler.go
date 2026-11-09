@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -33,6 +32,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	logf "github.com/sdcio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -126,7 +126,7 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	if _, err := r.discoveryClient.ServerResourcesForGroupVersion(configv1alpha1.SchemeGroupVersion.String()); err != nil {
@@ -139,7 +139,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		if !apierrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, errors.Wrap(err, errGetCr)
 		}
 		// The Target does not exist: never created, or already deleted.
@@ -157,7 +157,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if err := r.finalizer.RemoveFinalizer(ctx, target); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "cannot remove finalizer")
 		}
-		log.Debug("Successfully deleted resource")
+		log.V(logf.VDebug).Info("Successfully deleted resource")
 		return ctrl.Result{}, nil
 	}
 
@@ -195,7 +195,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// (from their ConfigReady). The others follow their ConfigReady below.
 	retry, err := r.transactor.Transact(ctx, target, dsctx)
 	if err != nil {
-		log.Warn("config transaction failed", "retry", retry, "err", err)
+		log.Info("config transaction failed", "retry", retry, "err", err)
 		if !retry {
 			// non recoverable: the failure is reported on the Configs by the
 			// transaction; retrying does not help.
@@ -237,7 +237,7 @@ func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.Name
 // Configs of the target. The message is bounded by the condition constructor.
 // A failed status update is returned, so the request is retried with backoff.
 func (r *reconciler) setConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, reason condv1alpha1.ConditionReason, msg string) error {
-	log.FromContext(ctx).Debug("setConfigsNotReady", "reason", reason, "msg", msg)
+	logf.FromContext(ctx).V(logf.VDebug).Info("setConfigsNotReady", "reason", reason, "msg", msg)
 	return errors.Wrap(r.transactor.SetConfigsNotReady(ctx, target,
 		configv1alpha1.ConfigNotReady(reason, msg)), errUpdateStatus)
 }

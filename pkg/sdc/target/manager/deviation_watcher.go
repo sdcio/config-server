@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -87,7 +87,7 @@ func (r *DeviationWatcher) Stop(ctx context.Context) {
 
 	r.clearTargetDeviation(ctx)
 
-	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.key.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetDeviationWatcher", "target", r.key.String())
 	log.Info("stop deviationWatcher")
 	r.cancel()
 	r.cancel = nil
@@ -103,7 +103,7 @@ func (r *DeviationWatcher) Start(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) start(ctx context.Context) {
-	log := log.FromContext(ctx).With("name", "targetDeviationWatcher", "target", r.key.String())
+	log := logf.FromContext(ctx).WithValues("name", "targetDeviationWatcher", "target", r.key.String())
 	log.Info("start deviationWatcher")
 	var err error
 	var stream sdcpb.DataServer_WatchDeviationsClient
@@ -120,7 +120,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 					case codes.Canceled:
 						// dont log when context got cancelled
 					default:
-						log.Error("cannot subscribe", "error", err)
+						log.Error(err, "cannot subscribe")
 					}
 				}
 				time.Sleep(time.Second * 1) //- resilience for server crash
@@ -135,12 +135,12 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 				case codes.Canceled:
 					// dont log when context got cancelled
 				default:
-					log.Error("cannot recive msg from stream", "error", err)
+					log.Error(err, "cannot recive msg from stream")
 				}
 			}
 			// clearing the stream will force the client to resubscribe in the next iteration
 			if err := stream.CloseSend(); err != nil {
-				log.Error("stream closed", "error", err)
+				log.Error(err, "stream closed")
 			} // to check if this works on the client side to inform the server to stop sending
 			stream = nil
 			time.Sleep(time.Second * 1) //- resilience for server crash, retry on failure
@@ -150,10 +150,10 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 		switch resp.Event {
 		case sdcpb.DeviationEvent_START:
 			if started {
-				log.Error("protocol violation start on start")
+				log.Error(nil, "protocol violation start on start")
 				/*
 					if err := stream.CloseSend(); err != nil {
-						log.Error("stream failed", "err", err)
+						log.Error(err, "stream failed")
 					} // to check if this works on the client side to inform the server to stop sending
 					stream = nil
 					time.Sleep(time.Second * 1) //- resilience for server crash
@@ -167,10 +167,10 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			started = true
 		case sdcpb.DeviationEvent_UPDATE:
 			if !started {
-				log.Error("protocol violation update without start")
+				log.Error(nil, "protocol violation update without start")
 				/*
 					if err := stream.CloseSend(); err != nil {
-						log.Error("stream failed", "err", err)
+						log.Error(err, "stream failed")
 					} // to check if this works on the client side to inform the server to stop sending
 					stream = nil
 					time.Sleep(time.Second * 1) //- resilience for server crash
@@ -194,11 +194,11 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 			deviations[intent] = append(deviations[intent], resp)
 		case sdcpb.DeviationEvent_END:
 			if !started {
-				log.Error("protocol violation end without start")
+				log.Error(nil, "protocol violation end without start")
 
 				/*
 					if err := stream.CloseSend(); err != nil {
-						log.Error("stream failed", "err", err)
+						log.Error(err, "stream failed")
 					} // to check if this works on the client side to inform the server to stop sending
 					stream = nil
 					time.Sleep(time.Second * 1) //- resilience for server crash
@@ -219,7 +219,7 @@ func (r *DeviationWatcher) start(ctx context.Context) {
 }
 
 func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map[string][]*sdcpb.WatchDeviationResponse) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("process deviations")
 	for configName, devs := range deviations {
 		if configName == "default" {
@@ -239,7 +239,7 @@ func (r *DeviationWatcher) processDeviations(ctx context.Context, deviations map
 				Name:      configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, parts[1]),
 			}
 			if len(parts) != 2 {
-				log.Error("unexpected configName", "got", configName)
+				log.Error(nil, "unexpected configName", "got", configName)
 				return
 			}
 			log.Info("config deviations", "nsn", nsn, "devs", len(configDevs))
@@ -254,7 +254,7 @@ func (r *DeviationWatcher) processDSDeviations(
 	deviations []configv1alpha1.ConfigDeviation,
 	typ configv1alpha1.DeviationType,
 ) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	sort.Slice(deviations, func(i, j int) bool {
 		return deviations[i].Path < deviations[j].Path
@@ -276,7 +276,7 @@ func (r *DeviationWatcher) processDSDeviations(
 		FieldManager: fieldManagerDeviation,
 		Force:        ptr.To(true),
 	}); err != nil {
-		log.Error("cannot update intent for received deviation", "config", nsn, "err", err)
+		log.Error(err, "cannot update intent for received deviation", "config", nsn)
 	}
 }
 
@@ -285,12 +285,12 @@ func (r *DeviationWatcher) processDSDeviations(
 func (r *DeviationWatcher) clearTargetDeviation(
 	ctx context.Context,
 ) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	nsn := r.getTargetDeviationKey()
 	deviation := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, nsn, deviation); err != nil {
-		log.Error("cannot get intent for recieved deviation", "config", nsn, "err", err)
+		log.Error(err, "cannot get intent for recieved deviation", "config", nsn)
 		return
 	}
 	// If already clear, do nothing (avoids useless writes)
@@ -307,23 +307,23 @@ func (r *DeviationWatcher) clearTargetDeviation(
 	if err := r.client.Apply(ctx, applyDeviation, &client.ApplyOptions{
 		FieldManager: fieldManagerDeviation,
 	}); err != nil {
-		log.Error("cannot clear deviation", "config", nsn, "err", err)
+		log.Error(err, "cannot clear deviation", "config", nsn)
 	}
 }
 
 func ConvertSdcpbDeviations2Deviations(ctx context.Context, devs []*sdcpb.WatchDeviationResponse) []configv1alpha1.ConfigDeviation {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
 
 		desiredValue, err := getDeviationString(dev.GetExpectedValue())
 		if err != nil {
-			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
+			log.Error(err, "cannot protomarshal desiredValue", "val", dev.GetExpectedValue())
 		}
 
 		currentValue, err := getDeviationString(dev.GetCurrentValue())
 		if err != nil {
-			log.Error("cannot protomarshal desiredValue", "val", dev.GetExpectedValue(), "error", err)
+			log.Error(err, "cannot protomarshal desiredValue", "val", dev.GetExpectedValue())
 		}
 
 		deviations = append(deviations, configv1alpha1.ConfigDeviation{

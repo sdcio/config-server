@@ -23,11 +23,11 @@ import (
 	"path"
 	"sync"
 
-	"github.com/henderiw/logger/log"
 	"github.com/otiai10/copy"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git/auth"
 	"github.com/sdcio/config-server/pkg/utils"
+	logf "github.com/sdcio/logger"
 )
 
 type Loader struct {
@@ -155,7 +155,7 @@ func (r *Loader) Load(ctx context.Context, key string) ([]invv1alpha1.SchemaRepo
 }
 
 func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// for now we only use git, but in the future we can extend this to use other downloaders e.g. OCI/...
 	downloader := newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver)

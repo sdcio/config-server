@@ -25,12 +25,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,8 +58,8 @@ func NewTransactor(client client.Client, fieldManager string) *Transactor {
 }
 
 func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
-	log := log.FromContext(ctx)
-	log.Debug("RecoverConfigs")
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("RecoverConfigs")
 	configList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.
 		return &msg, err
 	}
 	dsctx.MarkRecovered(true)
-	log.Debug("recovered configs", "count", len(configs))
+	log.V(logf.VDebug).Info("recovered configs", "count", len(configs))
 
 	if err := r.setRecoveredConfigs(ctx, target, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 		return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
@@ -107,7 +107,7 @@ func (r *Transactor) recoverIntents(
 	key storebackend.Key,
 	configs []*config.Config,
 ) (string, error) {
-	log := log.FromContext(ctx).With("target", key.String())
+	log := logf.FromContext(ctx).WithValues("target", key.String())
 
 	if len(configs) == 0 {
 		return "", nil
@@ -128,7 +128,7 @@ func (r *Transactor) recoverIntents(
 		})
 	}
 
-	log.Debug("device intent recovery")
+	log.V(logf.VDebug).Info("device intent recovery")
 
 	return r.TransactionSet(ctx, dsctx, &sdcpb.TransactionSetRequest{
 		TransactionId: "recovery",
@@ -171,8 +171,8 @@ func (r *Transactor) Transact(
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
 ) (bool, error) {
-	log := log.FromContext(ctx)
-	log.Debug("Transact")
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("Transact")
 	// get all configs for the target
 	configList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
@@ -211,10 +211,10 @@ func (r *Transactor) Transact(
 	result := analyzeIntentResponse(err, rsp)
 
 	for _, w := range result.GlobalWarnings {
-		log.Warn("transaction warning", "warning", w)
+		log.Info("transaction warning", "warning", w)
 	}
 	if result.GlobalError != nil || result.IntentErrors != nil {
-		log.Warn("transaction failed",
+		log.Info("transaction failed",
 			"recoverable", result.Recoverable,
 			"globalError", result.GlobalError,
 			"intentErrors", result.IntentErrors,
@@ -229,7 +229,7 @@ func (r *Transactor) Transact(
 			result.Recoverable,
 		)
 	}
-	log.Debug("transaction response", "rsp", prototext.Format(rsp))
+	log.V(logf.VDebug).Info("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
 	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
 		DatastoreName: dsctx.DatastoreName,
@@ -277,7 +277,7 @@ func (r *Transactor) setIntents(
 	configsToUpdate, configsToDelete map[string]*config.Config,
 	dryRun bool,
 ) (*sdcpb.TransactionSetResponse, error) {
-	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
+	log := logf.FromContext(ctx).WithValues("target", targetKey.String(), "transactionID", transactionID)
 
 	configsToUpdateSet := sets.New[string]()
 	configsToDeleteSet := sets.New[string]()
@@ -289,7 +289,7 @@ func (r *Transactor) setIntents(
 		log.Info("Transaction intent update", "config", key, "revertive", cfg.IsRevertive())
 		update, err := config.GetIntentUpdate(cfg, true)
 		if err != nil {
-			log.Error("Transaction getIntentUpdate config", "error", err)
+			log.Error(err, "Transaction getIntentUpdate config")
 			return nil, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
@@ -326,14 +326,14 @@ func (r *Transactor) setIntents(
 		Intents:       intents,
 	})
 	if rsp != nil {
-		log.Debug("Transaction rsp", "rsp", prototext.Format(rsp))
+		log.V(logf.VDebug).Info("Transaction rsp", "rsp", prototext.Format(rsp))
 	}
 	return rsp, err
 }
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
-	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError",
+	log := logf.FromContext(ctx)
+	log.Info("updateConfigWithError",
 		"config", cfg.GetName(),
 		"recoverable", recoverable,
 		"msg", msg,
@@ -350,7 +350,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 		return err
 	}
 	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip error update: config is deleting")
+		log.V(logf.VDebug).Info("skip error update: config is deleting")
 		return nil
 	}
 
@@ -370,8 +370,8 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 }
 
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("applyFinalizer")
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("applyFinalizer")
 
 	return r.patchMetadata(ctx, config, func() {
 		config.SetFinalizers([]string{finalizer})
@@ -379,8 +379,8 @@ func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.
 }
 
 func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("deleteFinalizer")
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("deleteFinalizer")
 
 	return r.patchMetadata(ctx, config, func() {
 		config.SetFinalizers([]string{})
@@ -405,8 +405,8 @@ func (r *Transactor) updateConfigWithSuccess(
 	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
 	msg string,
 ) error {
-	log := log.FromContext(ctx)
-	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("updateConfigWithSuccess", "config", cfg.GetName())
 
 	// Always re-read the latest object after the transaction was confirmed.
 	current := &configv1alpha1.Config{}
@@ -417,7 +417,7 @@ func (r *Transactor) updateConfigWithSuccess(
 
 	// If the object is being deleted, do not write a success status anymore.
 	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip success update: config is deleting")
+		log.V(logf.VDebug).Info("skip success update: config is deleting")
 		return nil
 	}
 
@@ -507,7 +507,7 @@ func getConfigsToTransact(
 	map[string]*config.Config,
 	map[string]*config.Config,
 ) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	configsToUpdate := make(map[string]*config.Config)
 	configsToDelete := make(map[string]*config.Config)
@@ -539,7 +539,7 @@ func getConfigsToTransact(
 		}
 	}
 
-	log.Debug("getConfigsAndDeviationsToTransact classification start",
+	log.V(logf.VDebug).Info("getConfigsAndDeviationsToTransact classification start",
 		"configsToUpdate", mapKeys(configsToUpdate),
 		"configsToDelete", mapKeys(configsToDelete),
 		"nonRecoverable", mapKeys(nonRecoverable),
@@ -565,7 +565,7 @@ func getConfigsToTransact(
 		}
 	}
 
-	log.Debug("getConfigsAndDeviationsToTransact classification after change",
+	log.V(logf.VDebug).Info("getConfigsAndDeviationsToTransact classification after change",
 		"configsToUpdate", mapKeys(configsToUpdate),
 		"configsToDelete", mapKeys(configsToDelete),
 		"nonRecoverable", mapKeys(nonRecoverable),
@@ -589,8 +589,8 @@ func (r *Transactor) handleTransactionErrors(
 	globalErr error,
 	recoverable bool,
 ) (bool, error) {
-	log := log.FromContext(ctx)
-	log.Warn("handling transaction errors", "recoverable", recoverable)
+	log := logf.FromContext(ctx)
+	log.Info("handling transaction errors", "recoverable", recoverable)
 
 	// If no response at all → apply same error to all configs.
 	if rsp == nil {
@@ -611,7 +611,7 @@ func (r *Transactor) handleTransactionErrors(
 	dataServerError := false
 
 	for intentName, intent := range rsp.Intents {
-		log.Warn("intent failed", "name", intentName, "errors", intent.Errors)
+		log.Info("intent failed", "name", intentName, "errors", intent.Errors)
 
 		var errs = errors.Join(globalErr)
 		for _, intentError := range intent.Errors {
@@ -648,7 +648,7 @@ func (r *Transactor) handleTransactionErrors(
 	}
 
 	if dataServerError {
-		log.Error("transact dataserver error", "err", globalErr)
+		log.Error(globalErr, "transact dataserver error")
 		for _, cfg := range configsToTransact {
 			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
 				return true, err
@@ -823,7 +823,7 @@ func (r *Transactor) applyStatus(ctx context.Context, current, desired *configv1
 		statusApply = statusApply.WithDeviationGeneration(*g)
 	}
 
-	log.FromContext(ctx).Debug("apply config status",
+	logf.FromContext(ctx).V(logf.VDebug).Info("apply config status",
 		"config", desired.GetNamespacedName().String(),
 		"ready", desired.GetCondition(condv1alpha1.ConditionTypeReady).IsTrue(),
 		"reason", desired.GetCondition(condv1alpha1.ConditionTypeReady).Reason)

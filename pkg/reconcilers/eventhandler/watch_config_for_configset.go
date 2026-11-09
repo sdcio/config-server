@@ -19,9 +19,9 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -62,11 +62,11 @@ func (r *ConfigForConfigSetEventHandler) add(ctx context.Context, obj runtime.Ob
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "config-event", Name: config.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	configSetList := &configv1alpha1.ConfigSetList{}
 	if err := r.Client.List(ctx, configSetList); err != nil {
-		log.Error("cannot list object", "error", err)
+		log.Error(err, "cannot list object")
 		return
 	}
 
@@ -82,7 +82,7 @@ func (r *ConfigForConfigSetEventHandler) add(ctx context.Context, obj runtime.Ob
 					Name:      configSet.GetName(),
 					Namespace: configSet.GetNamespace(),
 				}
-				log.Debug("event requeue", "key", key.String())
+				log.V(logf.VDebug).Info("event requeue", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
 				return // these should be 1 configset for a config
 			}
