@@ -34,12 +34,15 @@ import (
 type Config struct {
 	Address       string
 	TargetManager targetruntimeview.TargetManager
+	// Extra, when set, is served on /metrics alongside the target metrics.
+	Extra prometheus.Gatherer
 }
 
 func NewServer(c *Config) *PrometheusServer {
 	return &PrometheusServer{
 		address:       c.Address,
 		targetManager: c.TargetManager,
+		extra:         c.Extra,
 		regex:         regexp.MustCompile(metricNameRegex),
 	}
 }
@@ -48,6 +51,7 @@ type PrometheusServer struct {
 	address       string
 	targetManager targetruntimeview.TargetManager
 	regex         *regexp.Regexp
+	extra         prometheus.Gatherer
 	// dynamic
 	cancel func()
 	server *http.Server
@@ -71,7 +75,11 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 	}
 
 	// create http server
-	promHandler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{ErrorHandling: promhttp.ContinueOnError})
+	var gatherer prometheus.Gatherer = registry
+	if r.extra != nil {
+		gatherer = prometheus.Gatherers{registry, r.extra}
+	}
+	promHandler := promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{ErrorHandling: promhttp.ContinueOnError})
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promHandler)
 	//mux.Handle("/", new(healthHandler))
