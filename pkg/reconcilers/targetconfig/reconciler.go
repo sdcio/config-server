@@ -195,13 +195,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// (from their ConfigReady). The others follow their ConfigReady below.
 	retry, err := r.transactor.Transact(ctx, target, dsctx)
 	if err != nil {
-		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if !retry {
 			// non recoverable: the failure is reported on the Configs by the
 			// transaction; retrying does not help.
+			log.Warn("config transaction failed", "retry", retry, "err", err)
 			return ctrl.Result{}, nil
 		}
-		// recoverable: back off and retry
+		// recoverable: back off and retry. The returned error is logged by
+		// controller-runtime with the requeue, so it is not logged here too.
+		log.Debug("config transaction failed", "retry", retry, "err", err)
 		if serr := r.setConfigsReadyFromApplied(ctx, target); serr != nil {
 			return ctrl.Result{}, serr
 		}

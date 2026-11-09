@@ -23,6 +23,7 @@ import (
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	internalconfig "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,4 +108,35 @@ func toInternalConfig(t *testing.T, in *configv1alpha1.Config) *internalconfig.C
 	out := &internalconfig.Config{}
 	require.NoError(t, configv1alpha1.Convert_v1alpha1_Config_To_config_Config(in, out, nil))
 	return out
+}
+
+// The dataserver collects validation errors concurrently, so the same failure
+// comes back with its errors in a different order. The message built from them
+// must not change, or every retry rewrites the Config status.
+func TestIntentErrorsStableOrder(t *testing.T) {
+	rsp := func(errs ...string) *sdcpb.TransactionSetResponse {
+		return &sdcpb.TransactionSetResponse{Intents: map[string]*sdcpb.TransactionSetResponseIntent{
+			"cfg-b": {Errors: errs},
+			"cfg-a": {Errors: []string{"leafref target missing"}},
+		}}
+	}
+	first := rsp("mandatory leaf missing", "value out of range")
+	second := rsp("value out of range", "mandatory leaf missing")
+
+	assert.Equal(t, []string{"cfg-a", "cfg-b"}, sortedIntentNames(first))
+	assert.Equal(t,
+		sortedIntentErrors(first.Intents["cfg-b"]),
+		sortedIntentErrors(second.Intents["cfg-b"]))
+	assert.Equal(t, []string{"value out of range", "mandatory leaf missing"},
+		second.Intents["cfg-b"].Errors, "the response itself is left untouched")
+
+	r1, r2 := analyzeIntentResponse(nil, first), analyzeIntentResponse(nil, second)
+	require.Error(t, r1.IntentErrors)
+	assert.Equal(t, r1.IntentErrors.Error(), r2.IntentErrors.Error())
+	assert.False(t, r1.Recoverable)
+}
+
+func TestSortedIntentHelpersNil(t *testing.T) {
+	assert.Nil(t, sortedIntentNames(nil))
+	assert.Nil(t, sortedIntentErrors(nil))
 }

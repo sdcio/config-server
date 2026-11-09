@@ -18,6 +18,7 @@ package eventhandler
 
 import (
 	"context"
+	"maps"
 
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
@@ -45,10 +46,29 @@ func (r *ConfigForTargetEventHandler) Create(ctx context.Context, evt event.Crea
 }
 
 // Update enqueues a request for the old and the new target (the target
-// labels may have changed)
+// labels may have changed), but only for changes the target transaction acts
+// on. Status-only updates are dropped: the transactor is the only writer of
+// the Config status, and enqueueing on its own writes would requeue the
+// Target immediately, bypassing the rate limiter of a failing transaction.
 func (r *ConfigForTargetEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	if !configChangedForTarget(evt.ObjectOld, evt.ObjectNew) {
+		return
+	}
 	r.add(ctx, evt.ObjectOld, q)
 	r.add(ctx, evt.ObjectNew, q)
+}
+
+// configChangedForTarget reports whether a Config update needs a new target
+// transaction: a spec change (generation), a target change (labels) or a
+// delete (deletionTimestamp). Finalizers are left out on purpose, the
+// transactor patches them itself.
+func configChangedForTarget(oldObj, newObj client.Object) bool {
+	if oldObj == nil || newObj == nil {
+		return true
+	}
+	return oldObj.GetGeneration() != newObj.GetGeneration() ||
+		!maps.Equal(oldObj.GetLabels(), newObj.GetLabels()) ||
+		!oldObj.GetDeletionTimestamp().Equal(newObj.GetDeletionTimestamp())
 }
 
 // Delete enqueues a request

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -214,7 +215,9 @@ func (r *Transactor) Transact(
 		log.Warn("transaction warning", "warning", w)
 	}
 	if result.GlobalError != nil || result.IntentErrors != nil {
-		log.Warn("transaction failed",
+		// the reconciler logs the failure once per attempt, the per config
+		// status transitions are logged by updateConfigWithError
+		log.Debug("transaction failed",
 			"recoverable", result.Recoverable,
 			"globalError", result.GlobalError,
 			"intentErrors", result.IntentErrors,
@@ -333,7 +336,7 @@ func (r *Transactor) setIntents(
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
 	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError",
+	log.Debug("updateConfigWithError",
 		"config", cfg.GetName(),
 		"recoverable", recoverable,
 		"msg", msg,
@@ -365,6 +368,17 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 		desired.Status.DeviationGeneration = ptr.To[int64](0)
 	}
 	desired.SetConditions(desired.ReadyFromApplied())
+
+	// Warn only when the outcome changes: a retry that fails the same way
+	// leaves the status as is and is logged at debug level above.
+	if newCond := desired.GetCondition(configv1alpha1.ConditionTypeConfigReady); !newCond.Equal(current.GetCondition(configv1alpha1.ConditionTypeConfigReady)) {
+		log.Warn("config failed",
+			"config", cfg.GetNamespacedName().String(),
+			"generation", cfg.GetGeneration(),
+			"reason", newCond.Reason,
+			"msg", newCond.Message,
+		)
+	}
 
 	return r.applyStatus(ctx, current, desired)
 }
@@ -590,7 +604,7 @@ func (r *Transactor) handleTransactionErrors(
 	recoverable bool,
 ) (bool, error) {
 	log := log.FromContext(ctx)
-	log.Warn("handling transaction errors", "recoverable", recoverable)
+	log.Debug("handling transaction errors", "recoverable", recoverable)
 
 	// If no response at all → apply same error to all configs.
 	if rsp == nil {
@@ -610,14 +624,20 @@ func (r *Transactor) handleTransactionErrors(
 	// Response present: handle per-intent
 	dataServerError := false
 
-	for intentName, intent := range rsp.Intents {
-		log.Warn("intent failed", "name", intentName, "errors", intent.Errors)
+	// Intents are walked in name order and their errors sorted: the
+	// dataserver collects validation errors concurrently, so their order
+	// differs between attempts. A stable message keeps the Config status from
+	// changing on every retry of the same failure.
+	for _, intentName := range sortedIntentNames(rsp) {
+		intent := rsp.Intents[intentName]
+		intentErrors := sortedIntentErrors(intent)
+		log.Debug("intent failed", "name", intentName, "errors", intentErrors)
 
 		var errs = errors.Join(globalErr)
-		for _, intentError := range intent.Errors {
+		for _, intentError := range intentErrors {
 			errs = errors.Join(errs, fmt.Errorf("%s", intentError))
 		}
-		warnings := collectWarnings(intent.Errors)
+		warnings := collectWarnings(intentErrors)
 
 		msg := ""
 		if len(warnings) > 0 {
@@ -689,6 +709,31 @@ func collectWarnings(errorsOrMsgs []string) []string {
 	return warnings
 }
 
+// sortedIntentNames returns the intent names of the response in a stable
+// order (rsp.Intents is a map).
+func sortedIntentNames(rsp *sdcpb.TransactionSetResponse) []string {
+	if rsp == nil {
+		return nil
+	}
+	names := make([]string, 0, len(rsp.Intents))
+	for name := range rsp.Intents {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// sortedIntentErrors returns a sorted copy of the intent errors; the
+// dataserver does not report them in a stable order.
+func sortedIntentErrors(intent *sdcpb.TransactionSetResponseIntent) []string {
+	if intent == nil {
+		return nil
+	}
+	errs := slices.Clone(intent.Errors)
+	slices.Sort(errs)
+	return errs
+}
+
 type TransactionResult struct {
 	GlobalError    error
 	IntentErrors   error
@@ -708,8 +753,8 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 		// Collect global warnings
 		result.GlobalWarnings = append(result.GlobalWarnings, rsp.Warnings...)
 		// Collect intent errors
-		for _, intent := range rsp.Intents {
-			for _, intentError := range intent.Errors {
+		for _, intentName := range sortedIntentNames(rsp) {
+			for _, intentError := range sortedIntentErrors(rsp.Intents[intentName]) {
 				result.IntentErrors = errors.Join(result.IntentErrors, fmt.Errorf("%s", intentError))
 				result.Recoverable = false // any intent error is non-recoverable
 			}
