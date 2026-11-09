@@ -74,7 +74,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	}
 
 	if cfg.TargetManager == nil {
-		return nil, fmt.Errorf("TargetManager is nil: set LOCAL_DATASERVER=true or disable TargetConfigServerController")
+		return nil, fmt.Errorf("misconfigured controller: TargetManager is nil")
 	}
 
 	r.client = mgr.GetClient()

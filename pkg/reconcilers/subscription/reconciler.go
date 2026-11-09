@@ -76,6 +76,9 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 			return ac
 		},
 	)
+	if cfg.TargetManager == nil {
+		return nil, fmt.Errorf("misconfigured controller: TargetManager is nil")
+	}
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
 

@@ -23,9 +23,11 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	//"time"
 
@@ -40,6 +42,10 @@ import (
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	dsconfig "github.com/sdcio/data-server/pkg/config"
+	"github.com/sdcio/data-server/pkg/core"
+	"github.com/sdcio/data-server/pkg/grpcserver"
+	dsutils "github.com/sdcio/data-server/pkg/utils"
 	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -53,6 +59,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
+
+const defaultDataServerConfig = "/config/data-server.yaml"
 
 var (
 	schemaBaseDir = "/schemas"
@@ -73,13 +81,15 @@ func main() {
 	level := verbosity.LogLevel(logVerbosity)
 
 	l := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level:       level,
-		ReplaceAttr: logf.ReplaceTimeAttr,
+		Level: level,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			return dsutils.RedactAttr(groups, logf.ReplaceTimeAttr(groups, a))
+		},
 	})).With("logger", "sdc-controller")
 	slog.SetDefault(l)
 	logger := logr.FromSlogHandler(l.Handler()).WithName("controller")
 	logf.SetDefaultLogger(logger)
-	ctx := logf.IntoContext(context.Background(), logger)
+	ctx := logf.IntoContext(ctrl.SetupSignalHandler(), logger)
 	log := logf.FromContext(ctx)
 
 	// controller-runtime logs through logr and client-go through klog, so give
@@ -119,8 +129,9 @@ func main() {
 	}
 
 	mgr_options := ctrl.Options{
-		Scheme:  runScheme,
-		Metrics: metricsServerOptions,
+		Scheme:                 runScheme,
+		Metrics:                metricsServerOptions,
+		HealthProbeBindAddress: HealthProbeBindAddress(),
 		Controller: config.Controller{
 			MaxConcurrentReconciles: 16,
 		},
@@ -145,38 +156,52 @@ func main() {
 		workspaceDir = envDir
 	}
 
+	dsCfg, err := loadDataServerConfig()
+	if err != nil {
+		log.Error(err, "cannot load data-server config")
+		os.Exit(1)
+	}
+	dsCore, dsGRPC, err := grpcserver.New(ctx, dsCfg)
+	if err != nil {
+		log.Error(err, "cannot create data-server")
+		os.Exit(1)
+	}
+	if err := mgr.Add(&dataServerCore{core: dsCore}); err != nil {
+		log.Error(err, "cannot add data-server core to manager")
+		os.Exit(1)
+	}
+	if err := mgr.Add(&dataServerGRPC{srv: dsGRPC}); err != nil {
+		log.Error(err, "cannot add data-server grpc server to manager")
+		os.Exit(1)
+	}
+
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		SchemaDir:    schemaBaseDir,
 		WorkspaceDir: workspaceDir,
 	}
-	if IsLocalDataServerEnabled() {
-		// Create the DS connection manager and register it with controller-runtime.
-		dsCfg := &dsclient.Config{
-			Address: dsclient.GetLocalDataServerAddress(),
-			// Insecure/TLS settings etc if needed
-		}
-		dsConnMgr := dsmanager.New(ctx, dsCfg)
-		if err := dsConnMgr.AddToManager(mgr); err != nil {
-			log.Error(err, "cannot add dataserver conn manager")
+
+	// Remaining call sites still reach the embedded core through its own
+	// :56000 listener.
+	dsConnMgr := dsmanager.New(ctx, &dsclient.Config{Address: dsclient.GetLocalDataServerAddress()})
+	if err := dsConnMgr.AddToManager(mgr); err != nil {
+		log.Error(err, "cannot add dataserver conn manager")
+		os.Exit(1)
+	}
+	ctrlCfg.DataServerManager = dsConnMgr
+
+	tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient(), dsCore)
+	ctrlCfg.TargetManager = tm
+
+	promserver := prometheusserver.NewServer(&prometheusserver.Config{
+		Address:       ":9443",
+		TargetManager: tm,
+	})
+	go func() {
+		if err := promserver.Start(ctx); err != nil {
+			log.Error(err, "cannot start promerver")
 			os.Exit(1)
 		}
-		ctrlCfg.DataServerManager = dsConnMgr
-		// mgr.Add -> calls dsConnMgr.Start(ctx)
-
-		tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient())
-		ctrlCfg.TargetManager = tm
-
-		promserver := prometheusserver.NewServer(&prometheusserver.Config{
-			Address:       ":9443",
-			TargetManager: tm,
-		})
-		go func() {
-			if err := promserver.Start(ctx); err != nil {
-				log.Error(err, "cannot start promerver")
-				os.Exit(1)
-			}
-		}()
-	}
+	}()
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -193,7 +218,7 @@ func main() {
 		log.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+	if err := mgr.AddReadyzCheck("readyz", readyzCheck(dsCore)); err != nil {
 		log.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
@@ -227,13 +252,80 @@ func IsReconcilerEnabled(reconcilerName string) bool {
 	return false
 }
 
-func IsLocalDataServerEnabled() bool {
-	if val, found := os.LookupEnv("LOCAL_DATASERVER"); found {
-		if strings.ToLower(val) == "true" {
-			return true
-		}
+// HealthProbeBindAddress returns the healthz/readyz listen address; it must
+// not clash with the metrics (8443) or pprof (8081) ports.
+func HealthProbeBindAddress() string {
+	if val, found := os.LookupEnv("HEALTH_PROBE_PORT"); found {
+		return fmt.Sprintf(":%s", val)
 	}
-	return false
+	return ":8090"
+}
+
+// loadDataServerConfig reads the embedded data-server config from
+// DATA_SERVER_CONFIG (default /config/data-server.yaml) and applies the
+// environment overrides.
+func loadDataServerConfig() (*dsconfig.Config, error) {
+	path := defaultDataServerConfig
+	if val, found := os.LookupEnv("DATA_SERVER_CONFIG"); found {
+		path = val
+	}
+	cfg, err := dsconfig.New(path)
+	if err != nil {
+		return nil, err
+	}
+	if envDir, found := os.LookupEnv("SDC_SCHEMA_SERVER_BASE_DIR"); found &&
+		cfg.GRPCServer != nil && cfg.GRPCServer.SchemaServer != nil {
+		cfg.GRPCServer.SchemaServer.SchemasDirectory = envDir
+	}
+	return cfg, nil
+}
+
+// readyzCheck fails until the data-server core finished starting.
+func readyzCheck(c *core.Core) healthz.Checker {
+	return func(*http.Request) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		if err := c.WaitReady(ctx); err != nil {
+			return fmt.Errorf("data-server not ready: %w", err)
+		}
+		return nil
+	}
+}
+
+// dataServerCore runs the data-server core under the manager: it starts the
+// core, fails the manager if initialisation fails and stops the core on
+// shutdown.
+type dataServerCore struct {
+	core *core.Core
+}
+
+func (d *dataServerCore) NeedLeaderElection() bool { return false }
+
+func (d *dataServerCore) Start(ctx context.Context) error {
+	if err := d.core.Start(ctx); err != nil {
+		return fmt.Errorf("data-server core: %w", err)
+	}
+	<-ctx.Done()
+	// the manager context is already cancelled, so stop on a fresh one
+	stopCtx, cancel := context.WithTimeout(logf.IntoContext(context.Background(), logf.FromContext(ctx)), 30*time.Second)
+	defer cancel()
+	return d.core.Stop(stopCtx)
+}
+
+// dataServerGRPC runs the :56000 gRPC adapter under the manager and stops it
+// on shutdown.
+type dataServerGRPC struct {
+	srv *grpcserver.Server
+}
+
+func (d *dataServerGRPC) NeedLeaderElection() bool { return false }
+
+func (d *dataServerGRPC) Start(ctx context.Context) error {
+	defer d.srv.Stop()
+	if err := d.srv.Run(ctx); err != nil {
+		return fmt.Errorf("data-server grpc: %w", err)
+	}
+	return nil
 }
 
 func MetricBindAddress() string {

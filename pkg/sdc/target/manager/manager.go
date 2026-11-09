@@ -33,7 +33,6 @@ import (
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	"github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,8 +52,15 @@ const (
 	datastoreDeleteTimeout = 10 * time.Second
 )
 
+// DatastoreAdmin is the in-process data-server handle the manager uses for
+// datastore administration. A nil handle makes the operations fail.
+type DatastoreAdmin interface {
+	DeleteDataStore(ctx context.Context, name string) error
+}
+
 type TargetManager struct {
 	ds         *dsmanager.DSConnManager
+	admin      DatastoreAdmin
 	k8s        client.Client
 	transactor *Transactor // shared by all runtimes for config recovery
 	events     chan event.GenericEvent
@@ -63,9 +69,10 @@ type TargetManager struct {
 	targets map[storebackend.Key]*TargetRuntime
 }
 
-func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client) *TargetManager {
+func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client, admin DatastoreAdmin) *TargetManager {
 	return &TargetManager{
 		ds:         ds,
+		admin:      admin,
 		k8s:        k8s,
 		transactor: NewTransactor(k8s),
 		events:     make(chan event.GenericEvent, runtimeEventBuffer),
@@ -168,31 +175,22 @@ func (m *TargetManager) Delete(_ context.Context, key storebackend.Key) error {
 }
 
 // DeleteDatastore deletes the target's datastore in the data-server and
-// returns nil only when it is confirmed gone (deleted or NotFound).
+// returns nil only when it is confirmed gone (deleted or unknown).
 // It needs no runtime, so it also works after a config-server restart.
 // Call it after Delete, so no runtime can recreate the datastore.
 func (m *TargetManager) DeleteDatastore(ctx context.Context, key storebackend.Key) error {
-	var cl dsclient.Client
-	if m.ds != nil {
-		cl = m.ds.Client()
-	}
-	if cl == nil {
+	if m.admin == nil {
 		return fmt.Errorf("delete datastore %q: dataserver not available", key.String())
 	}
-	return deleteDatastore(ctx, cl, key.String())
+	return deleteDatastore(ctx, m.admin, key.String())
 }
 
-// datastoreDeleter is the part of the dataserver client finalization needs.
-type datastoreDeleter interface {
-	DeleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, opts ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error)
-}
-
-func deleteDatastore(ctx context.Context, cl datastoreDeleter, name string) error {
+func deleteDatastore(ctx context.Context, admin DatastoreAdmin, name string) error {
 	// bounded, and independent of any (cancelled) runtime context
 	ctx, cancel := context.WithTimeout(ctx, datastoreDeleteTimeout)
 	defer cancel()
 
-	if _, err := cl.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: name}); err != nil {
+	if err := admin.DeleteDataStore(ctx, name); err != nil {
 		if isUnknownDatastoreErr(err) {
 			return nil // already gone
 		}
