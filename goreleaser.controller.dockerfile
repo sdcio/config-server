@@ -29,6 +29,7 @@ COPY --from=builder /etc/passwd /etc/group /etc/shadow /etc/
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 COPY --chown=$USERID:$USERID ${TARGETPLATFORM}/controller /app/controller
+RUN mkdir -p /schemas && chown $USERID:$USERID /schemas
 WORKDIR /app
 
 # from now on, run as the unprivileged user
