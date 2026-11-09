@@ -78,6 +78,9 @@ type TargetRuntime struct {
 	ds         *dsmanager.DSConnManager
 	client     client.Client // k8 client
 	transactor *Transactor   // replays configs into a (re)created datastore
+	// txGate serializes committing transactions on this datastore with the
+	// config reconcilers. Set by TargetManager before Start (shared per key).
+	txGate *TxGate
 
 	// desired (from reconciler)
 	desiredMu   sync.RWMutex
@@ -146,6 +149,7 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 		ds:            ds,
 		client:        k8s,
 		transactor:    transactor,
+		txGate:        NewTxGate(), // replaced by the manager's shared gate
 		onChange:      onChange,
 		subscriptions: NewSubscriptions(),
 		phase:         PhasePending,
@@ -633,6 +637,7 @@ func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) 
 		Key:           t.key,
 		DatastoreName: t.datastoreName(),
 		Client:        cl,
+		TxGate:        t.txGate,
 		Schema:        t.GetSchema(),
 		Status:        t.Status(),
 		MarkRecovered: t.setRecovered,

@@ -131,7 +131,9 @@ func (r *Transactor) recoverIntents(
 	log.Debug("device intent recovery")
 
 	return r.TransactionSet(ctx, dsctx, &sdcpb.TransactionSetRequest{
-		TransactionId: "recovery",
+		// unique per attempt: a retry must never be confused with an
+		// earlier attempt that may still be open in the data-server
+		TransactionId: "recovery-" + uuid.NewString(),
 		DatastoreName: key.String(),
 		DryRun:        false,
 		Timeout:       ptr.To(int32(120)),
@@ -139,29 +141,20 @@ func (r *Transactor) recoverIntents(
 	})
 }
 
+// TransactionSet runs a committing transaction (set + confirm) through the
+// datastore's transaction gate, see commitTransaction.
 func (r *Transactor) TransactionSet(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
 	req *sdcpb.TransactionSetRequest,
 ) (string, error) {
-	rsp, err := dsctx.Client.TransactionSet(ctx, req)
-	msg, err := processTransactionResponse(ctx, rsp, err)
+	res := commitTransaction(ctx, dsctx.TxGate, dsctx.Client, req)
+	msg, err := processTransactionResponse(ctx, res.Rsp, res.SetErr)
 	if err != nil {
 		return msg, err
 	}
-	// Assumption: if no error this succeeded, if error this is providing the error code and the info can be
-	// retrieved from the individual intents
-
-	// For dryRun we don't have to confirm the transaction as the dataserver does not lock things.
-	if req.DryRun {
-		return msg, nil
-	}
-
-	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
-		return msg, err
+	if res.Err != nil {
+		return msg, res.Err
 	}
 	return msg, nil
 }
@@ -199,7 +192,7 @@ func (r *Transactor) Transact(
 
 	uuid := uuid.New()
 
-	rsp, err := r.setIntents(
+	res, err := r.setIntents(
 		ctx,
 		dsctx,
 		targetKey,
@@ -207,8 +200,14 @@ func (r *Transactor) Transact(
 		configsToUpdate,
 		configsToDelete,
 		false)
+	if err != nil {
+		// building the intents failed, nothing was sent: report it like a
+		// set error (non-recoverable unless the error says otherwise)
+		res = commitResult{SetErr: err}
+	}
+	rsp := res.Rsp
 	// we first collect the warnings and errors -> to determine error or not
-	result := analyzeIntentResponse(err, rsp)
+	result := analyzeIntentResponse(res.SetErr, rsp)
 
 	for _, w := range result.GlobalWarnings {
 		log.Warn("transaction warning", "warning", w)
@@ -229,14 +228,15 @@ func (r *Transactor) Transact(
 			result.Recoverable,
 		)
 	}
-	log.Debug("transaction response", "rsp", prototext.Format(rsp))
-	// ok case
-	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: dsctx.DatastoreName,
-		TransactionId: uuid.String(),
-	}); err != nil {
-		return true, err
+	if res.Err != nil {
+		// set went through but the transaction was not confirmed (or could
+		// not be started); it has been cancelled or is tracked for cancel.
+		// The configs are unchanged: retry.
+		log.Warn("transaction not committed", "err", res.Err)
+		return true, res.Err
 	}
+	log.Debug("transaction response", "rsp", prototext.Format(rsp))
+	// ok case: set and confirmed
 	for _, configOrig := range configsToUpdate {
 		config, err := toV1Alpha1Config(configOrig)
 		if err != nil {
@@ -276,7 +276,7 @@ func (r *Transactor) setIntents(
 	transactionID string,
 	configsToUpdate, configsToDelete map[string]*config.Config,
 	dryRun bool,
-) (*sdcpb.TransactionSetResponse, error) {
+) (commitResult, error) {
 	log := log.FromContext(ctx).With("target", targetKey.String(), "transactionID", transactionID)
 
 	configsToUpdateSet := sets.New[string]()
@@ -290,7 +290,7 @@ func (r *Transactor) setIntents(
 		update, err := config.GetIntentUpdate(cfg, true)
 		if err != nil {
 			log.Error("Transaction getIntentUpdate config", "error", err)
-			return nil, err
+			return commitResult{}, err
 		}
 		intents = append(intents, &sdcpb.TransactionIntent{
 			Intent:       config.GetGVKNSN(cfg),
@@ -318,17 +318,17 @@ func (r *Transactor) setIntents(
 		"configsToDelete names", configsToDeleteSet.UnsortedList(),
 	)
 
-	rsp, err := dsctx.Client.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
+	res := commitTransaction(ctx, dsctx.TxGate, dsctx.Client, &sdcpb.TransactionSetRequest{
 		TransactionId: transactionID,
 		DatastoreName: targetKey.String(),
 		DryRun:        dryRun,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	})
-	if rsp != nil {
-		log.Debug("Transaction rsp", "rsp", prototext.Format(rsp))
+	if res.Rsp != nil {
+		log.Debug("Transaction rsp", "rsp", prototext.Format(res.Rsp))
 	}
-	return rsp, err
+	return res, nil
 }
 
 func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {

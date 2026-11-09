@@ -61,6 +61,11 @@ type TargetManager struct {
 
 	mu      sync.RWMutex
 	targets map[storebackend.Key]*TargetRuntime
+	// txGates serialize committing transactions per datastore. They live in
+	// the manager, not in the runtime, so a handle obtained from an old
+	// runtime and the recovery of its replacement still share one gate.
+	// Guarded by mu.
+	txGates map[storebackend.Key]*TxGate
 }
 
 func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client) *TargetManager {
@@ -70,7 +75,18 @@ func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client) *TargetMan
 		transactor: NewTransactor(k8s, "transactor"),
 		events:     make(chan event.GenericEvent, runtimeEventBuffer),
 		targets:    make(map[storebackend.Key]*TargetRuntime),
+		txGates:    make(map[storebackend.Key]*TxGate),
 	}
+}
+
+// txGateLocked returns the transaction gate of key; caller holds m.mu (write).
+func (m *TargetManager) txGateLocked(key storebackend.Key) *TxGate {
+	g, ok := m.txGates[key]
+	if !ok {
+		g = NewTxGate()
+		m.txGates[key] = g
+	}
+	return g
 }
 
 // Events emits a GenericEvent for a Target whenever its runtime status
@@ -106,6 +122,7 @@ func (m *TargetManager) GetOrCreate(key storebackend.Key) *TargetRuntime {
 		return rt
 	}
 	rt := NewTargetRuntime(key, m.ds, m.k8s, m.transactor, m.notifier(key))
+	rt.txGate = m.txGateLocked(key) // before Start: recovery uses it
 	m.targets[key] = rt
 	return rt
 }
@@ -179,7 +196,11 @@ func (m *TargetManager) DeleteDatastore(ctx context.Context, key storebackend.Ke
 	if cl == nil {
 		return fmt.Errorf("delete datastore %q: dataserver not available", key.String())
 	}
-	return deleteDatastore(ctx, cl, key.String())
+	if err := deleteDatastore(ctx, cl, key.String()); err != nil {
+		return err
+	}
+	m.dropTxGate(key)
+	return nil
 }
 
 // datastoreDeleter is the part of the dataserver client finalization needs.
@@ -199,6 +220,16 @@ func deleteDatastore(ctx context.Context, cl datastoreDeleter, name string) erro
 		return fmt.Errorf("delete datastore %q: %w", name, err)
 	}
 	return nil
+}
+
+// dropTxGate forgets the gate of a deleted datastore: nothing can be open on
+// it any more. Kept while a runtime for key exists.
+func (m *TargetManager) dropTxGate(key storebackend.Key) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.targets[key]; !ok {
+		delete(m.txGates, key)
+	}
 }
 
 // GetClient returns a datastore-scoped DS client for this target,
@@ -228,6 +259,9 @@ type DatastoreHandle struct {
 	Key           storebackend.Key
 	DatastoreName string
 	Client        dsclient.Client
+	// TxGate must be used for every committing transaction on this datastore
+	// (see commitTransaction). Shared with the runtime's config recovery.
+	TxGate        *TxGate
 	Schema        *configv1alpha1.ConfigStatusLastKnownGoodSchema
 	MarkRecovered func(bool) // callback into runtime
 	Status        RuntimeStatus
@@ -257,6 +291,7 @@ func (m *TargetManager) GetDatastore(_ context.Context, key storebackend.Key) (*
 		Key:           key,
 		DatastoreName: key.String(),
 		Client:        cl,
+		TxGate:        rt.txGate,
 		Schema:        rt.GetSchema(),
 		Status:        st,
 		// An external MarkRecovered(false) means "recover again": wake the
