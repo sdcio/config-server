@@ -20,7 +20,7 @@ import (
 	"context"
 	merrors "errors"
 	"fmt"
-	"reflect"
+	"maps"
 	"sort"
 	"strings"
 
@@ -59,7 +59,20 @@ const (
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
+
+	// reasons owned by this controller
+	reasonPending     = "Pending"     // child Config has no Ready condition yet
+	reasonProgressing = "Progressing" // ConfigSet: one or more children still converging
 )
+
+// progressReasons are Ready=False reasons that mean "in flight", not "failed".
+// Derived from the constructors so they track whatever reasons the API package uses.
+var progressReasons = map[string]struct{}{
+	configv1alpha1.Creating().Reason: {},
+	configv1alpha1.Updating().Reason: {},
+	reasonPending:                    {},
+	reasonProgressing:                {},
+}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -145,18 +158,23 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	targets, err := r.unrollDownstreamTargets(ctx, configSet)
 	if err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot unroll downstream targets", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot unroll downstream targets", err), errUpdateStatus)
 	}
 
 	if err := r.ensureConfigs(ctx, configSet, targets); err != nil {
 		return ctrl.Result{Requeue: true},
-			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", nil), errUpdateStatus)
+			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", err), errUpdateStatus)
 	}
 
-	msg := r.determineOverallStatus(ctx, configSet)
-	if msg != "" {
+	// Child Config changes (Owns) re-trigger this reconcile, so progressing/failed
+	// states do not need an explicit requeue.
+	switch state, msg := determineOverallStatus(configSet); state {
+	case stateFailed:
 		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, msg, nil), errUpdateStatus)
+	case stateProgressing:
+		return ctrl.Result{},
+			errors.Wrap(r.handleProgressing(ctx, configSetOrig, configSet, msg), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, configSetOrig, configSet), errUpdateStatus)
 }
@@ -192,87 +210,61 @@ func (r *reconciler) unrollDownstreamTargets(ctx context.Context, configSet *con
 func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha1.ConfigSet, targets []types.NamespacedName) error {
 	log := log.FromContext(ctx)
 
-	// get the exisiting configs to see if the config is present; if the configset's target is no
+	// get the existing configs to see if the config is present; if the configset's target is no
 	// longer applicable we will delete the config for this particular target
 	existingConfigs := r.getOrphanConfigsFromConfigSet(ctx, configSet)
 
 	// TODO run in parallel and/or try 1 first to see if the validation works or not
-	TargetsStatus := make([]configv1alpha1.ConfigSetTargetStatus, len(targets))
+	targetsStatus := make([]configv1alpha1.ConfigSetTargetStatus, len(targets))
 	for i, target := range targets {
-		TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{Name: target.Name}
+		targetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{Name: target.Name}
 
-		var oldConfig *configv1alpha1.Config
-		newConfig := buildConfig(ctx, configSet, target)
+		desired := buildConfig(ctx, configSet, target)
+		nsnKey := types.NamespacedName{Namespace: desired.Namespace, Name: desired.Name}
 
-		// check if the config is part of the existing map
-		// if not create the config
-		// if yes check if the config needs updates
-		// all other configs will be deleted afterwards since they are no longer needed
-		nsnKey := types.NamespacedName{Namespace: newConfig.Namespace, Name: newConfig.Name}
+		// remove from the existing map; whatever remains afterwards is deleted
 		oldConfig, ok := existingConfigs[nsnKey]
-		// delete the config from the existing configs -> this list is emptied such that the remaining entries
-		// can be deleted
 		delete(existingConfigs, nsnKey)
-		if !ok { // config does not exist -> create it
-			//log.Info("config does not exist", "nsn", nsnKey.String())
 
-			if err := r.client.Create(ctx, newConfig); err != nil {
-				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
+		if !ok { // config does not exist -> create it
+			if err := r.client.Create(ctx, desired); err != nil {
+				targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
 				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
-			TargetsStatus[i].Condition = configv1alpha1.Creating()
-		} else {
-			//log.Info("config exists", "nsn", nsnKey.String())
-			// TODO better logic to validate changes
-			TargetsStatus[i].Condition = oldConfig.GetCondition(condv1alpha1.ConditionTypeReady)
-			newConfig = oldConfig.DeepCopy()
-			newConfig.Spec = configv1alpha1.ConfigSpec{
-				Lifecycle: configSet.Spec.Lifecycle,
-				Priority:  configSet.Spec.Priority,
-				Revertive: configSet.Spec.Revertive,
-				Config:    configSet.Spec.Config,
-			}
-			if len(newConfig.GetLabels()) == 0 {
-				newConfig.Labels = make(map[string]string, len(configSet.GetLabels()))
-			}
-			for k, v := range configSet.GetLabels() {
-				newConfig.Labels[k] = v
-			}
-			if len(newConfig.GetAnnotations()) == 0 {
-				newConfig.Annotations = make(map[string]string, len(configSet.GetAnnotations()))
-			}
-			for k, v := range configSet.GetAnnotations() {
-				newConfig.Annotations[k] = v
-			}
-
-			newHash, err := newConfig.CalculateHash()
-			if err != nil {
-				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
-				continue
-			}
-			oldHash, err := oldConfig.CalculateHash()
-			if err != nil {
-				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-				log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
-				continue
-			}
-
-			if oldHash == newHash {
-				TargetsStatus[i] = configv1alpha1.ConfigSetTargetStatus{
-					Name:      target.Name,
-					Condition: oldConfig.GetCondition(condv1alpha1.ConditionTypeReady),
-				}
-				continue
-			}
-			if err := r.client.Update(ctx, newConfig); err != nil {
-				TargetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-				log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
-				continue
-			}
-			TargetsStatus[i].Condition = configv1alpha1.Updating()
+			targetsStatus[i].Condition = configv1alpha1.Creating()
+			continue
 		}
+
+		// config exists -> update spec/labels/annotations if they drifted
+		newConfig := oldConfig.DeepCopy()
+		newConfig.Spec = desired.Spec
+		newConfig.Labels = mergeStringMap(newConfig.Labels, desired.Labels)
+		newConfig.Annotations = mergeStringMap(newConfig.Annotations, desired.Annotations)
+
+		newHash, err := newConfig.CalculateHash()
+		if err != nil {
+			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
+			log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
+			continue
+		}
+		oldHash, err := oldConfig.CalculateHash()
+		if err != nil {
+			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
+			log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
+			continue
+		}
+
+		if oldHash == newHash {
+			targetsStatus[i].Condition = readyOf(oldConfig)
+			continue
+		}
+		if err := r.client.Update(ctx, newConfig); err != nil {
+			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
+			log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
+			continue
+		}
+		targetsStatus[i].Condition = configv1alpha1.Updating()
 	}
 
 	// These configs no longer match a target
@@ -282,9 +274,20 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			log.Error("delete existing intent failed", "error", err)
 		}
 	}
-	configSet.Status.Targets = TargetsStatus
+	configSet.Status.Targets = targetsStatus
 
 	return nil
+}
+
+// readyOf returns the child's Ready condition, or a Pending/Unknown placeholder
+// when the child has not reported Ready yet. Never returns a zero-valued condition,
+// which would both read as "ready" and produce an invalid SSA status patch.
+func readyOf(cfg *configv1alpha1.Config) condv1alpha1.Condition {
+	c := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
+	if c.Type == "" || c.Status == "" {
+		return newCondition(metav1.ConditionUnknown, reasonPending, "config has not reported Ready yet")
+	}
+	return c
 }
 
 // getOrphanConfigsFromConfigSet returns the children owned by this configSet
@@ -313,8 +316,9 @@ func (r *reconciler) getOrphanConfigsFromConfigSet(ctx context.Context, configSe
 }
 
 func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target types.NamespacedName) *configv1alpha1.Config {
-	labels := configSet.Labels
-	if len(labels) == 0 {
+	// clone: never write target-specific keys into the ConfigSet's own maps
+	labels := maps.Clone(configSet.Labels)
+	if labels == nil {
 		labels = map[string]string{}
 	}
 	labels[config.TargetNameKey] = target.Name
@@ -325,7 +329,7 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 			Name:        fmt.Sprintf("%s-%s", configSet.Name, target.Name),
 			Namespace:   configSet.Namespace,
 			Labels:      labels,
-			Annotations: configSet.Annotations,
+			Annotations: maps.Clone(configSet.Annotations),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: configSet.APIVersion,
@@ -346,48 +350,68 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 	)
 }
 
-func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet) error {
-	log := log.FromContext(ctx)
-	newCond := condv1alpha1.Ready()
-	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
-
-	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
-		log.Info("handleSuccess -> no change")
-		return nil
+func mergeStringMap(dst, src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return dst
 	}
+	if dst == nil {
+		dst = make(map[string]string, len(src))
+	}
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
 
-	reconcilers.RecordEvent(r.recorder, configSet, corev1.EventTypeNormal, configv1alpha1.ConfigSetKind, "ready")
+func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet) error {
+	return r.updateStatus(ctx, configSetOrig, configSet, condv1alpha1.Ready(), corev1.EventTypeNormal)
+}
 
-	statusApply := configv1alpha1apply.ConfigSetStatus().
-		WithConditions(newCond).
-		WithTargets(targetStatusToApply(configSet.Status.Targets)...)
-
-	applyConfig := configv1alpha1apply.ConfigSet(configSet.Name, configSet.Namespace).
-		WithStatus(statusApply)
-
-	return r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: reconcilerName,
-		},
-	})
+func (r *reconciler) handleProgressing(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string) error {
+	return r.updateStatus(ctx, configSetOrig, configSet,
+		newCondition(metav1.ConditionUnknown, reasonProgressing, msg), corev1.EventTypeNormal)
 }
 
 func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
-	log := log.FromContext(ctx)
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
+	return r.updateStatus(ctx, configSetOrig, configSet, condv1alpha1.Failed(msg), corev1.EventTypeWarning)
+}
 
-	newCond := condv1alpha1.Failed(msg)
+// updateStatus applies the Ready condition and per-target statuses via SSA.
+// lastTransitionTime is only moved when a condition's status actually changes,
+// and no-op writes are skipped (comparison ignores timestamps).
+func (r *reconciler) updateStatus(
+	ctx context.Context,
+	configSetOrig, configSet *configv1alpha1.ConfigSet,
+	newCond condv1alpha1.Condition,
+	eventType string,
+) error {
+	log := log.FromContext(ctx)
+
+	newCond.ObservedGeneration = configSet.Generation
 	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
+	newCond.LastTransitionTime = keepTransitionTime(oldCond, newCond)
 
-	if newCond.Equal(oldCond) && reflect.DeepEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
-		log.Info("handleError -> no change")
+	carryTargetTransitionTimes(configSetOrig.Status.Targets, configSet.Status.Targets)
+
+	condChanged := !conditionEqual(newCond, oldCond)
+	if !condChanged && targetsEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
+		log.Info("updateStatus -> no change", "reason", newCond.Reason)
 		return nil
 	}
 
-	log.Error(msg)
-	reconcilers.RecordEvent(r.recorder, configSet, corev1.EventTypeWarning, configv1alpha1.ConfigSetKind, msg)
+	if condChanged {
+		if eventType == corev1.EventTypeWarning {
+			log.Error(newCond.Message)
+		}
+		msg := newCond.Message
+		if msg == "" {
+			msg = strings.ToLower(newCond.Reason)
+		}
+		reconcilers.RecordEvent(r.recorder, configSet, eventType, configv1alpha1.ConfigSetKind, msg)
+	}
 
 	statusApply := configv1alpha1apply.ConfigSetStatus().
 		WithConditions(newCond).
@@ -401,17 +425,102 @@ func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *
 			FieldManager: reconcilerName,
 		},
 	})
-
 }
 
-func (r *reconciler) determineOverallStatus(_ context.Context, configSet *configv1alpha1.ConfigSet) string {
-	var sb strings.Builder
-	for _, targetStatus := range configSet.Status.Targets {
-		if targetStatus.Status == metav1.ConditionFalse {
-			sb.WriteString(fmt.Sprintf("target %s config not ready, msg %s;", targetStatus.Name, targetStatus.Message))
+type overallState int
+
+const (
+	stateReady overallState = iota
+	stateProgressing
+	stateFailed
+)
+
+// classify maps a target's Ready condition to an aggregate state.
+// False is a failure unless its reason is a known in-flight reason;
+// Unknown or missing is progressing.
+func classify(c condv1alpha1.Condition) overallState {
+	switch c.Status {
+	case metav1.ConditionTrue:
+		return stateReady
+	case metav1.ConditionFalse:
+		if _, ok := progressReasons[c.Reason]; ok {
+			return stateProgressing
+		}
+		return stateFailed
+	default:
+		return stateProgressing
+	}
+}
+
+func determineOverallStatus(configSet *configv1alpha1.ConfigSet) (overallState, string) {
+	var failed, progressing []string
+	for _, ts := range configSet.Status.Targets {
+		switch classify(ts.Condition) {
+		case stateFailed:
+			failed = append(failed, fmt.Sprintf("target %s: %s", ts.Name, ts.Message))
+		case stateProgressing:
+			progressing = append(progressing, fmt.Sprintf("target %s: %s", ts.Name, ts.Reason))
 		}
 	}
-	return sb.String()
+	switch {
+	case len(failed) > 0:
+		return stateFailed, "configs not ready; " + strings.Join(failed, "; ")
+	case len(progressing) > 0:
+		return stateProgressing, "configs progressing; " + strings.Join(progressing, "; ")
+	default:
+		return stateReady, ""
+	}
+}
+
+func newCondition(status metav1.ConditionStatus, reason, msg string) condv1alpha1.Condition {
+	return condv1alpha1.Condition{Condition: metav1.Condition{
+		Type:               string(condv1alpha1.ConditionTypeReady),
+		Status:             status,
+		Reason:             reason,
+		Message:            msg,
+		LastTransitionTime: metav1.Now(),
+	}}
+}
+
+// keepTransitionTime returns the old transition time if the status did not change.
+func keepTransitionTime(oldCond, newCond condv1alpha1.Condition) metav1.Time {
+	if oldCond.Status == newCond.Status && !oldCond.LastTransitionTime.IsZero() {
+		return oldCond.LastTransitionTime
+	}
+	return newCond.LastTransitionTime
+}
+
+func carryTargetTransitionTimes(orig, cur []configv1alpha1.ConfigSetTargetStatus) {
+	prev := make(map[string]condv1alpha1.Condition, len(orig))
+	for _, t := range orig {
+		prev[t.Name] = t.Condition
+	}
+	for i := range cur {
+		if old, ok := prev[cur[i].Name]; ok {
+			cur[i].LastTransitionTime = keepTransitionTime(old, cur[i].Condition)
+		}
+	}
+}
+
+// conditionEqual compares everything except lastTransitionTime.
+func conditionEqual(a, b condv1alpha1.Condition) bool {
+	return a.Type == b.Type &&
+		a.Status == b.Status &&
+		a.Reason == b.Reason &&
+		a.Message == b.Message &&
+		a.ObservedGeneration == b.ObservedGeneration
+}
+
+func targetsEqual(a, b []configv1alpha1.ConfigSetTargetStatus) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name || !conditionEqual(a[i].Condition, b[i].Condition) {
+			return false
+		}
+	}
+	return true
 }
 
 func targetStatusToApply(targets []configv1alpha1.ConfigSetTargetStatus) []*configv1alpha1apply.ConfigSetTargetStatusApplyConfiguration {
