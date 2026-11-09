@@ -24,7 +24,7 @@ import (
 	"time"
 
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,10 +35,10 @@ func newTestRuntime() *TargetRuntime {
 	return NewTargetRuntime(testTargetKey(), nil, nil, nil, nil)
 }
 
-func gnmiReq(address string, port uint32) *sdcpb.CreateDataStoreRequest {
-	return &sdcpb.CreateDataStoreRequest{
-		Target: &sdcpb.Target{
-			Type:    string(invv1alpha1.Protocol_GNMI),
+func gnmiReq(address string, port uint32) *api.DatastoreSpec {
+	return &api.DatastoreSpec{
+		Target: api.Target{
+			Type:    api.TargetType(invv1alpha1.Protocol_GNMI),
 			Address: address,
 			Port:    port,
 		},
@@ -57,7 +57,7 @@ func activeSub(crName string) *invv1alpha1.Subscription {
 
 func TestCollectorAddress(t *testing.T) {
 	cases := map[string]struct {
-		desired     *sdcpb.CreateDataStoreRequest
+		desired     *api.DatastoreSpec
 		subs        []*invv1alpha1.Subscription
 		wantAddress string
 		wantReason  string // substring; "" means eligible
@@ -67,14 +67,14 @@ func TestCollectorAddress(t *testing.T) {
 			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
 			wantReason: "no target",
 		},
-		"nil target": {
-			desired:    &sdcpb.CreateDataStoreRequest{},
+		"empty spec": {
+			desired:    &api.DatastoreSpec{},
 			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
-			wantReason: "no target",
+			wantReason: "not gnmi",
 		},
 		"netconf target": {
-			desired: &sdcpb.CreateDataStoreRequest{
-				Target: &sdcpb.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
+			desired: &api.DatastoreSpec{
+				Target: api.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
 			},
 			subs:       []*invv1alpha1.Subscription{activeSub("sub1")},
 			wantReason: "not gnmi",
@@ -117,8 +117,8 @@ func TestCollectorAddress(t *testing.T) {
 			wantAddress: "10.0.0.1:50051",
 		},
 		"protocol is case-insensitive": {
-			desired: &sdcpb.CreateDataStoreRequest{
-				Target: &sdcpb.Target{Type: "GNMI", Address: "10.0.0.1", Port: 57400},
+			desired: &api.DatastoreSpec{
+				Target: api.Target{Type: "GNMI", Address: "10.0.0.1", Port: 57400},
 			},
 			subs:        []*invv1alpha1.Subscription{activeSub("sub1")},
 			wantAddress: "10.0.0.1:57400",
@@ -202,7 +202,7 @@ func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 	ctx := context.Background()
 
 	cases := map[string]struct {
-		desired *sdcpb.CreateDataStoreRequest
+		desired *api.DatastoreSpec
 		subs    []*invv1alpha1.Subscription
 	}{
 		"no target": {
@@ -210,8 +210,8 @@ func TestReconcileCollectorStopsWhenIneligible(t *testing.T) {
 			subs:    []*invv1alpha1.Subscription{activeSub("sub1")},
 		},
 		"switched to netconf": {
-			desired: &sdcpb.CreateDataStoreRequest{
-				Target: &sdcpb.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
+			desired: &api.DatastoreSpec{
+				Target: api.Target{Type: "netconf", Address: "10.0.0.1", Port: 830},
 			},
 			subs: []*invv1alpha1.Subscription{activeSub("sub1")},
 		},

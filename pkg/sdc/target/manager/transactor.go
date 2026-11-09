@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
@@ -29,9 +30,9 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -137,39 +138,59 @@ func (r *Transactor) recoverIntents(
 		return "", nil
 	}
 
-	intents := make([]*sdcpb.TransactionIntent, 0, len(configs))
+	intents := make([]api.Intent, 0, len(configs))
 	for _, cfg := range configs {
 		update, err := config.GetIntentUpdate(cfg, false)
 		if err != nil {
 			return "", err
 		}
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:            config.GetGVKNSN(cfg),
-			Priority:          int32(cfg.Spec.Priority),
-			Update:            update,
-			NonRevertive:      !cfg.IsRevertive(),
-			PreviouslyApplied: true,
+		entries, err := updateEntries(update)
+		if err != nil {
+			return "", err
+		}
+		intents = append(intents, api.Intent{
+			Name: config.GetGVKNSN(cfg),
+			Spec: api.IntentSpec{Update: &api.Update{
+				Priority:          int32(cfg.Spec.Priority),
+				Entries:           entries,
+				NonRevertive:      !cfg.IsRevertive(),
+				PreviouslyApplied: true,
+			}},
 		})
 	}
 
 	log.V(logf.VDebug).Info("device intent recovery")
 
-	return r.TransactionSet(ctx, dsctx, &sdcpb.TransactionSetRequest{
-		TransactionId: "recovery",
-		DatastoreName: key.String(),
-		DryRun:        false,
-		Timeout:       ptr.To(int32(120)),
-		Intents:       intents,
-	})
+	return r.TransactionSet(ctx, dsctx,
+		api.TxRef{Datastore: key.String(), ID: "recovery"},
+		api.SetOptions{Timeout: 120 * time.Second, Origin: origin},
+		intents)
 }
 
+// updateEntries converts the JSON updates of a Config into intent entries.
+func updateEntries(updates []*sdcpb.Update) ([]api.UpdateEntry, error) {
+	entries := make([]api.UpdateEntry, 0, len(updates))
+	for _, u := range updates {
+		tv, ok := u.GetValue().GetValue().(*sdcpb.TypedValue_JsonVal)
+		if !ok {
+			return nil, fmt.Errorf("update %q: only json values are supported", u.GetPath().ToXPath(false))
+		}
+		entries = append(entries, api.UpdateEntry{Path: u.GetPath().ToXPath(false), Content: tv.JsonVal})
+	}
+	return entries, nil
+}
+
+// TransactionSet applies the intents and, unless it is a dry run, confirms the
+// transaction. It returns the warnings and a *TransactionError for failures.
 func (r *Transactor) TransactionSet(
 	ctx context.Context,
 	dsctx *DatastoreHandle,
-	req *sdcpb.TransactionSetRequest,
+	ref api.TxRef,
+	opts api.SetOptions,
+	intents []api.Intent,
 ) (string, error) {
-	rsp, err := dsctx.Client.TransactionSet(ctx, req)
-	msg, err := processTransactionResponse(ctx, rsp, err)
+	rsp, err := dsctx.Transactions.TransactionSet(ctx, ref, opts, intents)
+	msg, err := processTransactionResult(ctx, rsp, err)
 	if err != nil {
 		return msg, err
 	}
@@ -177,14 +198,11 @@ func (r *Transactor) TransactionSet(
 	// retrieved from the individual intents
 
 	// For dryRun we don't have to confirm the transaction as the dataserver does not lock things.
-	if req.DryRun {
+	if opts.DryRun {
 		return msg, nil
 	}
 
-	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: req.DatastoreName,
-		TransactionId: req.TransactionId,
-	}); err != nil {
+	if err := dsctx.Transactions.TransactionConfirm(ctx, ref, opts.Origin); err != nil {
 		return msg, err
 	}
 	return msg, nil
@@ -289,12 +307,10 @@ func (r *Transactor) transact(
 			result.Recoverable,
 		)
 	}
-	log.V(logf.VDebug).Info("transaction response", "rsp", prototext.Format(rsp))
+	log.V(logf.VDebug).Info("transaction response", "rsp", rsp)
 	// ok case
-	if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-		DatastoreName: dsctx.DatastoreName,
-		TransactionId: uuid.String(),
-	}); err != nil {
+	if err := dsctx.Transactions.TransactionConfirm(ctx,
+		api.TxRef{Datastore: dsctx.DatastoreName, ID: uuid.String()}, origin); err != nil {
 		return nil, true, err
 	}
 	results := make(map[string]txResult, len(configsToUpdate))
@@ -334,13 +350,13 @@ func (r *Transactor) setIntents(
 	transactionID string,
 	configsToUpdate, configsToDelete map[string]*config.Config,
 	dryRun bool,
-) (*sdcpb.TransactionSetResponse, error) {
+) (*api.TransactionResult, error) {
 	log := logf.FromContext(ctx).WithValues("target", targetKey.String(), "transactionID", transactionID)
 
 	configsToUpdateSet := sets.New[string]()
 	configsToDeleteSet := sets.New[string]()
 
-	intents := make([]*sdcpb.TransactionIntent, 0)
+	intents := make([]api.Intent, 0)
 
 	for key, cfg := range configsToUpdate {
 		configsToUpdateSet.Insert(key)
@@ -350,22 +366,29 @@ func (r *Transactor) setIntents(
 			log.Error(err, "Transaction getIntentUpdate config")
 			return nil, err
 		}
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:       config.GetGVKNSN(cfg),
-			Priority:     int32(cfg.Spec.Priority),
-			Update:       update,
-			NonRevertive: !cfg.IsRevertive(),
+		entries, err := updateEntries(update)
+		if err != nil {
+			log.Error(err, "Transaction updateEntries config")
+			return nil, err
+		}
+		intents = append(intents, api.Intent{
+			Name: config.GetGVKNSN(cfg),
+			Spec: api.IntentSpec{Update: &api.Update{
+				Priority:     int32(cfg.Spec.Priority),
+				Entries:      entries,
+				NonRevertive: !cfg.IsRevertive(),
+			}},
 		})
 	}
 	for key, cfg := range configsToDelete {
 		configsToDeleteSet.Insert(key)
 		log.Info("Transaction intent delete", "config", key, "revertive", cfg.IsRevertive())
-		intents = append(intents, &sdcpb.TransactionIntent{
-			Intent:              config.GetGVKNSN(cfg),
-			Delete:              true,
-			DeleteIgnoreNoExist: true,
-			Orphan:              cfg.Orphan(),
-			// Dont set priority, dont set non revertive
+		intents = append(intents, api.Intent{
+			Name: config.GetGVKNSN(cfg),
+			Spec: api.IntentSpec{Delete: &api.Delete{
+				IgnoreNoExist: true,
+				Orphan:        cfg.Orphan(),
+			}},
 		})
 	}
 
@@ -376,15 +399,12 @@ func (r *Transactor) setIntents(
 		"configsToDelete names", configsToDeleteSet.UnsortedList(),
 	)
 
-	rsp, err := dsctx.Client.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-		TransactionId: transactionID,
-		DatastoreName: targetKey.String(),
-		DryRun:        dryRun,
-		Timeout:       ptr.To(int32(60)),
-		Intents:       intents,
-	})
+	rsp, err := dsctx.Transactions.TransactionSet(ctx,
+		api.TxRef{Datastore: targetKey.String(), ID: transactionID},
+		api.SetOptions{DryRun: dryRun, Timeout: 60 * time.Second, Origin: origin},
+		intents)
 	if rsp != nil {
-		log.V(logf.VDebug).Info("Transaction rsp", "rsp", prototext.Format(rsp))
+		log.V(logf.VDebug).Info("Transaction rsp", "rsp", rsp)
 	}
 	return rsp, err
 }
@@ -514,7 +534,7 @@ func mapKeys[T any](m map[string]T) []string {
 
 func handleTransactionErrors(
 	ctx context.Context,
-	rsp *sdcpb.TransactionSetResponse,
+	rsp *api.TransactionResult,
 	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
 	globalErr error,
 	recoverable bool,
@@ -616,12 +636,12 @@ type TransactionResult struct {
 	Recoverable    bool
 }
 
-func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) TransactionResult {
+func analyzeIntentResponse(err error, rsp *api.TransactionResult) TransactionResult {
 	result := TransactionResult{}
 
 	if err != nil {
 		result.GlobalError = fmt.Errorf("transaction error: %w", err)
-		result.Recoverable = isRecoverableTransactionError(err)
+		result.Recoverable = api.IsRetryable(err)
 	}
 
 	if rsp != nil {

@@ -34,8 +34,8 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -185,7 +185,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// 3) configuration (profiles, secrets): watched, so no requeue needed
-	dsReq, usedRefs, err := r.getCreateDataStoreRequest(ctx, target)
+	dsSpec, usedRefs, err := r.getDatastoreSpec(ctx, target)
 	if err != nil {
 		return ctrl.Result{}, r.applyReady(ctx, target,
 			configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonInvalidConfiguration, err.Error()),
@@ -193,11 +193,11 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// 4) runtime: dataserver -> datastore -> recovery -> running
-	hash := targetmanager.ComputeCreateDSHash(dsReq, usedRefs)
+	hash := targetmanager.ComputeCreateDSHash(*dsSpec, usedRefs)
 	// token BEFORE desired: the first recovery attempt must already see it
 	r.targetMgr.SetRecoveryRetryToken(ctx, targetKey,
 		target.GetAnnotations()[configv1alpha1.AnnotationRecoveryRetry])
-	r.targetMgr.ApplyDesired(ctx, targetKey, dsReq, usedRefs, hash)
+	r.targetMgr.ApplyDesired(ctx, targetKey, dsSpec, usedRefs, hash)
 
 	// This is the runtime status *before* it processed the new desired state;
 	// the runtime notifies us when it moves on.
@@ -291,10 +291,6 @@ func readyFromRuntime(st targetmanager.RuntimeStatus) (cond condv1alpha1.Conditi
 	case targetmanager.PhaseEnsuringDatastore:
 		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDatastoreNotReady,
 			withErr("ensuring datastore")), fallbackRequeue, false
-
-	case targetmanager.PhaseWaitingForDS:
-		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonDataServerNotReady,
-			withErr("waiting for dataserver")), fallbackRequeue, false
 
 	case targetmanager.PhasePending:
 		return configv1alpha1.TargetNotReady(configv1alpha1.TargetReasonInitializing,
@@ -431,7 +427,7 @@ func (r *reconciler) isSchemaReady(ctx context.Context, target *configv1alpha1.T
 		target.Status.DiscoveryInfo.Provider, target.Status.DiscoveryInfo.Version), nil
 }
 
-func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *configv1alpha1.Target) (*sdcpb.CreateDataStoreRequest, *configv1alpha1.TargetStatusUsedReferences, error) {
+func (r *reconciler) getDatastoreSpec(ctx context.Context, target *configv1alpha1.Target) (*api.DatastoreSpec, *configv1alpha1.TargetStatusUsedReferences, error) {
 	usedReferences := &configv1alpha1.TargetStatusUsedReferences{}
 
 	if target.Spec.SyncProfile == nil {
@@ -457,9 +453,9 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *conf
 	// if either SkipVerify is true or a TLS secret is provided TLS is enabled
 	// and we need to provide the tls conext with the relevant info
 	// skipVery bool and secret information if the TLS secret is set.
-	var tls *sdcpb.TLS
+	var tls *api.TLS
 	if !connProfile.IsInsecure() {
-		tls = &sdcpb.TLS{
+		tls = &api.TLS{
 			SkipVerify: connProfile.SkipVerify(),
 		}
 		if target.Spec.TLSSecret != nil {
@@ -467,7 +463,7 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *conf
 			if err != nil {
 				return nil, nil, err
 			}
-			tls.Ca = string(tlsSecret.Data["ca"])
+			tls.CA = string(tlsSecret.Data["ca"])
 			tls.Cert = string(tlsSecret.Data["cert"])
 			tls.Key = string(tlsSecret.Data["key"])
 			usedReferences.TLSSecretResourceVersion = tlsSecret.ResourceVersion
@@ -481,20 +477,19 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *conf
 		return nil, nil, fmt.Errorf("target not discovered, discovery incomplete, got: %v", target.Status.DiscoveryInfo)
 	}
 
-	req := &sdcpb.CreateDataStoreRequest{
-		DatastoreName: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
-		Target: &sdcpb.Target{
-			Type:    string(connProfile.Spec.Protocol),
+	spec := &api.DatastoreSpec{
+		Name: storebackend.KeyFromNSN(types.NamespacedName{Namespace: target.Namespace, Name: target.Name}).String(),
+		Target: api.Target{
+			Type:    api.TargetType(connProfile.Spec.Protocol),
 			Address: target.Spec.Address,
-			Credentials: &sdcpb.Credentials{
+			Credentials: &api.Credentials{
 				Username: string(secret.Data["username"]),
 				Password: string(secret.Data["password"]),
 			},
-			Tls:  tls,
+			TLS:  tls,
 			Port: uint32(connProfile.Spec.Port),
 		},
-		Schema: &sdcpb.Schema{
-			Name:    "",
+		Schema: api.SchemaRef{
 			Vendor:  target.Status.DiscoveryInfo.Provider,
 			Version: target.Status.DiscoveryInfo.Version,
 		},
@@ -505,31 +500,27 @@ func (r *reconciler) getCreateDataStoreRequest(ctx context.Context, target *conf
 		if connProfile.Spec.TargetName != nil {
 			targetName = *connProfile.Spec.TargetName
 		}
-		req.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
-			GnmiOpts: &sdcpb.GnmiOptions{
-				Encoding:   string(connProfile.Encoding()),
-				TargetName: targetName,
-			},
+		spec.Target.ProtocolOptions.GNMI = &api.GNMIOptions{
+			Encoding:   string(connProfile.Encoding()),
+			TargetName: targetName,
 		}
 	}
 	if connProfile.Spec.Protocol == invv1alpha1.Protocol_NETCONF {
-		commitCandidate := sdcpb.CommitCandidate_COMMIT_CANDIDATE
+		commitCandidate := api.CommitCandidateCandidate
 		if connProfile.CommitCandidate() == invv1alpha1.CommitCandidate_Running {
-			commitCandidate = sdcpb.CommitCandidate_COMMIT_RUNNING
+			commitCandidate = api.CommitCandidateRunning
 		}
-		req.Target.ProtocolOptions = &sdcpb.Target_NetconfOpts{
-			NetconfOpts: &sdcpb.NetconfOptions{
-				IncludeNs:          connProfile.IncludeNS(),
-				OperationWithNs:    connProfile.OperationWithNS(),
-				UseOperationRemove: connProfile.UseOperationRemove(),
-				CommitCandidate:    commitCandidate,
-			},
+		spec.Target.ProtocolOptions.Netconf = &api.NetconfOptions{
+			IncludeNs:          connProfile.IncludeNS(),
+			OperationWithNs:    connProfile.OperationWithNS(),
+			UseOperationRemove: connProfile.UseOperationRemove(),
+			CommitCandidate:    commitCandidate,
 		}
 	}
 
-	req.Sync = invv1alpha1.GetSyncProfile(syncProfile, req.Target)
+	spec.Sync = invv1alpha1.GetSyncProfile(syncProfile, spec.Target)
 
-	return req, usedReferences, nil
+	return spec, usedReferences, nil
 }
 
 func usedRefsToApply(refs *configv1alpha1.TargetStatusUsedReferences) *configv1alpha1apply.TargetStatusUsedReferencesApplyConfiguration {

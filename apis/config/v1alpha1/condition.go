@@ -48,18 +48,20 @@ const (
 //     instantiation of the target; when False, the Reason names the first
 //     stage of the pipeline that blocks:
 //
-//     discovery -> schema -> configuration -> dataserver -> datastore -> recovery -> ready
+//     discovery -> schema -> configuration -> datastore -> recovery -> ready
 const (
 	TargetReasonDiscoveryNotReady    condv1alpha1.ConditionReason = "DiscoveryNotReady"
 	TargetReasonSchemaNotReady       condv1alpha1.ConditionReason = "SchemaNotReady"
 	TargetReasonInvalidConfiguration condv1alpha1.ConditionReason = "InvalidConfiguration"
 	TargetReasonInitializing         condv1alpha1.ConditionReason = "Initializing"
-	TargetReasonDataServerNotReady   condv1alpha1.ConditionReason = "DataServerNotReady"
-	TargetReasonDatastoreNotReady    condv1alpha1.ConditionReason = "DatastoreNotReady"
-	TargetReasonDatastoreFailed      condv1alpha1.ConditionReason = "DatastoreFailed"
-	TargetReasonRecovering           condv1alpha1.ConditionReason = "Recovering"
-	TargetReasonRecoveryFailed       condv1alpha1.ConditionReason = "RecoveryFailed"
-	TargetReasonDeleting             condv1alpha1.ConditionReason = "Deleting"
+	// Deprecated: the data-server runs in-process, so this reason is no longer
+	// set. It stays exported for external consumers that still match on it.
+	TargetReasonDataServerNotReady condv1alpha1.ConditionReason = "DataServerNotReady"
+	TargetReasonDatastoreNotReady  condv1alpha1.ConditionReason = "DatastoreNotReady"
+	TargetReasonDatastoreFailed    condv1alpha1.ConditionReason = "DatastoreFailed"
+	TargetReasonRecovering         condv1alpha1.ConditionReason = "Recovering"
+	TargetReasonRecoveryFailed     condv1alpha1.ConditionReason = "RecoveryFailed"
+	TargetReasonDeleting           condv1alpha1.ConditionReason = "Deleting"
 )
 
 // A Config carries two conditions:

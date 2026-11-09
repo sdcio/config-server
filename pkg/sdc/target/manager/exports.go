@@ -48,14 +48,10 @@ func (t *TargetRuntime) PromLabels() []prompb.Label {
 	if t.desired == nil {
 		return labels
 	}
-	if t.desired.Schema != nil {
-		labels = append(labels,
-			prompb.Label{Name: "vendor", Value: t.desired.Schema.Vendor},
-			prompb.Label{Name: "version", Value: t.desired.Schema.Version},
-		)
-	}
-	if t.desired.Target != nil {
-		labels = append(labels, prompb.Label{Name: "address", Value: t.desired.Target.Address})
-	}
+	labels = append(labels,
+		prompb.Label{Name: "vendor", Value: t.desired.Schema.Vendor},
+		prompb.Label{Name: "version", Value: t.desired.Schema.Version},
+		prompb.Label{Name: "address", Value: t.desired.Target.Address},
+	)
 	return labels
 }

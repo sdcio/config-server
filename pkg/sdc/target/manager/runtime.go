@@ -30,13 +30,8 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -61,7 +56,6 @@ type TargetPhase string
 
 const (
 	PhasePending           TargetPhase = "Pending"
-	PhaseWaitingForDS      TargetPhase = "WaitingForDS"
 	PhaseEnsuringDatastore TargetPhase = "EnsuringDatastore"
 	PhaseRecovering        TargetPhase = "Recovering"
 	// PhaseRecoveryFailed: the configs could not be replayed (non-recoverable).
@@ -76,13 +70,13 @@ const (
 type TargetRuntime struct {
 	key storebackend.Key
 
-	ds         *dsmanager.DSConnManager
+	ds         DataServer
 	client     client.Client // k8 client
 	transactor *Transactor   // replays configs into a (re)created datastore
 
 	// desired (from reconciler)
 	desiredMu   sync.RWMutex
-	desired     *sdcpb.CreateDataStoreRequest
+	desired     *api.DatastoreSpec
 	desiredRefs *configv1alpha1.TargetStatusUsedReferences
 	desiredHash string
 	// recoveryToken mirrors the recovery retry annotation; part of the recovery key
@@ -96,7 +90,6 @@ type TargetRuntime struct {
 	actualMu       sync.RWMutex
 	phase          TargetPhase
 	lastError      error
-	dsReady        bool
 	datastoreReady bool
 	recovered      bool
 	recoveryMsg    string // warnings returned by the last successful recovery
@@ -141,7 +134,7 @@ type TargetRuntime struct {
 
 // NewTargetRuntime creates a runtime. onChange (may be nil) is called from the
 // run loop whenever Status() changes; it must not block.
-func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s client.Client, transactor *Transactor, onChange func()) *TargetRuntime {
+func NewTargetRuntime(key storebackend.Key, ds DataServer, k8s client.Client, transactor *Transactor, onChange func()) *TargetRuntime {
 	return &TargetRuntime{
 		key:           key,
 		ds:            ds,
@@ -156,9 +149,9 @@ func NewTargetRuntime(key storebackend.Key, ds *dsmanager.DSConnManager, k8s cli
 	}
 }
 
-func (r *TargetRuntime) SetDesired(req *sdcpb.CreateDataStoreRequest, refs *configv1alpha1.TargetStatusUsedReferences, hash string) {
+func (r *TargetRuntime) SetDesired(spec *api.DatastoreSpec, refs *configv1alpha1.TargetStatusUsedReferences, hash string) {
 	r.desiredMu.Lock()
-	r.desired = req
+	r.desired = spec
 	r.desiredRefs = refs
 	r.desiredHash = hash
 	r.desiredMu.Unlock()
@@ -180,7 +173,6 @@ func (r *TargetRuntime) SetRecoveryRetryToken(token string) {
 
 type RuntimeStatus struct {
 	Phase        TargetPhase
-	DSReady      bool
 	DSStoreReady bool
 	RunningHash  string
 	Recovered    bool
@@ -192,7 +184,6 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 	// phase + ds/datastore readiness + lastError
 	t.actualMu.RLock()
 	phase := t.phase
-	dsReady := t.dsReady
 	dsStoreReady := t.datastoreReady
 	recovered := t.recovered
 	recoveryMsg := t.recoveryMsg
@@ -206,7 +197,6 @@ func (t *TargetRuntime) Status() RuntimeStatus {
 
 	s := RuntimeStatus{
 		Phase:        phase,
-		DSReady:      dsReady,
 		DSStoreReady: dsStoreReady,
 		RunningHash:  rh,
 		Recovered:    recovered,
@@ -222,7 +212,7 @@ func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSch
 	t.desiredMu.RLock()
 	defer t.desiredMu.RUnlock()
 
-	if t.desired == nil || t.desired.Schema == nil {
+	if t.desired == nil {
 		return &configv1alpha1.ConfigStatusLastKnownGoodSchema{}
 	}
 
@@ -285,9 +275,6 @@ func (r *TargetRuntime) wake() {
 
 func (r *TargetRuntime) run(ctx context.Context) {
 	defer close(r.done)
-	dsEvents, dsCancel := r.ds.Subscribe(8)
-	defer dsCancel()
-
 	// initial wake to process current desired state
 	r.wake()
 
@@ -300,15 +287,6 @@ func (r *TargetRuntime) run(ctx context.Context) {
 		case <-ctx.Done():
 			r.shutdown(ctx)
 			return
-
-		case ev, ok := <-dsEvents:
-			if !ok {
-				r.setDSReady(ctx, false, fmt.Errorf("ds events closed"))
-				r.stopRuntime(ctx)
-				continue
-			}
-			r.setDSReady(ctx, ev.State == dsmanager.DSUp, ev.Err)
-			r.wake()
 
 		case <-r.wakeCh:
 			r.reconcileOnce(ctx)
@@ -347,12 +325,6 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 		return
 	}
 
-	if !t.isDSReady() {
-		t.setPhase(ctx, PhaseWaitingForDS, t.getLastErr())
-		t.stopRuntime(ctx)
-		return
-	}
-
 	// Don't regress a Running target to EnsuringDatastore on every wake
 	// (subscription changes, retries, ...): GetDatastore/GetClient would
 	// briefly report not-ready to the config reconcilers.
@@ -360,16 +332,8 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 		t.setPhase(ctx, PhaseEnsuringDatastore, nil)
 	}
 
-	// Get DS client (should be Ready already because DS manager blocks Start->Ready)
-	cl := t.ds.Client()
-	if cl == nil {
-		// Race: ds transitioned down; next loop will fix.
-		t.setPhase(ctx, PhaseWaitingForDS, fmt.Errorf("dataserver client nil"))
-		return
-	}
-
 	// Ensure datastore exists + matches desired hash
-	if err := t.ensureDatastore(ctx, cl, desired); err != nil {
+	if err := t.ensureDatastore(ctx, desired); err != nil {
 		t.setPhase(ctx, PhaseDegraded, err)
 		return
 	}
@@ -386,7 +350,7 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 		}
 
 		t.setPhase(ctx, PhaseRecovering, nil)
-		if err := t.recoverConfigs(ctx, cl); err != nil {
+		if err := t.recoverConfigs(ctx); err != nil {
 			var txErr *TransactionError
 			if errors.As(err, &txErr) && !txErr.Recoverable {
 				// The configs we accepted before cannot be replayed:
@@ -404,7 +368,7 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 
 	// Ensure runtime components are running (after recovery, so the
 	// deviation watcher does not observe the replay)
-	if err := t.ensureRuntime(ctx, cl); err != nil {
+	if err := t.ensureRuntime(ctx); err != nil {
 		t.setPhase(ctx, PhaseDegraded, err)
 		return
 	}
@@ -416,7 +380,7 @@ func (t *TargetRuntime) reconcileOnce(ctx context.Context) {
 	t.reconcileCollector(ctx, desired)
 }
 
-func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client, desired *sdcpb.CreateDataStoreRequest) error {
+func (t *TargetRuntime) ensureDatastore(ctx context.Context, desired *api.DatastoreSpec) error {
 	name := t.datastoreName()
 
 	// If desired hash changed from what runtime is using: force recreation.
@@ -424,14 +388,14 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 	haveHash := t.getRunningHash()
 
 	// 1) Probe datastore
-	_, err := cl.GetDataStore(ctx, &sdcpb.GetDataStoreRequest{DatastoreName: name})
+	_, err := t.ds.GetDataStore(ctx, name)
 	if err != nil {
 		// Treat "not found" as create.
 		if isUnknownDatastoreErr(err) {
 			// datastore vanished (or never existed): leave Running before we
 			// touch it, so nobody gets a client to a datastore without intents
 			t.setPhase(ctx, PhaseEnsuringDatastore, nil)
-			if _, err := cl.CreateDataStore(ctx, desired); err != nil {
+			if err := t.ds.CreateDataStore(ctx, *desired); err != nil {
 				return fmt.Errorf("create datastore %q: %w", name, err)
 			}
 			t.setRunningHash(wantHash)
@@ -453,14 +417,14 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 		t.stopRuntime(ctx)
 
 		// delete datastore
-		if _, err := cl.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: name}); err != nil {
+		if err := t.ds.DeleteDataStore(ctx, name); err != nil {
 			if !isUnknownDatastoreErr(err) { // if it vanished concurrently, fine
 				return fmt.Errorf("delete datastore %q: %w", name, err)
 			}
 		}
 
 		// recreate
-		if _, err := cl.CreateDataStore(ctx, desired); err != nil {
+		if err := t.ds.CreateDataStore(ctx, *desired); err != nil {
 			return fmt.Errorf("recreate datastore %q: %w", name, err)
 		}
 
@@ -479,42 +443,14 @@ func (t *TargetRuntime) ensureDatastore(ctx context.Context, cl dsclient.Client,
 }
 
 func isUnknownDatastoreErr(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	if errors.Is(err, api.ErrUnknownDatastore) {
-		return true
-	}
-	// gRPC status codes (preferred if DS uses them)
-	if st, ok := status.FromError(err); ok {
-		if st.Code() == codes.NotFound {
-			return true
-		}
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "unknown datastore") || strings.Contains(msg, "not found")
+	return errors.Is(err, api.ErrUnknownDatastore)
 }
 
 func (t *TargetRuntime) ensureDatastoreDeleted(ctx context.Context) {
-	// If DS isn't ready, we can't delete right now. We'll try again on DS-up events.
-	if !t.isDSReady() {
-		t.setDatastoreReady(false)
-		t.setRunningHash("") // we no longer "own" any running config
-		return
-	}
-
-	cl := t.ds.Client()
-	if cl == nil {
-		t.setDatastoreReady(false)
-		t.setRunningHash("")
-		return
-	}
-
 	name := t.datastoreName()
 
 	// Best-effort delete; NotFound is OK.
-	if _, err := cl.DeleteDataStore(ctx, &sdcpb.DeleteDataStoreRequest{Name: name}); err != nil {
+	if err := t.ds.DeleteDataStore(ctx, name); err != nil {
 		if isUnknownDatastoreErr(err) {
 			// already gone
 			t.setDatastoreReady(false)
@@ -534,9 +470,9 @@ func (t *TargetRuntime) ensureDatastoreDeleted(ctx context.Context) {
 
 // ensureRuntime starts the components required for config management.
 // The telemetry collector is handled separately by reconcileCollector.
-func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client) error {
+func (t *TargetRuntime) ensureRuntime(ctx context.Context) error {
 	if t.watcher == nil {
-		t.watcher = NewDeviationWatcher(t.key, t.client, cl)
+		t.watcher = NewDeviationWatcher(t.key, t.client, t.ds)
 		t.watcher.Start(ctx)
 	}
 	return nil
@@ -545,7 +481,7 @@ func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client) e
 // reconcileCollector converges the gNMI telemetry collector with the current
 // desired target and subscription state. Run-loop only: it is the only
 // writer of t.collector.
-func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.CreateDataStoreRequest) {
+func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *api.DatastoreSpec) {
 	log := logf.FromContext(ctx).WithValues("target", t.key.String())
 
 	address, reason := t.collectorAddress(desired)
@@ -595,11 +531,11 @@ func (t *TargetRuntime) stopCollector(ctx context.Context) bool {
 // reason why the collector must not run.
 //
 // Port precedence: subscription port, then the target's port.
-func (t *TargetRuntime) collectorAddress(desired *sdcpb.CreateDataStoreRequest) (string, string) {
-	if desired == nil || desired.Target == nil {
+func (t *TargetRuntime) collectorAddress(desired *api.DatastoreSpec) (string, string) {
+	if desired == nil {
 		return "", "no target"
 	}
-	if !strings.EqualFold(desired.Target.Type, string(invv1alpha1.Protocol_GNMI)) {
+	if !strings.EqualFold(string(desired.Target.Type), string(invv1alpha1.Protocol_GNMI)) {
 		return "", fmt.Sprintf("target protocol %q is not gnmi", desired.Target.Type)
 	}
 	if desired.Target.Address == "" {
@@ -621,7 +557,7 @@ func (t *TargetRuntime) collectorAddress(desired *sdcpb.CreateDataStoreRequest) 
 // recoverConfigs replays all configs of this target into the datastore.
 // Run-loop only. A plain (non-TransactionError) error is treated as
 // recoverable by the caller.
-func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) error {
+func (t *TargetRuntime) recoverConfigs(ctx context.Context) error {
 	log := logf.FromContext(ctx).WithValues("target", t.key.String())
 
 	if t.transactor == nil {
@@ -636,7 +572,7 @@ func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) 
 	handle := &DatastoreHandle{
 		Key:           t.key,
 		DatastoreName: t.datastoreName(),
-		Client:        cl,
+		Transactions:  t.ds,
 		Schema:        t.GetSchema(),
 		Status:        t.Status(),
 		MarkRecovered: t.setRecovered,
@@ -698,36 +634,10 @@ func (t *TargetRuntime) setDatastoreReady(ready bool) {
 	}
 }
 
-func (t *TargetRuntime) getDesired() *sdcpb.CreateDataStoreRequest {
+func (t *TargetRuntime) getDesired() *api.DatastoreSpec {
 	t.desiredMu.RLock()
 	defer t.desiredMu.RUnlock()
 	return t.desired
-}
-
-func (t *TargetRuntime) isDSReady() bool {
-	t.actualMu.RLock()
-	defer t.actualMu.RUnlock()
-	return t.dsReady
-}
-
-func (t *TargetRuntime) getLastErr() error {
-	t.actualMu.RLock()
-	defer t.actualMu.RUnlock()
-	return t.lastError
-}
-
-func (t *TargetRuntime) setDSReady(_ context.Context, ready bool, err error) {
-	t.actualMu.Lock()
-	defer t.actualMu.Unlock()
-	t.dsReady = ready
-	if ready {
-		t.lastError = nil
-	} else {
-		t.recovered = false
-		if err != nil {
-			t.lastError = err
-		}
-	}
 }
 
 func (t *TargetRuntime) setPhase(_ context.Context, p TargetPhase, err error) {

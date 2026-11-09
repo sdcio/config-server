@@ -190,8 +190,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !ok || dsctx == nil {
 		msg := "target runtime not ready"
 		if dsctx != nil {
-			msg = fmt.Sprintf("target runtime not ready: phase=%s dsReady=%t dsStoreReady=%t recovered=%t",
-				dsctx.Status.Phase, dsctx.Status.DSReady, dsctx.Status.DSStoreReady, dsctx.Status.Recovered)
+			msg = fmt.Sprintf("target runtime not ready: phase=%s dsStoreReady=%t recovered=%t",
+				dsctx.Status.Phase, dsctx.Status.DSStoreReady, dsctx.Status.Recovered)
 			if dsctx.Status.LastError != "" {
 				msg += ": " + dsctx.Status.LastError
 			}

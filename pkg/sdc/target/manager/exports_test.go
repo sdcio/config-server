@@ -22,7 +22,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,24 +75,24 @@ func TestCacheReturnsCurrentCollectorCache(t *testing.T) {
 
 func TestPromLabels(t *testing.T) {
 	cases := map[string]struct {
-		desired *sdcpb.CreateDataStoreRequest
+		desired *api.DatastoreSpec
 		want    map[string]string
 	}{
 		"no desired": {
 			desired: nil,
 			want:    map[string]string{"target": "dev1", "namespace": "default"},
 		},
-		"schema without target (used to panic)": {
-			desired: &sdcpb.CreateDataStoreRequest{
-				Schema: &sdcpb.Schema{Vendor: "srl.nokia.sdcio.dev", Version: "24.10.2"},
+		"schema without target": {
+			desired: &api.DatastoreSpec{
+				Schema: api.SchemaRef{Vendor: "srl.nokia.sdcio.dev", Version: "24.10.2"},
 			},
 			want: map[string]string{"target": "dev1", "namespace": "default",
-				"vendor": "srl.nokia.sdcio.dev", "version": "24.10.2"},
+				"vendor": "srl.nokia.sdcio.dev", "version": "24.10.2", "address": ""},
 		},
 		"schema and target": {
-			desired: &sdcpb.CreateDataStoreRequest{
-				Schema: &sdcpb.Schema{Vendor: "srl.nokia.sdcio.dev", Version: "24.10.2"},
-				Target: &sdcpb.Target{Address: "172.21.0.3"},
+			desired: &api.DatastoreSpec{
+				Schema: api.SchemaRef{Vendor: "srl.nokia.sdcio.dev", Version: "24.10.2"},
+				Target: api.Target{Address: "172.21.0.3"},
 			},
 			want: map[string]string{"target": "dev1", "namespace": "default",
 				"vendor": "srl.nokia.sdcio.dev", "version": "24.10.2", "address": "172.21.0.3"},

@@ -30,8 +30,8 @@ import (
 	"github.com/openconfig/gnmic/pkg/api/target"
 	"github.com/openconfig/gnmic/pkg/cache"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -116,8 +116,8 @@ func (r *Collector) Stop(ctx context.Context) {
 // Start (re)connects the collector to address using the target's credentials
 // and TLS settings. Eligibility (gnmi, port, active paths) is decided by the
 // runtime; the checks here are only defensive.
-func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest, address string) error {
-	if req == nil || req.Target == nil {
+func (r *Collector) Start(ctx context.Context, spec *api.DatastoreSpec, address string) error {
+	if spec == nil {
 		return fmt.Errorf("collector: no target")
 	}
 	if address == "" {
@@ -134,20 +134,20 @@ func (r *Collector) Start(ctx context.Context, req *sdcpb.CreateDataStoreRequest
 		gapi.Address(address),
 		gapi.Timeout(5 * time.Second),
 	}
-	if c := req.Target.Credentials; c != nil {
+	if c := spec.Target.Credentials; c != nil {
 		tOpts = append(tOpts,
 			gapi.Username(string(c.Username)),
 			gapi.Password(string(c.Password)),
 		)
 	}
-	if req.Target.Tls == nil {
+	if spec.Target.TLS == nil {
 		tOpts = append(tOpts, gapi.Insecure(true))
 	} else {
 		tOpts = append(tOpts,
-			gapi.SkipVerify(req.Target.Tls.SkipVerify),
-			gapi.TLSCA(req.Target.Tls.Ca),
-			gapi.TLSCert(req.Target.Tls.Cert),
-			gapi.TLSKey(req.Target.Tls.Key),
+			gapi.SkipVerify(spec.Target.TLS.SkipVerify),
+			gapi.TLSCA(spec.Target.TLS.CA),
+			gapi.TLSCert(spec.Target.TLS.Cert),
+			gapi.TLSKey(spec.Target.TLS.Key),
 		)
 	}
 

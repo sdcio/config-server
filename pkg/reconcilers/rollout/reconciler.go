@@ -73,7 +73,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		return nil, fmt.Errorf("cannot initialize, expecting controllerConfig, got: %s", reflect.TypeOf(c).Name())
 	}
 
+	if cfg.Transactions == nil {
+		return nil, fmt.Errorf("misconfigured controller: no data-server transaction handle")
+	}
 	r.client = mgr.GetClient()
+	r.tx = cfg.Transactions
 	r.finalizer = resource.NewAPIFinalizer(
 		mgr.GetClient(),
 		finalizer,
@@ -106,6 +110,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 
 type reconciler struct {
 	client          client.Client
+	tx              transactionClient
 	finalizer       *resource.APIFinalizer
 	workspaceReader *workspacereader.Reader
 	recorder        events.EventRecorder
@@ -145,6 +150,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			newTargetUpdateConfigStore,
 			newTargetDeleteConfigStore,
 			r.client,
+			r.tx,
 			1*time.Minute,
 			30*time.Second,
 			rollout.GetSkipUnavailableTarget(),
@@ -193,6 +199,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		newTargetUpdateConfigStore,
 		newTargetDeleteConfigStore,
 		r.client,
+		r.tx,
 		1*time.Minute,
 		30*time.Second,
 		rollout.GetSkipUnavailableTarget(),

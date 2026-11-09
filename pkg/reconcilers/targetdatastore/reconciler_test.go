@@ -59,10 +59,6 @@ func TestReadyFromRuntime(t *testing.T) {
 			st:     targetmanager.RuntimeStatus{Phase: targetmanager.PhaseEnsuringDatastore},
 			reason: configv1alpha1.TargetReasonDatastoreNotReady, requeue: true,
 		},
-		"waiting for dataserver": {
-			st:     targetmanager.RuntimeStatus{Phase: targetmanager.PhaseWaitingForDS},
-			reason: configv1alpha1.TargetReasonDataServerNotReady, requeue: true,
-		},
 		"pending": {
 			st:     targetmanager.RuntimeStatus{Phase: targetmanager.PhasePending},
 			reason: configv1alpha1.TargetReasonInitializing, requeue: true,
