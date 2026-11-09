@@ -170,29 +170,34 @@ func (r *Transactor) Transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
-) (bool, error) {
+) (bool, sets.Set[types.NamespacedName], error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
+
+	// written collects the configs whose status this transaction wrote. The
+	// caller must not refresh them from the cache in the same reconcile: the
+	// cache may not have these writes yet (sdcio/config-server#533).
+	written := sets.New[types.NamespacedName]()
+
 	// get all configs for the target
 	configList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
-		return true, err
+		return true, written, err
 	}
 	// reapply deviations for each config snippet
 	// This ensure the deviations are applied
 	for _, config := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &config); err != nil {
-			return true, err
+			return true, written, err
 		}
 	}
 
 	// determine change
 	configsToUpdate, configsToDelete := getConfigsToTransact(ctx, configList)
 
-	if len(configsToUpdate) == 0 &&
-		len(configsToDelete) == 0 {
+	if len(configsToUpdate) == 0 && len(configsToDelete) == 0 {
 		log.Info("Transact skip, nothing to update")
-		return false, nil
+		return false, written, nil
 	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
@@ -220,14 +225,16 @@ func (r *Transactor) Transact(
 			"intentErrors", result.IntentErrors,
 		)
 
-		return r.handleTransactionErrors(
+		retry, err := r.handleTransactionErrors(
 			ctx,
 			rsp,
 			configsToUpdate,
 			configsToDelete,
 			result.GlobalError,
 			result.Recoverable,
+			written,
 		)
+		return retry, written, err
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
@@ -235,38 +242,39 @@ func (r *Transactor) Transact(
 		DatastoreName: dsctx.DatastoreName,
 		TransactionId: uuid.String(),
 	}); err != nil {
-		return true, err
+		return true, written, err
 	}
 	for _, configOrig := range configsToUpdate {
 		config, err := toV1Alpha1Config(configOrig)
 		if err != nil {
-			return false, err
+			return false, written, err
 		}
 		// We need to deepcopy the config object we transacted since the applyFinalizer
 		// can transform it using patched data
 		transactedConfig := config.DeepCopy()
 		if err := r.applyFinalizer(ctx, config); err != nil {
-			return true, err
+			return true, written, err
 		}
 		if err := r.updateConfigWithSuccess(ctx, transactedConfig, dsctx.Schema, ""); err != nil {
-			return true, err
+			return true, written, err
 		}
+		written.Insert(transactedConfig.GetNamespacedName())
 	}
 
 	for _, configOrig := range configsToDelete {
 		config := &configv1alpha1.Config{}
 		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-			return true, err
+			return true, written, err
 		}
 		if err := r.deleteFinalizer(ctx, config); err != nil {
-			return true, err
+			return true, written, err
 		}
 		if err := r.deleteDeviation(ctx, config); err != nil {
-			return true, err
+			return true, written, err
 		}
 	}
 
-	return false, nil
+	return false, written, nil
 }
 
 func (r *Transactor) setIntents(
@@ -588,6 +596,7 @@ func (r *Transactor) handleTransactionErrors(
 	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
 	globalErr error,
 	recoverable bool,
+	written sets.Set[types.NamespacedName],
 ) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Warn("handling transaction errors", "recoverable", recoverable)
@@ -595,12 +604,12 @@ func (r *Transactor) handleTransactionErrors(
 	// If no response at all → apply same error to all configs.
 	if rsp == nil {
 		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable, written); err != nil {
 				return true, err
 			}
 		}
 		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false, written); err != nil {
 				return true, err
 			}
 		}
@@ -625,13 +634,13 @@ func (r *Transactor) handleTransactionErrors(
 		}
 
 		if cfg, ok := configsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, msg, errs, false, written); err != nil {
 				return true, err
 			}
 			continue
 		}
 		if cfg, ok := deletedConfigsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, msg, errs, false, written); err != nil {
 				return true, err
 			}
 			continue
@@ -650,12 +659,12 @@ func (r *Transactor) handleTransactionErrors(
 	if dataServerError {
 		log.Error("transact dataserver error", "err", globalErr)
 		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable, written); err != nil {
 				return true, err
 			}
 		}
 		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false); err != nil {
+			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false, written); err != nil {
 				return true, err
 			}
 		}
@@ -670,6 +679,7 @@ func (r *Transactor) processFailedConfig(
 	msg string,
 	origErr error,
 	recoverable bool,
+	written sets.Set[types.NamespacedName],
 ) error {
 	config, err := toV1Alpha1Config(configOrig)
 	if err != nil {
@@ -678,7 +688,11 @@ func (r *Transactor) processFailedConfig(
 	if err := r.applyFinalizer(ctx, config); err != nil {
 		return err
 	}
-	return r.updateConfigWithError(ctx, config, msg, origErr, recoverable)
+	if err := r.updateConfigWithError(ctx, config, msg, origErr, recoverable); err != nil {
+		return err
+	}
+	written.Insert(config.GetNamespacedName())
+	return nil
 }
 
 func collectWarnings(errorsOrMsgs []string) []string {
@@ -731,8 +745,17 @@ func (r *Transactor) SetConfigsNotReady(ctx context.Context, target *configv1alp
 
 // SetConfigsReadyFromApplied sets Ready on every Config of the target from
 // its ConfigReady, once the target can take configs.
-func (r *Transactor) SetConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target) error {
+//
+// Configs in skip were written by the transaction of this reconcile: their
+// Ready is already set (from ConfigReady, in the same apply), and the cache
+// may not have that write yet. A refresh from the cache would re-apply their
+// previous status, e.g. ConfigReady=Unrecoverable after a successful retry
+// (sdcio/config-server#533). Their write triggers the next reconcile.
+func (r *Transactor) SetConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target, skip sets.Set[types.NamespacedName]) error {
 	return r.updateConfigsForTarget(ctx, target, func(cfg *configv1alpha1.Config) bool {
+		if skip.Has(cfg.GetNamespacedName()) {
+			return false
+		}
 		cfg.SetConditions(cfg.ReadyFromApplied())
 		return true
 	})
@@ -747,12 +770,17 @@ func (r *Transactor) setRecoveredConfigs(ctx context.Context, target *configv1al
 			return false
 		}
 		cfg.SetConditions(cond(cfg))
+		cfg.Status.DeviationGeneration = nil // a transaction outcome, see applyStatus
 		return true
 	})
 }
 
 // updateConfigsForTarget applies mutate to every Config of the target and
 // writes the result. mutate returns false to leave a Config alone.
+//
+// deviationGeneration is carried over unchanged: callers that write a
+// transaction outcome clear it themselves (setRecoveredConfigs), the
+// Ready-only updates must keep the marker the unrecoverable path set.
 func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv1alpha1.Target, mutate func(cfg *configv1alpha1.Config) bool) error {
 	cfgList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
@@ -764,7 +792,6 @@ func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv
 			return err
 		}
 		desired := current.DeepCopy()
-		desired.Status.DeviationGeneration = nil // only the unrecoverable path sets it, see applyStatus
 		if !mutate(desired) {
 			continue
 		}
@@ -782,8 +809,10 @@ func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv
 // full owned set from desired. The same mechanism drops the legacy
 // conditions this manager wrote (LegacyConfigConditionTypes).
 //
-// deviationGeneration is the exception: as before, it is only sent by the
-// unrecoverable error path (set to 0), every other write clears it.
+// deviationGeneration is the exception: the unrecoverable error path sets it
+// (to 0), a transaction outcome (success, recoverable failure, recovery)
+// clears it, and the Ready-only updates (updateConfigsForTarget) carry it
+// over unchanged.
 //
 // lastTransitionTime only moves when a condition's status flips. Messages
 // are already bounded by the condition constructors.
