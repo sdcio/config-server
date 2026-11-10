@@ -303,6 +303,8 @@ func TestTransact_FinalizerBeforeTransaction(t *testing.T) {
 	require.Len(t, ds.calls, 1)
 	assert.ElementsMatch(t, []string{other, finalizer}, getTargetConfig(t, c, "base").Finalizers)
 	assertConfigApplied(t, c, "base")
+	deviationKey := types.NamespacedName{Namespace: "default", Name: configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, "base")}
+	require.NoError(t, c.Get(ctx, deviationKey, &configv1alpha1.Deviation{}))
 
 	ds.onSet = nil
 	require.NoError(t, c.Delete(ctx, getTargetConfig(t, c, "base")))
@@ -310,4 +312,5 @@ func TestTransact_FinalizerBeforeTransaction(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ds.calls, 2)
 	assert.Equal(t, []string{other}, getTargetConfig(t, c, "base").Finalizers)
+	assert.True(t, apierrors.IsNotFound(c.Get(ctx, deviationKey, &configv1alpha1.Deviation{})), "deviation deleted")
 }

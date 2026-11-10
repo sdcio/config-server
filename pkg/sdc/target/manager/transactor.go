@@ -290,10 +290,11 @@ func (r *Transactor) transact(
 		if _, ok := configsToDelete[config.GetGVKNSN(cfg)]; !ok {
 			continue
 		}
-		if err := r.removeFinalizer(ctx, cfg); err != nil {
+		// while the finalizer still holds the Config, so a failure is retried
+		if err := r.deleteDeviation(ctx, cfg); err != nil {
 			return results, true, err
 		}
-		if err := r.deleteDeviation(ctx, cfg); err != nil {
+		if err := r.removeFinalizer(ctx, cfg); err != nil {
 			return results, true, err
 		}
 	}
@@ -387,7 +388,7 @@ func (r *Transactor) removeFinalizer(ctx context.Context, cfg *configv1alpha1.Co
 
 func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
 	deviation := &configv1alpha1.Deviation{}
-	deviation.Name = cfg.Name
+	deviation.Name = configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, cfg.Name)
 	deviation.Namespace = cfg.Namespace
 	if err := r.client.Delete(ctx, deviation); err != nil {
 		if resource.IgnoreNotFound(err) != nil {
