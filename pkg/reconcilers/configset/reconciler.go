@@ -485,7 +485,7 @@ func targetsEqual(a, b []configv1alpha1.ConfigSetTargetStatus) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Name != b[i].Name || !a[i].Condition.Equal(b[i].Condition) {
+		if a[i].Name != b[i].Name || !a[i].Equal(b[i].Condition) {
 			return false
 		}
 	}
