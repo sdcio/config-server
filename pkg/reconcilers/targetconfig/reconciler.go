@@ -220,7 +220,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 // reconcileTargetNotFound marks every Config that references the missing
-// Target. No requeue: creating the Target triggers this controller through
+// Target and lets the Configs being deleted with the orphan deletion policy
+// go. No requeue: creating the Target triggers this controller through
 // For(&Target{}), and the normal path takes over.
 func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.NamespacedName) (ctrl.Result, error) {
 	// The Configs are selected by the target name/namespace, so a stub
@@ -229,8 +230,13 @@ func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.Name
 		Namespace: key.Namespace,
 		Name:      key.Name,
 	}}
-	return ctrl.Result{}, r.setConfigsNotReady(ctx, missing,
-		configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", key.String()))
+	if err := r.setConfigsNotReady(ctx, missing,
+		configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", key.String()),
+	); err != nil {
+		return ctrl.Result{}, err
+	}
+	// after the status update: a released Config is deleted right away
+	return ctrl.Result{}, errors.Wrap(r.transactor.ReleaseOrphanConfigs(ctx, missing), "cannot release orphan configs")
 }
 
 // setConfigsNotReady sets Ready=False with a target stage reason on the
