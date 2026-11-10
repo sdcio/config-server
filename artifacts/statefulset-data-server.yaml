@@ -66,6 +66,8 @@ spec:
           value: "true"
         - name: ENABLE_SCHEMA
           value: "true"
+        - name: ENABLE_ROLLOUT
+          value: "true"
         ports:
         - name: data-service
           containerPort: 56000
