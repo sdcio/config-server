@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -166,8 +167,8 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
-// Transact applies the changed configs of the target, then sets Ready on the
-// configs it did not write from their ConfigReady.
+// Transact applies the changed configs of the target and writes the status
+// of every config of the target once.
 func (r *Transactor) Transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
@@ -177,34 +178,41 @@ func (r *Transactor) Transact(
 	if err != nil {
 		return true, err
 	}
-	retry, written, err := r.transact(ctx, target, dsctx, configList)
-	if err != nil && !retry {
-		return retry, err
+	cfgs := make([]*configv1alpha1.Config, 0, len(configList.Items))
+	for i := range configList.Items {
+		cfg, err := toV1Alpha1Config(&configList.Items[i])
+		if err != nil {
+			return true, err
+		}
+		cfgs = append(cfgs, cfg)
 	}
-	// configList predates the writes of the transaction (sdcio/config-server#533)
-	if serr := r.setReadyFromApplied(ctx, configList, written); serr != nil {
-		return true, serr
+
+	results := map[string]txResult{}
+	retry, err := r.transact(ctx, target, dsctx, configList, cfgs, results)
+	if serr := r.writeStatus(ctx, cfgs, results); serr != nil {
+		return true, errors.Join(err, serr)
 	}
 	return retry, err
 }
 
-// transact returns the configs whose status it wrote.
+// transact records the outcome per config in results. cfgs is kept in sync
+// with the metadata patches, writeStatus uses it as the current state.
 func (r *Transactor) transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
 	configList *config.ConfigList,
-) (bool, sets.Set[types.NamespacedName], error) {
+	cfgs []*configv1alpha1.Config,
+	results map[string]txResult,
+) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
 
-	written := sets.New[types.NamespacedName]()
-
 	// reapply deviations for each config snippet
 	// This ensure the deviations are applied
-	for _, config := range configList.Items {
-		if _, err := r.applyDeviation(ctx, &config); err != nil {
-			return true, written, err
+	for _, cfg := range configList.Items {
+		if _, err := r.applyDeviation(ctx, &cfg); err != nil {
+			return true, err
 		}
 	}
 
@@ -213,7 +221,18 @@ func (r *Transactor) transact(
 
 	if len(configsToUpdate) == 0 && len(configsToDelete) == 0 {
 		log.Info("Transact skip, nothing to update")
-		return false, written, nil
+		return false, nil
+	}
+
+	// before the dataserver has the intent: without the finalizer, a delete
+	// would remove the Config without removing its intent
+	for _, cfg := range cfgs {
+		if _, ok := configsToUpdate[config.GetGVKNSN(cfg)]; !ok {
+			continue
+		}
+		if err := r.addFinalizer(ctx, cfg); err != nil {
+			return true, err
+		}
 	}
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
@@ -241,16 +260,15 @@ func (r *Transactor) transact(
 			"intentErrors", result.IntentErrors,
 		)
 
-		retry, err := r.handleTransactionErrors(
+		return handleTransactionErrors(
 			ctx,
 			rsp,
 			configsToUpdate,
 			configsToDelete,
 			result.GlobalError,
 			result.Recoverable,
-			written,
+			results,
 		)
-		return retry, written, err
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
@@ -258,39 +276,33 @@ func (r *Transactor) transact(
 		DatastoreName: dsctx.DatastoreName,
 		TransactionId: uuid.String(),
 	}); err != nil {
-		return true, written, err
+		return true, err
 	}
-	for _, configOrig := range configsToUpdate {
-		config, err := toV1Alpha1Config(configOrig)
+	for key, cfg := range configsToUpdate {
+		applied, err := toV1Alpha1Config(cfg)
 		if err != nil {
-			return false, written, err
+			return false, err
 		}
-		// We need to deepcopy the config object we transacted since the applyFinalizer
-		// can transform it using patched data
-		transactedConfig := config.DeepCopy()
-		if err := r.applyFinalizer(ctx, config); err != nil {
-			return true, written, err
-		}
-		if err := r.updateConfigWithSuccess(ctx, transactedConfig, dsctx.Schema, ""); err != nil {
-			return true, written, err
-		}
-		written.Insert(transactedConfig.GetNamespacedName())
-	}
-
-	for _, configOrig := range configsToDelete {
-		config := &configv1alpha1.Config{}
-		if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(configOrig, config, nil); err != nil {
-			return true, written, err
-		}
-		if err := r.deleteFinalizer(ctx, config); err != nil {
-			return true, written, err
-		}
-		if err := r.deleteDeviation(ctx, config); err != nil {
-			return true, written, err
+		results[key] = txResult{
+			configReady: configv1alpha1.ConfigReady(cfg.GetGeneration(), ""),
+			applied:     &applied.Spec,
+			schema:      dsctx.Schema,
 		}
 	}
 
-	return false, written, nil
+	for _, cfg := range cfgs {
+		if _, ok := configsToDelete[config.GetGVKNSN(cfg)]; !ok {
+			continue
+		}
+		if err := r.removeFinalizer(ctx, cfg); err != nil {
+			return true, err
+		}
+		if err := r.deleteDeviation(ctx, cfg); err != nil {
+			return true, err
+		}
+	}
+
+	return false, nil
 }
 
 func (r *Transactor) setIntents(
@@ -355,59 +367,25 @@ func (r *Transactor) setIntents(
 	return rsp, err
 }
 
-func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alpha1.Config, msg string, err error, recoverable bool) error {
-	log := log.FromContext(ctx)
-	log.Warn("updateConfigWithError",
-		"config", cfg.GetName(),
-		"recoverable", recoverable,
-		"msg", msg,
-		"err", err,
-	)
-
-	if err != nil {
-		msg = fmt.Sprintf("%s err %s", msg, err.Error())
-	}
-
-	current := &configv1alpha1.Config{}
-	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
-	if err := r.client.Get(ctx, key, current); err != nil {
-		return err
-	}
-	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip error update: config is deleting")
+// addFinalizer and removeFinalizer only touch this finalizer, and only patch
+// when it changes. cfg takes the patched object.
+func (r *Transactor) addFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
+	if controllerutil.ContainsFinalizer(cfg, finalizer) {
 		return nil
 	}
-
-	// stamp the generation that was transacted, not the one read now: a spec
-	// change in between must not be marked unrecoverable.
-	desired := current.DeepCopy()
-	desired.Status.DeviationGeneration = nil // only the unrecoverable path sets it, see applyStatus
-	if recoverable {
-		desired.SetConditions(configv1alpha1.ConfigFailed(cfg.GetGeneration(), msg))
-	} else {
-		desired.SetConditions(configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), msg))
-		desired.Status.DeviationGeneration = ptr.To[int64](0)
-	}
-	desired.SetConditions(desired.ReadyFromApplied())
-
-	return r.applyStatus(ctx, current, desired, false)
-}
-
-func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("applyFinalizer")
-
-	return r.patchMetadata(ctx, config, func() {
-		config.SetFinalizers([]string{finalizer})
+	log.FromContext(ctx).Debug("addFinalizer", "config", cfg.GetName())
+	return r.patchMetadata(ctx, cfg, func() {
+		controllerutil.AddFinalizer(cfg, finalizer)
 	})
 }
 
-func (r *Transactor) deleteFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
-	log := log.FromContext(ctx)
-	log.Debug("deleteFinalizer")
-
-	return r.patchMetadata(ctx, config, func() {
-		config.SetFinalizers([]string{})
+func (r *Transactor) removeFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
+	if !controllerutil.ContainsFinalizer(cfg, finalizer) {
+		return nil
+	}
+	log.FromContext(ctx).Debug("removeFinalizer", "config", cfg.GetName())
+	return r.patchMetadata(ctx, cfg, func() {
+		controllerutil.RemoveFinalizer(cfg, finalizer)
 	})
 }
 
@@ -421,38 +399,6 @@ func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Co
 		}
 	}
 	return nil
-}
-
-func (r *Transactor) updateConfigWithSuccess(
-	ctx context.Context,
-	cfg *configv1alpha1.Config,
-	schema *configv1alpha1.ConfigStatusLastKnownGoodSchema,
-	msg string,
-) error {
-	log := log.FromContext(ctx)
-	log.Debug("updateConfigWithSuccess", "config", cfg.GetName())
-
-	// Always re-read the latest object after the transaction was confirmed.
-	current := &configv1alpha1.Config{}
-	key := types.NamespacedName{Name: cfg.Name, Namespace: cfg.Namespace}
-	if err := r.client.Get(ctx, key, current); err != nil {
-		return err
-	}
-
-	// If the object is being deleted, do not write a success status anymore.
-	if current.GetDeletionTimestamp() != nil {
-		log.Debug("skip success update: config is deleting")
-		return nil
-	}
-
-	desired := current.DeepCopy()
-	desired.SetConditions(configv1alpha1.ConfigReady(cfg.GetGeneration(), msg))
-	desired.SetConditions(desired.ReadyFromApplied())
-	desired.Status.LastKnownGoodSchema = schema
-	desired.Status.AppliedConfig = cfg.Spec.DeepCopy()
-	desired.Status.DeviationGeneration = nil // only the unrecoverable path sets it, see applyStatus
-
-	return r.applyStatus(ctx, current, desired, false)
 }
 
 func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
@@ -519,7 +465,8 @@ func (r *Transactor) patchMetadata(
 ) error {
 	orig := obj.DeepCopyObject().(client.Object)
 	mutate()
-	return r.client.Patch(ctx, obj, client.MergeFrom(orig),
+	// a stale cached object would drop a finalizer added in the meantime
+	return r.client.Patch(ctx, obj, client.MergeFromWithOptions(orig, client.MergeFromWithOptimisticLock{}),
 		&client.PatchOptions{FieldManager: r.fieldManager},
 	)
 }
@@ -606,28 +553,24 @@ func mapKeys[T any](m map[string]T) []string {
 	return out
 }
 
-func (r *Transactor) handleTransactionErrors(
+func handleTransactionErrors(
 	ctx context.Context,
 	rsp *sdcpb.TransactionSetResponse,
 	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
 	globalErr error,
 	recoverable bool,
-	written sets.Set[types.NamespacedName],
+	results map[string]txResult,
 ) (bool, error) {
 	log := log.FromContext(ctx)
 	log.Warn("handling transaction errors", "recoverable", recoverable)
 
 	// If no response at all → apply same error to all configs.
 	if rsp == nil {
-		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable, written); err != nil {
-				return true, err
-			}
+		for key, cfg := range configsToTransact {
+			results[key] = failedResult(ctx, cfg, "", globalErr, recoverable)
 		}
-		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false, written); err != nil {
-				return true, err
-			}
+		for key, cfg := range deletedConfigsToTransact {
+			results[key] = failedResult(ctx, cfg, "", globalErr, false)
 		}
 		return recoverable, globalErr
 	}
@@ -650,15 +593,11 @@ func (r *Transactor) handleTransactionErrors(
 		}
 
 		if cfg, ok := configsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false, written); err != nil {
-				return true, err
-			}
+			results[intentName] = failedResult(ctx, cfg, msg, errs, false)
 			continue
 		}
 		if cfg, ok := deletedConfigsToTransact[intentName]; ok {
-			if err := r.processFailedConfig(ctx, cfg, msg, errs, false, written); err != nil {
-				return true, err
-			}
+			results[intentName] = failedResult(ctx, cfg, msg, errs, false)
 			continue
 		}
 
@@ -674,41 +613,33 @@ func (r *Transactor) handleTransactionErrors(
 
 	if dataServerError {
 		log.Error("transact dataserver error", "err", globalErr)
-		for _, cfg := range configsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, recoverable, written); err != nil {
-				return true, err
-			}
+		for key, cfg := range configsToTransact {
+			results[key] = failedResult(ctx, cfg, "", globalErr, recoverable)
 		}
-		for _, cfg := range deletedConfigsToTransact {
-			if err := r.processFailedConfig(ctx, cfg, "", globalErr, false, written); err != nil {
-				return true, err
-			}
+		for key, cfg := range deletedConfigsToTransact {
+			results[key] = failedResult(ctx, cfg, "", globalErr, false)
 		}
 	}
 
 	return recoverable, globalErr
 }
 
-func (r *Transactor) processFailedConfig(
-	ctx context.Context,
-	configOrig *config.Config,
-	msg string,
-	origErr error,
-	recoverable bool,
-	written sets.Set[types.NamespacedName],
-) error {
-	config, err := toV1Alpha1Config(configOrig)
+// failedResult stamps the generation that was transacted, not the current
+// one: a spec change in between must not be marked unrecoverable.
+func failedResult(ctx context.Context, cfg *config.Config, msg string, err error, recoverable bool) txResult {
+	log.FromContext(ctx).Warn("config transaction failed",
+		"config", cfg.GetName(),
+		"recoverable", recoverable,
+		"msg", msg,
+		"err", err,
+	)
 	if err != nil {
-		return err
+		msg = fmt.Sprintf("%s err %s", msg, err.Error())
 	}
-	if err := r.applyFinalizer(ctx, config); err != nil {
-		return err
+	if recoverable {
+		return txResult{configReady: configv1alpha1.ConfigFailed(cfg.GetGeneration(), msg)}
 	}
-	if err := r.updateConfigWithError(ctx, config, msg, origErr, recoverable); err != nil {
-		return err
-	}
-	written.Insert(config.GetNamespacedName())
-	return nil
+	return txResult{configReady: configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), msg)}
 }
 
 func collectWarnings(errorsOrMsgs []string) []string {
@@ -749,24 +680,54 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 	return result
 }
 
+// txResult is the outcome of the transaction for one config.
+type txResult struct {
+	configReady condv1alpha1.Condition
+	applied     *configv1alpha1.ConfigSpec // success only
+	schema      *configv1alpha1.ConfigStatusLastKnownGoodSchema
+}
+
+func (t txResult) applyTo(cfg *configv1alpha1.Config) {
+	cfg.SetConditions(t.configReady)
+	cfg.Status.DeviationGeneration = nil
+	if t.configReady.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
+		cfg.Status.DeviationGeneration = ptr.To[int64](0)
+	}
+	if t.applied != nil {
+		cfg.Status.AppliedConfig = t.applied
+		cfg.Status.LastKnownGoodSchema = t.schema
+	}
+}
+
+// writeStatus writes every config once: the transaction result where there
+// is one, Ready from ConfigReady for all. All configs are attempted, so one
+// failure does not lose the results of the others.
+func (r *Transactor) writeStatus(ctx context.Context, cfgs []*configv1alpha1.Config, results map[string]txResult) error {
+	var errs error
+	for _, current := range cfgs {
+		if current.GetDeletionTimestamp() != nil {
+			continue
+		}
+		desired := current.DeepCopy()
+		res, ok := results[config.GetGVKNSN(current)]
+		if ok {
+			res.applyTo(desired)
+		}
+		desired.SetConditions(desired.ReadyFromApplied())
+		// a result comes from the dataserver, only a Ready refresh may be stale
+		if err := r.applyStatus(ctx, current, desired, !ok); err != nil {
+			errs = errors.Join(errs, err)
+		}
+	}
+	return errs
+}
+
 // SetConfigsNotReady sets Ready on every Config of the target to the target
 // stage that blocks it (configv1alpha1.ConfigNotReady). ConfigReady, the
 // transaction state, is kept.
 func (r *Transactor) SetConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, ready condv1alpha1.Condition) error {
 	return r.updateConfigsForTarget(ctx, target, true, func(cfg *configv1alpha1.Config) bool {
 		cfg.SetConditions(ready)
-		return true
-	})
-}
-
-// setReadyFromApplied sets Ready on the configs from their ConfigReady.
-// Configs in skip were written by the transaction, Ready included.
-func (r *Transactor) setReadyFromApplied(ctx context.Context, cfgList *config.ConfigList, skip sets.Set[types.NamespacedName]) error {
-	return r.updateConfigs(ctx, cfgList, true, func(cfg *configv1alpha1.Config) bool {
-		if skip.Has(cfg.GetNamespacedName()) {
-			return false
-		}
-		cfg.SetConditions(cfg.ReadyFromApplied())
 		return true
 	})
 }
@@ -798,10 +759,6 @@ func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv
 	if err != nil {
 		return err
 	}
-	return r.updateConfigs(ctx, cfgList, conditional, mutate)
-}
-
-func (r *Transactor) updateConfigs(ctx context.Context, cfgList *config.ConfigList, conditional bool, mutate func(cfg *configv1alpha1.Config) bool) error {
 	for i := range cfgList.Items {
 		current, err := toV1Alpha1Config(&cfgList.Items[i])
 		if err != nil {

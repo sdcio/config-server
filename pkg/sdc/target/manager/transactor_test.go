@@ -34,16 +34,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
-// These tests exercise the condition chain updateConfigWithError builds
-// (ConfigFailed[Unrecoverable] -> ReadyFromApplied) and the internal
-// Config.IsRecoverable(ctx) the transaction classification relies on,
-// without the client.Status().Apply call (SSA on a status subresource is not
-// reliably emulated by the controller-runtime fake client).
+// These tests exercise the status a failed transaction builds
+// (failedResult -> applyTo -> ReadyFromApplied) and the internal
+// Config.IsRecoverable(ctx) the transaction classification relies on.
 func newConfigWithPriorSuccess(name string) *configv1alpha1.Config {
 	cfg := &configv1alpha1.Config{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,16 +56,18 @@ func newConfigWithPriorSuccess(name string) *configv1alpha1.Config {
 	return cfg
 }
 
-func TestUpdateConfigWithError_NonRecoverable(t *testing.T) {
+func TestFailedResult_NonRecoverable(t *testing.T) {
 	cfg := newConfigWithPriorSuccess("cfg-nonrecoverable")
+	ctx := context.Background()
 
-	cfg.SetConditions(configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), "apply failed: malformed intent"))
+	failedResult(ctx, toInternalConfig(t, cfg), "apply failed: malformed intent", nil, false).applyTo(cfg)
 	cfg.SetConditions(cfg.ReadyFromApplied())
 
 	applied := cfg.GetCondition(configv1alpha1.ConditionTypeConfigReady)
 	assert.Equal(t, metav1.ConditionFalse, applied.Status)
 	assert.Equal(t, string(condv1alpha1.ConditionReasonUnrecoverable), applied.Reason)
 	assert.Equal(t, int64(10), applied.ObservedGeneration)
+	assert.Equal(t, ptr.To[int64](0), cfg.Status.DeviationGeneration)
 
 	ready := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 	assert.Equal(t, metav1.ConditionFalse, ready.Status, "Ready must not stay True after the failure")
@@ -74,7 +75,6 @@ func TestUpdateConfigWithError_NonRecoverable(t *testing.T) {
 	assert.Equal(t, "apply failed: malformed intent", ready.Message)
 
 	internalCfg := toInternalConfig(t, cfg)
-	ctx := context.Background()
 	assert.False(t, internalCfg.IsRecoverable(ctx), "same generation: not recoverable")
 
 	// a spec edit bumps the generation: recoverable again
@@ -82,18 +82,20 @@ func TestUpdateConfigWithError_NonRecoverable(t *testing.T) {
 	assert.True(t, internalCfg.IsRecoverable(ctx), "new generation: recoverable")
 }
 
-func TestUpdateConfigWithError_Recoverable(t *testing.T) {
+func TestFailedResult_Recoverable(t *testing.T) {
 	cfg := newConfigWithPriorSuccess("cfg-recoverable")
+	ctx := context.Background()
 
-	cfg.SetConditions(configv1alpha1.ConfigFailed(cfg.GetGeneration(), "apply failed: transient EOF"))
+	failedResult(ctx, toInternalConfig(t, cfg), "apply failed: transient EOF", nil, true).applyTo(cfg)
 	cfg.SetConditions(cfg.ReadyFromApplied())
 
 	ready := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 	assert.Equal(t, metav1.ConditionFalse, ready.Status)
 	assert.Equal(t, string(condv1alpha1.ConditionReasonFailed), ready.Reason)
+	assert.Nil(t, cfg.Status.DeviationGeneration)
 
 	internalCfg := toInternalConfig(t, cfg)
-	assert.True(t, internalCfg.IsRecoverable(context.Background()))
+	assert.True(t, internalCfg.IsRecoverable(ctx))
 	assert.False(t, internalCfg.IsConfigConditionReady(), "a failed config is retried")
 }
 
@@ -124,9 +126,13 @@ func toInternalConfig(t *testing.T, in *configv1alpha1.Config) *internalconfig.C
 type fakeDataServer struct {
 	dsclient.Client
 	calls []sets.Set[string]
+	onSet func()
 }
 
 func (f *fakeDataServer) TransactionSet(_ context.Context, req *sdcpb.TransactionSetRequest, _ ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+	if f.onSet != nil {
+		f.onSet()
+	}
 	intents := sets.New[string]()
 	for _, i := range req.GetIntents() {
 		intents.Insert(i.GetIntent())
@@ -181,39 +187,18 @@ func assertConfigApplied(t *testing.T, c client.Client, name string) {
 	assert.Nil(t, cfg.Status.DeviationGeneration, "%s: deviationGeneration", name)
 }
 
-// sdcio/config-server#533: secondary fails unrecoverably on its own, is
-// retried together with base and succeeds. A Ready update from a cache that
-// has not seen the success yet must not write the old failure back.
-func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
-	ctx := context.Background()
+// newFakeConfigClient returns a fake client for Configs; list, if set,
+// intercepts List.
+func newFakeConfigClient(t *testing.T, list func(context.Context, client.WithWatch, client.ObjectList, ...client.ListOption) error, objs ...client.Object) client.WithWatch {
+	t.Helper()
 	scheme := runtime.NewScheme()
 	require.NoError(t, configv1alpha1.AddToScheme(scheme))
-
-	// once stale is set, every Config List returns the first snapshot taken
-	stale := false
-	staleLists := 0
-	var snapshot *configv1alpha1.ConfigList
-	c := fake.NewClientBuilder().
+	return fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithObjects(newTargetConfig("secondary", 20)).
+		WithObjects(objs...).
 		WithStatusSubresource(&configv1alpha1.Config{}).
 		WithInterceptorFuncs(interceptor.Funcs{
-			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
-				cl, ok := list.(*configv1alpha1.ConfigList)
-				if !ok || !stale {
-					return c.List(ctx, list, opts...)
-				}
-				staleLists++
-				if snapshot == nil {
-					if err := c.List(ctx, cl, opts...); err != nil {
-						return err
-					}
-					snapshot = cl.DeepCopy()
-					return nil
-				}
-				snapshot.DeepCopyInto(cl)
-				return nil
-			},
+			List: list,
 			// the fake rejects a status apply without resourceVersion, the apiserver does not
 			SubResourceApply: func(ctx context.Context, c client.Client, sub string, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
 				if ac, ok := obj.(*configv1alpha1apply.ConfigApplyConfiguration); ok && ac.ResourceVersion == nil {
@@ -227,14 +212,48 @@ func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
 			},
 		}).
 		Build()
+}
 
-	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
-	ds := &fakeDataServer{}
-	dsctx := &DatastoreHandle{
+func newTestDatastore(ds *fakeDataServer) *DatastoreHandle {
+	return &DatastoreHandle{
 		DatastoreName: "default.dev1",
 		Client:        ds,
 		Schema:        &configv1alpha1.ConfigStatusLastKnownGoodSchema{Type: "srl", Vendor: "nokia", Version: "24.10.1"},
 	}
+}
+
+// sdcio/config-server#533: secondary fails unrecoverably on its own, is
+// retried together with base and succeeds. A Ready update from a cache that
+// has not seen the success yet must not write the old failure back.
+func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
+	ctx := context.Background()
+
+	// once stale is set, every Config List returns the first snapshot taken
+	stale := false
+	staleLists := 0
+	var snapshot *configv1alpha1.ConfigList
+	c := newFakeConfigClient(t,
+		func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			cl, ok := list.(*configv1alpha1.ConfigList)
+			if !ok || !stale {
+				return c.List(ctx, list, opts...)
+			}
+			staleLists++
+			if snapshot == nil {
+				if err := c.List(ctx, cl, opts...); err != nil {
+					return err
+				}
+				snapshot = cl.DeepCopy()
+				return nil
+			}
+			snapshot.DeepCopyInto(cl)
+			return nil
+		},
+		newTargetConfig("secondary", 20))
+
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	dsctx := newTestDatastore(ds)
 	tr := NewTransactor(c, "transactor")
 
 	// secondary alone: the intent error is reported on the Config
@@ -244,7 +263,7 @@ func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
 	require.NoError(t, c.Create(ctx, newTargetConfig("base", 10)))
 	stale = true
 
-	// no conflict: the Ready update skips the configs the transaction wrote
+	// no conflict: a transaction result is written once, unconditionally
 	retry, err := tr.Transact(ctx, target, dsctx)
 	require.NoError(t, err)
 	assert.False(t, retry)
@@ -260,4 +279,35 @@ func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
 	assert.True(t, apierrors.IsConflict(err), "stale update must conflict, got %v", err)
 	assertConfigApplied(t, c, "secondary")
 	assertConfigApplied(t, c, "base")
+}
+
+// The finalizer is on the Config before the dataserver has its intent, and
+// other finalizers are left alone on add and remove.
+func TestTransact_FinalizerBeforeTransaction(t *testing.T) {
+	ctx := context.Background()
+	const other = "example.com/other"
+
+	cfg := newTargetConfig("base", 10)
+	cfg.Finalizers = []string{other}
+	c := newFakeConfigClient(t, nil, cfg)
+
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	ds.onSet = func() {
+		assert.Contains(t, getTargetConfig(t, c, "base").Finalizers, finalizer, "finalizer before the intent")
+	}
+	tr := NewTransactor(c, "transactor")
+
+	_, err := tr.Transact(ctx, target, newTestDatastore(ds))
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 1)
+	assert.ElementsMatch(t, []string{other, finalizer}, getTargetConfig(t, c, "base").Finalizers)
+	assertConfigApplied(t, c, "base")
+
+	ds.onSet = nil
+	require.NoError(t, c.Delete(ctx, getTargetConfig(t, c, "base")))
+	_, err = tr.Transact(ctx, target, newTestDatastore(ds))
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, []string{other}, getTargetConfig(t, c, "base").Finalizers)
 }
