@@ -174,45 +174,40 @@ func (r *Transactor) Transact(
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
 ) (bool, error) {
-	configList, err := r.ListConfigsPerTarget(ctx, target)
+	cfgs, err := r.listConfigs(ctx, target)
 	if err != nil {
 		return true, err
 	}
-	cfgs := make([]*configv1alpha1.Config, 0, len(configList.Items))
-	for i := range configList.Items {
-		cfg, err := toV1Alpha1Config(&configList.Items[i])
-		if err != nil {
-			return true, err
-		}
-		cfgs = append(cfgs, cfg)
-	}
-
-	results := map[string]txResult{}
-	retry, err := r.transact(ctx, target, dsctx, configList, cfgs, results)
+	results, retry, err := r.transact(ctx, target, dsctx, cfgs)
 	if serr := r.writeStatus(ctx, cfgs, results); serr != nil {
 		return true, errors.Join(err, serr)
 	}
 	return retry, err
 }
 
-// transact records the outcome per config in results. cfgs is kept in sync
-// with the metadata patches, writeStatus uses it as the current state.
+// transact returns the outcome per config. The metadata patches update cfgs
+// in place, so writeStatus can use it as the current state.
 func (r *Transactor) transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
-	configList *config.ConfigList,
-	cfgs []*configv1alpha1.Config,
-	results map[string]txResult,
-) (bool, error) {
+	cfgs *configv1alpha1.ConfigList,
+) (map[string]txResult, bool, error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
+
+	// the classification and the intents use the internal type; a copy, as
+	// the conversion shares memory with cfgs
+	configList := &config.ConfigList{}
+	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(cfgs.DeepCopy(), configList, nil); err != nil {
+		return nil, true, err
+	}
 
 	// reapply deviations for each config snippet
 	// This ensure the deviations are applied
 	for _, cfg := range configList.Items {
 		if _, err := r.applyDeviation(ctx, &cfg); err != nil {
-			return true, err
+			return nil, true, err
 		}
 	}
 
@@ -221,17 +216,17 @@ func (r *Transactor) transact(
 
 	if len(configsToUpdate) == 0 && len(configsToDelete) == 0 {
 		log.Info("Transact skip, nothing to update")
-		return false, nil
+		return nil, false, nil
 	}
 
 	// before the dataserver has the intent: without the finalizer, a delete
 	// would remove the Config without removing its intent
-	for _, cfg := range cfgs {
-		if _, ok := configsToUpdate[config.GetGVKNSN(cfg)]; !ok {
+	for i := range cfgs.Items {
+		if _, ok := configsToUpdate[config.GetGVKNSN(&cfgs.Items[i])]; !ok {
 			continue
 		}
-		if err := r.addFinalizer(ctx, cfg); err != nil {
-			return true, err
+		if err := r.addFinalizer(ctx, &cfgs.Items[i]); err != nil {
+			return nil, true, err
 		}
 	}
 
@@ -267,7 +262,6 @@ func (r *Transactor) transact(
 			configsToDelete,
 			result.GlobalError,
 			result.Recoverable,
-			results,
 		)
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
@@ -276,33 +270,35 @@ func (r *Transactor) transact(
 		DatastoreName: dsctx.DatastoreName,
 		TransactionId: uuid.String(),
 	}); err != nil {
-		return true, err
+		return nil, true, err
 	}
+	results := make(map[string]txResult, len(configsToUpdate))
 	for key, cfg := range configsToUpdate {
-		applied, err := toV1Alpha1Config(cfg)
-		if err != nil {
-			return false, err
+		applied := &configv1alpha1.ConfigSpec{}
+		if err := configv1alpha1.Convert_config_ConfigSpec_To_v1alpha1_ConfigSpec(&cfg.Spec, applied, nil); err != nil {
+			return results, false, err
 		}
 		results[key] = txResult{
 			configReady: configv1alpha1.ConfigReady(cfg.GetGeneration(), ""),
-			applied:     &applied.Spec,
+			applied:     applied,
 			schema:      dsctx.Schema,
 		}
 	}
 
-	for _, cfg := range cfgs {
+	for i := range cfgs.Items {
+		cfg := &cfgs.Items[i]
 		if _, ok := configsToDelete[config.GetGVKNSN(cfg)]; !ok {
 			continue
 		}
 		if err := r.removeFinalizer(ctx, cfg); err != nil {
-			return true, err
+			return results, true, err
 		}
 		if err := r.deleteDeviation(ctx, cfg); err != nil {
-			return true, err
+			return results, true, err
 		}
 	}
 
-	return false, nil
+	return results, false, nil
 }
 
 func (r *Transactor) setIntents(
@@ -402,14 +398,8 @@ func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Co
 }
 
 func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
-	v1alpha1configList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, v1alpha1configList,
-		client.InNamespace(target.GetNamespace()),
-		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
-			config.TargetNameKey:      target.GetName(),
-		},
-	); err != nil {
+	v1alpha1configList, err := r.listConfigs(ctx, target)
+	if err != nil {
 		return nil, err
 	}
 
@@ -419,6 +409,20 @@ func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1a
 	}
 
 	return configList, nil
+}
+
+func (r *Transactor) listConfigs(ctx context.Context, target *configv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
+	cfgList := &configv1alpha1.ConfigList{}
+	if err := r.client.List(ctx, cfgList,
+		client.InNamespace(target.GetNamespace()),
+		client.MatchingLabels{
+			config.TargetNamespaceKey: target.GetNamespace(),
+			config.TargetNameKey:      target.GetName(),
+		},
+	); err != nil {
+		return nil, err
+	}
+	return cfgList, nil
 }
 
 func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) (configv1alpha1.Deviation, error) {
@@ -448,14 +452,6 @@ func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) 
 		return *newDeviation, nil
 	}
 	return *deviation, nil
-}
-
-func toV1Alpha1Config(cfg *config.Config) (*configv1alpha1.Config, error) {
-	out := &configv1alpha1.Config{}
-	if err := configv1alpha1.Convert_config_Config_To_v1alpha1_Config(cfg, out, nil); err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (r *Transactor) patchMetadata(
@@ -559,10 +555,10 @@ func handleTransactionErrors(
 	configsToTransact, deletedConfigsToTransact map[string]*config.Config,
 	globalErr error,
 	recoverable bool,
-	results map[string]txResult,
-) (bool, error) {
+) (map[string]txResult, bool, error) {
 	log := log.FromContext(ctx)
 	log.Warn("handling transaction errors", "recoverable", recoverable)
+	results := make(map[string]txResult, len(configsToTransact)+len(deletedConfigsToTransact))
 
 	// If no response at all → apply same error to all configs.
 	if rsp == nil {
@@ -572,7 +568,7 @@ func handleTransactionErrors(
 		for key, cfg := range deletedConfigsToTransact {
 			results[key] = failedResult(ctx, cfg, "", globalErr, false)
 		}
-		return recoverable, globalErr
+		return results, recoverable, globalErr
 	}
 
 	// Response present: handle per-intent
@@ -621,7 +617,7 @@ func handleTransactionErrors(
 		}
 	}
 
-	return recoverable, globalErr
+	return results, recoverable, globalErr
 }
 
 // failedResult stamps the generation that was transacted, not the current
@@ -702,9 +698,10 @@ func (t txResult) applyTo(cfg *configv1alpha1.Config) {
 // writeStatus writes every config once: the transaction result where there
 // is one, Ready from ConfigReady for all. All configs are attempted, so one
 // failure does not lose the results of the others.
-func (r *Transactor) writeStatus(ctx context.Context, cfgs []*configv1alpha1.Config, results map[string]txResult) error {
+func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.ConfigList, results map[string]txResult) error {
 	var errs error
-	for _, current := range cfgs {
+	for i := range cfgs.Items {
+		current := &cfgs.Items[i]
 		if current.GetDeletionTimestamp() != nil {
 			continue
 		}
@@ -755,15 +752,12 @@ func (r *Transactor) setRecoveredConfigs(ctx context.Context, target *configv1al
 //
 // conditional is set by the Ready-only updates, see applyStatus.
 func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv1alpha1.Target, conditional bool, mutate func(cfg *configv1alpha1.Config) bool) error {
-	cfgList, err := r.ListConfigsPerTarget(ctx, target)
+	cfgList, err := r.listConfigs(ctx, target)
 	if err != nil {
 		return err
 	}
 	for i := range cfgList.Items {
-		current, err := toV1Alpha1Config(&cfgList.Items[i])
-		if err != nil {
-			return err
-		}
+		current := &cfgList.Items[i]
 		desired := current.DeepCopy()
 		if !mutate(desired) {
 			continue
