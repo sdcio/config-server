@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
@@ -192,11 +191,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			configv1alpha1.ConfigReasonTargetRuntimeNotReady, msg)
 	}
 
-	// 3) transact: the transaction writes Ready for the configs it touched
-	// (from their ConfigReady). The others follow their ConfigReady below;
-	// the touched ones are skipped there, the cache may not have their
-	// write yet (sdcio/config-server#533).
-	retry, written, err := r.transactor.Transact(ctx, target, dsctx)
+	// 3) transact: also sets Ready on the configs of the target
+	retry, err := r.transactor.Transact(ctx, target, dsctx)
 	if err != nil {
 		log.Warn("config transaction failed", "retry", retry, "err", err)
 		if !retry {
@@ -205,17 +201,10 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// recoverable: back off and retry
-		if serr := r.setConfigsReadyFromApplied(ctx, target, written); serr != nil {
-			return ctrl.Result{}, serr
-		}
 		return ctrl.Result{}, err
 	}
 	log.Info("config transaction success", "retry", retry)
 
-	// also when the transaction did nothing
-	if err := r.setConfigsReadyFromApplied(ctx, target, written); err != nil {
-		return ctrl.Result{}, err
-	}
 	if retry {
 		return ctrl.Result{RequeueAfter: 500 * time.Millisecond}, nil
 	}
@@ -243,11 +232,4 @@ func (r *reconciler) setConfigsNotReady(ctx context.Context, target *configv1alp
 	log.FromContext(ctx).Debug("setConfigsNotReady", "reason", reason, "msg", msg)
 	return errors.Wrap(r.transactor.SetConfigsNotReady(ctx, target,
 		configv1alpha1.ConfigNotReady(reason, msg)), errUpdateStatus)
-}
-
-// setConfigsReadyFromApplied sets Ready on the Configs of the target from the
-// outcome of their last transaction (ConfigReady). Configs in skip were
-// written by this reconcile's transaction and are left alone.
-func (r *reconciler) setConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target, skip sets.Set[types.NamespacedName]) error {
-	return errors.Wrap(r.transactor.SetConfigsReadyFromApplied(ctx, target, skip), errUpdateStatus)
 }

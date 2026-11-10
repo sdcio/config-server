@@ -166,24 +166,40 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
+// Transact applies the changed configs of the target, then sets Ready on the
+// configs it did not write from their ConfigReady.
 func (r *Transactor) Transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
+) (bool, error) {
+	configList, err := r.ListConfigsPerTarget(ctx, target)
+	if err != nil {
+		return true, err
+	}
+	retry, written, err := r.transact(ctx, target, dsctx, configList)
+	if err != nil && !retry {
+		return retry, err
+	}
+	// configList predates the writes of the transaction (sdcio/config-server#533)
+	if serr := r.setReadyFromApplied(ctx, configList, written); serr != nil {
+		return true, serr
+	}
+	return retry, err
+}
+
+// transact returns the configs whose status it wrote.
+func (r *Transactor) transact(
+	ctx context.Context,
+	target *configv1alpha1.Target,
+	dsctx *DatastoreHandle,
+	configList *config.ConfigList,
 ) (bool, sets.Set[types.NamespacedName], error) {
 	log := log.FromContext(ctx)
 	log.Debug("Transact")
 
-	// written collects the configs whose status this transaction wrote. The
-	// caller must not refresh them from the cache in the same reconcile: the
-	// cache may not have these writes yet (sdcio/config-server#533).
 	written := sets.New[types.NamespacedName]()
 
-	// get all configs for the target
-	configList, err := r.ListConfigsPerTarget(ctx, target)
-	if err != nil {
-		return true, written, err
-	}
 	// reapply deviations for each config snippet
 	// This ensure the deviations are applied
 	for _, config := range configList.Items {
@@ -374,7 +390,7 @@ func (r *Transactor) updateConfigWithError(ctx context.Context, cfg *configv1alp
 	}
 	desired.SetConditions(desired.ReadyFromApplied())
 
-	return r.applyStatus(ctx, current, desired)
+	return r.applyStatus(ctx, current, desired, false)
 }
 
 func (r *Transactor) applyFinalizer(ctx context.Context, config *configv1alpha1.Config) error {
@@ -436,7 +452,7 @@ func (r *Transactor) updateConfigWithSuccess(
 	desired.Status.AppliedConfig = cfg.Spec.DeepCopy()
 	desired.Status.DeviationGeneration = nil // only the unrecoverable path sets it, see applyStatus
 
-	return r.applyStatus(ctx, current, desired)
+	return r.applyStatus(ctx, current, desired, false)
 }
 
 func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
@@ -737,22 +753,16 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 // stage that blocks it (configv1alpha1.ConfigNotReady). ConfigReady, the
 // transaction state, is kept.
 func (r *Transactor) SetConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, ready condv1alpha1.Condition) error {
-	return r.updateConfigsForTarget(ctx, target, func(cfg *configv1alpha1.Config) bool {
+	return r.updateConfigsForTarget(ctx, target, true, func(cfg *configv1alpha1.Config) bool {
 		cfg.SetConditions(ready)
 		return true
 	})
 }
 
-// SetConfigsReadyFromApplied sets Ready on every Config of the target from
-// its ConfigReady, once the target can take configs.
-//
-// Configs in skip were written by the transaction of this reconcile: their
-// Ready is already set (from ConfigReady, in the same apply), and the cache
-// may not have that write yet. A refresh from the cache would re-apply their
-// previous status, e.g. ConfigReady=Unrecoverable after a successful retry
-// (sdcio/config-server#533). Their write triggers the next reconcile.
-func (r *Transactor) SetConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target, skip sets.Set[types.NamespacedName]) error {
-	return r.updateConfigsForTarget(ctx, target, func(cfg *configv1alpha1.Config) bool {
+// setReadyFromApplied sets Ready on the configs from their ConfigReady.
+// Configs in skip were written by the transaction, Ready included.
+func (r *Transactor) setReadyFromApplied(ctx context.Context, cfgList *config.ConfigList, skip sets.Set[types.NamespacedName]) error {
+	return r.updateConfigs(ctx, cfgList, true, func(cfg *configv1alpha1.Config) bool {
 		if skip.Has(cfg.GetNamespacedName()) {
 			return false
 		}
@@ -765,7 +775,7 @@ func (r *Transactor) SetConfigsReadyFromApplied(ctx context.Context, target *con
 // recovery (the ones with an applied config). Ready is left to the target
 // config controller: the target is not ready yet while recovering.
 func (r *Transactor) setRecoveredConfigs(ctx context.Context, target *configv1alpha1.Target, cond func(cfg *configv1alpha1.Config) condv1alpha1.Condition) error {
-	return r.updateConfigsForTarget(ctx, target, func(cfg *configv1alpha1.Config) bool {
+	return r.updateConfigsForTarget(ctx, target, false, func(cfg *configv1alpha1.Config) bool {
 		if cfg.Status.AppliedConfig == nil {
 			return false
 		}
@@ -781,11 +791,17 @@ func (r *Transactor) setRecoveredConfigs(ctx context.Context, target *configv1al
 // deviationGeneration is carried over unchanged: callers that write a
 // transaction outcome clear it themselves (setRecoveredConfigs), the
 // Ready-only updates must keep the marker the unrecoverable path set.
-func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv1alpha1.Target, mutate func(cfg *configv1alpha1.Config) bool) error {
+//
+// conditional is set by the Ready-only updates, see applyStatus.
+func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv1alpha1.Target, conditional bool, mutate func(cfg *configv1alpha1.Config) bool) error {
 	cfgList, err := r.ListConfigsPerTarget(ctx, target)
 	if err != nil {
 		return err
 	}
+	return r.updateConfigs(ctx, cfgList, conditional, mutate)
+}
+
+func (r *Transactor) updateConfigs(ctx context.Context, cfgList *config.ConfigList, conditional bool, mutate func(cfg *configv1alpha1.Config) bool) error {
 	for i := range cfgList.Items {
 		current, err := toV1Alpha1Config(&cfgList.Items[i])
 		if err != nil {
@@ -795,7 +811,7 @@ func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv
 		if !mutate(desired) {
 			continue
 		}
-		if err := r.applyStatus(ctx, current, desired); err != nil {
+		if err := r.applyStatus(ctx, current, desired, conditional); err != nil {
 			return err
 		}
 	}
@@ -816,7 +832,11 @@ func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv
 //
 // lastTransitionTime only moves when a condition's status flips. Messages
 // are already bounded by the condition constructors.
-func (r *Transactor) applyStatus(ctx context.Context, current, desired *configv1alpha1.Config) error {
+//
+// conditional sends current's resourceVersion: current comes from the cache,
+// a stale copy is rejected (409) instead of overwriting a newer status (#533).
+// Transaction outcomes stay unconditional, a rejection would re-transact.
+func (r *Transactor) applyStatus(ctx context.Context, current, desired *configv1alpha1.Config, conditional bool) error {
 	changed := !reflect.DeepEqual(desired.Status.LastKnownGoodSchema, current.Status.LastKnownGoodSchema) ||
 		!reflect.DeepEqual(desired.Status.AppliedConfig, current.Status.AppliedConfig) ||
 		!reflect.DeepEqual(desired.Status.DeviationGeneration, current.Status.DeviationGeneration)
@@ -857,8 +877,12 @@ func (r *Transactor) applyStatus(ctx context.Context, current, desired *configv1
 		"ready", desired.GetCondition(condv1alpha1.ConditionTypeReady).IsTrue(),
 		"reason", desired.GetCondition(condv1alpha1.ConditionTypeReady).Reason)
 
-	return r.client.Status().Apply(ctx,
-		configv1alpha1apply.Config(desired.Name, desired.Namespace).WithStatus(statusApply),
+	configApply := configv1alpha1apply.Config(desired.Name, desired.Namespace).WithStatus(statusApply)
+	if conditional {
+		configApply = configApply.WithResourceVersion(current.ResourceVersion)
+	}
+
+	return r.client.Status().Apply(ctx, configApply,
 		&client.SubResourceApplyOptions{
 			ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
 		})
