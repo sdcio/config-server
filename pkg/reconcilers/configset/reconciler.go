@@ -59,20 +59,7 @@ const (
 	errGetCr           = "cannot get cr"
 	errUpdateDataStore = "cannot update datastore"
 	errUpdateStatus    = "cannot update status"
-
-	// reasons owned by this controller
-	reasonPending     = "Pending"     // child Config has no Ready condition yet
-	reasonProgressing = "Progressing" // ConfigSet: one or more children still converging
 )
-
-// progressReasons are Ready=False reasons that mean "in flight", not "failed".
-// Derived from the constructors so they track whatever reasons the API package uses.
-var progressReasons = map[string]struct{}{
-	configv1alpha1.Creating().Reason: {},
-	configv1alpha1.Updating().Reason: {},
-	reasonPending:                    {},
-	reasonProgressing:                {},
-}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c interface{}) (map[schema.GroupVersionKind]chan event.GenericEvent, error) {
@@ -166,15 +153,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, "cannot ensure configs", err), errUpdateStatus)
 	}
 
-	// Child Config changes (Owns) re-trigger this reconcile, so progressing/failed
+	// Child Config changes (Owns) re-trigger this reconcile, so pending/failed
 	// states do not need an explicit requeue.
 	switch state, msg := determineOverallStatus(configSet); state {
 	case stateFailed:
 		return ctrl.Result{},
 			errors.Wrap(r.handleError(ctx, configSetOrig, configSet, msg, nil), errUpdateStatus)
-	case stateProgressing:
+	case statePending:
 		return ctrl.Result{},
-			errors.Wrap(r.handleProgressing(ctx, configSetOrig, configSet, msg), errUpdateStatus)
+			errors.Wrap(r.handlePending(ctx, configSetOrig, configSet, msg), errUpdateStatus)
 	}
 	return ctrl.Result{}, errors.Wrap(r.handleSuccess(ctx, configSetOrig, configSet), errUpdateStatus)
 }
@@ -232,7 +219,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
 				continue
 			}
-			targetsStatus[i].Condition = configv1alpha1.Creating()
+			targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "creating")
 			continue
 		}
 
@@ -264,7 +251,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
 			continue
 		}
-		targetsStatus[i].Condition = configv1alpha1.Updating()
+		targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "updating")
 	}
 
 	// These configs no longer match a target
@@ -279,13 +266,14 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	return nil
 }
 
-// readyOf returns the child's Ready condition, or a Pending/Unknown placeholder
-// when the child has not reported Ready yet. Never returns a zero-valued condition,
-// which would both read as "ready" and produce an invalid SSA status patch.
+// readyOf returns the child's Ready condition. GetCondition returns
+// {Type: Ready, Status: False} with an empty Reason when the condition is
+// absent; a freshly created child is waiting for its first transaction, so
+// report it as Pending, the same as the API does (ConfigNotReady).
 func readyOf(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 	c := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
-	if c.Type == "" || c.Status == "" {
-		return newCondition(metav1.ConditionUnknown, reasonPending, "config has not reported Ready yet")
+	if c.Reason == "" {
+		return configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "config has not reported Ready yet")
 	}
 	return c
 }
@@ -367,9 +355,10 @@ func (r *reconciler) handleSuccess(ctx context.Context, configSetOrig, configSet
 	return r.updateStatus(ctx, configSetOrig, configSet, condv1alpha1.Ready(), corev1.EventTypeNormal)
 }
 
-func (r *reconciler) handleProgressing(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string) error {
+func (r *reconciler) handlePending(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string) error {
 	return r.updateStatus(ctx, configSetOrig, configSet,
-		newCondition(metav1.ConditionUnknown, reasonProgressing, msg), corev1.EventTypeNormal)
+		condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, configv1alpha1.ConfigReasonPending, msg),
+		corev1.EventTypeNormal)
 }
 
 func (r *reconciler) handleError(ctx context.Context, configSetOrig, configSet *configv1alpha1.ConfigSet, msg string, err error) error {
@@ -396,7 +385,7 @@ func (r *reconciler) updateStatus(
 
 	carryTargetTransitionTimes(configSetOrig.Status.Targets, configSet.Status.Targets)
 
-	condChanged := !conditionEqual(newCond, oldCond)
+	condChanged := !newCond.Equal(oldCond)
 	if !condChanged && targetsEqual(configSet.Status.Targets, configSetOrig.Status.Targets) {
 		log.Info("updateStatus -> no change", "reason", newCond.Reason)
 		return nil
@@ -431,55 +420,44 @@ type overallState int
 
 const (
 	stateReady overallState = iota
-	stateProgressing
+	statePending
 	stateFailed
 )
 
 // classify maps a target's Ready condition to an aggregate state.
-// False is a failure unless its reason is a known in-flight reason;
-// Unknown or missing is progressing.
+// Only the outcome reasons Failed and Unrecoverable are failures; every other
+// Ready=False reason of a Config (Pending, TargetNotFound, TargetDeleting,
+// TargetNotReady, TargetRuntimeNotReady) means the config is still waiting.
 func classify(c condv1alpha1.Condition) overallState {
-	switch c.Status {
-	case metav1.ConditionTrue:
+	if c.IsTrue() {
 		return stateReady
-	case metav1.ConditionFalse:
-		if _, ok := progressReasons[c.Reason]; ok {
-			return stateProgressing
-		}
+	}
+	switch condv1alpha1.ConditionReason(c.Reason) {
+	case condv1alpha1.ConditionReasonFailed, condv1alpha1.ConditionReasonUnrecoverable:
 		return stateFailed
 	default:
-		return stateProgressing
+		return statePending
 	}
 }
 
 func determineOverallStatus(configSet *configv1alpha1.ConfigSet) (overallState, string) {
-	var failed, progressing []string
+	var failed, pending []string
 	for _, ts := range configSet.Status.Targets {
 		switch classify(ts.Condition) {
 		case stateFailed:
 			failed = append(failed, fmt.Sprintf("target %s: %s", ts.Name, ts.Message))
-		case stateProgressing:
-			progressing = append(progressing, fmt.Sprintf("target %s: %s", ts.Name, ts.Reason))
+		case statePending:
+			pending = append(pending, fmt.Sprintf("target %s: %s", ts.Name, ts.Reason))
 		}
 	}
 	switch {
 	case len(failed) > 0:
 		return stateFailed, "configs not ready; " + strings.Join(failed, "; ")
-	case len(progressing) > 0:
-		return stateProgressing, "configs progressing; " + strings.Join(progressing, "; ")
+	case len(pending) > 0:
+		return statePending, "configs pending; " + strings.Join(pending, "; ")
 	default:
 		return stateReady, ""
 	}
-}
-
-func newCondition(status metav1.ConditionStatus, reason, msg string) condv1alpha1.Condition {
-	return condv1alpha1.Condition{Condition: metav1.Condition{
-		Type:               string(condv1alpha1.ConditionTypeReady),
-		Status:             status,
-		Reason:             reason,
-		Message:            msg,
-		LastTransitionTime: metav1.Now(),
-	}}
 }
 
 // keepTransitionTime returns the old transition time if the status did not change.
@@ -502,21 +480,12 @@ func carryTargetTransitionTimes(orig, cur []configv1alpha1.ConfigSetTargetStatus
 	}
 }
 
-// conditionEqual compares everything except lastTransitionTime.
-func conditionEqual(a, b condv1alpha1.Condition) bool {
-	return a.Type == b.Type &&
-		a.Status == b.Status &&
-		a.Reason == b.Reason &&
-		a.Message == b.Message &&
-		a.ObservedGeneration == b.ObservedGeneration
-}
-
 func targetsEqual(a, b []configv1alpha1.ConfigSetTargetStatus) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := range a {
-		if a[i].Name != b[i].Name || !conditionEqual(a[i].Condition, b[i].Condition) {
+		if a[i].Name != b[i].Name || !a[i].Condition.Equal(b[i].Condition) {
 			return false
 		}
 	}
