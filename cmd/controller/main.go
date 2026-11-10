@@ -156,52 +156,56 @@ func main() {
 		workspaceDir = envDir
 	}
 
-	dsCfg, err := loadDataServerConfig()
-	if err != nil {
-		log.Error(err, "cannot load data-server config")
-		os.Exit(1)
-	}
-	dsCore, dsGRPC, err := grpcserver.New(ctx, dsCfg)
-	if err != nil {
-		log.Error(err, "cannot create data-server")
-		os.Exit(1)
-	}
-	if err := mgr.Add(&dataServerCore{core: dsCore}); err != nil {
-		log.Error(err, "cannot add data-server core to manager")
-		os.Exit(1)
-	}
-	if err := mgr.Add(&dataServerGRPC{srv: dsGRPC}); err != nil {
-		log.Error(err, "cannot add data-server grpc server to manager")
-		os.Exit(1)
-	}
-
 	ctrlCfg := &ctrlconfig.ControllerConfig{
 		SchemaDir:    schemaBaseDir,
 		WorkspaceDir: workspaceDir,
 	}
 
-	// Remaining call sites still reach the embedded core through its own
-	// :56000 listener.
-	dsConnMgr := dsmanager.New(ctx, &dsclient.Config{Address: dsclient.GetLocalDataServerAddress()})
-	if err := dsConnMgr.AddToManager(mgr); err != nil {
-		log.Error(err, "cannot add dataserver conn manager")
-		os.Exit(1)
-	}
-	ctrlCfg.DataServerManager = dsConnMgr
-
-	tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient(), dsCore)
-	ctrlCfg.TargetManager = tm
-
-	promserver := prometheusserver.NewServer(&prometheusserver.Config{
-		Address:       ":9443",
-		TargetManager: tm,
-	})
-	go func() {
-		if err := promserver.Start(ctx); err != nil {
-			log.Error(err, "cannot start promerver")
+	var dsCore *core.Core
+	if needsDataServer() {
+		dsCfg, err := loadDataServerConfig()
+		if err != nil {
+			log.Error(err, "cannot load data-server config")
 			os.Exit(1)
 		}
-	}()
+		var dsGRPC *grpcserver.Server
+		dsCore, dsGRPC, err = grpcserver.New(ctx, dsCfg)
+		if err != nil {
+			log.Error(err, "cannot create data-server")
+			os.Exit(1)
+		}
+		if err := mgr.Add(&dataServerCore{core: dsCore}); err != nil {
+			log.Error(err, "cannot add data-server core to manager")
+			os.Exit(1)
+		}
+		if err := mgr.Add(&dataServerGRPC{srv: dsGRPC}); err != nil {
+			log.Error(err, "cannot add data-server grpc server to manager")
+			os.Exit(1)
+		}
+
+		// Remaining call sites still reach the embedded core through its own
+		// :56000 listener.
+		dsConnMgr := dsmanager.New(ctx, &dsclient.Config{Address: dsclient.GetLocalDataServerAddress()})
+		if err := dsConnMgr.AddToManager(mgr); err != nil {
+			log.Error(err, "cannot add dataserver conn manager")
+			os.Exit(1)
+		}
+		ctrlCfg.DataServerManager = dsConnMgr
+
+		tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient(), dsCore)
+		ctrlCfg.TargetManager = tm
+
+		promserver := prometheusserver.NewServer(&prometheusserver.Config{
+			Address:       ":9443",
+			TargetManager: tm,
+		})
+		go func() {
+			if err := promserver.Start(ctx); err != nil {
+				log.Error(err, "cannot start promerver")
+				os.Exit(1)
+			}
+		}()
+	}
 
 	for name, reconciler := range reconcilers.Reconcilers {
 		log.Info("reconciler", "name", name, "enabled", IsReconcilerEnabled(name))
@@ -239,6 +243,17 @@ func IsPProfEnabled() *string {
 		return ptr.To(fmt.Sprintf("127.0.0.1:%d", port))
 	}
 	return nil
+}
+
+// needsDataServer reports whether an enabled reconciler talks to the embedded
+// data-server, so processes running only other reconcilers skip embedding it.
+func needsDataServer() bool {
+	for _, name := range []string{"targetdatastore", "targetconfig", "subscription"} {
+		if IsReconcilerEnabled(name) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsReconcilerEnabled checks if an environment variable `ENABLE_<reconcilerName>` exists
@@ -280,8 +295,12 @@ func loadDataServerConfig() (*dsconfig.Config, error) {
 	return cfg, nil
 }
 
-// readyzCheck fails until the data-server core finished starting.
+// readyzCheck fails until the data-server core finished starting; without a
+// core (no enabled reconciler uses one) it only checks liveness.
 func readyzCheck(c *core.Core) healthz.Checker {
+	if c == nil {
+		return healthz.Ping
+	}
 	return func(*http.Request) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
