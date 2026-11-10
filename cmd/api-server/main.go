@@ -157,7 +157,7 @@ func main() {
 
 	configSetStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyConfigSet(), registryOptions)
 	deviationStorageProvider := genericregistry.NewStorageProvider(ctx, sdcconfig.BuildEmptyDeviation(), registryOptions)
-	
+
 	go func() {
 		if err := builder.APIServer.
 			WithServerName("config-server").

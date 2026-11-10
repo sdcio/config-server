@@ -69,3 +69,83 @@ func TestConfigForTargetWithoutLabelsDoesNotPanic(t *testing.T) {
 	})
 	assert.Equal(t, 0, q.Len())
 }
+
+func targetConfig(name string) *configv1alpha1.Config {
+	return &configv1alpha1.Config{ObjectMeta: metav1.ObjectMeta{
+		Name:       name,
+		Namespace:  "upf843",
+		Generation: 1,
+		Labels: map[string]string{
+			"config.sdcio.dev/targetName":      "upf843",
+			"config.sdcio.dev/targetNamespace": "upf843",
+		},
+	}}
+}
+
+// The transactor writes the Config status on every failed transaction. Those
+// writes must not requeue the Target, or the failure retries bypass the rate
+// limiter of the target config controller.
+func TestConfigForTargetUpdateIgnoresStatusOnly(t *testing.T) {
+	q := newQueue()
+	defer q.ShutDown()
+
+	oldCfg := targetConfig("dunder.apn")
+	newCfg := oldCfg.DeepCopy()
+	newCfg.ResourceVersion = "2"
+	newCfg.Status.SetConditions(configv1alpha1.ConfigFailed(1, "transaction error"))
+	newCfg.Finalizers = []string{"config.config.sdcio.dev/finalizer"}
+
+	h := &ConfigForTargetEventHandler{ControllerName: "test"}
+	h.Update(context.Background(), event.UpdateEvent{ObjectOld: oldCfg, ObjectNew: newCfg}, q)
+
+	assert.Equal(t, 0, q.Len())
+}
+
+func TestConfigForTargetUpdateEnqueues(t *testing.T) {
+	now := metav1.Now()
+	tests := map[string]func(cfg *configv1alpha1.Config){
+		"spec change": func(cfg *configv1alpha1.Config) { cfg.Generation++ },
+		"deleting":    func(cfg *configv1alpha1.Config) { cfg.DeletionTimestamp = &now },
+		"label change": func(cfg *configv1alpha1.Config) {
+			cfg.Labels["config.sdcio.dev/targetName"] = "upf844"
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			q := newQueue()
+			defer q.ShutDown()
+
+			oldCfg := targetConfig("dunder.apn")
+			newCfg := oldCfg.DeepCopy()
+			mutate(newCfg)
+
+			h := &ConfigForTargetEventHandler{ControllerName: "test"}
+			h.Update(context.Background(), event.UpdateEvent{ObjectOld: oldCfg, ObjectNew: newCfg}, q)
+
+			assert.GreaterOrEqual(t, q.Len(), 1)
+		})
+	}
+}
+
+// A label change moves the Config to another Target: both are requeued.
+func TestConfigForTargetUpdateLabelChangeEnqueuesBothTargets(t *testing.T) {
+	q := newQueue()
+	defer q.ShutDown()
+
+	oldCfg := targetConfig("dunder.apn")
+	newCfg := oldCfg.DeepCopy()
+	newCfg.Labels["config.sdcio.dev/targetName"] = "upf844"
+
+	h := &ConfigForTargetEventHandler{ControllerName: "test"}
+	h.Update(context.Background(), event.UpdateEvent{ObjectOld: oldCfg, ObjectNew: newCfg}, q)
+
+	require.Equal(t, 2, q.Len())
+	got := map[types.NamespacedName]bool{}
+	for range 2 {
+		req, _ := q.Get()
+		got[req.NamespacedName] = true
+		q.Done(req)
+	}
+	assert.True(t, got[types.NamespacedName{Namespace: "upf843", Name: "upf843"}])
+	assert.True(t, got[types.NamespacedName{Namespace: "upf843", Name: "upf844"}])
+}
