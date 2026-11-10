@@ -58,10 +58,17 @@ func RunDryRunTransaction(
 
 	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
 
+	if !dryrun {
+		// A committing transaction must go through the target's transaction
+		// gate and be confirmed (see commitTransaction); this helper does
+		// neither, and an unconfirmed transaction locks the datastore.
+		return nil, fmt.Errorf("RunDryRunTransaction only supports dry-run")
+	}
+
 	req := &sdcpb.TransactionSetRequest{
 		TransactionId: config.GetGVKNSN(c),
 		DatastoreName: targetKey.String(),
-		DryRun:        dryrun,
+		DryRun:        true,
 		Timeout:       ptr.To(int32(60)),
 		Intents:       intents,
 	}

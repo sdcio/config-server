@@ -25,7 +25,6 @@ import (
 	"github.com/henderiw/logger/log"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 )
 
@@ -66,19 +65,21 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 }
 
 // isRecoverableTransactionError reports whether a data-server transaction error
-// is transient and worth retrying, based on its gRPC status code.
+// is transient and worth retrying.
+//
+// Besides the gRPC codes for "busy / unreachable", this also covers the
+// data-server errors that still arrive as codes.Unknown ("transaction
+// ongoing", "context is closed"): they mean another transaction holds the
+// datastore for now, never that the configs are wrong. Treating them as
+// non-recoverable latched Configs (FailedUnrecoverable) and Targets
+// (RecoveryFailed) on a lock the data-server releases by itself.
+// NotFound is the datastore missing while the runtime recreates it.
 func isRecoverableTransactionError(err error) bool {
 	if err == nil {
 		return false
 	}
-	st, ok := status.FromError(err)
-	if !ok {
-		return false
-	}
-	switch st.Code() {
-	case codes.Aborted, codes.ResourceExhausted, codes.Unavailable, codes.DeadlineExceeded:
+	if isTransientTxErr(err) {
 		return true
-	default:
-		return false
 	}
+	return grpcCode(err) == codes.NotFound
 }
