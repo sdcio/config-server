@@ -29,6 +29,8 @@ import (
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
+	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -281,24 +283,27 @@ func (r *DeviationWatcher) clearTargetDeviation(
 func convertDeviationEvents(devs []api.DeviationEvent) []configv1alpha1.ConfigDeviation {
 	deviations := make([]configv1alpha1.ConfigDeviation, 0, len(devs))
 	for _, dev := range devs {
-		for _, e := range dev.Entries {
-			deviations = append(deviations, configv1alpha1.ConfigDeviation{
-				Path:         e.Path,
-				DesiredValue: deviationString(e.ExpectedText),
-				ActualValue:  deviationString(e.CurrentText),
-				Reason:       deviationReason(dev.Reason),
-			})
-		}
+		deviations = append(deviations, configv1alpha1.ConfigDeviation{
+			Path:         dev.Path.ToXPath(false),
+			DesiredValue: deviationString(dev.Expected),
+			ActualValue:  deviationString(dev.Current),
+			Reason:       deviationReason(dev.Reason),
+		})
 	}
 	return deviations
 }
 
-// deviationString maps an absent value to nil.
-func deviationString(v string) *string {
-	if v == "" {
+// deviationString renders a value as prototext; an absent or unmarshalable
+// value maps to nil.
+func deviationString(v *sdcpb.TypedValue) *string {
+	if v == nil {
 		return nil
 	}
-	return ptr.To(v)
+	b, err := prototext.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return ptr.To(string(b))
 }
 
 // deviationReason keeps the reason names stored in the Deviation CR.

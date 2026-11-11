@@ -175,7 +175,7 @@ func updateEntries(updates []*sdcpb.Update) ([]api.UpdateEntry, error) {
 		if !ok {
 			return nil, fmt.Errorf("update %q: only json values are supported", u.GetPath().ToXPath(false))
 		}
-		entries = append(entries, api.UpdateEntry{Path: u.GetPath().ToXPath(false), Content: tv.JsonVal})
+		entries = append(entries, api.UpdateEntry{Path: u.GetPath(), Content: tv.JsonVal})
 	}
 	return entries, nil
 }

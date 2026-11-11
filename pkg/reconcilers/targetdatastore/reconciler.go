@@ -501,7 +501,7 @@ func (r *reconciler) getDatastoreSpec(ctx context.Context, target *configv1alpha
 			targetName = *connProfile.Spec.TargetName
 		}
 		spec.Target.ProtocolOptions.GNMI = &api.GNMIOptions{
-			Encoding:   string(connProfile.Encoding()),
+			Encoding:   api.GNMIEncoding(connProfile.Encoding()),
 			TargetName: targetName,
 		}
 	}

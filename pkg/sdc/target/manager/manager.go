@@ -240,21 +240,6 @@ func (m *TargetManager) GetRuntimeForTarget(_ context.Context, key storebackend.
 	return m.targets[key]
 }
 
-// ComputeCreateDSHash hashes the datastore spec together with the resource
-// versions of the referenced objects, so a change to either recreates the
-// datastore.
-func ComputeCreateDSHash(spec api.DatastoreSpec, refs *configv1alpha1.TargetStatusUsedReferences) string {
-	if refs == nil {
-		return api.ComputeCreateDSHash(spec)
-	}
-	return api.ComputeCreateDSHash(spec,
-		refs.ConnectionProfileResourceVersion,
-		refs.SyncProfileResourceVersion,
-		refs.SecretResourceVersion,
-		refs.TLSSecretResourceVersion,
-	)
-}
-
 func (m *TargetManager) listRuntimes() []*TargetRuntime {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

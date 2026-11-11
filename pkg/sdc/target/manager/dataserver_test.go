@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/encoding/prototext"
 	"sync"
 	"testing"
 	"time"
 
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/data-server/pkg/api"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"github.com/stretchr/testify/assert"
@@ -202,20 +202,6 @@ func TestEnsureDatastoreDeleted(t *testing.T) {
 	})
 }
 
-func TestComputeCreateDSHash(t *testing.T) {
-	spec := *specNamed("default/dev1")
-	base := ComputeCreateDSHash(spec, nil)
-
-	assert.Equal(t, base, ComputeCreateDSHash(spec, nil), "stable")
-
-	changed := spec
-	changed.Target.Port = 830
-	assert.NotEqual(t, base, ComputeCreateDSHash(changed, nil), "spec change")
-
-	refs := &configv1alpha1.TargetStatusUsedReferences{SecretResourceVersion: "7"}
-	assert.NotEqual(t, base, ComputeCreateDSHash(spec, refs), "referenced object change")
-}
-
 func TestTransactorTransactionSet(t *testing.T) {
 	ctx := context.Background()
 	ref := api.TxRef{Datastore: "default/dev1", ID: "tx1"}
@@ -287,7 +273,7 @@ func TestUpdateEntries(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
-	assert.Equal(t, path.ToXPath(false), entries[0].Path)
+	assert.Equal(t, path.ToXPath(false), entries[0].Path.ToXPath(false))
 	assert.Equal(t, `"x"`, string(entries[0].Content))
 
 	_, err = updateEntries([]*sdcpb.Update{{
@@ -297,16 +283,34 @@ func TestUpdateEntries(t *testing.T) {
 	assert.Error(t, err, "only json values are carried")
 }
 
+func mustPath(t *testing.T, s string) *sdcpb.Path {
+	t.Helper()
+	p, err := sdcpb.ParsePath(s)
+	require.NoError(t, err)
+	return p
+}
+
+func intVal(v int64) *sdcpb.TypedValue {
+	return &sdcpb.TypedValue{Value: &sdcpb.TypedValue_IntVal{IntVal: v}}
+}
+
+func parseText(t *testing.T, s string) *sdcpb.TypedValue {
+	t.Helper()
+	tv := &sdcpb.TypedValue{}
+	require.NoError(t, prototext.Unmarshal([]byte(s), tv))
+	return tv
+}
+
 func TestConvertDeviationEvents(t *testing.T) {
 	got := convertDeviationEvents([]api.DeviationEvent{
-		{Reason: api.DeviationReasonNotApplied, Entries: []api.DeviationEntry{{Path: "/a", ExpectedText: "int_val:1", CurrentText: "int_val:2"}}},
-		{Reason: api.DeviationReasonOverruled, Entries: []api.DeviationEntry{{Path: "/b", ExpectedText: "int_val:3"}}},
+		{Reason: api.DeviationReasonNotApplied, Path: mustPath(t, "/a"), Expected: intVal(1), Current: intVal(2)},
+		{Reason: api.DeviationReasonOverruled, Path: mustPath(t, "/b"), Expected: intVal(3)},
 	})
 	require.Len(t, got, 2)
 	assert.Equal(t, "/a", got[0].Path)
 	assert.Equal(t, "NOT_APPLIED", got[0].Reason)
-	assert.Equal(t, "int_val:1", *got[0].DesiredValue)
-	assert.Equal(t, "int_val:2", *got[0].ActualValue)
+	assert.Equal(t, intVal(1).String(), parseText(t, *got[0].DesiredValue).String())
+	assert.Equal(t, intVal(2).String(), parseText(t, *got[0].ActualValue).String())
 	assert.Equal(t, "OVERRULED", got[1].Reason)
 	assert.Nil(t, got[1].ActualValue, "absent value stays nil")
 }

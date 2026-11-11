@@ -35,10 +35,7 @@ func (r *TargetSyncProfileSync) GetEncoding() Encoding {
 // reuse the address and TLS/credentials of target.
 func GetSyncProfile(syncProfile *TargetSyncProfile, target api.Target) api.Sync {
 	sync := api.Sync{
-		Validate:     false,
-		Buffer:       10000,
-		WriteWorkers: 10,
-		Configs:      make([]api.SyncConfig, 0, len(syncProfile.Spec.Sync)),
+		Configs: make([]api.SyncConfig, 0, len(syncProfile.Spec.Sync)),
 	}
 	for _, syncConfig := range syncProfile.Spec.Sync {
 		synccfg := api.SyncConfig{
@@ -64,13 +61,10 @@ func GetSyncProfile(syncProfile *TargetSyncProfile, target api.Target) api.Sync 
 	return sync
 }
 
-func getEncoding(e Encoding) string {
-	switch e {
-	case Encoding_CONFIG:
-		return "45"
-	default:
-		return string(e)
-	}
+// getEncoding maps the profile encoding to the api name; CONFIG is
+// api.GNMIEncodingConfig.
+func getEncoding(e Encoding) api.GNMIEncoding {
+	return api.GNMIEncoding(e)
 }
 
 func getSyncMode(mode SyncMode) api.SyncMode {
