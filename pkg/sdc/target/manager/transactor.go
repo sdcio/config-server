@@ -32,7 +32,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -144,15 +143,11 @@ func (r *Transactor) recoverIntents(
 		if err != nil {
 			return "", err
 		}
-		entries, err := updateEntries(update)
-		if err != nil {
-			return "", err
-		}
 		intents = append(intents, api.Intent{
 			Name: config.GetGVKNSN(cfg),
 			Spec: api.IntentSpec{Update: &api.Update{
 				Priority:          int32(cfg.Spec.Priority),
-				Entries:           entries,
+				Updates:           update,
 				NonRevertive:      !cfg.IsRevertive(),
 				PreviouslyApplied: true,
 			}},
@@ -165,19 +160,6 @@ func (r *Transactor) recoverIntents(
 		api.TxRef{Datastore: key.String(), ID: "recovery"},
 		api.SetOptions{Timeout: 120 * time.Second, Origin: origin},
 		intents)
-}
-
-// updateEntries converts the JSON updates of a Config into intent entries.
-func updateEntries(updates []*sdcpb.Update) ([]api.UpdateEntry, error) {
-	entries := make([]api.UpdateEntry, 0, len(updates))
-	for _, u := range updates {
-		tv, ok := u.GetValue().GetValue().(*sdcpb.TypedValue_JsonVal)
-		if !ok {
-			return nil, fmt.Errorf("update %q: only json values are supported", u.GetPath().ToXPath(false))
-		}
-		entries = append(entries, api.UpdateEntry{Path: u.GetPath(), Content: tv.JsonVal})
-	}
-	return entries, nil
 }
 
 // TransactionSet applies the intents and, unless it is a dry run, confirms the
@@ -366,16 +348,11 @@ func (r *Transactor) setIntents(
 			log.Error(err, "Transaction getIntentUpdate config")
 			return nil, err
 		}
-		entries, err := updateEntries(update)
-		if err != nil {
-			log.Error(err, "Transaction updateEntries config")
-			return nil, err
-		}
 		intents = append(intents, api.Intent{
 			Name: config.GetGVKNSN(cfg),
 			Spec: api.IntentSpec{Update: &api.Update{
 				Priority:     int32(cfg.Spec.Priority),
-				Entries:      entries,
+				Updates:      update,
 				NonRevertive: !cfg.IsRevertive(),
 			}},
 		})

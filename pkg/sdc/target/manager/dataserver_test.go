@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/encoding/prototext"
 	"sync"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/sdcio/data-server/pkg/api"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
@@ -261,26 +262,6 @@ func TestProcessTransactionResultRecoverable(t *testing.T) {
 		rsp := &api.TransactionResult{Intents: map[string]api.IntentValidation{"a": {Errors: []string{"bad"}}}}
 		assert.False(t, analyzeIntentResponse(api.ErrDatastoreLocked, rsp).Recoverable)
 	})
-}
-
-func TestUpdateEntries(t *testing.T) {
-	path, err := sdcpb.ParsePath("/interface[name=ethernet-1/1]/description")
-	require.NoError(t, err)
-
-	entries, err := updateEntries([]*sdcpb.Update{{
-		Path:  path,
-		Value: &sdcpb.TypedValue{Value: &sdcpb.TypedValue_JsonVal{JsonVal: []byte(`"x"`)}},
-	}})
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, path.ToXPath(false), entries[0].Path.ToXPath(false))
-	assert.Equal(t, `"x"`, string(entries[0].Content))
-
-	_, err = updateEntries([]*sdcpb.Update{{
-		Path:  path,
-		Value: &sdcpb.TypedValue{Value: &sdcpb.TypedValue_StringVal{StringVal: "x"}},
-	}})
-	assert.Error(t, err, "only json values are carried")
 }
 
 func mustPath(t *testing.T, s string) *sdcpb.Path {
