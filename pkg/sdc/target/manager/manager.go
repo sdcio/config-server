@@ -67,7 +67,7 @@ func NewTargetManager(ds *dsmanager.DSConnManager, k8s client.Client) *TargetMan
 	return &TargetManager{
 		ds:         ds,
 		k8s:        k8s,
-		transactor: NewTransactor(k8s, "transactor"),
+		transactor: NewTransactor(k8s),
 		events:     make(chan event.GenericEvent, runtimeEventBuffer),
 		targets:    make(map[storebackend.Key]*TargetRuntime),
 	}

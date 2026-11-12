@@ -37,12 +37,10 @@ import (
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -102,6 +100,11 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
+	r.ready = resource.NewStatusWriter(mgr.GetClient(), reconcilerName,
+		resource.WithEventRecorder(r.recorder),
+		// takes over Ready from the retired TargetController field manager
+		resource.WithForceOwnership(),
+	)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -120,6 +123,7 @@ type reconciler struct {
 	finalizer *resource.APIFinalizer
 	targetMgr *targetmanager.TargetManager
 	recorder  events.EventRecorder
+	ready     *resource.StatusWriter // the only writer of Target Ready and usedReferences
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -306,52 +310,26 @@ func readyFromRuntime(st targetmanager.RuntimeStatus) (cond condv1alpha1.Conditi
 	}
 }
 
-// applyReady is the ONLY writer of the Ready condition (and usedReferences).
-// usedRefs == nil clears them.
+// applyReady writes the Ready condition and usedReferences (r.ready is the
+// only writer). usedRefs == nil clears them.
+//
+// TargetReady/TargetNotReady bound the message deterministically, so a
+// repeated long error is the same status and the apiserver drops the write.
+// An event is recorded when status or reason changes, not on message churn.
 func (r *reconciler) applyReady(ctx context.Context, target *configv1alpha1.Target, newCond condv1alpha1.Condition, usedRefs *configv1alpha1.TargetStatusUsedReferences) error {
-	log := log.FromContext(ctx)
-
-	// No truncation here: TargetReady/TargetNotReady build the condition via
-	// condv1alpha1.NewCondition, which bounds the message (MaxMessageBytes)
-	// at a rune boundary and marks the cut. The bound is deterministic, so
-	// the no-change guard below stays stable for repeated long errors.
-	oldCond := target.GetCondition(condv1alpha1.ConditionTypeReady)
-	if newCond.Equal(oldCond) && equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences) {
-		log.Debug("applyReady -> no change", "ready", newCond.IsTrue(), "reason", newCond.Reason)
-		return nil
-	}
-
-	// lastTransitionTime only moves when the status flips
-	if oldCond.Status == newCond.Status && !oldCond.LastTransitionTime.IsZero() {
-		newCond.LastTransitionTime = oldCond.LastTransitionTime
-	}
-
-	// events only on transitions (status or reason), not on message churn
-	if oldCond.Status != newCond.Status || oldCond.Reason != newCond.Reason {
-		eventType := corev1.EventTypeNormal
-		if !newCond.IsTrue() {
-			eventType = corev1.EventTypeWarning
-		}
-		// RecordEvent bounds the note to the Event limit itself
-		reconcilers.RecordEvent(r.recorder, target, eventType, newCond.Reason, newCond.Message)
-	}
-
-	log.Info("applyReady",
-		"ready", newCond.IsTrue(), "reason", newCond.Reason, "msg", newCond.Message,
-		"usedRefsChanged", !equality.Semantic.DeepEqual(usedRefs, target.Status.UsedReferences),
-	)
-
-	applyConfig := configv1alpha1apply.Target(target.Name, target.Namespace).
-		WithStatus(configv1alpha1apply.TargetStatus().
-			WithConditions(newCond).
-			WithUsedReferences(usedRefsToApply(usedRefs)),
-		)
-
-	return errors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
-		ApplyOptions: client.ApplyOptions{
-			FieldManager: reconcilerName,
-			// takes over Ready from the retired TargetController field manager
-			Force: ptr.To(true),
+	log.FromContext(ctx).Debug("applyReady", "ready", newCond.IsTrue(), "reason", newCond.Reason, "msg", newCond.Message)
+	return errors.Wrap(r.ready.Write(ctx, target, resource.StatusUpdate{
+		Conditions: []condv1alpha1.Condition{newCond},
+		Build: func(conds []condv1alpha1.Condition, rv string) runtime.ApplyConfiguration {
+			ac := configv1alpha1apply.Target(target.Name, target.Namespace).
+				WithStatus(configv1alpha1apply.TargetStatus().
+					WithConditions(conds...).
+					WithUsedReferences(usedRefsToApply(usedRefs)),
+				)
+			if rv != "" {
+				ac.WithResourceVersion(rv)
+			}
+			return ac
 		},
 	}), errUpdateStatus)
 }

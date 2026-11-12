@@ -270,12 +270,7 @@ func (r *Config) DeepObjectCopy() client.Object {
 // config: it follows ConfigReady, the outcome of the last transaction.
 func (r *Config) ReadyFromApplied() condv1alpha1.Condition {
 	if !r.Status.HasCondition(ConditionTypeConfigReady) {
-		return ConfigNotReady(ConfigReasonPending, "config not applied yet")
+		return ConfigNotReady(r.GetGeneration(), ConfigReasonPending, "config not applied yet")
 	}
-	c := r.GetCondition(ConditionTypeConfigReady)
-	if c.IsTrue() {
-		return condv1alpha1.ReadyWithMsg(c.Message)
-	}
-	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse,
-		condv1alpha1.ConditionReason(c.Reason), c.Message)
+	return ReadyFromConfigReady(r.GetCondition(ConditionTypeConfigReady))
 }
