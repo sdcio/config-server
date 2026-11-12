@@ -196,13 +196,13 @@ func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.Confi
 		if !ok {
 			continue
 		}
-		if err := r.status.writeOutcome(ctx, cached, res.configReady); err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
 		written[key] = res.configReady
 		if res.applied != nil {
 			errs = errors.Join(errs, r.status.writeApplied(ctx, cached, res.applied, res.schema))
+		}
+		if err := r.status.writeOutcome(ctx, cached, res.configReady); err != nil {
+			errs = errors.Join(errs, err)
+			continue
 		}
 	}
 	return written, errs
