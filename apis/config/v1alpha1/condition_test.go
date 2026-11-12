@@ -100,6 +100,10 @@ func TestReadyFromApplied(t *testing.T) {
 				t.Errorf("got %s/%s %q, want %s/%s %q",
 					got.Status, got.Reason, got.Message, tc.wantStatus, tc.wantReason, tc.wantMsg)
 			}
+			// Ready carries the generation of the outcome it follows
+			if tc.applied != nil && got.ObservedGeneration != tc.applied.ObservedGeneration {
+				t.Errorf("ObservedGeneration = %d, want %d", got.ObservedGeneration, tc.applied.ObservedGeneration)
+			}
 		})
 	}
 }
@@ -109,7 +113,7 @@ func TestReadyFromApplied(t *testing.T) {
 func TestConfigNotReadyKeepsTransactionState(t *testing.T) {
 	cfg := &Config{}
 	cfg.SetConditions(ConfigFailedUnrecoverable(3, "malformed intent"))
-	cfg.SetConditions(ConfigNotReady(ConfigReasonTargetNotFound, "target ns/t1 not found"))
+	cfg.SetConditions(ConfigNotReady(3, ConfigReasonTargetNotFound, "target ns/t1 not found"))
 
 	ready := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 	if ready.Status != metav1.ConditionFalse || ready.Reason != string(ConfigReasonTargetNotFound) {
