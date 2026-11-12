@@ -17,6 +17,10 @@ Config-server is part of Schema Driven Configuration (SDC)
 
 The paradigm of schema-driven API approaches is gaining increasing popularity as it facilitates programmatic interaction with systems by both machines and humans. While OpenAPI schema stands out as a widely embraced system, there are other notable schema approaches like YANG, among others. This project endeavors to empower users with a declarative and idempotent method for seamless interaction with API systems, providing a robust foundation for effective system configuration."
 
+## Deployment
+
+The controller embeds the data-server core and serves its gRPC API on `:56000`, so the `data-server-controller` StatefulSet runs a single container. See [docs/single-binary-migration.md](docs/single-binary-migration.md) for the upgrade from the two-container pod, how to reach `:56000` with `datactl`, and the failure coupling between controller and data-server.
+
 ## Controller Events
 
 Reconciler Events use `Reconcile` as the action and put human-readable messages
