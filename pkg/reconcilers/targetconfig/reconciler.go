@@ -25,6 +25,7 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
+	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -153,13 +154,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// so they would otherwise keep an empty (or stale) status.
 		// No requeue: creating the Target triggers this controller through
 		// For(&Target{}), and the normal path takes over.
-		return ctrl.Result{}, r.transactor.UpdateConfigsReady(ctx, cfgs,
-			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", req.NamespacedName)))
+		return ctrl.Result{}, r.targetGone(ctx, cfgs,
+			configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", req.NamespacedName))
 	}
 
 	if !target.GetDeletionTimestamp().IsZero() {
-		if err := r.transactor.UpdateConfigsReady(ctx, cfgs,
-			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetDeleting, "target is being deleted"),
+		if err := r.targetGone(ctx, cfgs,
+			configv1alpha1.ConfigReasonTargetDeleting, "target is being deleted",
 		); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -219,4 +220,20 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{RequeueAfter: 500 * time.Millisecond}, nil
 	}
 	return ctrl.Result{}, nil
+}
+
+// targetGone handles the Configs of a Target that is not found or being
+// deleted. No transaction will run for them anymore, so deleting Configs are
+// released without one, whatever their deletion policy: a deletion must not
+// wait on a Target that is gone (sdcio/config-server#529). The other Configs
+// are not ready with the reason. A failure is returned, so the request is
+// retried with backoff.
+//
+// While the Target is only not ready, deleting Configs wait: the next
+// transaction removes their intent from the device.
+func (r *reconciler) targetGone(ctx context.Context, cfgs *configv1alpha1.ConfigList, reason condv1alpha1.ConditionReason, msg string) error {
+	if err := r.transactor.ReleaseDeletingConfigs(ctx, cfgs); err != nil {
+		return errors.Wrap(err, "cannot release deleting configs")
+	}
+	return r.transactor.UpdateConfigsReady(ctx, cfgs, targetmanager.NotReady(reason, msg))
 }
