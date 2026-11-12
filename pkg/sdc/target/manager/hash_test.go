@@ -27,7 +27,7 @@ func fullHashSpec() api.DatastoreSpec {
 	return api.DatastoreSpec{
 		Name:   "ds1",
 		Target: tgt(),
-		Schema: api.SchemaRef{Name: "sn", Vendor: "nokia", Version: "24.3"},
+		Schema: api.SchemaRef{Vendor: "nokia", Version: "24.3"},
 		Sync: api.Sync{
 			Configs: []api.SyncConfig{{Name: "c", Target: &syncTgt, Paths: []string{"/a", "/b"}, Mode: api.SyncModeSample, Interval: 10}},
 		},
@@ -51,7 +51,7 @@ func TestComputeCreateDSHashStable(t *testing.T) {
 
 // The golden value pins the canonical form: changing it recreates every datastore.
 func TestComputeCreateDSHashGolden(t *testing.T) {
-	const want = "9ecc3533734e12190e690e0409581652ca4e619dbcf996ac2eb1c875386b4138"
+	const want = "88b3c79432d2f6591a4710c1ed958d9104076c20ee027197bb6d0164f5323260"
 	assert.Equal(t, want, ComputeCreateDSHash(fullHashSpec(), fullHashRefs()))
 }
 

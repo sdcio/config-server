@@ -217,7 +217,6 @@ func (t *TargetRuntime) GetSchema() *configv1alpha1.ConfigStatusLastKnownGoodSch
 	}
 
 	return &configv1alpha1.ConfigStatusLastKnownGoodSchema{
-		Type:    t.desired.Schema.Name,
 		Vendor:  t.desired.Schema.Vendor,
 		Version: t.desired.Schema.Version,
 	}
