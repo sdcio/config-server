@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/prometheus v0.309.1
-	github.com/sdcio/data-server v0.0.75-0.20261109103815-6e4285f6338d
+	github.com/sdcio/data-server v0.0.75-0.20261112103735-b64f5ea43f6e
 	github.com/sdcio/logger v0.0.3
 	github.com/sdcio/sdc-protos v0.0.56
 	github.com/spf13/cobra v1.10.2
