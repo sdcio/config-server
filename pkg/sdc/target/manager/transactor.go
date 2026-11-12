@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
@@ -34,43 +33,67 @@ import (
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/protobuf/encoding/prototext"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
 	reconcilerName = "ConfigController"
 	finalizer      = "config.config.sdcio.dev/finalizer"
+	// finalizerFieldManager owns the Config finalizer (SSA, like the
+	// TargetConfigController-finalizer on the Target)
+	finalizerFieldManager = "transactor-finalizer"
 )
 
 type Transactor struct {
-	client       client.Client // k8s client
-	fieldManager string
+	client client.Client // k8s client
+	// finalizer holds the Config while the dataserver has its intent
+	finalizer *resource.APIFinalizer
+	// status writes every Config status field, see configstatus.go
+	status *configStatus
 }
 
-func NewTransactor(client client.Client, fieldManager string) *Transactor {
+func NewTransactor(c client.Client) *Transactor {
 	return &Transactor{
-		client:       client,
-		fieldManager: fieldManager,
+		client: c,
+		finalizer: resource.NewAPIFinalizer(c, finalizer, finalizerFieldManager,
+			func(name, namespace string, finalizers ...string) runtime.ApplyConfiguration {
+				ac := configv1alpha1apply.Config(name, namespace)
+				if len(finalizers) > 0 {
+					ac.WithFinalizers(finalizers...)
+				}
+				return ac
+			},
+		),
+		status: newConfigStatus(c),
 	}
 }
 
+// RecoverConfigs replays the applied config of the Configs of the target
+// into the datastore and writes the recovery outcome on them. It runs on the
+// target runtime, when the datastore needs recovery, so it lists the Configs
+// itself: once, for both the replay and the status.
 func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.Target, dsctx *DatastoreHandle) (*string, error) {
 	log := log.FromContext(ctx)
 	log.Debug("RecoverConfigs")
-	configList, err := r.ListConfigsPerTarget(ctx, target)
+	cfgs, err := ListTargetConfigs(ctx, r.client, target)
 	if err != nil {
 		return nil, err
 	}
 
+	// the replay uses the internal type; a copy, as the conversion shares
+	// memory with cfgs
+	configList := &config.ConfigList{}
+	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(cfgs.DeepCopy(), configList, nil); err != nil {
+		return nil, err
+	}
 	configs := []*config.Config{}
-
-	for _, config := range configList.Items {
-		if config.Status.AppliedConfig != nil {
-			configs = append(configs, &config)
+	for i := range configList.Items {
+		if configList.Items[i].Status.AppliedConfig != nil {
+			configs = append(configs, &configList.Items[i])
 		}
 	}
 
@@ -82,7 +105,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.
 		// on a target. We set the target config status to Failed.
 		// Most likely a human intervention is needed
 
-		if serr := r.setRecoveredConfigs(ctx, target, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
+		if serr := r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 			return configv1alpha1.ConfigFailed(cfg.GetGeneration(), msg)
 		}); serr != nil {
 			return ptr.To("recovery failed, and failed to update config status"), serr
@@ -93,7 +116,7 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.
 	dsctx.MarkRecovered(true)
 	log.Debug("recovered configs", "count", len(configs))
 
-	if err := r.setRecoveredConfigs(ctx, target, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
+	if err := r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 		return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
 	}); err != nil {
 		// recovery succeeded but we failed to patch status -> surface it
@@ -167,26 +190,28 @@ func (r *Transactor) TransactionSet(
 	return msg, nil
 }
 
-// Transact applies the changed configs of the target and writes the status
-// of every config of the target once.
+// Transact applies the changed configs of the target and writes their
+// status: the outcome (ConfigReady, applied config) of the configs it
+// transacted, then Ready of every config. The caller only transacts once no
+// target stage blocks, so Ready follows the outcome: the one just written,
+// or the last one as listed. cfgs are the Configs of the target as the
+// caller listed them.
 func (r *Transactor) Transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
 	dsctx *DatastoreHandle,
+	cfgs *configv1alpha1.ConfigList,
 ) (bool, error) {
-	cfgs, err := r.listConfigs(ctx, target)
-	if err != nil {
-		return true, err
-	}
 	results, retry, err := r.transact(ctx, target, dsctx, cfgs)
-	if serr := r.writeStatus(ctx, cfgs, results); serr != nil {
+	outcomes, serr := r.writeStatus(ctx, cfgs, results)
+	serr = errors.Join(serr, r.UpdateConfigsReady(ctx, cfgs, readyFromOutcomes(outcomes)))
+	if serr != nil {
 		return true, errors.Join(err, serr)
 	}
 	return retry, err
 }
 
-// transact returns the outcome per config. The metadata patches update cfgs
-// in place, so writeStatus can use it as the current state.
+// transact returns the outcome per config.
 func (r *Transactor) transact(
 	ctx context.Context,
 	target *configv1alpha1.Target,
@@ -225,7 +250,7 @@ func (r *Transactor) transact(
 		if _, ok := configsToUpdate[config.GetGVKNSN(&cfgs.Items[i])]; !ok {
 			continue
 		}
-		if err := r.addFinalizer(ctx, &cfgs.Items[i]); err != nil {
+		if err := r.finalizer.AddFinalizer(ctx, &cfgs.Items[i]); err != nil {
 			return nil, true, err
 		}
 	}
@@ -294,7 +319,7 @@ func (r *Transactor) transact(
 		if err := r.deleteDeviation(ctx, cfg); err != nil {
 			return results, true, err
 		}
-		if err := r.removeFinalizer(ctx, cfg); err != nil {
+		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
 			return results, true, err
 		}
 	}
@@ -364,28 +389,6 @@ func (r *Transactor) setIntents(
 	return rsp, err
 }
 
-// addFinalizer and removeFinalizer only touch this finalizer, and only patch
-// when it changes. cfg takes the patched object.
-func (r *Transactor) addFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	if controllerutil.ContainsFinalizer(cfg, finalizer) {
-		return nil
-	}
-	log.FromContext(ctx).Debug("addFinalizer", "config", cfg.GetName())
-	return r.patchMetadata(ctx, cfg, func() {
-		controllerutil.AddFinalizer(cfg, finalizer)
-	})
-}
-
-func (r *Transactor) removeFinalizer(ctx context.Context, cfg *configv1alpha1.Config) error {
-	if !controllerutil.ContainsFinalizer(cfg, finalizer) {
-		return nil
-	}
-	log.FromContext(ctx).Debug("removeFinalizer", "config", cfg.GetName())
-	return r.patchMetadata(ctx, cfg, func() {
-		controllerutil.RemoveFinalizer(cfg, finalizer)
-	})
-}
-
 func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Config) error {
 	deviation := &configv1alpha1.Deviation{}
 	deviation.Name = configv1alpha1.DeviationName(configv1alpha1.DeviationType_CONFIG, cfg.Name)
@@ -396,34 +399,6 @@ func (r *Transactor) deleteDeviation(ctx context.Context, cfg *configv1alpha1.Co
 		}
 	}
 	return nil
-}
-
-func (r *Transactor) ListConfigsPerTarget(ctx context.Context, target *configv1alpha1.Target) (*config.ConfigList, error) {
-	v1alpha1configList, err := r.listConfigs(ctx, target)
-	if err != nil {
-		return nil, err
-	}
-
-	configList := &config.ConfigList{}
-	if err := configv1alpha1.Convert_v1alpha1_ConfigList_To_config_ConfigList(v1alpha1configList, configList, nil); err != nil {
-		return nil, err
-	}
-
-	return configList, nil
-}
-
-func (r *Transactor) listConfigs(ctx context.Context, target *configv1alpha1.Target) (*configv1alpha1.ConfigList, error) {
-	cfgList := &configv1alpha1.ConfigList{}
-	if err := r.client.List(ctx, cfgList,
-		client.InNamespace(target.GetNamespace()),
-		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
-			config.TargetNameKey:      target.GetName(),
-		},
-	); err != nil {
-		return nil, err
-	}
-	return cfgList, nil
 }
 
 func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) (configv1alpha1.Deviation, error) {
@@ -453,19 +428,6 @@ func (r *Transactor) applyDeviation(ctx context.Context, config *config.Config) 
 		return *newDeviation, nil
 	}
 	return *deviation, nil
-}
-
-func (r *Transactor) patchMetadata(
-	ctx context.Context,
-	obj client.Object,
-	mutate func(),
-) error {
-	orig := obj.DeepCopyObject().(client.Object)
-	mutate()
-	// a stale cached object would drop a finalizer added in the meantime
-	return r.client.Patch(ctx, obj, client.MergeFromWithOptions(orig, client.MergeFromWithOptimisticLock{}),
-		&client.PatchOptions{FieldManager: r.fieldManager},
-	)
 }
 
 func getConfigsToTransact(
@@ -675,238 +637,4 @@ func analyzeIntentResponse(err error, rsp *sdcpb.TransactionSetResponse) Transac
 	}
 
 	return result
-}
-
-// txResult is the outcome of the transaction for one config.
-type txResult struct {
-	configReady condv1alpha1.Condition
-	applied     *configv1alpha1.ConfigSpec // success only
-	schema      *configv1alpha1.ConfigStatusLastKnownGoodSchema
-}
-
-func (t txResult) applyTo(cfg *configv1alpha1.Config) {
-	cfg.SetConditions(t.configReady)
-	cfg.Status.DeviationGeneration = nil
-	if t.configReady.Reason == string(condv1alpha1.ConditionReasonUnrecoverable) {
-		cfg.Status.DeviationGeneration = ptr.To[int64](0)
-	}
-	if t.applied != nil {
-		cfg.Status.AppliedConfig = t.applied
-		cfg.Status.LastKnownGoodSchema = t.schema
-	}
-}
-
-// writeStatus writes every config once: the transaction result where there
-// is one, Ready from ConfigReady for all. All configs are attempted, so one
-// failure does not lose the results of the others.
-func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.ConfigList, results map[string]txResult) error {
-	var errs error
-	for i := range cfgs.Items {
-		current := &cfgs.Items[i]
-		if current.GetDeletionTimestamp() != nil {
-			continue
-		}
-		desired := current.DeepCopy()
-		res, ok := results[config.GetGVKNSN(current)]
-		if ok {
-			res.applyTo(desired)
-		}
-		desired.SetConditions(desired.ReadyFromApplied())
-		// a result comes from the dataserver, only a Ready refresh may be stale
-		if err := r.applyStatus(ctx, current, desired, !ok); err != nil {
-			errs = errors.Join(errs, err)
-		}
-	}
-	return errs
-}
-
-// SetConfigsNotReady sets Ready on every Config of the target to the target
-// stage that blocks it (configv1alpha1.ConfigNotReady). ConfigReady, the
-// transaction state, is kept.
-func (r *Transactor) SetConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, ready condv1alpha1.Condition) error {
-	return r.updateConfigsForTarget(ctx, target, true, func(cfg *configv1alpha1.Config) bool {
-		cfg.SetConditions(ready)
-		return true
-	})
-}
-
-// setRecoveredConfigs sets ConfigReady on the Configs that were part of the
-// recovery (the ones with an applied config). Ready is left to the target
-// config controller: the target is not ready yet while recovering.
-func (r *Transactor) setRecoveredConfigs(ctx context.Context, target *configv1alpha1.Target, cond func(cfg *configv1alpha1.Config) condv1alpha1.Condition) error {
-	return r.updateConfigsForTarget(ctx, target, false, func(cfg *configv1alpha1.Config) bool {
-		if cfg.Status.AppliedConfig == nil {
-			return false
-		}
-		cfg.SetConditions(cond(cfg))
-		cfg.Status.DeviationGeneration = nil // a transaction outcome, see applyStatus
-		return true
-	})
-}
-
-// updateConfigsForTarget applies mutate to every Config of the target and
-// writes the result. mutate returns false to leave a Config alone.
-//
-// deviationGeneration is carried over unchanged: callers that write a
-// transaction outcome clear it themselves (setRecoveredConfigs), the
-// Ready-only updates must keep the marker the unrecoverable path set.
-//
-// conditional is set by the Ready-only updates, see applyStatus.
-func (r *Transactor) updateConfigsForTarget(ctx context.Context, target *configv1alpha1.Target, conditional bool, mutate func(cfg *configv1alpha1.Config) bool) error {
-	cfgList, err := r.listConfigs(ctx, target)
-	if err != nil {
-		return err
-	}
-	for i := range cfgList.Items {
-		current := &cfgList.Items[i]
-		desired := current.DeepCopy()
-		if !mutate(desired) {
-			continue
-		}
-		if err := r.applyStatus(ctx, current, desired, conditional); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// applyStatus is the single writer of the Config status owned by the
-// transactor field manager: Ready, ConfigReady, lastKnownGoodSchema,
-// appliedConfig and deviationGeneration. With SSA, whatever this manager
-// applied before and leaves out now is removed, so every apply carries the
-// full owned set from desired. The same mechanism drops the legacy
-// conditions this manager wrote (LegacyConfigConditionTypes).
-//
-// deviationGeneration is the exception: the unrecoverable error path sets it
-// (to 0), a transaction outcome (success, recoverable failure, recovery)
-// clears it, and the Ready-only updates (updateConfigsForTarget) carry it
-// over unchanged.
-//
-// lastTransitionTime only moves when a condition's status flips. Messages
-// are already bounded by the condition constructors.
-//
-// conditional sends current's resourceVersion: current comes from the cache,
-// a stale copy is rejected (409) instead of overwriting a newer status (#533).
-// Transaction outcomes stay unconditional, a rejection would re-transact.
-func (r *Transactor) applyStatus(ctx context.Context, current, desired *configv1alpha1.Config, conditional bool) error {
-	changed := !reflect.DeepEqual(desired.Status.LastKnownGoodSchema, current.Status.LastKnownGoodSchema) ||
-		!reflect.DeepEqual(desired.Status.AppliedConfig, current.Status.AppliedConfig) ||
-		!reflect.DeepEqual(desired.Status.DeviationGeneration, current.Status.DeviationGeneration)
-	for _, t := range configv1alpha1.LegacyConfigConditionTypes {
-		if current.Status.HasCondition(t) {
-			changed = true
-		}
-	}
-
-	conds := make([]condv1alpha1.Condition, 0, 2)
-	for _, t := range []condv1alpha1.ConditionType{condv1alpha1.ConditionTypeReady, configv1alpha1.ConditionTypeConfigReady} {
-		if !desired.Status.HasCondition(t) {
-			continue
-		}
-		newCond, oldCond := desired.GetCondition(t), current.GetCondition(t)
-		if !current.Status.HasCondition(t) || !newCond.Equal(oldCond) {
-			changed = true
-		}
-		conds = append(conds, keepTransitionTime(newCond, oldCond))
-	}
-	if !changed {
-		return nil
-	}
-
-	statusApply := configv1alpha1apply.ConfigStatus().WithConditions(conds...)
-	if s := desired.Status.LastKnownGoodSchema; s != nil {
-		statusApply = statusApply.WithLastKnownGoodSchema(schemaToApply(s))
-	}
-	if a := desired.Status.AppliedConfig; a != nil {
-		statusApply = statusApply.WithAppliedConfig(configSpecToApply(a))
-	}
-	if g := desired.Status.DeviationGeneration; g != nil {
-		statusApply = statusApply.WithDeviationGeneration(*g)
-	}
-
-	log.FromContext(ctx).Debug("apply config status",
-		"config", desired.GetNamespacedName().String(),
-		"ready", desired.GetCondition(condv1alpha1.ConditionTypeReady).IsTrue(),
-		"reason", desired.GetCondition(condv1alpha1.ConditionTypeReady).Reason)
-
-	configApply := configv1alpha1apply.Config(desired.Name, desired.Namespace).WithStatus(statusApply)
-	if conditional {
-		configApply = configApply.WithResourceVersion(current.ResourceVersion)
-	}
-
-	return r.client.Status().Apply(ctx, configApply,
-		&client.SubResourceApplyOptions{
-			ApplyOptions: client.ApplyOptions{FieldManager: r.fieldManager},
-		})
-}
-
-func schemaToApply(s *configv1alpha1.ConfigStatusLastKnownGoodSchema) *configv1alpha1apply.ConfigStatusLastKnownGoodSchemaApplyConfiguration {
-	if s == nil {
-		return nil
-	}
-	a := configv1alpha1apply.ConfigStatusLastKnownGoodSchema()
-	if s.Type != "" {
-		a.WithType(s.Type)
-	}
-	if s.Vendor != "" {
-		a.WithVendor(s.Vendor)
-	}
-	if s.Version != "" {
-		a.WithVersion(s.Version)
-	}
-	return a
-}
-
-func configSpecToApply(s *configv1alpha1.ConfigSpec) *configv1alpha1apply.ConfigSpecApplyConfiguration {
-	if s == nil {
-		return nil
-	}
-
-	a := configv1alpha1apply.ConfigSpec().
-		WithPriority(s.Priority)
-
-	if s.Revertive != nil {
-		a.WithRevertive(*s.Revertive)
-	}
-
-	if s.Lifecycle != nil {
-		a.WithLifecycle(lifecycleToApply(s.Lifecycle))
-	}
-
-	for i := range s.Config {
-		a.WithConfig(configBlobToApply(&s.Config[i]))
-	}
-	return a
-}
-
-func lifecycleToApply(l *configv1alpha1.Lifecycle) *configv1alpha1apply.LifecycleApplyConfiguration {
-	if l == nil {
-		return nil
-	}
-	a := configv1alpha1apply.Lifecycle()
-	a.WithDeletionPolicy(l.DeletionPolicy)
-
-	return a
-}
-
-func configBlobToApply(b *configv1alpha1.ConfigBlob) *configv1alpha1apply.ConfigBlobApplyConfiguration {
-	if b == nil {
-		return nil
-	}
-	a := configv1alpha1apply.ConfigBlob()
-	if b.Path != "" {
-		a.WithPath(b.Path)
-	}
-	a.WithValue(b.Value)
-	return a
-}
-
-// keepTransitionTime carries the old lastTransitionTime over when the status
-// did not change, so a message or reason update is not reported as a
-// transition.
-func keepTransitionTime(newCond, oldCond condv1alpha1.Condition) condv1alpha1.Condition {
-	if oldCond.Status == newCond.Status && !oldCond.LastTransitionTime.IsZero() {
-		newCond.LastTransitionTime = oldCond.LastTransitionTime
-	}
-	return newCond
 }
