@@ -212,7 +212,7 @@ jobs:
 
   integration-tests:
     needs: [latest-versions, pr-release, resolve-paired-refs]
-    uses: sdcio/integration-tests/.github/workflows/single.yml@main
+    uses: sdcio/integration-tests/.github/workflows/single.yml@ci/single-container-pod-support
     with:
       configserver_version: ${{ needs.pr-release.outputs.configversion }}
       dataserver_version: ${{ needs.resolve-paired-refs.outputs.dataversion }}

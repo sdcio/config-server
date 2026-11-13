@@ -78,8 +78,6 @@ spec:
           value: "true"
         - name: ENABLE_WORKSPACE
           value: "true"
-        - name: ENABLE_ROLLOUT
-          value: "true"
         volumeMounts:
         #- name: schema-store
         #  mountPath: /schemas
