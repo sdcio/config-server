@@ -32,6 +32,7 @@ import (
 	//"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/internal/verbosity"
@@ -54,6 +55,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -160,6 +162,7 @@ func main() {
 	}
 
 	var dsCore *core.Core
+	var grpcMetrics *prometheus.Registry
 	if needsDataServer() {
 		dsCfg, err := loadDataServerConfig()
 		if err != nil {
@@ -167,7 +170,10 @@ func main() {
 			os.Exit(1)
 		}
 		var dsGRPC *grpcserver.Server
-		dsCore, dsGRPC, err = grpcserver.New(ctx, dsCfg)
+		// gRPC collectors are served from the controller-runtime registry and the
+		// :9443 server; cfg.Prometheus stays nil so :56090 never opens.
+		grpcMetrics = prometheus.NewRegistry()
+		dsCore, dsGRPC, err = grpcserver.New(ctx, dsCfg, grpcserver.WithMetricsRegisterer(fanoutRegisterer{ctrlmetrics.Registry, grpcMetrics}))
 		if err != nil {
 			log.Error(err, "cannot create data-server")
 			os.Exit(1)
@@ -188,6 +194,7 @@ func main() {
 		promserver := prometheusserver.NewServer(&prometheusserver.Config{
 			Address:       ":9443",
 			TargetManager: tm,
+			Extra:         grpcMetrics,
 		})
 		go func() {
 			if err := promserver.Start(ctx); err != nil {
@@ -346,4 +353,32 @@ func MetricBindAddress() string {
 		return fmt.Sprintf(":%s", val)
 	}
 	return ":8443"
+}
+
+// fanoutRegisterer registers each collector on every wrapped registerer.
+type fanoutRegisterer []prometheus.Registerer
+
+func (f fanoutRegisterer) Register(c prometheus.Collector) error {
+	for _, r := range f {
+		if err := r.Register(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f fanoutRegisterer) MustRegister(cs ...prometheus.Collector) {
+	for _, c := range cs {
+		if err := f.Register(c); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (f fanoutRegisterer) Unregister(c prometheus.Collector) bool {
+	ok := true
+	for _, r := range f {
+		ok = r.Unregister(c) && ok
+	}
+	return ok
 }
