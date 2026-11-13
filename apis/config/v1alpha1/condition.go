@@ -148,9 +148,26 @@ func configCondition(generation int64, status metav1.ConditionStatus, reason con
 }
 
 // ConfigNotReady returns the Ready=False condition of a Config for one of the
-// target stages (ConfigReasonTarget*).
-func ConfigNotReady(reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
-	return condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
+// target stages (ConfigReasonTarget*). generation is the Config generation
+// the stage was observed for.
+func ConfigNotReady(generation int64, reason condv1alpha1.ConditionReason, msg string) condv1alpha1.Condition {
+	c := condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
+	c.ObservedGeneration = generation
+	return c
+}
+
+// ReadyFromConfigReady returns the Ready condition that follows a ConfigReady
+// condition (the outcome of a transaction), with its observedGeneration.
+func ReadyFromConfigReady(configReady condv1alpha1.Condition) condv1alpha1.Condition {
+	var c condv1alpha1.Condition
+	if configReady.IsTrue() {
+		c = condv1alpha1.ReadyWithMsg(configReady.Message)
+	} else {
+		c = condv1alpha1.NewCondition(condv1alpha1.ConditionTypeReady, metav1.ConditionFalse,
+			condv1alpha1.ConditionReason(configReady.Reason), configReady.Message)
+	}
+	c.ObservedGeneration = configReady.ObservedGeneration
+	return c
 }
 
 // Target Discovery related conditions

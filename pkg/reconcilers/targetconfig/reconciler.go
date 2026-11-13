@@ -24,7 +24,6 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/pkg/errors"
-	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers"
@@ -37,7 +36,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
@@ -57,9 +55,7 @@ const (
 	reconcilerName        = "TargetConfigController"
 	finalizer             = "targetconfig.inv.sdcio.dev/finalizer"
 	// errors
-	errGetCr           = "cannot get cr"
-	errUpdateDataStore = "cannot update datastore"
-	errUpdateStatus    = "cannot update status"
+	errGetCr = "cannot get cr"
 
 	// runtimeRequeue polls the target runtime, its transitions are not watched
 	runtimeRequeue = 5 * time.Second
@@ -96,7 +92,7 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 	)
 	r.targetMgr = cfg.TargetManager
 	r.recorder = mgr.GetEventRecorder(reconcilerName)
-	r.transactor = targetmanager.NewTransactor(r.client, "transactor")
+	r.transactor = targetmanager.NewTransactor(r.client)
 
 	return nil, ctrl.NewControllerManagedBy(mgr).
 		Named(reconcilerName).
@@ -121,7 +117,7 @@ type reconciler struct {
 	finalizer       *resource.APIFinalizer
 	targetMgr       *targetmanager.TargetManager
 	recorder        events.EventRecorder
-	transactor      *targetmanager.Transactor
+	transactor      *targetmanager.Transactor // also writes the Config status this reconciler decides
 }
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -136,6 +132,16 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	targetKey := storebackend.KeyFromNSN(req.NamespacedName)
 
+	// The Configs of the target, listed once: every path below decides their
+	// Ready on this list (the transactor writes it), and the transaction runs
+	// on it. A Config that changes afterwards triggers a new reconcile.
+	cfgs, err := targetmanager.ListTargetConfigs(ctx, r.client, &configv1alpha1.Target{
+		ObjectMeta: metav1.ObjectMeta{Namespace: req.Namespace, Name: req.Name},
+	})
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "cannot list configs")
+	}
+
 	target := &configv1alpha1.Target{}
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -145,12 +151,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// The Target does not exist: never created, or already deleted.
 		// Configs referencing it are only reconciled through this controller,
 		// so they would otherwise keep an empty (or stale) status.
-		return r.reconcileTargetNotFound(ctx, req.NamespacedName)
+		// No requeue: creating the Target triggers this controller through
+		// For(&Target{}), and the normal path takes over.
+		return ctrl.Result{}, r.transactor.UpdateConfigsReady(ctx, cfgs,
+			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", req.NamespacedName)))
 	}
 
 	if !target.GetDeletionTimestamp().IsZero() {
-		if err := r.setConfigsNotReady(ctx, target,
-			configv1alpha1.ConfigReasonTargetDeleting, "target is being deleted",
+		if err := r.transactor.UpdateConfigsReady(ctx, cfgs,
+			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetDeleting, "target is being deleted"),
 		); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -171,8 +180,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// (the blocking target pipeline stage) goes into the message.
 	// No requeue: Target status changes trigger this controller (For(&Target{})).
 	if !target.IsReady() {
-		return ctrl.Result{}, r.setConfigsNotReady(ctx, target,
-			configv1alpha1.ConfigReasonTargetNotReady, target.NotReadyReason())
+		return ctrl.Result{}, r.transactor.UpdateConfigsReady(ctx, cfgs,
+			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetNotReady, target.NotReadyReason()))
 	}
 
 	// 2) runtime: Target Ready can lag the runtime (or the runtime moved on
@@ -187,13 +196,13 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				msg += ": " + dsctx.Status.LastError
 			}
 		}
-		return ctrl.Result{RequeueAfter: runtimeRequeue}, r.setConfigsNotReady(ctx, target,
-			configv1alpha1.ConfigReasonTargetRuntimeNotReady, msg)
+		return ctrl.Result{RequeueAfter: runtimeRequeue}, r.transactor.UpdateConfigsReady(ctx, cfgs,
+			targetmanager.NotReady(configv1alpha1.ConfigReasonTargetRuntimeNotReady, msg))
 	}
 
-	// 3) transact: the transaction writes Ready for the configs it touched
-	// (from their ConfigReady). The others follow their ConfigReady below.
-	retry, err := r.transactor.Transact(ctx, target, dsctx)
+	// 3) transact: no target stage blocks, so the transaction writes the
+	// status of the configs: their outcome, and Ready following it.
+	retry, err := r.transactor.Transact(ctx, target, dsctx, cfgs)
 	if err != nil {
 		log.Info("config transaction failed", "retry", retry, "err", err)
 		if !retry {
@@ -202,48 +211,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, nil
 		}
 		// recoverable: back off and retry
-		if serr := r.setConfigsReadyFromApplied(ctx, target); serr != nil {
-			return ctrl.Result{}, serr
-		}
 		return ctrl.Result{}, err
 	}
 	log.Info("config transaction success", "retry", retry)
 
-	// also when the transaction did nothing
-	if err := r.setConfigsReadyFromApplied(ctx, target); err != nil {
-		return ctrl.Result{}, err
-	}
 	if retry {
 		return ctrl.Result{RequeueAfter: 500 * time.Millisecond}, nil
 	}
 	return ctrl.Result{}, nil
-}
-
-// reconcileTargetNotFound marks every Config that references the missing
-// Target. No requeue: creating the Target triggers this controller through
-// For(&Target{}), and the normal path takes over.
-func (r *reconciler) reconcileTargetNotFound(ctx context.Context, key types.NamespacedName) (ctrl.Result, error) {
-	// The Configs are selected by the target name/namespace, so a stub
-	// carrying only those is sufficient.
-	missing := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{
-		Namespace: key.Namespace,
-		Name:      key.Name,
-	}}
-	return ctrl.Result{}, r.setConfigsNotReady(ctx, missing,
-		configv1alpha1.ConfigReasonTargetNotFound, fmt.Sprintf("target %s not found", key.String()))
-}
-
-// setConfigsNotReady sets Ready=False with a target stage reason on the
-// Configs of the target. The message is bounded by the condition constructor.
-// A failed status update is returned, so the request is retried with backoff.
-func (r *reconciler) setConfigsNotReady(ctx context.Context, target *configv1alpha1.Target, reason condv1alpha1.ConditionReason, msg string) error {
-	logf.FromContext(ctx).V(logf.VDebug).Info("setConfigsNotReady", "reason", reason, "msg", msg)
-	return errors.Wrap(r.transactor.SetConfigsNotReady(ctx, target,
-		configv1alpha1.ConfigNotReady(reason, msg)), errUpdateStatus)
-}
-
-// setConfigsReadyFromApplied sets Ready on the Configs of the target from the
-// outcome of their last transaction (ConfigReady).
-func (r *reconciler) setConfigsReadyFromApplied(ctx context.Context, target *configv1alpha1.Target) error {
-	return errors.Wrap(r.transactor.SetConfigsReadyFromApplied(ctx, target), errUpdateStatus)
 }

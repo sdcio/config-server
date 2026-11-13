@@ -219,7 +219,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 				log.Error(err, "cannot create config", "name", nsnKey.Name)
 				continue
 			}
-			targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "creating")
+			targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(desired.GetGeneration(), configv1alpha1.ConfigReasonPending, "creating")
 			continue
 		}
 
@@ -251,7 +251,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 			log.Error(err, "cannot update config", "name", nsnKey.Name)
 			continue
 		}
-		targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "updating")
+		targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(newConfig.GetGeneration(), configv1alpha1.ConfigReasonPending, "updating")
 	}
 
 	// These configs no longer match a target
@@ -273,7 +273,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 func readyOf(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 	c := cfg.GetCondition(condv1alpha1.ConditionTypeReady)
 	if c.Reason == "" {
-		return configv1alpha1.ConfigNotReady(configv1alpha1.ConfigReasonPending, "config has not reported Ready yet")
+		return configv1alpha1.ConfigNotReady(cfg.GetGeneration(), configv1alpha1.ConfigReasonPending, "config has not reported Ready yet")
 	}
 	return c
 }
