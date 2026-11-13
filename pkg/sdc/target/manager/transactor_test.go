@@ -511,3 +511,93 @@ func TestTransact_FailureKeepsAppliedConfig(t *testing.T) {
 	assert.NotNil(t, cfg.Status.AppliedConfig, "appliedConfig survives the failure")
 	assert.Equal(t, dsctx.Schema, cfg.Status.LastKnownGoodSchema, "lastKnownGoodSchema survives the failure")
 }
+
+// newDeletingConfig returns a Config that holds the transactor finalizer, so
+// deleting it only sets the deletion timestamp.
+func newDeletingConfig(name string) *configv1alpha1.Config {
+	cfg := newTargetConfig(name, 10)
+	cfg.Finalizers = []string{finalizer}
+	return cfg
+}
+
+func deleteConfig(t *testing.T, c client.Client, name string) {
+	t.Helper()
+	require.NoError(t, c.Delete(context.Background(), getTargetConfig(t, c, name)))
+}
+
+func assertConfigGone(t *testing.T, c client.Client, name string) {
+	t.Helper()
+	err := c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: name}, &configv1alpha1.Config{})
+	assert.True(t, apierrors.IsNotFound(err), "%s: released, got %v", name, err)
+}
+
+// Without a transaction (target not ready, ...), deleting Configs are
+// released and the others are left alone (sdcio/config-server#529).
+func TestReleaseDeletingConfigs(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newDeletingConfig("gone"), newDeletingConfig("kept"))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	tr := NewTransactor(c)
+
+	deleteConfig(t, c, "gone")
+	cfgs, err := ListTargetConfigs(ctx, c, target)
+	require.NoError(t, err)
+	require.NoError(t, tr.ReleaseDeletingConfigs(ctx, cfgs))
+
+	assertConfigGone(t, c, "gone")
+	assert.Equal(t, []string{finalizer}, getTargetConfig(t, c, "kept").Finalizers)
+}
+
+// The delete intent does not depend on the spec: an unrecoverable Config is
+// still deleted.
+func TestTransact_DeletesUnrecoverable(t *testing.T) {
+	cfg := newDeletingConfig("bad")
+	cfg.SetConditions(configv1alpha1.ConfigFailedUnrecoverable(cfg.GetGeneration(), "malformed intent"))
+	c := newFakeConfigClient(t, nil, cfg)
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	tr := NewTransactor(c)
+
+	deleteConfig(t, c, "bad")
+	_, err := transact(t, tr, c, target, newTestDatastore(ds))
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 1)
+	assert.Equal(t, sets.New("default.bad"), ds.calls[0])
+	assertConfigGone(t, c, "bad")
+}
+
+// A deleting orphan Config is removed in a transaction of its own and
+// released, even when the other intents of the target fail.
+func TestTransact_OrphanDeletedOnItsOwn(t *testing.T) {
+	orphan := newDeletingConfig("orphan")
+	orphan.Spec.Lifecycle = &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
+	c := newFakeConfigClient(t, nil, orphan, newTargetConfig("secondary", 20))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	tr := NewTransactor(c)
+
+	deleteConfig(t, c, "orphan")
+	// secondary fails on its own (mandatory leaf missing)
+	_, _ = transact(t, tr, c, target, newTestDatastore(ds))
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, sets.New("default.orphan"), ds.calls[0], "orphan in a transaction of its own")
+	assert.Equal(t, sets.New("default.secondary"), ds.calls[1])
+	assertConfigGone(t, c, "orphan")
+}
+
+func TestDeleteRetry(t *testing.T) {
+	deleting := map[string]*internalconfig.Config{"default.customer-sr1": {}}
+	nonRecoverable := errors.New("errTimeoutError: channel timeout sending input to device")
+
+	retry, err := deleteRetry(deleting, false, nonRecoverable) // deletes: retried even if non recoverable
+	assert.True(t, retry)
+	assert.ErrorIs(t, err, nonRecoverable)
+
+	retry, err = deleteRetry(deleting, false, nil) // intent errors only: still backs off
+	assert.True(t, retry)
+	assert.Error(t, err)
+
+	retry, err = deleteRetry(nil, false, nonRecoverable) // no deletes: unchanged
+	assert.False(t, retry)
+	assert.ErrorIs(t, err, nonRecoverable)
+}

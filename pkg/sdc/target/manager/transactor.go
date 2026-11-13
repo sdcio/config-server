@@ -228,6 +228,19 @@ func (r *Transactor) transact(
 		return nil, true, err
 	}
 
+	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
+
+	// Deleting orphan configs leave the device untouched, so they are taken
+	// out of the regular transaction: their own state (e.g. unrecoverable)
+	// or a failure of other intents must not block their deletion
+	// (sdcio/config-server#529).
+	orphans, configList := splitDeletingOrphans(configList)
+	if len(orphans) > 0 {
+		if retry, err := r.deleteOrphans(ctx, dsctx, targetKey, cfgs, orphans); err != nil {
+			return nil, retry, err
+		}
+	}
+
 	// reapply deviations for each config snippet
 	// This ensure the deviations are applied
 	for _, cfg := range configList.Items {
@@ -255,8 +268,6 @@ func (r *Transactor) transact(
 		}
 	}
 
-	targetKey := storebackend.KeyFromNSN(target.GetNamespacedName())
-
 	uuid := uuid.New()
 
 	rsp, err := r.setIntents(
@@ -280,7 +291,7 @@ func (r *Transactor) transact(
 			"intentErrors", result.IntentErrors,
 		)
 
-		return handleTransactionErrors(
+		results, retry, err := handleTransactionErrors(
 			ctx,
 			rsp,
 			configsToUpdate,
@@ -288,6 +299,8 @@ func (r *Transactor) transact(
 			result.GlobalError,
 			result.Recoverable,
 		)
+		retry, err = deleteRetry(configsToDelete, retry, err)
+		return results, retry, err
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
@@ -310,21 +323,121 @@ func (r *Transactor) transact(
 		}
 	}
 
-	for i := range cfgs.Items {
-		cfg := &cfgs.Items[i]
-		if _, ok := configsToDelete[config.GetGVKNSN(cfg)]; !ok {
-			continue
-		}
-		// while the finalizer still holds the Config, so a failure is retried
-		if err := r.deleteDeviation(ctx, cfg); err != nil {
-			return results, true, err
-		}
-		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
-			return results, true, err
-		}
+	if err := r.releaseConfigs(ctx, cfgs, sets.KeySet(configsToDelete)); err != nil {
+		return results, true, err
 	}
 
 	return results, false, nil
+}
+
+// ReleaseDeletingConfigs lets every deleting Config of the target go,
+// without a transaction and whatever its deletion policy. It is used when no
+// transaction will run anymore (the target is not found or being deleted),
+// so a deletion does not wait on a target that is gone
+// (sdcio/config-server#529). What the released Configs left on a device
+// that comes back is reported as a target deviation.
+func (r *Transactor) ReleaseDeletingConfigs(ctx context.Context, cfgs *configv1alpha1.ConfigList) error {
+	deleting := sets.New[string]()
+	for i := range cfgs.Items {
+		if cfgs.Items[i].GetDeletionTimestamp() != nil {
+			deleting.Insert(config.GetGVKNSN(&cfgs.Items[i]))
+		}
+	}
+	if deleting.Len() == 0 {
+		return nil
+	}
+	log.FromContext(ctx).Info("releasing deleting configs without transaction",
+		"configs", sets.List(deleting))
+	return r.releaseConfigs(ctx, cfgs, deleting)
+}
+
+// releaseConfigs lets the listed configs with a key in keys go: it deletes
+// their deviation, while the finalizer still holds the Config so a failure
+// is retried, then removes the finalizer so the apiserver can remove them.
+func (r *Transactor) releaseConfigs(ctx context.Context, cfgs *configv1alpha1.ConfigList, keys sets.Set[string]) error {
+	for i := range cfgs.Items {
+		cfg := &cfgs.Items[i]
+		if !keys.Has(config.GetGVKNSN(cfg)) {
+			continue
+		}
+		if err := r.deleteDeviation(ctx, cfg); err != nil {
+			return err
+		}
+		if err := r.finalizer.RemoveFinalizer(ctx, cfg); resource.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// deleteOrphans removes the intents of deleting orphan configs from the
+// datastore in a transaction of their own, then releases the configs.
+// The release happens no matter the outcome of the transaction, except on a
+// transient (gRPC) error, which is retried: the datastore may still hold the
+// intent and should drop it. If the runtime goes away in between, they wait
+// for the next transaction, or are released through ReleaseDeletingConfigs
+// once the target is gone.
+// retry is true when the caller should requeue.
+func (r *Transactor) deleteOrphans(
+	ctx context.Context,
+	dsctx *DatastoreHandle,
+	targetKey storebackend.Key,
+	cfgs *configv1alpha1.ConfigList,
+	orphans map[string]*config.Config,
+) (bool, error) {
+	log := log.FromContext(ctx)
+	transactionID := uuid.New().String()
+
+	rsp, err := r.setIntents(ctx, dsctx, targetKey, transactionID, nil, orphans, false)
+	result := analyzeIntentResponse(err, rsp)
+	switch {
+	case result.GlobalError != nil && result.Recoverable:
+		log.Warn("orphan delete transaction failed, retrying", "err", result.GlobalError)
+		return true, result.GlobalError
+	case result.GlobalError != nil || result.IntentErrors != nil:
+		log.Warn("orphan delete transaction failed, releasing configs anyway",
+			"configs", mapKeys(orphans),
+			"globalError", result.GlobalError,
+			"intentErrors", result.IntentErrors,
+		)
+	default:
+		if _, err := dsctx.Client.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
+			DatastoreName: dsctx.DatastoreName,
+			TransactionId: transactionID,
+		}); err != nil {
+			if isRecoverableTransactionError(err) {
+				log.Warn("orphan delete confirm failed, retrying", "err", err)
+				return true, err
+			}
+			log.Warn("orphan delete confirm failed, releasing configs anyway",
+				"configs", mapKeys(orphans), "err", err)
+		}
+	}
+
+	if err := r.releaseConfigs(ctx, cfgs, sets.KeySet(orphans)); err != nil {
+		return true, err
+	}
+	return false, nil
+}
+
+// splitDeletingOrphans returns the deleting configs with deletionPolicy
+// orphan, keyed like getConfigsToTransact, and a list with the other configs.
+func splitDeletingOrphans(configList *config.ConfigList) (map[string]*config.Config, *config.ConfigList) {
+	orphans := make(map[string]*config.Config)
+	rest := &config.ConfigList{
+		TypeMeta: configList.TypeMeta,
+		ListMeta: configList.ListMeta,
+		Items:    make([]config.Config, 0, len(configList.Items)),
+	}
+	for i := range configList.Items {
+		cfg := &configList.Items[i]
+		if cfg.GetDeletionTimestamp() != nil && cfg.Orphan() {
+			orphans[config.GetGVKNSN(cfg)] = cfg.DeepCopy()
+			continue
+		}
+		rest.Items = append(rest.Items, *cfg)
+	}
+	return orphans, rest
 }
 
 func (r *Transactor) setIntents(
@@ -450,11 +563,13 @@ func getConfigsToTransact(
 		key := config.GetGVKNSN(cfg)
 
 		switch {
-		case !cfg.IsRecoverable(ctx):
-			nonRecoverable[key] = cfg
-
+		// The delete intent does not depend on the spec, so the outcome of
+		// the last apply (e.g. unrecoverable) must not hold a deletion back.
 		case cfg.GetDeletionTimestamp() != nil:
 			configsToDelete[key] = cfg
+
+		case !cfg.IsRecoverable(ctx):
+			nonRecoverable[key] = cfg
 
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
@@ -581,6 +696,24 @@ func handleTransactionErrors(
 	}
 
 	return results, recoverable, globalErr
+}
+
+// deleteRetry keeps a failed transaction that carries deletes retrying with
+// backoff. An update is retried when its spec changes, but a deleting Config
+// has no such trigger: without a requeue it waits, finalizer and all, on an
+// unrelated event. E.g. a device timeout (errTimeoutError, reported as
+// codes.Unknown, so non recoverable) left a deleting child Config, and its
+// ConfigSet, stuck until another config on the target changed.
+func deleteRetry(configsToDelete map[string]*config.Config, retry bool, err error) (bool, error) {
+	if len(configsToDelete) == 0 || retry {
+		return retry, err
+	}
+	if err == nil {
+		// intent errors only: return an error so the reconciler backs off
+		// (exponential) instead of the fixed 500ms requeue
+		err = fmt.Errorf("transaction failed for deleting configs %v, retrying", mapKeys(configsToDelete))
+	}
+	return true, err
 }
 
 // failedResult stamps the generation that was transacted, not the current
