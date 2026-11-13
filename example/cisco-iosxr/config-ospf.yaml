@@ -1,0 +1,25 @@
+# Minimal OSPFv2 process — enable an area and attach Loopback0 for sync smoke test.
+apiVersion: config.sdcio.dev/v1alpha1
+kind: Config
+metadata:
+  name: cisco-iosxr-ospf-sample
+  namespace: default
+  labels:
+    config.sdcio.dev/targetName: ixr01
+    config.sdcio.dev/targetNamespace: default
+spec:
+  priority: 10
+  config:
+  - path: /Cisco-IOS-XR-um-router-ospf-cfg:router
+    value:
+      ospf:
+        processes:
+          process:
+          - process-name: default
+            router-id: 1.1.1.1
+            areas:
+              area:
+              - area-id: 0.0.0.0
+                interfaces:
+                  interface:
+                  - interface-name: Loopback0

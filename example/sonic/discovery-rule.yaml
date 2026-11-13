@@ -1,0 +1,39 @@
+# Discovers SONiC device(s) by address and onboards them referencing the
+# sonic-gnmi connection profile and sonic-sync sync profile above. The
+# deviceProfile set on sonic-gnmi flows transitively into every Target created
+# by this rule — no separate field is needed here.
+apiVersion: inv.sdcio.dev/v1alpha1
+kind: DiscoveryRule
+metadata:
+  name: sonic-discovery
+  namespace: default
+spec:
+  period: 1m
+  concurrentScans: 10
+  defaultSchema:
+    provider: sonic.nokia.sdcio.dev
+    version: "202605"
+  addresses:
+  - address: 172.20.20.43     # replace with the device's management address
+    hostName: sonic01
+  targetConnectionProfiles:
+  - credentials: sonic-credentials   # Secret (type kubernetes.io/basic-auth) below
+    connectionProfile: sonic-gnmi
+    syncProfile: sonic-sync
+  targetTemplate:
+    labels:
+      sdcio.dev/region: us-east
+
+---
+# Credentials referenced by name (not namespaced-name) from
+# targetConnectionProfiles[].credentials above; must live in the same
+# namespace as the DiscoveryRule/Target.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sonic-credentials
+  namespace: default
+type: kubernetes.io/basic-auth
+stringData:
+  username: admin
+  password: admin   # replace with the device's actual credentials

@@ -1,0 +1,21 @@
+# Minimal BGP instance and eBGP neighbor — lab placeholders only.
+apiVersion: config.sdcio.dev/v1alpha1
+kind: Config
+metadata:
+  name: cisco-iosxr-bgp-sample
+  namespace: default
+  labels:
+    config.sdcio.dev/targetName: ixr01
+    config.sdcio.dev/targetNamespace: default
+spec:
+  priority: 10
+  config:
+  - path: /Cisco-IOS-XR-um-router-bgp-cfg:router
+    value:
+      bgp:
+        as:
+        - as-number: 65001
+          neighbors:
+            neighbor:
+            - neighbor-address: 10.0.0.2
+              remote-as: 65002
