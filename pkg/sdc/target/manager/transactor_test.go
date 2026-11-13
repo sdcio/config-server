@@ -584,3 +584,20 @@ func TestTransact_OrphanDeletedOnItsOwn(t *testing.T) {
 	assert.Equal(t, sets.New("default.secondary"), ds.calls[1])
 	assertConfigGone(t, c, "orphan")
 }
+
+func TestDeleteRetry(t *testing.T) {
+	deleting := map[string]*internalconfig.Config{"default.customer-sr1": {}}
+	nonRecoverable := errors.New("errTimeoutError: channel timeout sending input to device")
+
+	retry, err := deleteRetry(deleting, false, nonRecoverable) // deletes: retried even if non recoverable
+	assert.True(t, retry)
+	assert.ErrorIs(t, err, nonRecoverable)
+
+	retry, err = deleteRetry(deleting, false, nil) // intent errors only: still backs off
+	assert.True(t, retry)
+	assert.Error(t, err)
+
+	retry, err = deleteRetry(nil, false, nonRecoverable) // no deletes: unchanged
+	assert.False(t, retry)
+	assert.ErrorIs(t, err, nonRecoverable)
+}

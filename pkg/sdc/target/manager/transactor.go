@@ -291,7 +291,7 @@ func (r *Transactor) transact(
 			"intentErrors", result.IntentErrors,
 		)
 
-		return handleTransactionErrors(
+		results, retry, err := handleTransactionErrors(
 			ctx,
 			rsp,
 			configsToUpdate,
@@ -299,6 +299,8 @@ func (r *Transactor) transact(
 			result.GlobalError,
 			result.Recoverable,
 		)
+		retry, err = deleteRetry(configsToDelete, retry, err)
+		return results, retry, err
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
@@ -694,6 +696,24 @@ func handleTransactionErrors(
 	}
 
 	return results, recoverable, globalErr
+}
+
+// deleteRetry keeps a failed transaction that carries deletes retrying with
+// backoff. An update is retried when its spec changes, but a deleting Config
+// has no such trigger: without a requeue it waits, finalizer and all, on an
+// unrelated event. E.g. a device timeout (errTimeoutError, reported as
+// codes.Unknown, so non recoverable) left a deleting child Config, and its
+// ConfigSet, stuck until another config on the target changed.
+func deleteRetry(configsToDelete map[string]*config.Config, retry bool, err error) (bool, error) {
+	if len(configsToDelete) == 0 || retry {
+		return retry, err
+	}
+	if err == nil {
+		// intent errors only: return an error so the reconciler backs off
+		// (exponential) instead of the fixed 500ms requeue
+		err = fmt.Errorf("transaction failed for deleting configs %v, retrying", mapKeys(configsToDelete))
+	}
+	return true, err
 }
 
 // failedResult stamps the generation that was transacted, not the current
