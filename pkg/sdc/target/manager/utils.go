@@ -20,31 +20,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/prototext"
 )
 
-// processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them
-// as recoverable or non recoverable.
-func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
+// processTransactionResult returns the warnings as a string and aggregates the
+// errors in a single TransactionError, classified recoverable when the call
+// failed with a retryable error. Intent validation errors are never recoverable.
+func processTransactionResult(ctx context.Context, rsp *api.TransactionResult, rsperr error) (string, error) {
 	log := logf.FromContext(ctx)
 	var errs error
 	var collectedWarnings []string
 	var recoverable bool
 	if rsperr != nil {
 		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
-		recoverable = isRecoverableTransactionError(rsperr)
+		recoverable = api.IsRetryable(rsperr)
 	}
 	if rsp != nil {
 		for _, warning := range rsp.Warnings {
 			collectedWarnings = append(collectedWarnings, fmt.Sprintf("global warning: %q", warning))
 		}
-		for key, intent := range rsp.Intents {
+		for _, key := range sortedKeys(rsp.Intents) {
+			intent := rsp.Intents[key]
 			for _, intentError := range intent.Errors {
 				errs = errors.Join(errs, fmt.Errorf("intent %q error: %q", key, intentError))
 			}
@@ -61,24 +61,15 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 	if len(collectedWarnings) > 0 {
 		msg = strings.Join(collectedWarnings, "; ")
 	}
-	log.V(logf.VDebug).Info("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
+	log.V(logf.VDebug).Info("transaction response", "rsp", rsp, "msg", msg, "error", err)
 	return msg, err
 }
 
-// isRecoverableTransactionError reports whether a data-server transaction error
-// is transient and worth retrying, based on its gRPC status code.
-func isRecoverableTransactionError(err error) bool {
-	if err == nil {
-		return false
+func sortedKeys[T any](m map[string]T) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
 	}
-	st, ok := status.FromError(err)
-	if !ok {
-		return false
-	}
-	switch st.Code() {
-	case codes.Aborted, codes.ResourceExhausted, codes.Unavailable, codes.DeadlineExceeded:
-		return true
-	default:
-		return false
-	}
+	sort.Strings(keys)
+	return keys
 }

@@ -28,20 +28,31 @@ import (
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	v1 "k8s.io/api/flowcontrol/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// transactionClient is the in-process data-server handle for per-target
+// transactions.
+type transactionClient interface {
+	TransactionSet(ctx context.Context, ref api.TxRef, opts api.SetOptions, intents []api.Intent) (*api.TransactionResult, error)
+	TransactionConfirm(ctx context.Context, ref api.TxRef, origin api.Origin) error
+	TransactionCancel(ctx context.Context, ref api.TxRef, origin api.Origin) error
+}
+
+// rolloutOrigin names the rollout controller towards the data-server.
+const rolloutOrigin api.Origin = "config-server/rollout"
+
 type transactionManager struct {
 	newTargetUpdateConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
 	newTargetDeleteConfigStore storebackend.Storer[storebackend.Storer[*config.Config]]
 	//targetHandler              target.TargetHandler
 	client                client.Client
+	tx                    transactionClient
 	globalTimeout         time.Duration
 	targetTimeout         time.Duration
 	skipUnavailableTarget bool
@@ -54,6 +65,7 @@ func NewTransactionManager(
 	newTargetUpdateConfigStore storebackend.Storer[storebackend.Storer[*config.Config]],
 	newTargetDeleteConfigStore storebackend.Storer[storebackend.Storer[*config.Config]],
 	client client.Client,
+	tx transactionClient,
 	globalTimeout, targetTimeout time.Duration,
 	skipUnavailableTarget bool,
 ) *transactionManager {
@@ -61,6 +73,7 @@ func NewTransactionManager(
 		newTargetUpdateConfigStore: newTargetUpdateConfigStore,
 		newTargetDeleteConfigStore: newTargetDeleteConfigStore,
 		client:                     client,
+		tx:                         tx,
 		globalTimeout:              globalTimeout,
 		targetTimeout:              targetTimeout,
 		targetStatus:               memstore.NewStore[invv1alpha1.RolloutTargetStatus](),
@@ -257,21 +270,8 @@ func (r *transactionManager) cancel(ctx context.Context, targetKey types.Namespa
 	done := make(chan error, 1)
 
 	go func() {
-		cfg := &dsclient.Config{
-			Address:  dsclient.GetDataServerAddress(),
-			Insecure: true,
-		}
-
-		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
-			_, err := c.TransactionCancel(ctx, &sdcpb.TransactionCancelRequest{
-				TransactionId: transactionID,
-				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+		done <- r.tx.TransactionCancel(cancelCtx,
+			api.TxRef{Datastore: storebackend.KeyFromNSN(targetKey).String(), ID: transactionID}, rolloutOrigin)
 		close(done)
 	}()
 
@@ -299,21 +299,8 @@ func (r *transactionManager) confirm(ctx context.Context, targetKey types.Namesp
 	done := make(chan error, 1)
 
 	go func() {
-		cfg := &dsclient.Config{
-			Address:  dsclient.GetDataServerAddress(),
-			Insecure: true,
-		}
-
-		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
-			_, err := c.TransactionConfirm(ctx, &sdcpb.TransactionConfirmRequest{
-				TransactionId: transactionID,
-				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+		done <- r.tx.TransactionConfirm(cancelCtx,
+			api.TxRef{Datastore: storebackend.KeyFromNSN(targetKey).String(), ID: transactionID}, rolloutOrigin)
 		close(done)
 	}()
 
@@ -361,24 +348,12 @@ func (r *transactionManager) applyConfigToTarget(ctx context.Context, targetKey 
 	//deviations := map[string]*config.Deviation{}
 
 	go func() {
-		cfg := &dsclient.Config{
-			Address:  dsclient.GetDataServerAddress(),
-			Insecure: true,
-		}
-
-		// ToBeUpdated
-		done <- dsclient.OneShot(ctx, cfg, func(ctx context.Context, c sdcpb.DataServerClient) error {
-			_, err := c.TransactionSet(ctx, &sdcpb.TransactionSetRequest{
-				TransactionId: transactionID,
-				DatastoreName: storebackend.KeyFromNSN(targetKey).String(),
-			})
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+		// ToBeUpdated: the intents are not sent yet
+		_, err := r.tx.TransactionSet(cancelCtx,
+			api.TxRef{Datastore: storebackend.KeyFromNSN(targetKey).String(), ID: transactionID},
+			api.SetOptions{Origin: rolloutOrigin}, nil)
+		done <- err
 		close(done)
-
 	}()
 
 	select {

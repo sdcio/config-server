@@ -39,8 +39,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	_ "github.com/sdcio/config-server/pkg/reconcilers/all"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	dsconfig "github.com/sdcio/data-server/pkg/config"
 	"github.com/sdcio/data-server/pkg/core"
@@ -183,17 +181,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Remaining call sites still reach the embedded core through its own
-		// :56000 listener.
-		dsConnMgr := dsmanager.New(ctx, &dsclient.Config{Address: dsclient.GetLocalDataServerAddress()})
-		if err := dsConnMgr.AddToManager(mgr); err != nil {
-			log.Error(err, "cannot add dataserver conn manager")
-			os.Exit(1)
-		}
-		ctrlCfg.DataServerManager = dsConnMgr
-
-		tm := targetmanager.NewTargetManager(dsConnMgr, mgr.GetClient(), dsCore)
+		tm := targetmanager.NewTargetManager(dsCore, mgr.GetClient())
 		ctrlCfg.TargetManager = tm
+		ctrlCfg.Transactions = dsCore
 
 		promserver := prometheusserver.NewServer(&prometheusserver.Config{
 			Address:       ":9443",
@@ -248,7 +238,7 @@ func IsPProfEnabled() *string {
 // needsDataServer reports whether an enabled reconciler talks to the embedded
 // data-server, so processes running only other reconcilers skip embedding it.
 func needsDataServer() bool {
-	for _, name := range []string{"targetdatastore", "targetconfig", "subscription"} {
+	for _, name := range []string{"targetdatastore", "targetconfig", "subscription", "rollout"} {
 		if IsReconcilerEnabled(name) {
 			return true
 		}
@@ -278,7 +268,7 @@ func HealthProbeBindAddress() string {
 
 // loadDataServerConfig reads the embedded data-server config from
 // DATA_SERVER_CONFIG (default /config/data-server.yaml) and applies the
-// environment overrides.
+// environment overrides and the merged-mode settings.
 func loadDataServerConfig() (*dsconfig.Config, error) {
 	path := defaultDataServerConfig
 	if val, found := os.LookupEnv("DATA_SERVER_CONFIG"); found {
@@ -292,6 +282,10 @@ func loadDataServerConfig() (*dsconfig.Config, error) {
 		cfg.GRPCServer != nil && cfg.GRPCServer.SchemaServer != nil {
 		cfg.GRPCServer.SchemaServer.SchemasDirectory = envDir
 	}
+	// The embedded server must not open its own metrics listener
+	// (prometheus.address); the process exposes metrics through the
+	// controller-runtime and :9443 servers.
+	cfg.Prometheus = nil
 	return cfg, nil
 }
 

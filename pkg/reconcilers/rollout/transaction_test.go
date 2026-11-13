@@ -193,6 +193,6 @@ func getTransctionManager(targets map[string]*target.MockContext, updates, delet
 		}
 	}
 
-	return NewTransactionManager(updateStore, deleteStore, nil, 5*time.Second, 2*time.Second, true)
+	return NewTransactionManager(updateStore, deleteStore, nil, nil, 5*time.Second, 2*time.Second, true)
 }
 */

@@ -37,15 +37,9 @@ const (
 	defaultNamespace         = "sdc-system"
 )
 
+// GetDataServerAddress returns the :56000 address the api-server dials; the
+// controller reaches the data-server in-process instead.
 func GetDataServerAddress() string {
-	return getDataServerAddress(false)
-}
-
-func GetLocalDataServerAddress() string {
-	return getDataServerAddress(true)
-}
-
-func getDataServerAddress(local bool) string {
 	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
 		return address
 	}
@@ -54,9 +48,6 @@ func getDataServerAddress(local bool) string {
 	svc := envOrDefault("SDC_DATA_SERVER_SERVICE", defaultDataServerService)
 	port := envOrDefault("SDC_DATA_SERVER_PORT", defaultDataServerPort)
 
-	if local {
-		return fmt.Sprintf("localhost:%s", port)
-	}
 	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
 }
 

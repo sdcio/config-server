@@ -18,7 +18,9 @@ package targetmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/sdcio/config-server/apis/condition"
@@ -30,9 +32,12 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// runDryRunTransaction opens a short-lived data-server client, executes a
+// RunDryRunTransaction opens a short-lived data-server client, executes a
 // TransactionSet dry-run with the provided intents, processes the result,
 // and updates the Config status/conditions.
+//
+// It is used by the api-server, a separate deployment that reaches the
+// data-server over its :56000 listener; the controller never calls it.
 func RunDryRunTransaction(
 	ctx context.Context,
 	c *config.Config,
@@ -68,7 +73,7 @@ func RunDryRunTransaction(
 
 	rsp, rpcErr := dsClient.TransactionSet(ctx, req)
 
-	warnings, aggErr := processTransactionResponse(ctx, rsp, rpcErr)
+	warnings, aggErr := processWireTransactionResponse(rsp, rpcErr)
 	if aggErr != nil {
 		msg := fmt.Sprintf("%s err %s", warnings, aggErr.Error())
 		c.SetConditions(condition.Failed(msg))
@@ -82,4 +87,33 @@ func RunDryRunTransaction(
 	}
 	c.Status.AppliedConfig = &c.Spec
 	return c, nil
+}
+
+// processWireTransactionResponse aggregates the warnings and errors of a wire
+// TransactionSetResponse. The api-server only reports them, so the error
+// carries no recoverability.
+func processWireTransactionResponse(rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
+	var errs error
+	var warnings []string
+	if rsperr != nil {
+		errs = errors.Join(errs, fmt.Errorf("error: %s", rsperr.Error()))
+	}
+	if rsp != nil {
+		for _, warning := range rsp.Warnings {
+			warnings = append(warnings, fmt.Sprintf("global warning: %q", warning))
+		}
+		for key, intent := range rsp.Intents {
+			for _, intentError := range intent.Errors {
+				errs = errors.Join(errs, fmt.Errorf("intent %q error: %q", key, intentError))
+			}
+			for _, intentWarning := range intent.Warnings {
+				warnings = append(warnings, fmt.Sprintf("intent %q warning: %q", key, intentWarning))
+			}
+		}
+	}
+	var err error
+	if errs != nil {
+		err = NewTransactionError(errs, false)
+	}
+	return strings.Join(warnings, "; "), err
 }

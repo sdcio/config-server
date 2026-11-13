@@ -19,7 +19,6 @@ package ctrlconfig
 import (
 	"context"
 
-	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
 	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,11 +28,12 @@ import (
 
 type ControllerConfig struct {
 	//TargetStore       storebackend.Storer[*sdctarget.Context]
-	//DataServerStore   storebackend.Storer[sdcctx.DSContext]
-	SchemaDir         string
-	WorkspaceDir      string
-	DataServerManager *dsmanager.DSConnManager
-	TargetManager     *targetmanager.TargetManager
+	SchemaDir    string
+	WorkspaceDir string
+	// TargetManager is always set in production.
+	TargetManager *targetmanager.TargetManager
+	// Transactions is the in-process data-server transaction handle.
+	Transactions targetmanager.TransactionClient
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {

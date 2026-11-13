@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	"github.com/sdcio/config-server/pkg/testhelper"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,63 +31,52 @@ func (r *TargetSyncProfileSync) GetEncoding() Encoding {
 	return *r.Encoding
 }
 
-func GetSyncProfile(syncProfile *TargetSyncProfile, target *sdcpb.Target) *sdcpb.Sync {
-	sync := &sdcpb.Sync{
-		Validate:     false,
-		Buffer:       10000.,
-		WriteWorkers: 10,
+// GetSyncProfile builds the datastore sync from the profile; sync targets
+// reuse the address and TLS/credentials of target.
+func GetSyncProfile(syncProfile *TargetSyncProfile, target api.Target) api.Sync {
+	sync := api.Sync{
+		Configs: make([]api.SyncConfig, 0, len(syncProfile.Spec.Sync)),
 	}
-	sync.Config = make([]*sdcpb.SyncConfig, 0, len(syncProfile.Spec.Sync))
 	for _, syncConfig := range syncProfile.Spec.Sync {
-		synccfg := &sdcpb.SyncConfig{
+		synccfg := api.SyncConfig{
 			Name: syncConfig.Name,
-			Target: &sdcpb.Target{
-				Type:        string(syncConfig.Protocol),
+			Target: &api.Target{
+				Type:        api.TargetType(syncConfig.Protocol),
 				Address:     target.Address,
 				Port:        uint32(syncConfig.Port),
-				Tls:         target.Tls,
+				TLS:         target.TLS,
 				Credentials: target.Credentials,
 			},
-			Path:     syncConfig.Paths,
+			Paths:    syncConfig.Paths,
 			Mode:     getSyncMode(syncConfig.Mode),
 			Interval: uint64(syncConfig.Interval.Nanoseconds()),
 		}
-
 		if syncConfig.Protocol == Protocol_GNMI {
-			synccfg.Target.ProtocolOptions = &sdcpb.Target_GnmiOpts{
-				GnmiOpts: &sdcpb.GnmiOptions{
-					Encoding: getEncoding(syncConfig.GetEncoding()),
-				},
+			synccfg.Target.ProtocolOptions.GNMI = &api.GNMIOptions{
+				Encoding: getEncoding(syncConfig.GetEncoding()),
 			}
 		}
-
-		sync.Config = append(sync.Config, synccfg)
-
+		sync.Configs = append(sync.Configs, synccfg)
 	}
 	return sync
 }
 
-func getEncoding(e Encoding) string {
-	switch e {
-	case Encoding_CONFIG:
-		return "45"
-	default:
-		return string(e)
-	}
+// getEncoding maps the profile encoding to the api name; CONFIG is
+// api.GNMIEncodingConfig.
+func getEncoding(e Encoding) api.GNMIEncoding {
+	return api.GNMIEncoding(e)
 }
 
-func getSyncMode(mode SyncMode) sdcpb.SyncMode {
+func getSyncMode(mode SyncMode) api.SyncMode {
 	switch mode {
-	case SyncMode_OnChange:
-		return sdcpb.SyncMode_SM_ON_CHANGE
 	case SyncMode_Sample:
-		return sdcpb.SyncMode_SM_SAMPLE
+		return api.SyncModeSample
 	case SyncMode_Once:
-		return sdcpb.SyncMode_SM_ONCE
+		return api.SyncModeOnce
 	case SyncMode_Get:
-		return sdcpb.SyncMode_SM_GET
+		return api.SyncModeGet
 	default:
-		return sdcpb.SyncMode_SM_ON_CHANGE
+		return api.SyncModeOnChange
 	}
 }
 

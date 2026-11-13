@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/gnmi/proto/gnmi"
 	gapi "github.com/openconfig/gnmic/pkg/api"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -156,13 +156,12 @@ func TestEncoding(t *testing.T) {
 
 func TestCollectorStartGuards(t *testing.T) {
 	cases := map[string]struct {
-		req     *sdcpb.CreateDataStoreRequest
+		req     *api.DatastoreSpec
 		address string
 	}{
-		"nil request": {req: nil, address: "10.0.0.1:57400"},
-		"nil target":  {req: &sdcpb.CreateDataStoreRequest{}, address: "10.0.0.1:57400"},
+		"nil spec": {req: nil, address: "10.0.0.1:57400"},
 		"no address": {
-			req:     &sdcpb.CreateDataStoreRequest{Target: &sdcpb.Target{Type: "gnmi", Address: "10.0.0.1"}},
+			req:     &api.DatastoreSpec{Target: api.Target{Type: "gnmi", Address: "10.0.0.1"}},
 			address: "",
 		},
 	}

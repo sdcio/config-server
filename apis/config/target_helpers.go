@@ -504,10 +504,9 @@ func executeClearDeviationTxOnce(
 	return rsp, nil
 }
 
-// isRecoverableClearDeviationTxError mirrors pkg/sdc/target/manager's
-// isRecoverableTransactionError classification. Duplicated rather than
-// imported: pkg/sdc/target/manager already imports this package
-// (apis/config), so importing it back here would be a cycle.
+// isRecoverableClearDeviationTxError classifies gRPC errors from the :56000
+// client the way api.IsRetryable classifies in-process ones. The api-server
+// has no core, so it needs the wire-status form.
 func isRecoverableClearDeviationTxError(err error) bool {
 	if err == nil {
 		return false
