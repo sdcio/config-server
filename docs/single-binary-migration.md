@@ -24,7 +24,9 @@ The upgrade is a single jump. There is no mixed mode: a new controller does not 
 2. Apply the updated manifests together with the new controller and api-server images.
 3. The StatefulSet pod is replaced once. The controller and the data-server are down together for the duration of the restart, and the pod reports ready only after the core has started.
 
-The `schema-db` and `schema-store` PVCs are reused, so schemas are not downloaded or parsed again. The cache is an `emptyDir`, so the controller re-establishes the target datastores after the restart.
+4. Verify: `kubectl get pod data-server-controller-0` shows one ready container, and `svc/data-server:56000` answers (for example `grpcurl -plaintext` against a port-forward lists `data.DataServer` and `schema.SchemaServer`).
+
+The `schema-db` and `schema-store` PVCs (`pvc-schema-db`, `pvc-schema-store`) are reused and stay mounted at `/schemadb` and `/schemas` in the controller container, so schemas are not downloaded or parsed again. The cache is an `emptyDir`, so the controller re-establishes the target datastores after the restart.
 
 ### Rollback
 
