@@ -28,11 +28,9 @@ import (
 	internalconfig "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
-	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -127,40 +125,43 @@ func toInternalConfig(t *testing.T, in *configv1alpha1.Config) *internalconfig.C
 	return out
 }
 
-// fakeDataServer models a target where secondary needs a leaf that base sets.
-type fakeDataServer struct {
-	dsclient.Client
+// fakeTxServer models a target where secondary needs a leaf that base sets.
+type fakeTxServer struct {
 	calls []sets.Set[string]
 	onSet func()
 	fail  sets.Set[string] // intents that fail with an intent error
 }
 
-func (f *fakeDataServer) TransactionSet(_ context.Context, req *sdcpb.TransactionSetRequest, _ ...grpc.CallOption) (*sdcpb.TransactionSetResponse, error) {
+func (f *fakeTxServer) TransactionSet(_ context.Context, _ api.TxRef, _ api.SetOptions, in []api.Intent) (*api.TransactionResult, error) {
 	if f.onSet != nil {
 		f.onSet()
 	}
 	intents := sets.New[string]()
-	for _, i := range req.GetIntents() {
-		intents.Insert(i.GetIntent())
+	for _, i := range in {
+		intents.Insert(i.Name)
 	}
 	f.calls = append(f.calls, intents)
 	if failed := intents.Intersection(f.fail); failed.Len() > 0 {
-		rsp := &sdcpb.TransactionSetResponse{Intents: map[string]*sdcpb.TransactionSetResponseIntent{}}
+		rsp := &api.TransactionResult{Intents: map[string]api.IntentValidation{}}
 		for _, name := range failed.UnsortedList() {
-			rsp.Intents[name] = &sdcpb.TransactionSetResponseIntent{Errors: []string{"rejected"}}
+			rsp.Intents[name] = api.IntentValidation{Errors: []string{"rejected"}}
 		}
 		return rsp, nil
 	}
 	if intents.Has("default.secondary") && !intents.Has("default.base") {
-		return &sdcpb.TransactionSetResponse{Intents: map[string]*sdcpb.TransactionSetResponseIntent{
+		return &api.TransactionResult{Intents: map[string]api.IntentValidation{
 			"default.secondary": {Errors: []string{"mandatory leaf missing"}},
 		}}, nil
 	}
-	return &sdcpb.TransactionSetResponse{}, nil
+	return &api.TransactionResult{}, nil
 }
 
-func (f *fakeDataServer) TransactionConfirm(context.Context, *sdcpb.TransactionConfirmRequest, ...grpc.CallOption) (*sdcpb.TransactionConfirmResponse, error) {
-	return &sdcpb.TransactionConfirmResponse{}, nil
+func (f *fakeTxServer) TransactionConfirm(context.Context, api.TxRef, api.Origin) error {
+	return nil
+}
+
+func (f *fakeTxServer) TransactionCancel(context.Context, api.TxRef, api.Origin) error {
+	return nil
 }
 
 func newTargetConfig(name string, priority int32) *configv1alpha1.Config {
@@ -367,10 +368,10 @@ func transact(t *testing.T, tr *Transactor, c client.Client, target *configv1alp
 	return tr.Transact(context.Background(), target, dsctx, cfgs)
 }
 
-func newTestDatastore(ds *fakeDataServer) *DatastoreHandle {
+func newTestDatastore(ds *fakeTxServer) *DatastoreHandle {
 	return &DatastoreHandle{
 		DatastoreName: "default.dev1",
-		Client:        ds,
+		Transactions:  ds,
 		Schema:        &configv1alpha1.ConfigStatusLastKnownGoodSchema{Type: "srl", Vendor: "nokia", Version: "24.10.1"},
 	}
 }
@@ -405,7 +406,7 @@ func TestTransact_RetriedUnrecoverableSurvivesStaleCache(t *testing.T) {
 		newTargetConfig("secondary", 20))
 
 	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
-	ds := &fakeDataServer{}
+	ds := &fakeTxServer{}
 	dsctx := newTestDatastore(ds)
 	tr := NewTransactor(c)
 
@@ -441,7 +442,7 @@ func TestTransact_FinalizerBeforeTransaction(t *testing.T) {
 	c := newFakeConfigClient(t, nil, cfg)
 
 	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
-	ds := &fakeDataServer{}
+	ds := &fakeTxServer{}
 	ds.onSet = func() {
 		assert.Contains(t, getTargetConfig(t, c, "base").Finalizers, finalizer, "finalizer before the intent")
 	}
@@ -490,7 +491,7 @@ func TestTransact_FailureKeepsAppliedConfig(t *testing.T) {
 		newTargetConfig("base", 10))
 
 	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
-	ds := &fakeDataServer{}
+	ds := &fakeTxServer{}
 	dsctx := newTestDatastore(ds)
 	tr := NewTransactor(c)
 
