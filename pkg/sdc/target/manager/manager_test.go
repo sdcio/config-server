@@ -19,12 +19,12 @@ package targetmanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
-	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"github.com/sdcio/data-server/pkg/api"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -36,11 +36,11 @@ type fakeDeleter struct {
 	name   string
 }
 
-func (f *fakeDeleter) DeleteDataStore(ctx context.Context, in *sdcpb.DeleteDataStoreRequest, _ ...grpc.CallOption) (*sdcpb.DeleteDataStoreResponse, error) {
+func (f *fakeDeleter) DeleteDataStore(ctx context.Context, name string) error {
 	f.called++
 	f.gotCtx = ctx
-	f.name = in.GetName()
-	return &sdcpb.DeleteDataStoreResponse{}, f.err
+	f.name = name
+	return f.err
 }
 
 // Regression coverage for sdcio/config-server#516.
@@ -51,6 +51,7 @@ func TestDeleteDatastore(t *testing.T) {
 	}{
 		"deleted":                        {err: nil, wantErr: false},
 		"already absent (grpc NotFound)": {err: status.Error(codes.NotFound, "missing"), wantErr: false},
+		"already absent (sentinel)":      {err: fmt.Errorf("%w default/dev1", api.ErrUnknownDatastore), wantErr: false},
 		"already absent (message)":       {err: errors.New("unknown datastore default/dev1"), wantErr: false},
 		"rpc failure keeps finalizer":    {err: status.Error(codes.Internal, "boom"), wantErr: true},
 		"timeout keeps finalizer":        {err: status.Error(codes.DeadlineExceeded, "timeout"), wantErr: true},
@@ -83,20 +84,20 @@ func TestDeleteDatastoreBoundedContext(t *testing.T) {
 // Dataserver unavailable: deletion fails, so the finalizer is retained.
 // DeleteDatastore needs no in-memory runtime (e.g. after a restart).
 func TestManagerDeleteDatastoreWithoutDataserver(t *testing.T) {
-	m := NewTargetManager(nil, nil)
+	m := NewTargetManager(nil, nil, nil)
 	assert.Error(t, m.DeleteDatastore(context.Background(), testTargetKey()))
 }
 
 // Delete without a runtime (e.g. after restart) is a no-op success.
 func TestManagerDeleteWithoutRuntime(t *testing.T) {
-	m := NewTargetManager(nil, nil)
+	m := NewTargetManager(nil, nil, nil)
 	assert.NoError(t, m.Delete(context.Background(), testTargetKey()))
 }
 
 // Delete of a runtime that was created but never started returns at once
 // and unregisters it.
 func TestManagerDeleteNeverStartedRuntime(t *testing.T) {
-	m := NewTargetManager(nil, nil)
+	m := NewTargetManager(nil, nil, nil)
 	key := testTargetKey()
 	m.GetOrCreate(key)
 
@@ -107,7 +108,7 @@ func TestManagerDeleteNeverStartedRuntime(t *testing.T) {
 // A runtime whose loop has not exited stays registered, so the retry waits
 // for the same runtime instead of racing it (sdcio/config-server#516).
 func TestManagerDeleteKeepsRuntimeUntilStopped(t *testing.T) {
-	m := NewTargetManager(nil, nil)
+	m := NewTargetManager(nil, nil, nil)
 	key := testTargetKey()
 	rt := m.GetOrCreate(key)
 	rt.startOnce.Do(func() {}) // pretend the loop is running (run needs a dataserver)

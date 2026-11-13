@@ -32,6 +32,7 @@ import (
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	"github.com/sdcio/data-server/pkg/api"
 	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
@@ -482,6 +483,9 @@ func isUnknownDatastoreErr(err error) bool {
 		return false
 	}
 
+	if errors.Is(err, api.ErrUnknownDatastore) {
+		return true
+	}
 	// gRPC status codes (preferred if DS uses them)
 	if st, ok := status.FromError(err); ok {
 		if st.Code() == codes.NotFound {
