@@ -24,9 +24,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	logf "github.com/sdcio/logger"
 	"github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -123,7 +123,7 @@ func (r *Target) GetRunningConfig(ctx context.Context, opts *TargetRunningConfig
 	}
 	defer func() {
 		if err := closeFn(); err != nil {
-			log.FromContext(ctx).Error("failed to close connection", "Error", err)
+			logf.FromContext(ctx).Error(nil, "failed to close connection", "Error", err)
 		}
 	}()
 
@@ -181,7 +181,7 @@ func (r *Target) GetConfigBlame(ctx context.Context) (runtime.Object, error) {
 	defer func() {
 		if err := closeFn(); err != nil {
 			// You can use your preferred logging framework here
-			log.FromContext(ctx).Error("failed to close connection", "Error", err)
+			logf.FromContext(ctx).Error(nil, "failed to close connection", "Error", err)
 		}
 	}()
 
@@ -452,11 +452,11 @@ func retryClearDeviationTx(
 		if err == nil || i == maxAttempts || !isRecoverableClearDeviationTxError(err) {
 			return rsp, err
 		}
-		log.FromContext(ctx).Info("clear-deviation transaction hit a recoverable error, retrying",
+		logf.FromContext(ctx).Info("clear-deviation transaction hit a recoverable error, retrying",
 			"attempt", i, "backoff", backoff.String(), "error", err.Error())
 		select {
 		case <-ctx.Done():
-			log.FromContext(ctx).Info("clear-deviation transaction retry canceled",
+			logf.FromContext(ctx).Info("clear-deviation transaction retry canceled",
 				"attempt", i,
 				"ctxErr", ctx.Err(),
 				"lastErr", err)
@@ -484,7 +484,7 @@ func executeClearDeviationTxOnce(
 	}
 	defer func() {
 		if err := closeFn(); err != nil {
-			log.FromContext(ctx).Error("failed to close connection", "error", err)
+			logf.FromContext(ctx).Error(err, "failed to close connection")
 		}
 	}()
 

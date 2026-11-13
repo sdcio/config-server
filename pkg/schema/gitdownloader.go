@@ -20,10 +20,10 @@ import (
 	"context"
 	"path"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/git"
 	"github.com/sdcio/config-server/pkg/git/auth"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -43,7 +43,7 @@ func newGitDownloader(destDir, namespace string, schemaRepo *invv1alpha1.SchemaS
 }
 
 func (l *gitDownloader) Download(ctx context.Context) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	repo, err := git.NewRepo(l.schemaRepo.RepoURL)
 	if err != nil {
@@ -78,7 +78,7 @@ func (l *gitDownloader) Download(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		log.Debug("SetProxy", "proxy", l.schemaRepo.Proxy.URL)
+		log.V(logf.VDebug).Info("SetProxy", "proxy", l.schemaRepo.Proxy.URL)
 	}
 
 	err = goGit.Clone(ctx)

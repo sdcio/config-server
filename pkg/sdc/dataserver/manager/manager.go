@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/henderiw/logger/log"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
+	logf "github.com/sdcio/logger"
 	"google.golang.org/grpc/connectivity"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -87,8 +87,8 @@ func (m *DSConnManager) AddToManager(mgr ctrl.Manager) error {
 
 // Start implements controller-runtime Runnable.
 func (m *DSConnManager) Start(ctx context.Context) error {
-	l := log.FromContext(ctx).With("component", "dataserverManager")
-	log.IntoContext(ctx, l)
+	l := logf.FromContext(ctx).WithValues("component", "dataserverManager")
+	logf.IntoContext(ctx, l)
 	var err error
 	m.startOnce.Do(func() {
 		l.Info("starting")
@@ -174,7 +174,7 @@ func (m *DSConnManager) WaitForUp(ctx context.Context) error {
 // ---- internals ----
 
 func (m *DSConnManager) run(ctx context.Context) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	// Exponential backoff for reconnect.
 	backoff := wait.Backoff{
 		Duration: 500 * time.Millisecond,
@@ -200,7 +200,7 @@ func (m *DSConnManager) run(ctx context.Context) {
 		cl, err := m.ensureClient(ctx)
 		if err != nil {
 			m.setDown(ctx, err)
-			log.Warn("connect failed", "err", err)
+			log.Info("connect failed", "err", err)
 			m.sleepWithBackoff(ctx, &backoff)
 			continue
 		}
@@ -212,7 +212,7 @@ func (m *DSConnManager) run(ctx context.Context) {
 		err = m.monitor(ctx, cl)
 		if err != nil {
 			m.setDown(ctx, err)
-			log.Warn("connection lost", "err", err)
+			log.Info("connection lost", "err", err)
 			m.closeClient(ctx, cl)
 			m.sleepWithBackoff(ctx, &backoff)
 			continue
@@ -318,7 +318,7 @@ func (m *DSConnManager) monitor(ctx context.Context, client dsclient.Client) err
 }
 
 func (m *DSConnManager) setUp(ctx context.Context, cl dsclient.Client) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -333,7 +333,7 @@ func (m *DSConnManager) setUp(ctx context.Context, cl dsclient.Client) {
 }
 
 func (m *DSConnManager) setDown(ctx context.Context, err error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -343,7 +343,7 @@ func (m *DSConnManager) setDown(ctx context.Context, err error) {
 
 	if changed {
 		m.broadcast(Event{State: DSDown, Err: err, At: time.Now()})
-		log.Warn("dataserver is DOWN", "err", err)
+		log.Info("dataserver is DOWN", "err", err)
 	}
 }
 

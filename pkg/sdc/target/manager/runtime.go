@@ -28,11 +28,11 @@ import (
 	"time"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	dsclient "github.com/sdcio/config-server/pkg/sdc/dataserver/client"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -542,14 +542,14 @@ func (t *TargetRuntime) ensureRuntime(ctx context.Context, cl dsclient.Client) e
 // desired target and subscription state. Run-loop only: it is the only
 // writer of t.collector.
 func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.CreateDataStoreRequest) {
-	log := log.FromContext(ctx).With("target", t.key.String())
+	log := logf.FromContext(ctx).WithValues("target", t.key.String())
 
 	address, reason := t.collectorAddress(desired)
 	if reason != "" {
 		if t.stopCollector(ctx) {
 			log.Info("stopped collector", "reason", reason)
 		} else {
-			log.Debug("collector not started", "reason", reason)
+			log.V(logf.VDebug).Info("collector not started", "reason", reason)
 		}
 		return
 	}
@@ -570,7 +570,7 @@ func (t *TargetRuntime) reconcileCollector(ctx context.Context, desired *sdcpb.C
 	}
 	// Start stops any previous instance (e.g. the port changed).
 	if err := c.Start(ctx, desired, address); err != nil {
-		log.Error("collector start failed", "err", err, "retryIn", collectorRetryInterval)
+		log.Error(err, "collector start failed", "retryIn", collectorRetryInterval)
 		t.wakeAfter(collectorRetryInterval)
 	}
 }
@@ -618,7 +618,7 @@ func (t *TargetRuntime) collectorAddress(desired *sdcpb.CreateDataStoreRequest) 
 // Run-loop only. A plain (non-TransactionError) error is treated as
 // recoverable by the caller.
 func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) error {
-	log := log.FromContext(ctx).With("target", t.key.String())
+	log := logf.FromContext(ctx).WithValues("target", t.key.String())
 
 	if t.transactor == nil {
 		return fmt.Errorf("no transactor configured")
@@ -641,7 +641,7 @@ func (t *TargetRuntime) recoverConfigs(ctx context.Context, cl dsclient.Client) 
 	log.Info("config recovery start")
 	msg, err := t.transactor.RecoverConfigs(ctx, target, handle)
 	if err != nil {
-		log.Error("config recovery failed", "err", err)
+		log.Error(err, "config recovery failed")
 		t.setRecoveryResult("", err)
 		return err
 	}

@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -216,12 +216,12 @@ func (r *client) IsConnected() bool {
 }
 
 func (r *client) Stop(ctx context.Context) {
-	log := log.FromContext(ctx).With("address", r.cfg.Address)
+	log := logf.FromContext(ctx).WithValues("address", r.cfg.Address)
 	log.Info("stopping...")
 
 	if r.conn != nil {
 		if err := r.conn.Close(); err != nil {
-			log.Error("close error", "err", err)
+			log.Error(err, "close error")
 		}
 	}
 	if r.cancel != nil {
@@ -230,7 +230,7 @@ func (r *client) Stop(ctx context.Context) {
 }
 
 func (r *client) Start(ctx context.Context) error {
-	log := log.FromContext(ctx).With("address", r.cfg.Address)
+	log := logf.FromContext(ctx).WithValues("address", r.cfg.Address)
 	log.Info("starting...")
 
 	conn, err := dial(ctx, r.cfg)

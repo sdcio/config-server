@@ -19,10 +19,10 @@ package discoveryrule
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,7 +34,7 @@ func (r *dr) applyTargetDeviationCR(ctx context.Context, target *configv1alpha1.
 	if err != nil {
 		return err
 	}
-	log := log.FromContext(ctx).With("targetName", deviationCR.Name)
+	log := logf.FromContext(ctx).WithValues("targetName", deviationCR.Name)
 	// check if the target already exists
 	curDeviationCR := &configv1alpha1.Deviation{}
 	if err := r.client.Get(ctx, types.NamespacedName{
@@ -45,7 +45,7 @@ func (r *dr) applyTargetDeviationCR(ctx context.Context, target *configv1alpha1.
 			return err
 		}
 		if err := r.client.Create(ctx, deviationCR); err != nil {
-			log.Error("cannot create target deviation", "name", deviationCR.Name, "error", err)
+			log.Error(err, "cannot create target deviation", "name", deviationCR.Name)
 			return err
 		}
 		return nil

@@ -24,7 +24,7 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -92,7 +92,7 @@ func (w *watcher) OnChange(eventType watch.EventType, obj runtime.Object) bool {
 // relist; a small ring buffer of recent events can be added later.
 func (w *watcher) listAndWatch(ctx context.Context, r *strategy, options *metainternalversion.ListOptions) {
 	defer close(w.resultChan)
-	log := log.FromContext(ctx).With("resource", r.gr.String(), "rv", options.ResourceVersion)
+	log := logf.FromContext(ctx).WithValues("resource", r.gr.String(), "rv", options.ResourceVersion)
 
 	selected, err := r.predicate(ctx, options)
 	if err != nil {
@@ -125,7 +125,7 @@ func (w *watcher) listAndWatch(ctx context.Context, r *strategy, options *metain
 			return
 		}
 		if n != start {
-			log.Debug("watch resourceVersion not current, client must relist", "current", start)
+			log.V(logf.VDebug).Info("watch resourceVersion not current, client must relist", "current", start)
 			w.sendError(ctx, apierrors.NewResourceExpired(
 				fmt.Sprintf("too old resource version: %d (%d)", n, start)))
 			return

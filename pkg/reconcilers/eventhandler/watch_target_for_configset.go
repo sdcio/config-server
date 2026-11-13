@@ -19,9 +19,9 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,9 +64,9 @@ func (r *TargetForConfigSet) add(ctx context.Context, obj runtime.Object, queue 
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	log.Debug("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.V(logf.VDebug).Info("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list the configsets and see
 	opts := []client.ListOption{
@@ -74,24 +74,24 @@ func (r *TargetForConfigSet) add(ctx context.Context, obj runtime.Object, queue 
 	}
 	configsets := &configv1alpha1.ConfigSetList{}
 	if err := r.Client.List(ctx, configsets, opts...); err != nil {
-		log.Error("cannot list configsets", "error", err)
+		log.Error(err, "cannot list configsets")
 		return
 	}
 
 	for _, configset := range configsets.Items {
 		selector, err := metav1.LabelSelectorAsSelector(configset.Spec.Target.TargetSelector)
 		if err != nil {
-			log.Error("cannot get label selector from configset", "name", configset.Name, "error", err.Error())
+			log.Error(err, "cannot get label selector from configset", "name", configset.Name)
 			continue
 		}
 		found := false
 		if selector.Matches(labels.Set(target.GetLabels())) {
-			log.Debug("event target selector matches")
+			log.V(logf.VDebug).Info("event target selector matches")
 			// we always requeue since it allows to handle delete of targets that were previously there
 			key := types.NamespacedName{
 				Namespace: configset.Namespace,
 				Name:      configset.Name}
-			log.Debug("event requeue configset with target create", "key", key.String(), "target", target.GetName())
+			log.V(logf.VDebug).Info("event requeue configset with target create", "key", key.String(), "target", target.GetName())
 			queue.Add(reconcile.Request{NamespacedName: key})
 		} else {
 			// check if the target was part of the target list before, if so requeue it
@@ -105,7 +105,7 @@ func (r *TargetForConfigSet) add(ctx context.Context, obj runtime.Object, queue 
 				key := types.NamespacedName{
 					Namespace: configset.Namespace,
 					Name:      configset.Name}
-				log.Debug("event requeue configset with target delete", "key", key.String(), "target", target.GetName())
+				log.V(logf.VDebug).Info("event requeue configset with target delete", "key", key.String(), "target", target.GetName())
 				queue.Add(reconcile.Request{NamespacedName: key})
 			}
 		}

@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -62,8 +62,8 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 		return
 	}
 	//ctx := context.Background()
-	log := log.FromContext(ctx)
-	log.Debug("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("event", "gvk", fmt.Sprintf("%s.%s", cr.APIVersion, cr.Kind), "name", cr.GetName())
 
 	// if the endpoint was not claimed, reconcile links whose condition is
 	// not true -> this allows the links to reevaluate the endpoints
@@ -72,7 +72,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 	}
 	drList := &invv1alpha1.DiscoveryRuleList{}
 	if err := r.Client.List(ctx, drList, opts...); err != nil {
-		log.Error("cannot list targets", "error", err)
+		log.Error(err, "cannot list targets")
 		return
 	}
 	for _, dr := range drList.Items {
@@ -81,7 +81,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 			key := types.NamespacedName{
 				Namespace: dr.Namespace,
 				Name:      dr.Name}
-			log.Debug("event requeue dr", "key", key.String())
+			log.V(logf.VDebug).Info("event requeue dr", "key", key.String())
 			queue.Add(reconcile.Request{NamespacedName: key})
 			return
 		}
@@ -90,7 +90,7 @@ func (r *SecretForDiscoveryRuleEventHandler) add(ctx context.Context, obj runtim
 				key := types.NamespacedName{
 					Namespace: dr.Namespace,
 					Name:      dr.Name}
-				log.Debug("event requeue dr", "key", key.String())
+				log.V(logf.VDebug).Info("event requeue dr", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
 				return
 			}

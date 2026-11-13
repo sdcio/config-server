@@ -19,9 +19,9 @@ package ctrlconfig
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	dsmanager "github.com/sdcio/config-server/pkg/sdc/dataserver/manager"
 	targetmanager "github.com/sdcio/config-server/pkg/sdc/target/manager"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -37,8 +37,8 @@ type ControllerConfig struct {
 }
 
 func InitContext(ctx context.Context, controllerName string, req types.NamespacedName) context.Context {
-	l := log.FromContext(ctx).With("controller", controllerName, "req", req)
-	return log.IntoContext(ctx, l)
+	l := logf.FromContext(ctx).WithValues("controller", controllerName, "req", req)
+	return logf.IntoContext(ctx, l)
 }
 
 func GetDiscoveryClient(mgr manager.Manager) (*discovery.DiscoveryClient, error) {

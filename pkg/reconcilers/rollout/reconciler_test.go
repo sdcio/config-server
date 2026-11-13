@@ -23,9 +23,9 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	configapi "github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -82,7 +82,7 @@ func TestGetToBeDeletedConfigsNew(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
-			log := log.FromContext(ctx)
+			log := logf.FromContext(ctx)
 			existingConfigs := getExistingConfigs(tc.existingConfigs)
 			newTargetUpdateConfigStore := getnewConfigStore(tc.newConfigs)
 
@@ -95,12 +95,12 @@ func TestGetToBeDeletedConfigsNew(t *testing.T) {
 				if err := configStore.List(ctx, func(ctx context.Context, configKey storebackend.Key, config *configapi.Config) {
 					configNames = append(configNames, config.Name)
 				}); err != nil {
-					log.Error("list failed", "err", err)
+					log.Error(err, "list failed")
 				}
 				sort.Strings(configNames)
 				actualDeletions[targetKey.Name] = configNames
 			}); err != nil {
-				log.Error("list failed", "err", err)
+				log.Error(err, "list failed")
 			}
 			// 🔍 Ensure the deletions match expectations
 			assert.Equal(t, tc.expectedDeletions, actualDeletions, "Deleted configs should match expected deletions")
@@ -130,7 +130,7 @@ func getExistingConfigs(existingConfigs map[string][]string) *configv1alpha1.Con
 
 func getnewConfigStore(newConfigs map[string][]string) storebackend.Storer[storebackend.Storer[*configapi.Config]] {
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	newTargetConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]()
 	for target, configNames := range newConfigs {
 		for _, configName := range configNames {
@@ -152,7 +152,7 @@ func getnewConfigStore(newConfigs map[string][]string) storebackend.Storer[store
 			_ = target1ConfigStore.Create(ctx, configKey, config)
 
 			if err := newTargetConfigStore.Update(ctx, targetKey, target1ConfigStore); err != nil {
-				log.Error("target update store failed", "err", err)
+				log.Error(err, "target update store failed")
 			}
 		}
 

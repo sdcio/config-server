@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -70,7 +70,7 @@ func (a *rvAllocator) ensureInit(ctx context.Context, list func(visit func(runti
 				max = n
 			}
 		}); err != nil {
-			log.FromContext(ctx).Error("resourceVersion init: list failed, starting from 0", "err", err)
+			logf.FromContext(ctx).Error(err, "resourceVersion init: list failed, starting from 0")
 		}
 		if max > a.current {
 			a.current = max

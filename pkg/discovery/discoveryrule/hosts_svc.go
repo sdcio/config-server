@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,10 +29,10 @@ import (
 
 func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.DiscoveryRuleAddress {
 	addresses := []invv1alpha1.DiscoveryRuleAddress{}
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	svcList, err := r.getServices(ctx)
 	if err != nil {
-		log.Error("cannot get service list", "error", err)
+		log.Error(err, "cannot get service list")
 		return addresses
 	}
 	serviceDomainName := "cluster.local"
@@ -49,7 +49,7 @@ func (r *dr) GetSVCDiscoveryAddresses(ctx context.Context) []invv1alpha1.Discove
 }
 
 func (r *dr) getServices(ctx context.Context) (*corev1.ServiceList, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("get services", "cr", r.cfg.CR)
 	if r.cfg.CR.GetSvcSelector() == nil {
 		return nil, fmt.Errorf("get services w/o a labelselector is not supported")

@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,10 +29,10 @@ import (
 
 func (r *dr) GetPODDiscoveryAddresses(ctx context.Context) []invv1alpha1.DiscoveryRuleAddress {
 	addresses := []invv1alpha1.DiscoveryRuleAddress{}
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	podList, err := r.getPods(ctx)
 	if err != nil {
-		log.Error("cannot get service list", "error", err)
+		log.Error(err, "cannot get service list")
 		return addresses
 	}
 	for _, pod := range podList.Items {

@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
@@ -36,6 +35,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -116,14 +116,14 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	schema := &invv1alpha1.Schema{}
 	if err := r.client.Get(ctx, req.NamespacedName, schema); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, pkgerrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -263,8 +263,8 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Schema, updatedStatus *invv1alpha1.SchemaStatus) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Debug("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("handleSuccess", "key", schema.GetNamespacedName(), "status old", schema.DeepCopy().Status)
 
 	newCond := condv1alpha1.Ready()
 	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
@@ -296,7 +296,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 }
 
 func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -310,7 +310,7 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 		return ctrl.Result{}, nil
 	}
 
-	log.Error(msg)
+	log.Error(nil, msg)
 	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeWarning, crName, msg)
 
 	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).

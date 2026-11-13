@@ -20,9 +20,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	"github.com/sdcio/config-server/pkg/generated/clientset/versioned/scheme"
+	logf "github.com/sdcio/logger"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,16 +34,16 @@ import (
 
 func createFakeClient(secret, targetConnProfile, targetSyncProfile string) client.Client {
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	runScheme := runtime.NewScheme()
 	if err := scheme.AddToScheme(runScheme); err != nil {
-		log.Error("cannot add scheme", "err", err)
+		log.Error(err, "cannot add scheme")
 	}
 	if err := clientgoscheme.AddToScheme(runScheme); err != nil {
-		log.Error("cannot add scheme", "err", err)
+		log.Error(err, "cannot add scheme")
 	}
 	if err := invv1alpha1.AddToScheme(runScheme); err != nil {
-		log.Error("cannot add scheme", "err", err)
+		log.Error(err, "cannot add scheme")
 	}
 	client := fake.NewClientBuilder().WithScheme(runScheme).Build()
 	if err := client.Create(ctx, &v1.Secret{
@@ -51,21 +51,21 @@ func createFakeClient(secret, targetConnProfile, targetSyncProfile string) clien
 			Name: secret,
 		},
 	}); err != nil {
-		log.Error("cannot create client", "err", err)
+		log.Error(err, "cannot create client")
 	}
 	if err := client.Create(ctx, &invv1alpha1.TargetConnectionProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: targetConnProfile,
 		},
 	}); err != nil {
-		log.Error("cannot create client", "err", err)
+		log.Error(err, "cannot create client")
 	}
 	if err := client.Create(ctx, &invv1alpha1.TargetSyncProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: targetSyncProfile,
 		},
 	}); err != nil {
-		log.Error("cannot create client", "err", err)
+		log.Error(err, "cannot create client")
 	}
 	return client
 }

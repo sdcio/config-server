@@ -20,24 +20,24 @@ import (
 	"context"
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *dr) deleteUnWantedChildren(ctx context.Context) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	if err := r.deleteUnWantedTargets(ctx); err != nil {
-		log.Error("cannot delete unwanted target children", "err", err.Error())
+		log.Error(err, "cannot delete unwanted target children")
 	}
 	if err := r.deleteUnwantedDeviations(ctx); err != nil {
-		log.Error("cannot delete unwanted unmanagedConfig children", "err", err.Error())
+		log.Error(err, "cannot delete unwanted unmanagedConfig children")
 	}
 }
 
 func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	// list all targets belonging to this discovery rule
 	opts := []client.ListOption{
 		client.InNamespace(r.cfg.CR.GetNamespace()),
@@ -59,13 +59,13 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 				found = true
 			}
 		}); err != nil {
-			log.Error("liust failed", "err", err)
+			log.Error(err, "liust failed")
 			return err
 		}
 		if !found {
 			log.Info("target delete, not available as child", "name", target.Name, "children", keys)
 			if err := r.client.Delete(ctx, &target); err != nil {
-				log.Error("cannot delete target")
+				log.Error(nil, "cannot delete target")
 			}
 		}
 	}
@@ -73,7 +73,7 @@ func (r *dr) deleteUnWantedTargets(ctx context.Context) error {
 }
 
 func (r *dr) deleteUnwantedDeviations(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	// list all targets belonging to this discovery rule
 	opts := []client.ListOption{
 		client.InNamespace(r.cfg.CR.GetNamespace()),
@@ -92,12 +92,12 @@ func (r *dr) deleteUnwantedDeviations(ctx context.Context) error {
 				found = true
 			}
 		}); err != nil {
-			log.Error("liust failed", "err", err)
+			log.Error(err, "liust failed")
 			return err
 		}
 		if !found {
 			if err := r.client.Delete(ctx, &deviation); err != nil {
-				log.Error("cannot delete deviation", "err", err)
+				log.Error(err, "cannot delete deviation")
 			}
 		}
 	}

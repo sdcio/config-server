@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/henderiw/logger/log"
 	"github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnmic/pkg/api/path"
 	"github.com/prometheus/client_golang/prometheus"
 	targetruntimeview "github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
+	logf "github.com/sdcio/logger"
 )
 
 // Describe implements prometheus.Collector
@@ -33,7 +33,7 @@ func (r *PrometheusServer) Describe(ch chan<- *prometheus.Desc) {}
 
 func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	runtimes := make([]targetruntimeview.TargetRuntimeView, 0)
 	r.targetManager.ForEachRuntime(func(rt targetruntimeview.TargetRuntimeView) {
@@ -47,7 +47,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 		rt := rt
 		go func() {
 			defer wg1.Done()
-			log := log.With("target", rt.Key().String())
+			log := log.WithValues("target", rt.Key().String())
 
 			cache := rt.Cache()
 			if cache == nil {
@@ -55,7 +55,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 			}
 			notifications, err := cache.ReadAll()
 			if err != nil {
-				log.Error("cannot read from cache", "err", err)
+				log.Error(err, "cannot read from cache")
 				return
 			}
 			wg2 := new(sync.WaitGroup)
@@ -76,7 +76,7 @@ func (r *PrometheusServer) Collect(ch chan<- prometheus.Metric) {
 									// TODO user input
 									promMetric, err := NewPromMetric(subName, rt, update)
 									if err != nil {
-										log.Debug("error getting prom metric",
+										log.V(logf.VDebug).Info("error getting prom metric",
 											"path", path.GnmiPathToXPath(update.GetPath(), false),
 											"val", update.GetVal(),
 											"err", err.Error(),

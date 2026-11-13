@@ -19,10 +19,10 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/config"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -63,9 +63,9 @@ func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Objec
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "target-event", Name: target.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	log.Debug("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
+	log.V(logf.VDebug).Info("event", "gvk", configv1alpha1.TargetGroupVersionKind.String(), "name", target.GetName())
 
 	// list all the configs of the particular target that got changed
 	opts := []client.ListOption{
@@ -77,14 +77,14 @@ func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Objec
 	}
 	configs := &configv1alpha1.ConfigList{}
 	if err := r.Client.List(ctx, configs, opts...); err != nil {
-		log.Error("cannot list configs", "error", err)
+		log.Error(err, "cannot list configs")
 		return
 	}
 	for _, config := range configs.Items {
 		key := types.NamespacedName{
 			Namespace: config.Namespace,
 			Name:      config.Name}
-		log.Debug("event requeue config", "key", key.String())
+		log.V(logf.VDebug).Info("event requeue config", "key", key.String())
 		queue.Add(reconcile.Request{NamespacedName: key})
 	}
 }

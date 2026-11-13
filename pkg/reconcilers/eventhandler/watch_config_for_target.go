@@ -19,9 +19,9 @@ package eventhandler
 import (
 	"context"
 
-	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -67,15 +67,13 @@ func (r *ConfigForTargetEventHandler) add(ctx context.Context, obj runtime.Objec
 		return
 	}
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "config-event", Name: config.GetName()})
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	targetKey, err := config.GetTargetNamespaceName()
 	if err != nil || targetKey == nil {
 		// No (valid) target labels: there is no Target request to enqueue.
 		// Such Configs should be rejected by Config validation instead.
-		log.Error("config has no valid target reference, not enqueued",
-			"config", types.NamespacedName{Namespace: config.GetNamespace(), Name: config.GetName()}.String(),
-			"error", err)
+		log.Error(err, "config has no valid target reference, not enqueued", "config", types.NamespacedName{Namespace: config.GetNamespace(), Name: config.GetName()}.String())
 		return
 	}
 	queue.Add(reconcile.Request{NamespacedName: *targetKey})

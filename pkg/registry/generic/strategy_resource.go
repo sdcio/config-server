@@ -26,9 +26,9 @@ import (
 	"github.com/henderiw/apiserver-store/pkg/rest"
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	watchermanager "github.com/henderiw/apiserver-store/pkg/watcher-manager"
-	"github.com/henderiw/logger/log"
 	"github.com/sdcio/config-server/apis/condition"
 	"github.com/sdcio/config-server/pkg/registry/options"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -214,8 +214,8 @@ func (r *strategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object
 }
 
 func (r *strategy) BeginDelete(ctx context.Context) error {
-	log := log.FromContext(ctx)
-	log.Debug("BeginDelete strategy")
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("BeginDelete strategy")
 	return nil
 }
 
@@ -224,8 +224,8 @@ func (r *strategy) InvokeDelete(ctx context.Context, obj runtime.Object, recursi
 }
 
 func (r *strategy) Delete(ctx context.Context, key types.NamespacedName, obj runtime.Object, dryrun bool) (runtime.Object, error) {
-	log := log.FromContext(ctx)
-	log.Debug("Delete strategy", "key", key, "obj", obj, "dryrun", dryrun)
+	log := logf.FromContext(ctx)
+	log.V(logf.VDebug).Info("Delete strategy", "key", key, "obj", obj, "dryrun", dryrun)
 	if dryrun {
 		if r.opts != nil && r.opts.DryRunDeleteFn != nil {
 			return r.opts.DryRunDeleteFn(ctx, key, obj, dryrun)
@@ -320,7 +320,7 @@ func (r *strategy) predicate(ctx context.Context, options *metainternalversion.L
 	return func(ctx context.Context, obj runtime.Object) bool {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
-			log.FromContext(ctx).Error("cannot get meta from object", "error", err.Error())
+			logf.FromContext(ctx).Error(err, "cannot get meta from object")
 			return false
 		}
 		// Always enforce namespace scoping for namespace-scoped resources
@@ -339,7 +339,7 @@ func (r *strategy) predicate(ctx context.Context, options *metainternalversion.L
 }
 
 func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOptions) (runtime.Object, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	selected, err := r.predicate(ctx, options)
 	if err != nil {
@@ -363,7 +363,7 @@ func (r *strategy) List(ctx context.Context, options *metainternalversion.ListOp
 			utils.AppendItem(v, obj)
 		}
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 		return nil, err
 	}
 
@@ -402,7 +402,7 @@ func (r *strategy) GetResetFields() map[fieldpath.APIVersion]*fieldpath.Set {
 // resourceVersion. Watcher callbacks never block (see watcher.OnChange).
 func (r *strategy) publish(ctx context.Context) func(watch.Event) {
 	return func(event watch.Event) {
-		log.FromContext(ctx).With("eventType", event.Type).Debug("notify watcherManager")
+		logf.FromContext(ctx).WithValues("eventType", event.Type).V(logf.VDebug).Info("notify watcherManager")
 		r.watcherManager.WatchChan() <- event
 	}
 }
@@ -414,7 +414,7 @@ func shouldLog(obj runtime.Object) bool {
 
 func logObject(ctx context.Context, op string, key types.NamespacedName, obj runtime.Object) {
 	accessor, _ := meta.Accessor(obj)
-	l := log.FromContext(ctx).With(
+	l := logf.FromContext(ctx).WithValues(
 		"op", op,
 		"key", key,
 		"kind", obj.GetObjectKind().GroupVersionKind().Kind,
@@ -429,7 +429,7 @@ func logObject(ctx context.Context, op string, key types.NamespacedName, obj run
 		for _, c := range conditions {
 			condSummary = append(condSummary, fmt.Sprintf("%s=%s(%s)", c.Type, c.Status, c.Message))
 		}
-		l = l.With("conditions", condSummary)
+		l = l.WithValues("conditions", condSummary)
 	}
 	l.Info("strategy")
 }

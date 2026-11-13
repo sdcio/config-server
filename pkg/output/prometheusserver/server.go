@@ -24,10 +24,10 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/henderiw/logger/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	targetruntimeview "github.com/sdcio/config-server/pkg/sdc/target/runtimeview"
+	logf "github.com/sdcio/logger"
 	certutil "k8s.io/client-go/util/cert"
 )
 
@@ -60,7 +60,7 @@ func (r *PrometheusServer) Stop() {
 }
 
 func (r *PrometheusServer) Start(ctx context.Context) error {
-	log := log.FromContext(ctx).With("name", "prometheusserver", "address", r.address)
+	log := logf.FromContext(ctx).WithValues("name", "prometheusserver", "address", r.address)
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 
@@ -80,18 +80,18 @@ func (r *PrometheusServer) Start(ctx context.Context) error {
 
 	listener, err := r.createListener(true)
 	if err != nil {
-		log.Error("prometheusserver cannot listen on address", "error", err)
+		log.Error(err, "prometheusserver cannot listen on address")
 		return err
 	}
 	defer func() {
 		if err := listener.Close(); err != nil {
-			log.Error("closing listener failed", "err", err)
+			log.Error(err, "closing listener failed")
 		}
 	}()
 
 	go func() {
 		if err := r.server.Serve(listener); err != nil {
-			log.Error("grpc server serve", "error", err)
+			log.Error(err, "grpc server serve")
 		}
 	}()
 	log.Info("prometheusserver started")

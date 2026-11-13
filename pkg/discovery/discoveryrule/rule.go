@@ -25,8 +25,8 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	"github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 	"golang.org/x/sync/semaphore"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -68,7 +68,7 @@ func (r *dr) GetDiscoveryRulConfig() *DiscoveryRuleConfig {
 // Run holds the global run context
 func (r *dr) Run(ctx context.Context) error {
 	ctx, r.cancel = context.WithCancel(ctx)
-	log := log.FromContext(ctx).With("discovery-rule", fmt.Sprintf("%s.%s", r.cfg.CR.GetNamespace(), r.cfg.CR.GetName()))
+	log := logf.FromContext(ctx).WithValues("discovery-rule", fmt.Sprintf("%s.%s", r.cfg.CR.GetNamespace(), r.cfg.CR.GetName()))
 	log.Info("discovery started")
 	for {
 		select {
@@ -89,7 +89,7 @@ func (r *dr) Run(ctx context.Context) error {
 }
 
 func (r *dr) run(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// update the discovery profiles, since they might have changed
 	// over time
@@ -123,16 +123,16 @@ func (r *dr) run(ctx context.Context) error {
 		default:
 			wg.Add(1)
 			go func(h *hostInfo) {
-				log := log.With("address", h.Address)
+				log := log.WithValues("address", h.Address)
 				defer sem.Release(1)
 				defer wg.Done()
 				// discover irrespective if discovery is enabled or disabled
 				if err := r.discover(ctx, h); err != nil {
 					//if status.Code(err) == codes.Canceled {
 					if strings.Contains(err.Error(), "context cancelled") {
-						log.Debug("discovery cancelled")
+						log.V(logf.VDebug).Info("discovery cancelled")
 					} else {
-						log.Debug("discovery failed", "error", err)
+						log.V(logf.VDebug).Info("discovery failed", "error", err)
 					}
 				}
 			}(h)

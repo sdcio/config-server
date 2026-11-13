@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,7 +32,7 @@ import (
 // processTransactionResponse returns the warnings as a string and aggregates the errors in a single error and classifies them
 // as recoverable or non recoverable.
 func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetResponse, rsperr error) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	var errs error
 	var collectedWarnings []string
 	var recoverable bool
@@ -61,7 +61,7 @@ func processTransactionResponse(ctx context.Context, rsp *sdcpb.TransactionSetRe
 	if len(collectedWarnings) > 0 {
 		msg = strings.Join(collectedWarnings, "; ")
 	}
-	log.Debug("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
+	log.V(logf.VDebug).Info("transaction response", "rsp", prototext.Format(rsp), "msg", msg, "error", err)
 	return msg, err
 }
 

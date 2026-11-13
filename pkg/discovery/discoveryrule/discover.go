@@ -21,15 +21,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/henderiw/logger/log"
 	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+	logf "github.com/sdcio/logger"
 )
 
 func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 	// this is a dynamic target; was it alreaady discovered?
 	// if discovery was already done use the same initial discovery protocol
 	address := h.Address
-	log := log.FromContext(ctx).With("address", address)
+	log := logf.FromContext(ctx).WithValues("address", address)
 	if !r.cfg.Discovery {
 		// discovery disabled
 		if h.hostName == "" {
@@ -46,7 +46,7 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 			return fmt.Errorf("unsupported protocol :%s", string(invv1alpha1.Protocol_NONE))
 		}
 		if err := discover(ctx, h, r.cfg.TargetConnectionProfiles[0].Connectionprofile); err != nil {
-			log.Error("discovery failed", "error", err.Error())
+			log.Error(err, "discovery failed")
 			return err
 		}
 		// discover w/o discovery succeeded
@@ -57,12 +57,12 @@ func (r *dr) discover(ctx context.Context, h *hostInfo) error {
 	for _, connProfile := range r.getDiscoveryProfiles(ctx, h) {
 		discover, ok := r.protocols.get(connProfile.Spec.Protocol)
 		if !ok {
-			log.Warn("connection profile points to unsupported protocol", "protocol", connProfile.Spec.Protocol)
+			log.Info("connection profile points to unsupported protocol", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, fmt.Errorf("unsupported protocol :%s", string(connProfile.Spec.Protocol)))
 			continue
 		}
 		if derr := discover(ctx, h, connProfile); derr != nil {
-			log.Debug("discovery failed", "protocol", connProfile.Spec.Protocol)
+			log.V(logf.VDebug).Info("discovery failed", "protocol", connProfile.Spec.Protocol)
 			err = errors.Join(err, derr)
 			continue
 		}

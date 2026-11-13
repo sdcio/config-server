@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/henderiw/logger/log"
+	logf "github.com/sdcio/logger"
 	"golang.org/x/sync/semaphore"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	"k8s.io/apimachinery/pkg/watch"
@@ -91,22 +91,22 @@ func (r *watcherManager) Add(ctx context.Context, options *metainternalversion.L
 // when an error or the callback signals the delete
 func (r *watcherManager) Start(ctx context.Context) {
 	ctx, r.cancel = context.WithCancel(ctx)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case event := <-r.watchCh:
-			log.Debug("watchermanager event received", "eventType", event.Type, "watchers", r.watchers.len())
+			log.V(logf.VDebug).Info("watchermanager event received", "eventType", event.Type, "watchers", r.watchers.len())
 			var wg sync.WaitGroup
 			for _, w := range r.watchers.list() {
 				w := w
-				log.Debug("watcher event processing", "eventType", event.Type, "key", w.key)
+				log.V(logf.VDebug).Info("watcher event processing", "eventType", event.Type, "key", w.key)
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					if err := w.isDone(); err != nil {
-						log.Debug("stopping watcher due to error", "key", w.key)
+						log.V(logf.VDebug).Info("stopping watcher due to error", "key", w.key)
 						r.watchers.del(w.key)
 						r.sem.Release(1)
 						return
@@ -114,17 +114,17 @@ func (r *watcherManager) Start(ctx context.Context) {
 
 					// the callback deals with filtering
 					if keepGoing := w.callback.OnChange(event.Type, event.Object); !keepGoing {
-						log.Debug("stopping watcher due to !keepGoing", "key", w.key)
+						log.V(logf.VDebug).Info("stopping watcher due to !keepGoing", "key", w.key)
 						r.watchers.del(w.key)
 						r.sem.Release(1)
 						return
 					}
-					log.Debug("watch callback done", "key", w.key)
+					log.V(logf.VDebug).Info("watch callback done", "key", w.key)
 				}()
 			}
-			log.Debug("watchermanager goroutines waiting", "eventType", event.Type, "watchers", r.watchers.len())
+			log.V(logf.VDebug).Info("watchermanager goroutines waiting", "eventType", event.Type, "watchers", r.watchers.len())
 			wg.Wait()
-			log.Debug("watchermanager goroutines done waiting", "eventType", event.Type, "watchers", r.watchers.len())
+			log.V(logf.VDebug).Info("watchermanager goroutines done waiting", "eventType", event.Type, "watchers", r.watchers.len())
 		}
 	}
 }

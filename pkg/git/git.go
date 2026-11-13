@@ -33,9 +33,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/client"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"github.com/henderiw/logger/log"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"github.com/sdcio/config-server/pkg/git/auth"
+	logf "github.com/sdcio/logger"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -73,7 +73,7 @@ func (g *GoGit) SetProxy(p string) error {
 // Clone takes the given GitRepo reference and clones the repo
 // with its internal implementation.
 func (g *GoGit) Clone(ctx context.Context) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	// if the directory is not present
 	if s, err := os.Stat(g.gitRepo.GetLocalPath()); errors.Is(err, fs.ErrNotExist) {
 		log.Info("cloning a new local repository")
@@ -126,7 +126,7 @@ func (g *GoGit) openRepo(_ context.Context) error {
 func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 	var err error
 
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("loading git", "repo", g.gitRepo.GetLocalPath())
 
 	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
@@ -175,18 +175,18 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 		refRemoteName = plumbing.NewTagReferenceName(tag)
 		refName = plumbing.NewTagReferenceName(tag)
 	} else {
-		log.Debug("default branch not set. determining it")
+		log.V(logf.VDebug).Info("default branch not set. determining it")
 		branch, err = g.getDefaultBranch(ctx)
 		if err != nil {
 			return err
 		}
 		refRemoteName = plumbing.NewRemoteReferenceName("origin", branch)
 		refName = plumbing.NewBranchReferenceName(branch)
-		log.Debug("default", "branch", branch)
+		log.V(logf.VDebug).Info("default", "branch", branch)
 	}
 	refSpec := config.RefSpec(fmt.Sprintf("+%s:%s", refName, refRemoteName))
 
-	log.Debug("fetching latest repo data")
+	log.V(logf.VDebug).Info("fetching latest repo data")
 	// execute the fetch
 	err = g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
 		return g.r.FetchContext(ctx, &gogit.FetchOptions{
@@ -318,7 +318,7 @@ type Git interface {
 // doGitWithAuth fetches auth information for git and provides it
 // to the provided function which performs the operation against a git repo.
 func (g *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod) error) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	auth, err := g.getAuthMethod(ctx, false)
 	if err != nil {
 		return err
@@ -346,7 +346,7 @@ func (g *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod)
 // credentials between calls and refresh credentials when the tokens have expired.
 func (g *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport.AuthMethod, error) {
 	// If no secret is provided, we try without any auth.
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("getAuthMethod", "secret", g.secret, "credential", g.credential)
 	if g.secret.Name == "" {
 		return nil, nil
@@ -364,7 +364,7 @@ func (g *GoGit) getAuthMethod(ctx context.Context, forceRefresh bool) (transport
 }
 
 func (g *GoGit) EnsureCommit(ctx context.Context, commitHash string) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// Clone repo if not present
 	if err := g.Clone(ctx); err != nil {
@@ -394,7 +394,7 @@ func (g *GoGit) commitExists(_ context.Context, commitHash string) bool {
 }
 
 func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("Fetching commit", "commit", commitHash)
 
 	err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
@@ -417,7 +417,7 @@ func (g *GoGit) fetchCommit(ctx context.Context, commitHash string) error {
 }
 
 func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (string, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	log.Info("Searching for commit in branches", "commit", commitHash)
 
@@ -477,7 +477,7 @@ func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (strin
 		return nil
 	})
 	if err != nil {
-		log.Error("error", "err", err)
+		log.Error(err, "error")
 	}
 
 	if featureBranch != "" {
@@ -485,7 +485,7 @@ func (g *GoGit) checkCommitStatus(ctx context.Context, commitHash string) (strin
 	}
 
 	// If commit is not found in any branch
-	log.Warn("Commit is not found in main or any feature branch", "commit", commitHash)
+	log.Info("Commit is not found in main or any feature branch", "commit", commitHash)
 	return "detached", nil
 }
 
@@ -512,7 +512,7 @@ func isAncestor(commit, branchCommit *object.Commit) bool {
 }
 
 func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	if err := g.openRepo(ctx); err != nil {
 		return err
@@ -544,15 +544,15 @@ func (g *GoGit) CheckoutCommit(ctx context.Context, commitHash string) error {
 }
 
 func resetToRemoteHead(ctx context.Context, repo *gogit.Repository, branch plumbing.ReferenceName) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	ref, err := repo.Reference(branch, true)
 	if err != nil {
-		log.Error("Failed to get reference", "branch", branch, "error", err)
+		log.Error(err, "Failed to get reference", "branch", branch)
 		return fmt.Errorf("failed to get reference for branch %s: %v", branch, err)
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		log.Error("Failed to get worktree", "error", err)
+		log.Error(err, "Failed to get worktree")
 		return fmt.Errorf("cannot get worktree: %v", err)
 	}
 	err = wt.Reset(&gogit.ResetOptions{
@@ -560,7 +560,7 @@ func resetToRemoteHead(ctx context.Context, repo *gogit.Repository, branch plumb
 		Commit: ref.Hash(),
 	})
 	if err != nil {
-		log.Error("Failed to reset worktree", "ref", ref.Hash(), "error", err)
+		log.Error(err, "Failed to reset worktree", "ref", ref.Hash())
 		return fmt.Errorf("cannot reset worktree: %v", err)
 	}
 	return nil

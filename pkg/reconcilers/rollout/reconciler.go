@@ -26,7 +26,6 @@ import (
 
 	"github.com/henderiw/apiserver-store/pkg/storebackend"
 	memstore "github.com/henderiw/apiserver-store/pkg/storebackend/memory"
-	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	configapi "github.com/sdcio/config-server/apis/config"
@@ -38,6 +37,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
 	workspacereader "github.com/sdcio/config-server/pkg/workspace"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -113,14 +113,14 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	rollout := &invv1alpha1.Rollout{}
 	if err := r.client.Get(ctx, req.NamespacedName, rollout); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if !k8serrors.IsNotFound(err) {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, pkgerrors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -215,17 +215,17 @@ func getToBeDeletedconfigs(
 	existingConfigList *configv1alpha1.ConfigList,
 ) (storebackend.Storer[storebackend.Storer[*configapi.Config]], error) {
 
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	newTargetDeleteConfigStore := memstore.NewStore[storebackend.Storer[*configapi.Config]]()
 	for _, existingConfig := range existingConfigList.Items {
 		targetName, ok := existingConfig.Labels[configapi.TargetNameKey]
 		if !ok {
-			log.Warn("Skipping config missing targetName", "config", existingConfig.Name)
+			log.Info("Skipping config missing targetName", "config", existingConfig.Name)
 			continue
 		}
 		targetNamespace, ok := existingConfig.Labels[configapi.TargetNamespaceKey]
 		if !ok {
-			log.Warn("Skipping config missing targetNamespace", "config", existingConfig.Name)
+			log.Info("Skipping config missing targetNamespace", "config", existingConfig.Name)
 			continue
 		}
 
@@ -286,20 +286,20 @@ func getToBeDeletedconfigs(
 		if err := deleteConfigStore.List(ctx, func(ctx context.Context, k storebackend.Key, cfg *configapi.Config) {
 			configCount++
 		}); err != nil {
-			log.Error("list failed", "err", err)
+			log.Error(err, "list failed")
 		}
 		if configCount == 0 {
 			_ = newTargetDeleteConfigStore.Delete(ctx, k)
 		}
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 
 	return newTargetDeleteConfigStore, nil
 }
 
 func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore, deleteStore storebackend.Storer[storebackend.Storer[*configapi.Config]]) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	var errs error
 	if err := updateStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
 		if err := s.List(ctx, func(ctx context.Context, k storebackend.Key, c *configapi.Config) {
@@ -309,10 +309,10 @@ func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore,
 				errs = errors.Join(errs, err)
 			}
 		}); err != nil {
-			log.Error("list failed", "err", err)
+			log.Error(err, "list failed")
 		}
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 
 	if err := deleteStore.List(ctx, func(ctx context.Context, k storebackend.Key, s storebackend.Storer[*configapi.Config]) {
@@ -321,11 +321,11 @@ func (r *reconciler) updateConfigFromAPIServer(ctx context.Context, updateStore,
 				errs = errors.Join(errs, err)
 			}
 		}); err != nil {
-			log.Error("list failed", "err", err)
+			log.Error(err, "list failed")
 		}
 
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 	return errs
 }
@@ -338,7 +338,7 @@ func (r *reconciler) handleStatus(
 	requeue bool,
 	err error,
 ) (ctrl.Result, error) {
-	log := log.FromContext(ctx).With("ref", rollout.Spec.Ref)
+	log := logf.FromContext(ctx).WithValues("ref", rollout.Spec.Ref)
 
 	if err != nil {
 		condition.Message = fmt.Sprintf("%s err %s", condition.Message, err.Error())
@@ -355,7 +355,7 @@ func (r *reconciler) handleStatus(
 	if condition.Type == string(condv1alpha1.ConditionTypeReady) {
 		reconcilers.RecordEvent(r.recorder, rollout, corev1.EventTypeNormal, crName, fmt.Sprintf("ready ref %s", rollout.Spec.Ref))
 	} else {
-		log.Error(condition.Message)
+		log.Error(nil, condition.Message)
 		reconcilers.RecordEvent(r.recorder, rollout, corev1.EventTypeWarning, crName, condition.Message)
 	}
 
@@ -376,7 +376,7 @@ func (r *reconciler) handleStatus(
 
 // getTargetStatus is a convenience fn to reflect the target status in the Status field of the CR
 func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[invv1alpha1.RolloutTargetStatus]) []invv1alpha1.RolloutTargetStatus {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	targetStatus := []invv1alpha1.RolloutTargetStatus{}
 
 	if storeTargetStatus == nil {
@@ -386,7 +386,7 @@ func getTargetStatus(ctx context.Context, storeTargetStatus storebackend.Storer[
 	if err := storeTargetStatus.List(ctx, func(ctx context.Context, k storebackend.Key, rts invv1alpha1.RolloutTargetStatus) {
 		targetStatus = append(targetStatus, rts)
 	}); err != nil {
-		log.Error("list failed", "err", err)
+		log.Error(err, "list failed")
 	}
 
 	sort.SliceStable(targetStatus, func(i, j int) bool {

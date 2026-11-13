@@ -24,7 +24,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/henderiw/logger/log"
 	"github.com/pkg/errors"
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/apis/config"
@@ -34,6 +33,7 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers/ctrlconfig"
 	"github.com/sdcio/config-server/pkg/reconcilers/eventhandler"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	logf "github.com/sdcio/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,14 +94,14 @@ type reconciler struct {
 
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrlconfig.InitContext(ctx, reconcilerName, req.NamespacedName)
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	log.Info("reconcile")
 
 	configSet := &configv1alpha1.ConfigSet{}
 	if err := r.client.Get(ctx, req.NamespacedName, configSet); err != nil {
 		// if the resource no longer exists the reconcile loop is done
 		if resource.IgnoreNotFound(err) != nil {
-			log.Error(errGetCr, "error", err)
+			log.Error(err, errGetCr)
 			return ctrl.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetCr)
 		}
 		return ctrl.Result{}, nil
@@ -195,7 +195,7 @@ func (r *reconciler) unrollDownstreamTargets(ctx context.Context, configSet *con
 }
 
 func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha1.ConfigSet, targets []types.NamespacedName) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// get the existing configs to see if the config is present; if the configset's target is no
 	// longer applicable we will delete the config for this particular target
@@ -216,7 +216,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		if !ok { // config does not exist -> create it
 			if err := r.client.Create(ctx, desired); err != nil {
 				targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-				log.Error("cannot create config", "name", nsnKey.Name, "error", err.Error())
+				log.Error(err, "cannot create config", "name", nsnKey.Name)
 				continue
 			}
 			targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(desired.GetGeneration(), configv1alpha1.ConfigReasonPending, "creating")
@@ -232,13 +232,13 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		newHash, err := newConfig.CalculateHash()
 		if err != nil {
 			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-			log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
+			log.Error(err, "cannot calculate hash", "name", nsnKey.Name)
 			continue
 		}
 		oldHash, err := oldConfig.CalculateHash()
 		if err != nil {
 			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-			log.Error("cannot calculate hash", "name", nsnKey.Name, "error", err.Error())
+			log.Error(err, "cannot calculate hash", "name", nsnKey.Name)
 			continue
 		}
 
@@ -248,7 +248,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 		}
 		if err := r.client.Update(ctx, newConfig); err != nil {
 			targetsStatus[i].Condition = condv1alpha1.Failed(err.Error())
-			log.Error("cannot update config", "name", nsnKey.Name, "error", err.Error())
+			log.Error(err, "cannot update config", "name", nsnKey.Name)
 			continue
 		}
 		targetsStatus[i].Condition = configv1alpha1.ConfigNotReady(newConfig.GetGeneration(), configv1alpha1.ConfigReasonPending, "updating")
@@ -258,7 +258,7 @@ func (r *reconciler) ensureConfigs(ctx context.Context, configSet *configv1alpha
 	for _, existingConfig := range existingConfigs {
 		log.Info("existing config delete", "existingConfig", existingConfig.Name)
 		if err := r.client.Delete(ctx, existingConfig); err != nil {
-			log.Error("delete existing intent failed", "error", err)
+			log.Error(err, "delete existing intent failed")
 		}
 	}
 	configSet.Status.Targets = targetsStatus
@@ -280,12 +280,12 @@ func readyOf(cfg *configv1alpha1.Config) condv1alpha1.Condition {
 
 // getOrphanConfigsFromConfigSet returns the children owned by this configSet
 func (r *reconciler) getOrphanConfigsFromConfigSet(ctx context.Context, configSet *configv1alpha1.ConfigSet) map[types.NamespacedName]*configv1alpha1.Config {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 	existingConfigs := map[types.NamespacedName]*configv1alpha1.Config{}
 	// get existing configs
 	configList := &configv1alpha1.ConfigList{}
 	if err := r.client.List(ctx, configList); err != nil {
-		log.Error("unexpected object in store")
+		log.Error(nil, "unexpected object in store")
 		return existingConfigs
 	}
 
@@ -377,7 +377,7 @@ func (r *reconciler) updateStatus(
 	newCond condv1alpha1.Condition,
 	eventType string,
 ) error {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	newCond.ObservedGeneration = configSet.Generation
 	oldCond := configSetOrig.GetCondition(condv1alpha1.ConditionTypeReady)
@@ -393,7 +393,7 @@ func (r *reconciler) updateStatus(
 
 	if condChanged {
 		if eventType == corev1.EventTypeWarning {
-			log.Error(newCond.Message)
+			log.Error(nil, newCond.Message)
 		}
 		msg := newCond.Message
 		if msg == "" {
