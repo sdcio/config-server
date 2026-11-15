@@ -566,22 +566,22 @@ func TestTransact_DeletesUnrecoverable(t *testing.T) {
 	assertConfigGone(t, c, "bad")
 }
 
-// A deleting orphan Config is removed in a transaction of its own and
-// released, even when the other intents of the target fail.
-func TestTransact_OrphanDeletedOnItsOwn(t *testing.T) {
+// A deleting orphan Config is part of the regular transaction: the
+// dataserver handles the orphan delete policy, and the Config is released
+// once the transaction succeeds.
+func TestTransact_OrphanDeletedInTransaction(t *testing.T) {
 	orphan := newDeletingConfig("orphan")
 	orphan.Spec.Lifecycle = &configv1alpha1.Lifecycle{DeletionPolicy: configv1alpha1.DeletionOrphan}
-	c := newFakeConfigClient(t, nil, orphan, newTargetConfig("secondary", 20))
+	c := newFakeConfigClient(t, nil, orphan, newTargetConfig("base", 10))
 	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
 	ds := &fakeDataServer{}
 	tr := NewTransactor(c)
 
 	deleteConfig(t, c, "orphan")
-	// secondary fails on its own (mandatory leaf missing)
-	_, _ = transact(t, tr, c, target, newTestDatastore(ds))
-	require.Len(t, ds.calls, 2)
-	assert.Equal(t, sets.New("default.orphan"), ds.calls[0], "orphan in a transaction of its own")
-	assert.Equal(t, sets.New("default.secondary"), ds.calls[1])
+	_, err := transact(t, tr, c, target, newTestDatastore(ds))
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 1, "orphan in the regular transaction")
+	assert.True(t, ds.calls[0].Has("default.orphan"))
 	assertConfigGone(t, c, "orphan")
 }
 
