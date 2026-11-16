@@ -115,3 +115,17 @@ func TestUpdateConfigsReady_StaleListDropped(t *testing.T) {
 		getTargetConfig(t, c, "base").GetCondition(condv1alpha1.ConditionTypeReady).Reason,
 		"the stale write must not land")
 }
+
+// A Config released (gone) since it was listed has nothing to report on: its
+// Ready write is not an error.
+func TestUpdateConfigsReady_ConfigGoneSinceListed(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newUnrecoverableConfig("base", 1))
+	tr := NewTransactor(c)
+
+	listed := listTargetConfigs(t, c)
+	require.NoError(t, c.Delete(ctx, getTargetConfig(t, c, "base")))
+
+	require.NoError(t, tr.UpdateConfigsReady(ctx, listed,
+		NotReady(configv1alpha1.ConfigReasonTargetNotFound, "target default/dev1 not found")))
+}

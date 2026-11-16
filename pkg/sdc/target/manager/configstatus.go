@@ -125,8 +125,9 @@ func readyFromOutcomes(written outcomes) ReadyFn {
 }
 
 // UpdateConfigsReady writes the Ready condition of every listed Config, as
-// ready decides it. All Configs are attempted, so one failure does not stop
-// the others.
+// ready decides it. A Config released since it was listed is gone: there is
+// nothing to report on. All Configs are attempted, so one failure does not
+// stop the others.
 func (r *Transactor) UpdateConfigsReady(ctx context.Context, cfgs *configv1alpha1.ConfigList, ready ReadyFn) error {
 	var errs error
 	for i := range cfgs.Items {
@@ -140,7 +141,7 @@ func (r *Transactor) UpdateConfigsReady(ctx context.Context, cfgs *configv1alpha
 			Build: func(conds []condv1alpha1.Condition, rv string) runtime.ApplyConfiguration {
 				return configApply(cfg, rv, configv1alpha1apply.ConfigStatus().WithConditions(conds...))
 			},
-		}); err != nil {
+		}); resource.IgnoreNotFound(err) != nil {
 			errs = errors.Join(errs, err)
 		}
 	}

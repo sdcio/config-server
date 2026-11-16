@@ -259,6 +259,8 @@ func (r *Transactor) transact(
 
 	uuid := uuid.New()
 
+	// deleting configs are sent as delete intents with their deletion policy
+	// (Orphan); the dataserver decides what an orphan delete does on the device
 	rsp, err := r.setIntents(
 		ctx,
 		dsctx,
@@ -280,7 +282,7 @@ func (r *Transactor) transact(
 			"intentErrors", result.IntentErrors,
 		)
 
-		return handleTransactionErrors(
+		results, retry, err := handleTransactionErrors(
 			ctx,
 			rsp,
 			configsToUpdate,
@@ -288,6 +290,8 @@ func (r *Transactor) transact(
 			result.GlobalError,
 			result.Recoverable,
 		)
+		retry, err = deleteRetry(configsToDelete, retry, err)
+		return results, retry, err
 	}
 	log.Debug("transaction response", "rsp", prototext.Format(rsp))
 	// ok case
@@ -310,21 +314,51 @@ func (r *Transactor) transact(
 		}
 	}
 
-	for i := range cfgs.Items {
-		cfg := &cfgs.Items[i]
-		if _, ok := configsToDelete[config.GetGVKNSN(cfg)]; !ok {
-			continue
-		}
-		// while the finalizer still holds the Config, so a failure is retried
-		if err := r.deleteDeviation(ctx, cfg); err != nil {
-			return results, true, err
-		}
-		if err := r.finalizer.RemoveFinalizer(ctx, cfg); err != nil {
-			return results, true, err
-		}
+	if err := r.releaseConfigs(ctx, cfgs, sets.KeySet(configsToDelete)); err != nil {
+		return results, true, err
 	}
 
 	return results, false, nil
+}
+
+// ReleaseDeletingConfigs lets every deleting Config of the target go,
+// without a transaction and whatever its deletion policy. It is used when no
+// transaction will run anymore (the target is not found or being deleted),
+// so a deletion does not wait on a target that is gone
+// (sdcio/config-server#529). What the released Configs left on a device
+// that comes back is reported as a target deviation.
+func (r *Transactor) ReleaseDeletingConfigs(ctx context.Context, cfgs *configv1alpha1.ConfigList) error {
+	deleting := sets.New[string]()
+	for i := range cfgs.Items {
+		if cfgs.Items[i].GetDeletionTimestamp() != nil {
+			deleting.Insert(config.GetGVKNSN(&cfgs.Items[i]))
+		}
+	}
+	if deleting.Len() == 0 {
+		return nil
+	}
+	log.FromContext(ctx).Info("releasing deleting configs without transaction",
+		"configs", sets.List(deleting))
+	return r.releaseConfigs(ctx, cfgs, deleting)
+}
+
+// releaseConfigs lets the listed configs with a key in keys go: it deletes
+// their deviation, while the finalizer still holds the Config so a failure
+// is retried, then removes the finalizer so the apiserver can remove them.
+func (r *Transactor) releaseConfigs(ctx context.Context, cfgs *configv1alpha1.ConfigList, keys sets.Set[string]) error {
+	for i := range cfgs.Items {
+		cfg := &cfgs.Items[i]
+		if !keys.Has(config.GetGVKNSN(cfg)) {
+			continue
+		}
+		if err := r.deleteDeviation(ctx, cfg); err != nil {
+			return err
+		}
+		if err := r.finalizer.RemoveFinalizer(ctx, cfg); resource.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Transactor) setIntents(
@@ -450,11 +484,13 @@ func getConfigsToTransact(
 		key := config.GetGVKNSN(cfg)
 
 		switch {
-		case !cfg.IsRecoverable(ctx):
-			nonRecoverable[key] = cfg
-
+		// The delete intent does not depend on the spec, so the outcome of
+		// the last apply (e.g. unrecoverable) must not hold a deletion back.
 		case cfg.GetDeletionTimestamp() != nil:
 			configsToDelete[key] = cfg
+
+		case !cfg.IsRecoverable(ctx):
+			nonRecoverable[key] = cfg
 
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
@@ -581,6 +617,24 @@ func handleTransactionErrors(
 	}
 
 	return results, recoverable, globalErr
+}
+
+// deleteRetry keeps a failed transaction that carries deletes retrying with
+// backoff. An update is retried when its spec changes, but a deleting Config
+// has no such trigger: without a requeue it waits, finalizer and all, on an
+// unrelated event. E.g. a device timeout (errTimeoutError, reported as
+// codes.Unknown, so non recoverable) left a deleting child Config, and its
+// ConfigSet, stuck until another config on the target changed.
+func deleteRetry(configsToDelete map[string]*config.Config, retry bool, err error) (bool, error) {
+	if len(configsToDelete) == 0 || retry {
+		return retry, err
+	}
+	if err == nil {
+		// intent errors only: return an error so the reconciler backs off
+		// (exponential) instead of the fixed 500ms requeue
+		err = fmt.Errorf("transaction failed for deleting configs %v, retrying", mapKeys(configsToDelete))
+	}
+	return true, err
 }
 
 // failedResult stamps the generation that was transacted, not the current
