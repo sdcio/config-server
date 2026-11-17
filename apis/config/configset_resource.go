@@ -273,30 +273,6 @@ func (r *ConfigSet) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	newobj.Status = ConfigSetStatus{}
 }
 
-// ValidateCreate statically validates
-func (r *ConfigSet) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
-	var allErrs field.ErrorList
-
-	if _, err := metav1.LabelSelectorAsSelector(r.Spec.Target.TargetSelector); err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec.target.selector"),
-			obj,
-			err.Error(),
-		))
-	}
-
-	newobj := obj.(*ConfigSet)
-	if newobj.Spec.Priority < 2 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec.priority"),
-			obj,
-			"priority should be bigger 2",
-		))
-	}
-
-	return allErrs
-}
-
 func (r *ConfigSet) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 	// ensure the sttaus dont get updated
 	newobj := obj.(*ConfigSet)
@@ -304,16 +280,22 @@ func (r *ConfigSet) PrepareForUpdate(ctx context.Context, obj, old runtime.Objec
 	newobj.Status = oldObj.Status
 }
 
-func (r *ConfigSet) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	var allErrs field.ErrorList
-
-	if _, err := metav1.LabelSelectorAsSelector(r.Spec.Target.TargetSelector); err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec.target.selector"),
-			obj,
-			err.Error(),
-		))
+func (r *ConfigSet) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	newobj := obj.(*ConfigSet)
+	allErrs := validateConfigSetSpec(newobj)
+	if newobj.Spec.Priority < 2 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "priority"), obj, "priority should be bigger 2"))
 	}
-
 	return allErrs
+}
+
+func (r *ConfigSet) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	return validateConfigSetSpec(obj.(*ConfigSet))
+}
+
+func validateConfigSetSpec(cs *ConfigSet) field.ErrorList {
+	if _, err := metav1.LabelSelectorAsSelector(cs.Spec.Target.TargetSelector); err != nil {
+		return field.ErrorList{field.Invalid(field.NewPath("spec", "target", "targetSelector"), cs.Spec.Target.TargetSelector, err.Error())}
+	}
+	return nil
 }
