@@ -18,5 +18,4 @@ package config
 
 const (
 	TargetNameKey      = GroupName + "/" + "targetName"
-	TargetNamespaceKey = GroupName + "/" + "targetNamespace"
 )

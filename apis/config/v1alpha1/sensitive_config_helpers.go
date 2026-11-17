@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -108,60 +107,11 @@ func (r *SensitiveConfig) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSch
 	return r.Status.LastKnownGoodSchema
 }
 
-func (r *SensitiveConfig) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
-
-func (r *SensitiveConfig) GetTargetNamespaceName() (*types.NamespacedName, error) {
-	if len(r.GetLabels()) == 0 {
-		return nil, fmt.Errorf("no target information found in labels")
-	}
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	return &types.NamespacedName{
-		Name:      targetName,
-		Namespace: targetNamespace,
-	}, nil
-}
-
-/*
-// IsTransacting return true if a create/update or delete is ongoing on the SensitiveConfig object
-func (r *SensitiveConfig) IsTransacting() bool {
-	condition := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	return condition.Reason == string(condv1alpha1.ConditionReasonCreating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonUpdating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonDeleting)
-}
-*/
+func (r *SensitiveConfig) GetTarget() string { return config.GetTargetString(r) }
 
 func (r *SensitiveConfig) Validate() error {
-	var errm error
-	if _, ok := r.GetLabels()[config.TargetNameKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a SensitiveConfig cr always need a %s", config.TargetNameKey))
-	}
-	if _, ok := r.GetLabels()[config.TargetNamespaceKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a SensitiveConfig cr always need a %s", config.TargetNamespaceKey))
-	}
-	return errm
+	_, err := config.GetTargetKey(r)
+	return err
 }
 
 // BuildSensitiveConfig returns a reource from a client Object a Spec/Status

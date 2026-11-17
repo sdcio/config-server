@@ -72,22 +72,7 @@ func (r *Deviation) GetDeviationType() string {
 	return DeviationType_TARGET.String()
 }
 
-func (r *Deviation) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
+func (r *Deviation) GetTarget() string { return GetTargetString(r) }
 
 func (r Deviation) HasNotAppliedDeviation() bool {
 	for _, dev := range r.Spec.Deviations {

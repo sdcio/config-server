@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,22 +88,7 @@ func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
 	return r.Status.LastKnownGoodSchema
 }
 
-func (r *Config) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
+func (r *Config) GetTarget() string { return GetTargetString(r) }
 
 func (r *Config) Orphan() bool {
 	if r.Spec.Lifecycle != nil {
@@ -115,21 +99,6 @@ func (r *Config) Orphan() bool {
 
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {
 	return filepath.Join(r.Type, r.Vendor, r.Version)
-}
-
-func GetTargetKey(labels map[string]string) (types.NamespacedName, error) {
-	var targetName, targetNamespace string
-	if labels != nil {
-		targetName = labels[TargetNameKey]
-		targetNamespace = labels[TargetNamespaceKey]
-	}
-	if targetName == "" || targetNamespace == "" {
-		return types.NamespacedName{}, fmt.Errorf(" target namespace and name is required got %s.%s", targetNamespace, targetName)
-	}
-	return types.NamespacedName{
-		Namespace: targetNamespace,
-		Name:      targetName,
-	}, nil
 }
 
 // BuildConfig returns a reource from a client Object a Spec/Status

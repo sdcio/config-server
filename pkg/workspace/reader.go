@@ -108,11 +108,7 @@ func extractConfigsFromRepo(ctx context.Context, repoPath string) (storebackend.
 			if !ok {
 				return nil // Ignore files without a targetName
 			}
-			targetNamespace, ok := cfg.Labels[config.TargetNamespaceKey]
-			if !ok {
-				return nil // Ignore files without a targetName
-			}
-			targetKey := types.NamespacedName{Namespace: targetNamespace, Name: targetName}
+			targetKey := types.NamespacedName{Namespace: cfg.GetNamespace(), Name: targetName}
 
 			configStore, err := newTargetConfigStore.Get(ctx, storebackend.KeyFromNSN(targetKey))
 			if err != nil {

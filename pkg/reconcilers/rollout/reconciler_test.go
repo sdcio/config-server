@@ -118,7 +118,6 @@ func getExistingConfigs(existingConfigs map[string][]string) *configv1alpha1.Con
 				Name: configName, Namespace: namespace,
 				Labels: map[string]string{
 					configapi.TargetNameKey:      target,
-					configapi.TargetNamespaceKey: namespace,
 				},
 			}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{})
 			existingConfigList.Items = append(existingConfigList.Items, *config)
@@ -145,7 +144,6 @@ func getnewConfigStore(newConfigs map[string][]string) storebackend.Storer[store
 				Name: configName, Namespace: namespace,
 				Labels: map[string]string{
 					configapi.TargetNameKey:      target,
-					configapi.TargetNamespaceKey: namespace,
 				},
 			}, configapi.ConfigSpec{})
 			configKey := storebackend.KeyFromNSN(types.NamespacedName{Name: configName, Namespace: namespace})

@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -102,60 +101,11 @@ func (r *Config) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSchema {
 	return r.Status.LastKnownGoodSchema
 }
 
-func (r *Config) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
-
-func (r *Config) GetTargetNamespaceName() (*types.NamespacedName, error) {
-	if len(r.GetLabels()) == 0 {
-		return nil, fmt.Errorf("no target information found in labels")
-	}
-	targetNamespace, ok := r.GetLabels()[config.TargetNamespaceKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	targetName, ok := r.GetLabels()[config.TargetNameKey]
-	if !ok {
-		return nil, fmt.Errorf("no target namespece information found in labels")
-	}
-	return &types.NamespacedName{
-		Name:      targetName,
-		Namespace: targetNamespace,
-	}, nil
-}
-
-/*
-// IsTransacting return true if a create/update or delete is ongoing on the config object
-func (r *Config) IsTransacting() bool {
-	condition := r.GetCondition(condv1alpha1.ConditionTypeReady)
-	return condition.Reason == string(condv1alpha1.ConditionReasonCreating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonUpdating) ||
-		condition.Reason == string(condv1alpha1.ConditionReasonDeleting)
-}
-*/
+func (r *Config) GetTarget() string { return config.GetTargetString(r) }
 
 func (r *Config) Validate() error {
-	var errm error
-	if _, ok := r.GetLabels()[config.TargetNameKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a config cr always need a %s", config.TargetNameKey))
-	}
-	if _, ok := r.GetLabels()[config.TargetNamespaceKey]; !ok {
-		errm = errors.Join(errm, fmt.Errorf("a config cr always need a %s", config.TargetNamespaceKey))
-	}
-	return errm
+	_, err := config.GetTargetKey(r)
+	return err
 }
 
 func (r *ConfigStatusLastKnownGoodSchema) FileString() string {

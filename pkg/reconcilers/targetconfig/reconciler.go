@@ -108,7 +108,12 @@ func (r *reconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, c i
 		// Config events are mapped onto the Target named in the Config's labels.
 		// This controller is therefore the only one that sees a Config whose
 		// Target does not exist, and must report it (sdcio/config-server#469).
-		Watches(&configv1alpha1.Config{}, &eventhandler.ConfigForTargetEventHandler{Client: mgr.GetClient(), ControllerName: reconcilerName}).
+		Watches(&configv1alpha1.Config{},
+			&eventhandler.TargetLabelEventHandler{
+				Client: mgr.GetClient(), 
+				ControllerName: reconcilerName, 
+				EventSource: "config-event",
+			}).
 		Complete(r)
 }
 

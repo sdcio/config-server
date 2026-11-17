@@ -29,7 +29,6 @@ func ListConfigsByTarget(ctx context.Context, c client.Client, targetNamespace, 
 	if err := c.List(ctx, v1alpha1configList,
 		client.InNamespace(lookupNamespace),
 		client.MatchingLabels{
-			config.TargetNamespaceKey: targetNamespace,
 			config.TargetNameKey:      targetName,
 		},
 	); err != nil {

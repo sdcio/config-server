@@ -170,7 +170,6 @@ func newTargetConfig(name string, priority int32) *configv1alpha1.Config {
 			Namespace:  "default",
 			Generation: 1,
 			Labels: map[string]string{
-				internalconfig.TargetNamespaceKey: "default",
 				internalconfig.TargetNameKey:      "dev1",
 			},
 		},
