@@ -1,0 +1,25 @@
+# Minimal static route via UM model — adjust target labels and addresses for your lab.
+apiVersion: config.sdcio.dev/v1alpha1
+kind: Config
+metadata:
+  name: cisco-iosxr-static-sample
+  namespace: default
+  labels:
+    config.sdcio.dev/targetName: ixr01
+    config.sdcio.dev/targetNamespace: default
+spec:
+  priority: 10
+  config:
+  - path: /Cisco-IOS-XR-um-router-static-cfg:router
+    value:
+      static:
+        address-family:
+          ipv4:
+            unicast:
+              prefixes:
+                prefix:
+                - prefix-address: 198.51.100.0
+                  prefix-length: 24
+                  nexthop-addresses:
+                    nexthop-address:
+                    - address: 10.0.0.1
