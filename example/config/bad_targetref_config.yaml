@@ -10,7 +10,6 @@ metadata:
   namespace: default
   labels:
     targetName: dev1
-    targetNamespace: default
 spec:
   priority: 10
   config:
