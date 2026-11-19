@@ -263,7 +263,6 @@ func (r *DeviationWatcher) processDSDeviations(
 	applyDeviation := configv1alpha1apply.Deviation(nsn.Name, nsn.Namespace).
 		WithLabels(map[string]string{
 			config.TargetNameKey:      r.key.Name,
-			config.TargetNamespaceKey: r.key.Namespace,
 		}).
 		WithSpec(configv1alpha1apply.DeviationSpec().
 			WithDeviationType(typ).

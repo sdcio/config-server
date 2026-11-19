@@ -83,22 +83,7 @@ func (r *SensitiveConfig) GetLastKnownGoodSchema() *ConfigStatusLastKnownGoodSch
 	return r.Status.LastKnownGoodSchema
 }
 
-func (r *SensitiveConfig) GetTarget() string {
-	if len(r.GetLabels()) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.GetLabels()[TargetNamespaceKey]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.GetLabels()[TargetNameKey]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
-}
+func (r *SensitiveConfig) GetTarget() string { return GetTargetString(r) }
 
 func (r *SensitiveConfig) Orphan() bool {
 	if r.Spec.Lifecycle != nil {

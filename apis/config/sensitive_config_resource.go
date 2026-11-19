@@ -26,7 +26,6 @@ import (
 	"github.com/sdcio/config-server/apis/condition"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -281,38 +280,6 @@ func (r *SensitiveConfig) PrepareForCreate(ctx context.Context, obj runtime.Obje
 	newobj.Status = SensitiveConfigStatus{}
 }
 
-// ValidateCreate statically validates
-func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
-	var allErrs field.ErrorList
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			err.Error(),
-		))
-		return allErrs
-	}
-	if _, err := GetTargetKey(accessor.GetLabels()); err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			err.Error(),
-		))
-	}
-
-	newobj := obj.(*SensitiveConfig)
-	if newobj.Spec.Priority < 2 {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("spec.priority"),
-			obj,
-			"priority should be bigger 2",
-		))
-	}
-
-	return allErrs
-}
-
 func (r *SensitiveConfig) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 	// ensure the sttaus dont get updated
 	newobj := obj.(*SensitiveConfig)
@@ -320,53 +287,14 @@ func (r *SensitiveConfig) PrepareForUpdate(ctx context.Context, obj, old runtime
 	newobj.Status = oldObj.Status
 }
 
-func (r *SensitiveConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
-	var allErrs field.ErrorList
-
-	newaccessor, err := meta.Accessor(obj)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			err.Error(),
-		))
-		return allErrs
-	}
-	newKey, err := GetTargetKey(newaccessor.GetLabels())
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			err.Error(),
-		))
-	}
-	oldaccessor, err := meta.Accessor(old)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath(""),
-			obj,
-			err.Error(),
-		))
-		return allErrs
-	}
-	oldKey, err := GetTargetKey(oldaccessor.GetLabels())
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			err.Error(),
-		))
-	}
-
-	if len(allErrs) != 0 {
-		return allErrs
-	}
-	if oldKey.String() != newKey.String() {
-		allErrs = append(allErrs, field.Invalid(
-			field.NewPath("metadata.labels"),
-			obj,
-			fmt.Errorf("target keys are immutable: oldKey: %s, newKey %s", oldKey.String(), newKey.String()).Error(),
-		))
+func (r *SensitiveConfig) ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList {
+	allErrs := ValidateTargetKey(obj)
+	if obj.(*Config).Spec.Priority < 2 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "priority"), obj, "priority should be bigger 2"))
 	}
 	return allErrs
+}
+
+func (r *SensitiveConfig) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+	return ValidateTargetKeyUpdate(obj, old)
 }

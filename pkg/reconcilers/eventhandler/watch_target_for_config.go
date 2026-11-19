@@ -72,7 +72,6 @@ func (r *TargetForConfigEventHandler) add(ctx context.Context, obj runtime.Objec
 		client.InNamespace(target.Namespace),
 		client.MatchingLabels{
 			config.TargetNameKey:      target.GetName(),
-			config.TargetNamespaceKey: target.GetNamespace(),
 		},
 	}
 	configs := &configv1alpha1.ConfigList{}

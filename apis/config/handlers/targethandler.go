@@ -24,12 +24,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func ListConfigsByTarget(ctx context.Context, c client.Client, targetNamespace, targetName, lookupNamespace string) (map[string]*config.Config, error) {
+func ListConfigsByTarget(ctx context.Context, c client.Client, targetNamespace, targetName string) (map[string]*config.Config, error) {
 	v1alpha1configList := &configv1alpha1.ConfigList{}
 	if err := c.List(ctx, v1alpha1configList,
-		client.InNamespace(lookupNamespace),
+		client.InNamespace(targetNamespace),
 		client.MatchingLabels{
-			config.TargetNamespaceKey: targetNamespace,
 			config.TargetNameKey:      targetName,
 		},
 	); err != nil {

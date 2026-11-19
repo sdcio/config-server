@@ -32,9 +32,8 @@ func TestExampleConfig(t *testing.T) {
 		},
 		"ConfigBadTargetRef": {
 			path: "../../../example/config/bad_targetref_config.yaml",
-			expectedErr: fmt.Errorf("%s\n%s",
+			expectedErr: fmt.Errorf("%s",
 				"a config cr always need a config.sdcio.dev/targetName",
-				"a config cr always need a config.sdcio.dev/targetNamespace",
 			),
 		},
 		"ConfigBadSpec": {

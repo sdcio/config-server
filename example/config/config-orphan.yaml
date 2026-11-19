@@ -10,7 +10,6 @@ metadata:
   namespace: default
   labels:
     config.sdcio.dev/targetName: dev1
-    config.sdcio.dev/targetNamespace: default
 spec:
   lifecycle:
     deletionPolicy: orphan

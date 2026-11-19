@@ -88,7 +88,6 @@ func ListTargetConfigs(ctx context.Context, c client.Reader, target *configv1alp
 	if err := c.List(ctx, cfgList,
 		client.InNamespace(target.GetNamespace()),
 		client.MatchingLabels{
-			config.TargetNamespaceKey: target.GetNamespace(),
 			config.TargetNameKey:      target.GetName(),
 		},
 	); err != nil {

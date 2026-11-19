@@ -223,11 +223,6 @@ func getToBeDeletedconfigs(
 			log.Warn("Skipping config missing targetName", "config", existingConfig.Name)
 			continue
 		}
-		targetNamespace, ok := existingConfig.Labels[configapi.TargetNamespaceKey]
-		if !ok {
-			log.Warn("Skipping config missing targetNamespace", "config", existingConfig.Name)
-			continue
-		}
 
 		internalcfg := &configapi.Config{}
 		if err := configv1alpha1.Convert_v1alpha1_Config_To_config_Config(&existingConfig, internalcfg, nil); err != nil {
@@ -235,7 +230,7 @@ func getToBeDeletedconfigs(
 		}
 
 		targetKey := storebackend.KeyFromNSN(types.NamespacedName{
-			Namespace: targetNamespace,
+			Namespace: existingConfig.GetNamespace(),
 			Name:      targetName,
 		})
 		configKey := storebackend.KeyFromNSN(types.NamespacedName{

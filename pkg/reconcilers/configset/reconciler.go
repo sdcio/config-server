@@ -310,7 +310,6 @@ func buildConfig(_ context.Context, configSet *configv1alpha1.ConfigSet, target 
 		labels = map[string]string{}
 	}
 	labels[config.TargetNameKey] = target.Name
-	labels[config.TargetNamespaceKey] = target.Namespace
 
 	return configv1alpha1.BuildConfig(
 		metav1.ObjectMeta{

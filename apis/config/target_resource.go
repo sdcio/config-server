@@ -55,7 +55,7 @@ func SetSubResourceClient(c client.Client) {
 }
 
 // ConfigListerFn lists configs for a target, returning them indexed by name.
-type ConfigListerFn func(ctx context.Context, c client.Client, targetNamespace, targetName, lookupNamespace string) (map[string]*Config, error)
+type ConfigListerFn func(ctx context.Context, c client.Client, targetNamespace, targetName string) (map[string]*Config, error)
 
 var configLister ConfigListerFn
 

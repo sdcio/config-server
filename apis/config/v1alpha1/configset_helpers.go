@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"reflect"
-	"strings"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	"github.com/sdcio/config-server/pkg/testhelper"
@@ -39,23 +38,6 @@ func (r *ConfigSet) SetConditions(c ...condv1alpha1.Condition) {
 
 func (r *ConfigSet) GetNamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
-}
-
-func (r *ConfigSet) GetTarget() string {
-	if len(r.Labels) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	targetNamespace, ok := r.Labels["targetNamespace"]
-	if ok {
-		sb.WriteString(targetNamespace)
-		sb.WriteString("/")
-	}
-	targetName, ok := r.Labels["targetName"]
-	if ok {
-		sb.WriteString(targetName)
-	}
-	return sb.String()
 }
 
 // BuildConfig returns a reource from a client Object a Spec/Status
