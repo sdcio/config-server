@@ -311,6 +311,8 @@ func (r *Transactor) transact(
 			configReady: configv1alpha1.ConfigReady(cfg.GetGeneration(), ""),
 			applied:     applied,
 			schema:      dsctx.Schema,
+			// a config sent unchanged with the others keeps its applied time
+			newContent: hasNewContent(ctx, cfg),
 		}
 	}
 
@@ -495,8 +497,7 @@ func getConfigsToTransact(
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
 
-		case cfg.Status.AppliedConfig != nil &&
-			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+		case !hasNewContent(ctx, cfg):
 			configsNoChnge[key] = cfg
 			continue
 
@@ -538,6 +539,13 @@ func getConfigsToTransact(
 	)
 
 	return configsToUpdate, configsToDelete
+}
+
+// hasNewContent reports whether the spec of cfg differs from what was last
+// applied to the target: never applied, or a different shasum.
+func hasNewContent(ctx context.Context, cfg *config.Config) bool {
+	return cfg.Status.AppliedConfig == nil ||
+		cfg.Spec.GetShaSum(ctx) != cfg.Status.AppliedConfig.GetShaSum(ctx)
 }
 
 func mapKeys[T any](m map[string]T) []string {

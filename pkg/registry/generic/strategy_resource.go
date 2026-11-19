@@ -112,8 +112,15 @@ func (r *strategy) Get(ctx context.Context, key types.NamespacedName) (runtime.O
 
 func (r *strategy) BeginCreate(ctx context.Context) error { return nil }
 
+// PrepareForCreate starts the generation at 1, as the Kubernetes registries
+// do: Update only bumps it from the stored value (setNextGeneration), so
+// without this an object stays at 0 until its first spec change and its
+// conditions cannot say which spec they observed.
 func (r *strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	r.obj.PrepareForCreate(ctx, obj)
+	if acc, err := meta.Accessor(obj); err == nil {
+		acc.SetGeneration(1)
+	}
 }
 
 func (r *strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {

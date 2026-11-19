@@ -135,8 +135,10 @@ func (r *ConfigSet) PrepareForStatusUpdate(ctx context.Context, obj, old runtime
 	oldObj := old.(*ConfigSet)
 	newObj.Spec = oldObj.Spec
 
-	// Status updates are for only for updating status, not objectmeta.
-	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+	// Status updates are for only for updating status, not objectmeta:
+	// generation, labels, annotations, finalizers, ownerReferences and the
+	// deletionTimestamp come from the stored object.
+	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &oldObj.ObjectMeta)
 }
 
 // ValidateStatusUpdate validates status updates
