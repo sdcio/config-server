@@ -230,15 +230,12 @@ func (r *Target) ClearDeviations(ctx context.Context, c client.Client, req *Targ
 		return nil, apierrors.NewBadRequest("spec is required")
 	}
 
-	// Use spec namespace if provided, otherwise target's namespace
-	lookupNamespace := r.Namespace
-
 	if configLister == nil {
 		return nil, apierrors.NewInternalError(fmt.Errorf("config lister not initialized"))
 	}
 
 	// Fetch existing configs for the target
-	configsByName, err := configLister(ctx, c, r.Namespace, r.Name, lookupNamespace)
+	configsByName, err := configLister(ctx, c, r.Namespace, r.Name)
 	if err != nil {
 		return nil, err
 	}
