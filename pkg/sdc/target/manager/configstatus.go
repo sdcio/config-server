@@ -88,7 +88,7 @@ func ListTargetConfigs(ctx context.Context, c client.Reader, target *configv1alp
 	if err := c.List(ctx, cfgList,
 		client.InNamespace(target.GetNamespace()),
 		client.MatchingLabels{
-			config.TargetNameKey:      target.GetName(),
+			config.TargetNameKey: target.GetName(),
 		},
 	); err != nil {
 		return nil, err
@@ -166,6 +166,11 @@ type txResult struct {
 	configReady condv1alpha1.Condition
 	applied     *configv1alpha1.ConfigSpec // success only
 	schema      *configv1alpha1.ConfigStatusLastKnownGoodSchema
+	// newContent: new content was applied, ConfigReady's lastTransitionTime
+	// moves even though it stays True; it is the time of the last apply
+	// (the Applied printer column, sdcio/config-server#556). A config sent
+	// unchanged with others keeps its time, so its status apply is a no-op.
+	newContent bool
 }
 
 // applyTo projects the result onto an in-memory Config: the fields the
@@ -200,7 +205,7 @@ func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.Confi
 		if res.applied != nil {
 			errs = errors.Join(errs, r.status.writeApplied(ctx, cached, res.applied, res.schema))
 		}
-		if err := r.status.writeOutcome(ctx, cached, res.configReady); err != nil {
+		if err := r.status.writeOutcome(ctx, cached, res.configReady, res.newContent); err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
@@ -219,17 +224,21 @@ func (r *Transactor) setRecoveredConfigs(ctx context.Context, cfgs *configv1alph
 		if cfg.Status.AppliedConfig == nil {
 			continue
 		}
-		errs = errors.Join(errs, r.status.writeOutcome(ctx, cfg, cond(cfg)))
+		// recovery replays what was applied: no new content, the applied
+		// time stays
+		errs = errors.Join(errs, r.status.writeOutcome(ctx, cfg, cond(cfg), false))
 	}
 	return errs
 }
 
 // writeOutcome writes ConfigReady and deviationGeneration. The input is the
-// outcome itself, so the apply is unconditional.
-func (s *configStatus) writeOutcome(ctx context.Context, cfg *configv1alpha1.Config, configReady condv1alpha1.Condition) error {
+// outcome itself, so the apply is unconditional. newContent moves
+// ConfigReady's lastTransitionTime, see txResult.
+func (s *configStatus) writeOutcome(ctx context.Context, cfg *configv1alpha1.Config, configReady condv1alpha1.Condition, newContent bool) error {
 	devGen := deviationGenerationFor(configReady)
 	return s.outcome.Write(ctx, cfg, resource.StatusUpdate{
-		Conditions: []condv1alpha1.Condition{configReady},
+		Conditions:    []condv1alpha1.Condition{configReady},
+		NewTransition: newContent,
 		Build: func(conds []condv1alpha1.Condition, rv string) runtime.ApplyConfiguration {
 			status := configv1alpha1apply.ConfigStatus().WithConditions(conds...)
 			if devGen != nil {

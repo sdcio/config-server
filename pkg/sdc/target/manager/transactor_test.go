@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	internalconfig "github.com/sdcio/config-server/apis/config"
@@ -170,7 +171,7 @@ func newTargetConfig(name string, priority int32) *configv1alpha1.Config {
 			Namespace:  "default",
 			Generation: 1,
 			Labels: map[string]string{
-				internalconfig.TargetNameKey:      "dev1",
+				internalconfig.TargetNameKey: "dev1",
 			},
 		},
 		Spec: configv1alpha1.ConfigSpec{
@@ -599,4 +600,65 @@ func TestDeleteRetry(t *testing.T) {
 	retry, err = deleteRetry(nil, false, nonRecoverable) // no deletes: unchanged
 	assert.False(t, retry)
 	assert.ErrorIs(t, err, nonRecoverable)
+}
+
+// setConfigReadyTime moves the ConfigReady transition of a stored Config to
+// ts: timestamps have second precision, so the test cannot rely on two
+// applies landing in different seconds.
+func setConfigReadyTime(t *testing.T, c client.Client, name string, ts metav1.Time) {
+	t.Helper()
+	cfg := getTargetConfig(t, c, name)
+	found := false
+	for i := range cfg.Status.Conditions {
+		if cfg.Status.Conditions[i].Type == string(configv1alpha1.ConditionTypeConfigReady) {
+			cfg.Status.Conditions[i].LastTransitionTime = ts
+			found = true
+		}
+	}
+	require.True(t, found, "%s: ConfigReady", name)
+	require.NoError(t, c.Status().Update(context.Background(), cfg))
+}
+
+// sdcio/config-server#556: ConfigReady's transition time is the time of the
+// last apply of new content. A config sent unchanged with it (every config of
+// the target goes out when one changes) keeps its time, and its status is not
+// written.
+func TestTransact_AppliedTimeOnlyOnNewContent(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newTargetConfig("base", 10), newTargetConfig("secondary", 20))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	dsctx := newTestDatastore(ds)
+	tr := NewTransactor(c)
+
+	_, err := transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+	assertConfigApplied(t, c, "base")
+	assertConfigApplied(t, c, "secondary")
+
+	old := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	setConfigReadyTime(t, c, "base", old)
+	setConfigReadyTime(t, c, "secondary", old)
+	secondaryRV := getTargetConfig(t, c, "secondary").ResourceVersion
+
+	// only base changes
+	base := getTargetConfig(t, c, "base")
+	base.Spec.Config[0].Value = runtime.RawExtension{Raw: []byte(`{"admin-state":"disable"}`)}
+	require.NoError(t, c.Update(ctx, base))
+
+	_, err = transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, sets.New("default.base", "default.secondary"), ds.calls[1], "unchanged secondary is sent with base")
+
+	base = getTargetConfig(t, c, "base")
+	baseReady := base.GetCondition(configv1alpha1.ConditionTypeConfigReady)
+	assert.True(t, baseReady.IsTrue())
+	assert.True(t, baseReady.LastTransitionTime.After(old.Time), "base: new content moves the applied time")
+	assert.Equal(t, base.GetGeneration(), baseReady.ObservedGeneration)
+
+	secondary := getTargetConfig(t, c, "secondary")
+	assert.True(t, secondary.GetCondition(configv1alpha1.ConditionTypeConfigReady).LastTransitionTime.Time.Equal(old.Time),
+		"secondary: sent unchanged, keeps its applied time")
+	assert.Equal(t, secondaryRV, secondary.ResourceVersion, "secondary: status not written")
 }
