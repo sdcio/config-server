@@ -29,8 +29,18 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const schemServerAddress = "schema-server.sdc-system.svc.cluster.local:56000"
+const (
+	defaultSchemaServerService = "schema-server"
+	defaultSchemaServerPort    = "56000"
+	defaultNamespace           = "sdc-system"
+)
 
+// GetSchemaServerAddress returns the address of the schema server.
+// SDC_SCHEMA_SERVER (or SDC_DATA_SERVER) overrides the full address.
+// Otherwise the address of the schema-server service is built from the
+// namespace this pod runs in (POD_NAMESPACE), as all sdc components are
+// deployed in the same namespace. The service name and port can be
+// overridden with SDC_SCHEMA_SERVER_SERVICE and SDC_SCHEMA_SERVER_PORT.
 func GetSchemaServerAddress() string {
 	if address, found := os.LookupEnv("SDC_SCHEMA_SERVER"); found {
 		return address
@@ -38,7 +48,19 @@ func GetSchemaServerAddress() string {
 	if address, found := os.LookupEnv("SDC_DATA_SERVER"); found {
 		return address
 	}
-	return schemServerAddress
+
+	ns := envOrDefault("POD_NAMESPACE", defaultNamespace)
+	svc := envOrDefault("SDC_SCHEMA_SERVER_SERVICE", defaultSchemaServerService)
+	port := envOrDefault("SDC_SCHEMA_SERVER_PORT", defaultSchemaServerPort)
+
+	return fmt.Sprintf("%s.%s.svc.cluster.local:%s", svc, ns, port)
+}
+
+func envOrDefault(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		return v
+	}
+	return fallback
 }
 
 type Config struct {
