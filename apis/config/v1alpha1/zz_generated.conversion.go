@@ -635,6 +635,7 @@ func autoConvert_v1alpha1_ConfigSetSpec_To_config_ConfigSetSpec(in *ConfigSetSpe
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -651,6 +652,7 @@ func autoConvert_config_ConfigSetSpec_To_v1alpha1_ConfigSetSpec(in *config.Confi
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -756,6 +758,7 @@ func autoConvert_v1alpha1_ConfigSpec_To_config_ConfigSpec(in *ConfigSpec, out *c
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -769,6 +772,7 @@ func autoConvert_config_ConfigSpec_To_v1alpha1_ConfigSpec(in *config.ConfigSpec,
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]ConfigBlob)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -1106,6 +1110,7 @@ func autoConvert_v1alpha1_SensitiveConfigSpec_To_config_SensitiveConfigSpec(in *
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]config.SensitiveConfigData)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 
@@ -1119,6 +1124,7 @@ func autoConvert_config_SensitiveConfigSpec_To_v1alpha1_SensitiveConfigSpec(in *
 	out.Priority = in.Priority
 	out.Revertive = (*bool)(unsafe.Pointer(in.Revertive))
 	out.Config = *(*[]SensitiveConfigData)(unsafe.Pointer(&in.Config))
+	out.DeletePaths = *(*[]string)(unsafe.Pointer(&in.DeletePaths))
 	return nil
 }
 

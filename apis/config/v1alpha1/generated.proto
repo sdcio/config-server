@@ -103,6 +103,11 @@ message ConfigSetSpec {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
   repeated ConfigBlob config = 5;
+
+  // DeletePaths lists subtrees each generated Config deletes at its priority. Exactly one of
+  // config and deletePaths is set; a template carrying only deletePaths is a sweeper.
+  // +listType=atomic
+  repeated string deletePaths = 6;
 }
 
 // ConfigSetStatus defines the observed state of Config
@@ -146,6 +151,11 @@ message ConfigSpec {
   // +kubebuilder:pruning:PreserveUnknownFields
   // +listType=atomic
   repeated ConfigBlob config = 4;
+
+  // DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+  // and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+  // +listType=atomic
+  repeated string deletePaths = 5;
 }
 
 // ConfigStatus defines the observed state of Config
@@ -282,6 +292,11 @@ message SensitiveConfigSpec {
   // SensitiveConfig defines the SensitiveConfiguration to be applied to a target device
   // +listType=atomic
   repeated SensitiveConfigData config = 4;
+
+  // DeletePaths lists subtrees this intent deletes at its priority. Exactly one of config
+  // and deletePaths is set; an intent carrying only deletePaths is a sweeper.
+  // +listType=atomic
+  repeated string deletePaths = 5;
 }
 
 // SensitiveConfigStatus defines the observed state of SensitiveConfig

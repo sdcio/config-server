@@ -409,6 +409,15 @@ func (m *ConfigSetSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.DeletePaths) > 0 {
+		for iNdEx := len(m.DeletePaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.DeletePaths[iNdEx])
+			copy(dAtA[i:], m.DeletePaths[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.DeletePaths[iNdEx])))
+			i--
+			dAtA[i] = 0x32
+		}
+	}
 	if len(m.Config) > 0 {
 		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -601,6 +610,15 @@ func (m *ConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.DeletePaths) > 0 {
+		for iNdEx := len(m.DeletePaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.DeletePaths[iNdEx])
+			copy(dAtA[i:], m.DeletePaths[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.DeletePaths[iNdEx])))
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
 	if len(m.Config) > 0 {
 		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -1173,6 +1191,15 @@ func (m *SensitiveConfigSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.DeletePaths) > 0 {
+		for iNdEx := len(m.DeletePaths) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.DeletePaths[iNdEx])
+			copy(dAtA[i:], m.DeletePaths[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.DeletePaths[iNdEx])))
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
 	if len(m.Config) > 0 {
 		for iNdEx := len(m.Config) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -2011,6 +2038,12 @@ func (m *ConfigSetSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if len(m.DeletePaths) > 0 {
+		for _, s := range m.DeletePaths {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -2074,6 +2107,12 @@ func (m *ConfigSpec) Size() (n int) {
 	if len(m.Config) > 0 {
 		for _, e := range m.Config {
 			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if len(m.DeletePaths) > 0 {
+		for _, s := range m.DeletePaths {
+			l = len(s)
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
@@ -2281,6 +2320,12 @@ func (m *SensitiveConfigSpec) Size() (n int) {
 	if len(m.Config) > 0 {
 		for _, e := range m.Config {
 			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if len(m.DeletePaths) > 0 {
+		for _, s := range m.DeletePaths {
+			l = len(s)
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
@@ -2634,6 +2679,7 @@ func (this *ConfigSetSpec) String() string {
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
 		`Config:` + repeatedStringForConfig + `,`,
+		`DeletePaths:` + fmt.Sprintf("%v", this.DeletePaths) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2689,6 +2735,7 @@ func (this *ConfigSpec) String() string {
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
 		`Config:` + repeatedStringForConfig + `,`,
+		`DeletePaths:` + fmt.Sprintf("%v", this.DeletePaths) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2852,6 +2899,7 @@ func (this *SensitiveConfigSpec) String() string {
 		`Priority:` + fmt.Sprintf("%v", this.Priority) + `,`,
 		`Revertive:` + valueToStringGenerated(this.Revertive) + `,`,
 		`Config:` + repeatedStringForConfig + `,`,
+		`DeletePaths:` + fmt.Sprintf("%v", this.DeletePaths) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4044,6 +4092,38 @@ func (m *ConfigSetSpec) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeletePaths", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DeletePaths = append(m.DeletePaths, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -4521,6 +4601,38 @@ func (m *ConfigSpec) Unmarshal(dAtA []byte) error {
 			if err := m.Config[len(m.Config)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeletePaths", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DeletePaths = append(m.DeletePaths, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -6237,6 +6349,38 @@ func (m *SensitiveConfigSpec) Unmarshal(dAtA []byte) error {
 			if err := m.Config[len(m.Config)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeletePaths", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DeletePaths = append(m.DeletePaths, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

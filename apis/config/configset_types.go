@@ -36,7 +36,10 @@ type ConfigSetSpec struct {
 	Revertive *bool `json:"revertive,omitempty" protobuf:"varint,4,opt,name=revertive"`
 	// Config defines the configuration to be applied to a target device
 	//+kubebuilder:pruning:PreserveUnknownFields
-	Config []ConfigBlob `json:"config" protobuf:"bytes,5,rep,name=config"`
+	Config []ConfigBlob `json:"config,omitempty" protobuf:"bytes,5,rep,name=config"`
+	// DeletePaths lists subtrees each generated Config deletes at its priority. Exactly one of
+	// config and deletePaths is set; a template carrying only deletePaths is a sweeper.
+	DeletePaths []string `json:"deletePaths,omitempty" protobuf:"bytes,6,rep,name=deletePaths"`
 }
 
 type ConfigSetTarget struct {
