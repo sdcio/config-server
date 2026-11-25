@@ -1105,11 +1105,17 @@ func schema_config_server_apis_config_v1alpha1_ConfigStatus(ref common.Reference
 							Format:      "int64",
 						},
 					},
+					"lastAppliedTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastAppliedTime is when appliedConfig was last applied to the target: it moves only when new content is applied, and survives failed applies. A config sent again unchanged (with other configs of the target) or replayed on target recovery keeps it.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema"},
+			"github.com/sdcio/config-server/apis/condition/v1alpha1.Condition", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSpec", "github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatusLastKnownGoodSchema", metav1.Time{}.OpenAPIModelName()},
 	}
 }
 

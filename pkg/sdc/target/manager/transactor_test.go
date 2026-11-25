@@ -510,6 +510,7 @@ func TestTransact_FailureKeepsAppliedConfig(t *testing.T) {
 	assert.Equal(t, ptr.To[int64](0), cfg.Status.DeviationGeneration)
 	assert.NotNil(t, cfg.Status.AppliedConfig, "appliedConfig survives the failure")
 	assert.Equal(t, dsctx.Schema, cfg.Status.LastKnownGoodSchema, "lastKnownGoodSchema survives the failure")
+	assert.NotNil(t, cfg.Status.LastAppliedTime, "lastAppliedTime survives the failure")
 }
 
 // newDeletingConfig returns a Config that holds the transactor finalizer, so
@@ -619,11 +620,21 @@ func setConfigReadyTime(t *testing.T, c client.Client, name string, ts metav1.Ti
 	require.NoError(t, c.Status().Update(context.Background(), cfg))
 }
 
-// sdcio/config-server#556: ConfigReady's transition time is the time of the
-// last apply of new content. A config sent unchanged with it (every config of
-// the target goes out when one changes) keeps its time, and its status is not
-// written.
-func TestTransact_AppliedTimeOnlyOnNewContent(t *testing.T) {
+// setLastAppliedTime sets status.lastAppliedTime of a stored Config to ts,
+// like setConfigReadyTime.
+func setLastAppliedTime(t *testing.T, c client.Client, name string, ts metav1.Time) {
+	t.Helper()
+	cfg := getTargetConfig(t, c, name)
+	cfg.Status.LastAppliedTime = &ts
+	require.NoError(t, c.Status().Update(context.Background(), cfg))
+}
+
+// sdcio/config-server#556: status.lastAppliedTime is the time of the last
+// apply of new content. A config sent unchanged with it (every config of the
+// target goes out when one changes) keeps its time, and its status is not
+// written. ConfigReady keeps the Kubernetes meaning: its lastTransitionTime
+// only moves when its status flips.
+func TestTransact_LastAppliedTimeOnlyOnNewContent(t *testing.T) {
 	ctx := context.Background()
 	c := newFakeConfigClient(t, nil, newTargetConfig("base", 10), newTargetConfig("secondary", 20))
 	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
@@ -635,10 +646,14 @@ func TestTransact_AppliedTimeOnlyOnNewContent(t *testing.T) {
 	require.NoError(t, err)
 	assertConfigApplied(t, c, "base")
 	assertConfigApplied(t, c, "secondary")
+	require.NotNil(t, getTargetConfig(t, c, "base").Status.LastAppliedTime, "base: first apply sets the time")
+	require.NotNil(t, getTargetConfig(t, c, "secondary").Status.LastAppliedTime, "secondary: first apply sets the time")
 
 	old := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
-	setConfigReadyTime(t, c, "base", old)
-	setConfigReadyTime(t, c, "secondary", old)
+	for _, name := range []string{"base", "secondary"} {
+		setConfigReadyTime(t, c, name, old)
+		setLastAppliedTime(t, c, name, old)
+	}
 	secondaryRV := getTargetConfig(t, c, "secondary").ResourceVersion
 
 	// only base changes
@@ -652,13 +667,15 @@ func TestTransact_AppliedTimeOnlyOnNewContent(t *testing.T) {
 	assert.Equal(t, sets.New("default.base", "default.secondary"), ds.calls[1], "unchanged secondary is sent with base")
 
 	base = getTargetConfig(t, c, "base")
+	require.NotNil(t, base.Status.LastAppliedTime)
+	assert.True(t, base.Status.LastAppliedTime.After(old.Time), "base: new content moves lastAppliedTime")
 	baseReady := base.GetCondition(configv1alpha1.ConditionTypeConfigReady)
 	assert.True(t, baseReady.IsTrue())
-	assert.True(t, baseReady.LastTransitionTime.After(old.Time), "base: new content moves the applied time")
+	assert.True(t, baseReady.LastTransitionTime.Time.Equal(old.Time), "base: ConfigReady stays True, lastTransitionTime stays")
 	assert.Equal(t, base.GetGeneration(), baseReady.ObservedGeneration)
 
 	secondary := getTargetConfig(t, c, "secondary")
-	assert.True(t, secondary.GetCondition(configv1alpha1.ConditionTypeConfigReady).LastTransitionTime.Time.Equal(old.Time),
-		"secondary: sent unchanged, keeps its applied time")
+	require.NotNil(t, secondary.Status.LastAppliedTime)
+	assert.True(t, secondary.Status.LastAppliedTime.Time.Equal(old.Time), "secondary: sent unchanged, keeps lastAppliedTime")
 	assert.Equal(t, secondaryRV, secondary.ResourceVersion, "secondary: status not written")
 }

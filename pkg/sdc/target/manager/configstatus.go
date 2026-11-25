@@ -25,7 +25,8 @@ package targetmanager
 //	manager                 fields                              written by                        decided by
 //	TargetConfigController  Ready                               UpdateConfigsReady                a target stage (reconciler, NotReady), or the outcome (Transact)
 //	transactor              ConfigReady, deviationGeneration    writeStatus, setRecoveredConfigs  transaction or recovery outcome
-//	transactor-applied      appliedConfig, lastKnownGoodSchema  writeStatus                       successful transaction
+//	transactor-applied      appliedConfig, lastKnownGoodSchema, writeStatus                       successful transaction
+//	                        lastAppliedTime
 //
 // The reconciler decides Ready while a target stage blocks; once it
 // transacts, Ready follows the outcome and Transact writes it. Every write is
@@ -54,6 +55,7 @@ import (
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configv1alpha1apply "github.com/sdcio/config-server/pkg/generated/applyconfiguration/config/v1alpha1"
 	"github.com/sdcio/config-server/pkg/reconcilers/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -166,11 +168,11 @@ type txResult struct {
 	configReady condv1alpha1.Condition
 	applied     *configv1alpha1.ConfigSpec // success only
 	schema      *configv1alpha1.ConfigStatusLastKnownGoodSchema
-	// newContent: new content was applied, ConfigReady's lastTransitionTime
-	// moves even though it stays True; it is the time of the last apply
-	// (the Applied printer column, sdcio/config-server#556). A config sent
-	// unchanged with others keeps its time, so its status apply is a no-op.
-	newContent bool
+	// lastApplied is the time the applied config was applied: now for new
+	// content, the time as listed for a config sent unchanged with the
+	// others, so its status apply is a no-op (sdcio/config-server#556).
+	// success only
+	lastApplied *metav1.Time
 }
 
 // applyTo projects the result onto an in-memory Config: the fields the
@@ -181,6 +183,7 @@ func (t txResult) applyTo(cfg *configv1alpha1.Config) {
 	if t.applied != nil {
 		cfg.Status.AppliedConfig = t.applied
 		cfg.Status.LastKnownGoodSchema = t.schema
+		cfg.Status.LastAppliedTime = t.lastApplied
 	}
 }
 
@@ -203,9 +206,9 @@ func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.Confi
 		}
 		written[key] = res.configReady
 		if res.applied != nil {
-			errs = errors.Join(errs, r.status.writeApplied(ctx, cached, res.applied, res.schema))
+			errs = errors.Join(errs, r.status.writeApplied(ctx, cached, res.applied, res.schema, res.lastApplied))
 		}
-		if err := r.status.writeOutcome(ctx, cached, res.configReady, res.newContent); err != nil {
+		if err := r.status.writeOutcome(ctx, cached, res.configReady); err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
@@ -224,21 +227,17 @@ func (r *Transactor) setRecoveredConfigs(ctx context.Context, cfgs *configv1alph
 		if cfg.Status.AppliedConfig == nil {
 			continue
 		}
-		// recovery replays what was applied: no new content, the applied
-		// time stays
-		errs = errors.Join(errs, r.status.writeOutcome(ctx, cfg, cond(cfg), false))
+		errs = errors.Join(errs, r.status.writeOutcome(ctx, cfg, cond(cfg)))
 	}
 	return errs
 }
 
 // writeOutcome writes ConfigReady and deviationGeneration. The input is the
-// outcome itself, so the apply is unconditional. newContent moves
-// ConfigReady's lastTransitionTime, see txResult.
-func (s *configStatus) writeOutcome(ctx context.Context, cfg *configv1alpha1.Config, configReady condv1alpha1.Condition, newContent bool) error {
+// outcome itself, so the apply is unconditional.
+func (s *configStatus) writeOutcome(ctx context.Context, cfg *configv1alpha1.Config, configReady condv1alpha1.Condition) error {
 	devGen := deviationGenerationFor(configReady)
 	return s.outcome.Write(ctx, cfg, resource.StatusUpdate{
-		Conditions:    []condv1alpha1.Condition{configReady},
-		NewTransition: newContent,
+		Conditions: []condv1alpha1.Condition{configReady},
 		Build: func(conds []condv1alpha1.Condition, rv string) runtime.ApplyConfiguration {
 			status := configv1alpha1apply.ConfigStatus().WithConditions(conds...)
 			if devGen != nil {
@@ -258,14 +257,24 @@ func deviationGenerationFor(configReady condv1alpha1.Condition) *int64 {
 	return nil
 }
 
-// writeApplied writes the applied config and the schema it was applied
-// with. Only a successful transaction calls it.
-func (s *configStatus) writeApplied(ctx context.Context, cfg *configv1alpha1.Config, applied *configv1alpha1.ConfigSpec, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema) error {
+// writeApplied writes the applied config, the schema it was applied with
+// and when it was applied. Only a successful transaction calls it.
+//
+// The apply is this manager's complete state: leaving lastApplied out would
+// remove lastAppliedTime, so a config sent unchanged carries its listed time.
+// That cannot regress it: appliedConfig and lastAppliedTime are written in
+// one apply, so a listed Config whose appliedConfig matches its spec also has
+// the time of that apply. A Config from before lastAppliedTime existed has
+// none until its content next changes.
+func (s *configStatus) writeApplied(ctx context.Context, cfg *configv1alpha1.Config, applied *configv1alpha1.ConfigSpec, schema *configv1alpha1.ConfigStatusLastKnownGoodSchema, lastApplied *metav1.Time) error {
 	return s.applied.Write(ctx, cfg, resource.StatusUpdate{
 		Build: func(_ []condv1alpha1.Condition, rv string) runtime.ApplyConfiguration {
 			status := configv1alpha1apply.ConfigStatus().WithAppliedConfig(configSpecToApply(applied))
 			if schema != nil {
 				status.WithLastKnownGoodSchema(schemaToApply(schema))
+			}
+			if lastApplied != nil {
+				status.WithLastAppliedTime(*lastApplied)
 			}
 			return configApply(cfg, rv, status)
 		},

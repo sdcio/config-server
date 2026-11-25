@@ -301,18 +301,23 @@ func (r *Transactor) transact(
 	}); err != nil {
 		return nil, true, err
 	}
+	now := metav1.Now()
 	results := make(map[string]txResult, len(configsToUpdate))
 	for key, cfg := range configsToUpdate {
 		applied := &configv1alpha1.ConfigSpec{}
 		if err := configv1alpha1.Convert_config_ConfigSpec_To_v1alpha1_ConfigSpec(&cfg.Spec, applied, nil); err != nil {
 			return results, false, err
 		}
+		// a config sent unchanged with the others keeps its applied time
+		lastApplied := cfg.Status.LastAppliedTime
+		if hasNewContent(ctx, cfg) {
+			lastApplied = &now
+		}
 		results[key] = txResult{
 			configReady: configv1alpha1.ConfigReady(cfg.GetGeneration(), ""),
 			applied:     applied,
 			schema:      dsctx.Schema,
-			// a config sent unchanged with the others keeps its applied time
-			newContent: hasNewContent(ctx, cfg),
+			lastApplied: lastApplied,
 		}
 	}
 

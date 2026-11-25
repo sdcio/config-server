@@ -198,23 +198,23 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 				{Name: "Reason", Type: "string"},
 				{Name: "Priority", Type: "integer"},
 				{Name: "Target", Type: "string"},
-				{Name: "Applied", Type: "date", Description: "Time since the current content was last applied to the target"},
+				{Name: "Applied", Type: "date", Description: "Time since the applied config was last applied to the target"},
 				{Name: "Schema", Type: "string"},
 			},
 		)
 	}
 }
 
-// lastApplied renders the Applied column: the age of the ConfigReady
-// transition, which the transactor moves on every successful apply of new
-// content (sdcio/config-server#556). Server-side tables carry rendered
-// cells, so the age is computed here, like the built-in AGE column.
+// lastApplied renders the Applied column: the age of status.lastAppliedTime,
+// the last successful apply of new content (sdcio/config-server#556). It is
+// shown whatever Ready is: after a failed apply it still says when the
+// applied config got there. Server-side tables carry rendered cells, so the
+// age is computed here, like the built-in AGE column.
 func lastApplied(config *Config) string {
-	c := config.GetCondition(ConditionTypeConfigReady)
-	if c.Status != metav1.ConditionTrue || c.LastTransitionTime.IsZero() {
+	if config.Status.LastAppliedTime == nil || config.Status.LastAppliedTime.IsZero() {
 		return ""
 	}
-	return shortAge(time.Since(c.LastTransitionTime.Time))
+	return shortAge(time.Since(config.Status.LastAppliedTime.Time))
 }
 
 // shortAge renders d like the kubectl AGE column (45s, 12m, 5h, 3d).

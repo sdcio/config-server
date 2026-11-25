@@ -784,6 +784,7 @@ func autoConvert_v1alpha1_ConfigStatus_To_config_ConfigStatus(in *ConfigStatus, 
 	out.LastKnownGoodSchema = (*config.ConfigStatusLastKnownGoodSchema)(unsafe.Pointer(in.LastKnownGoodSchema))
 	out.AppliedConfig = (*config.ConfigSpec)(unsafe.Pointer(in.AppliedConfig))
 	out.DeviationGeneration = (*int64)(unsafe.Pointer(in.DeviationGeneration))
+	out.LastAppliedTime = (*v1.Time)(unsafe.Pointer(in.LastAppliedTime))
 	return nil
 }
 
@@ -799,6 +800,7 @@ func autoConvert_config_ConfigStatus_To_v1alpha1_ConfigStatus(in *config.ConfigS
 	out.LastKnownGoodSchema = (*ConfigStatusLastKnownGoodSchema)(unsafe.Pointer(in.LastKnownGoodSchema))
 	out.AppliedConfig = (*ConfigSpec)(unsafe.Pointer(in.AppliedConfig))
 	out.DeviationGeneration = (*int64)(unsafe.Pointer(in.DeviationGeneration))
+	out.LastAppliedTime = (*v1.Time)(unsafe.Pointer(in.LastAppliedTime))
 	return nil
 }
 

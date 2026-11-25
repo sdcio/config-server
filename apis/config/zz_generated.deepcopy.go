@@ -370,6 +370,10 @@ func (in *ConfigStatus) DeepCopyInto(out *ConfigStatus) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.LastAppliedTime != nil {
+		in, out := &in.LastAppliedTime, &out.LastAppliedTime
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

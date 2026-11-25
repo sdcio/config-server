@@ -56,6 +56,12 @@ type ConfigStatus struct {
 	AppliedConfig *ConfigSpec `json:"appliedConfig,omitempty" protobuf:"bytes,3,opt,name=appliedConfig"`
 	// Deviations generation used for the latest config apply
 	DeviationGeneration *int64 `json:"deviationGeneration,omitempty" protobuf:"bytes,4,opt,name=deviationGeneration"`
+	// LastAppliedTime is when appliedConfig was last applied to the target:
+	// it moves only when new content is applied, and survives failed applies.
+	// A config sent again unchanged (with other configs of the target) or
+	// replayed on target recovery keeps it.
+	// +optional
+	LastAppliedTime *metav1.Time `json:"lastAppliedTime,omitempty" protobuf:"bytes,5,opt,name=lastAppliedTime"`
 }
 
 type ConfigStatusLastKnownGoodSchema struct {
