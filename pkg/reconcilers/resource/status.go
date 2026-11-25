@@ -24,7 +24,6 @@ import (
 	"github.com/sdcio/config-server/pkg/reconcilers"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
@@ -109,21 +108,16 @@ type StatusUpdate struct {
 //
 // obj is the object as last read. It is only used to keep lastTransitionTime
 // when a condition's status does not flip (a new timestamp on every apply
-// would make every apply a change) unless u.NewTransition is set, and to
-// detect transitions for events.
+// would make every apply a change), and to detect transitions for events.
 func (w *StatusWriter) Write(ctx context.Context, obj ConditionedObject, u StatusUpdate) error {
 	log := log.FromContext(ctx)
 
-	now := metav1.Now()
 	conds := make([]condv1alpha1.Condition, 0, len(u.Conditions))
 	var transitions []condv1alpha1.Condition
 	for _, c := range u.Conditions {
 		// GetCondition returns {Type, False} without a reason when absent
 		old := obj.GetCondition(condv1alpha1.ConditionType(c.Type))
-		switch {
-		case u.NewTransition:
-			c.LastTransitionTime = now
-		case old.Status == c.Status && !old.LastTransitionTime.IsZero():
+		if old.Status == c.Status && !old.LastTransitionTime.IsZero() {
 			c.LastTransitionTime = old.LastTransitionTime
 		}
 		if old.Status != c.Status || old.Reason != c.Reason {
