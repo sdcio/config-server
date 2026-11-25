@@ -25,7 +25,7 @@ package targetmanager
 //	manager                 fields                              written by                        decided by
 //	TargetConfigController  Ready                               UpdateConfigsReady                a target stage (reconciler, NotReady), or the outcome (Transact)
 //	transactor              ConfigReady, deviationGeneration    writeStatus, setRecoveredConfigs  transaction or recovery outcome
-//	transactor-applied      appliedConfig, lastKnownGoodSchema, writeStatus                       successful transaction
+//	transactor-applied      appliedConfig, lastKnownGoodSchema, writeStatus, setRecoveredApplied  successful transaction or recovery
 //	                        lastAppliedTime
 //
 // The reconciler decides Ready while a target stage blocks; once it
@@ -216,6 +216,23 @@ func (r *Transactor) writeStatus(ctx context.Context, cfgs *configv1alpha1.Confi
 	return written, errs
 }
 
+// setRecoveredApplied stamps lastAppliedTime on the Configs that were part
+// of a successful recovery (the ones with an applied config): the target was
+// out of sdc management and its configs are applied again
+// (sdcio/config-server#556). appliedConfig and its schema are carried as
+// listed, they are what the recovery replayed, from the same list.
+func (r *Transactor) setRecoveredApplied(ctx context.Context, cfgs *configv1alpha1.ConfigList, now metav1.Time) error {
+	var errs error
+	for i := range cfgs.Items {
+		cfg := &cfgs.Items[i]
+		if cfg.Status.AppliedConfig == nil {
+			continue
+		}
+		errs = errors.Join(errs, r.status.writeApplied(ctx, cfg, cfg.Status.AppliedConfig, cfg.Status.LastKnownGoodSchema, &now))
+	}
+	return errs
+}
+
 // setRecoveredConfigs writes the recovery outcome (ConfigReady) on the
 // Configs that were part of the recovery (the ones with an applied config),
 // from the list the recovery replayed. Ready is left to the targetconfig
@@ -258,7 +275,8 @@ func deviationGenerationFor(configReady condv1alpha1.Condition) *int64 {
 }
 
 // writeApplied writes the applied config, the schema it was applied with
-// and when it was applied. Only a successful transaction calls it.
+// and when it was applied. Only a successful transaction or recovery calls
+// it.
 //
 // The apply is this manager's complete state: leaving lastApplied out would
 // remove lastAppliedTime, so a config sent unchanged carries its listed time.

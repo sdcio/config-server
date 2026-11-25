@@ -679,3 +679,49 @@ func TestTransact_LastAppliedTimeOnlyOnNewContent(t *testing.T) {
 	assert.True(t, secondary.Status.LastAppliedTime.Time.Equal(old.Time), "secondary: sent unchanged, keeps lastAppliedTime")
 	assert.Equal(t, secondaryRV, secondary.ResourceVersion, "secondary: status not written")
 }
+
+// sdcio/config-server#556: a recovery replays the applied config into a
+// target that comes back under sdc management, so lastAppliedTime moves for
+// the replayed configs. appliedConfig is carried, and ConfigReady stays True
+// with its lastTransitionTime. A config that was never applied is not
+// replayed and gets no time.
+func TestRecoverConfigs_MovesLastAppliedTime(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newTargetConfig("base", 10), newTargetConfig("secondary", 20))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	dsctx := newTestDatastore(ds)
+	recovered := false
+	dsctx.MarkRecovered = func(b bool) { recovered = b }
+	tr := NewTransactor(c)
+
+	_, err := transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+
+	old := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	for _, name := range []string{"base", "secondary"} {
+		setConfigReadyTime(t, c, name, old)
+		setLastAppliedTime(t, c, name, old)
+	}
+	appliedBefore := getTargetConfig(t, c, "base").Status.AppliedConfig
+	// never applied: not part of the recovery
+	require.NoError(t, c.Create(ctx, newTargetConfig("fresh", 30)))
+
+	msg, err := tr.RecoverConfigs(ctx, target, dsctx)
+	require.NoError(t, err)
+	assert.Nil(t, msg)
+	assert.True(t, recovered, "datastore marked recovered")
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, sets.New("default.base", "default.secondary"), ds.calls[1], "recovery replays the applied configs")
+
+	for _, name := range []string{"base", "secondary"} {
+		cfg := getTargetConfig(t, c, name)
+		require.NotNil(t, cfg.Status.LastAppliedTime, "%s: lastAppliedTime", name)
+		assert.True(t, cfg.Status.LastAppliedTime.After(old.Time), "%s: recovery moves lastAppliedTime", name)
+		ready := cfg.GetCondition(configv1alpha1.ConditionTypeConfigReady)
+		assert.True(t, ready.IsTrue(), "%s: ConfigReady", name)
+		assert.True(t, ready.LastTransitionTime.Time.Equal(old.Time), "%s: ConfigReady stays True, lastTransitionTime stays", name)
+	}
+	assert.Equal(t, appliedBefore, getTargetConfig(t, c, "base").Status.AppliedConfig, "appliedConfig carried")
+	assert.Nil(t, getTargetConfig(t, c, "fresh").Status.LastAppliedTime, "fresh: not recovered, no time")
+}

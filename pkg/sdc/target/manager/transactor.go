@@ -116,9 +116,14 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.
 	dsctx.MarkRecovered(true)
 	log.Debug("recovered configs", "count", len(configs))
 
-	if err := r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
-		return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
-	}); err != nil {
+	// the target is back under sdc management: the replayed configs are
+	// applied again, so their lastAppliedTime moves (sdcio/config-server#556)
+	if err := errors.Join(
+		r.setRecoveredApplied(ctx, cfgs, metav1.Now()),
+		r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
+			return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
+		}),
+	); err != nil {
 		// recovery succeeded but we failed to patch status -> surface it
 		return ptr.To("recovered, but failed to update config status"), err
 	}
