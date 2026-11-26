@@ -202,7 +202,8 @@ func dial(ctx context.Context, cfg *Config) (*grpc.ClientConn, error) {
 		if !conn.WaitForStateChange(dialCtx, state) {
 			// context expired or canceled
 			_ = conn.Close()
-			return nil, fmt.Errorf("gRPC connect timeout to %q; last state: %s", cfg.Address, state.String())
+			// wrap the ctx error so callers can classify this as transient
+			return nil, fmt.Errorf("gRPC connect timeout to %q; last state: %s: %w", cfg.Address, state.String(), dialCtx.Err())
 		}
 	}
 }

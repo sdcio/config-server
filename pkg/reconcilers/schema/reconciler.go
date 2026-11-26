@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"github.com/henderiw/logger/log"
 	pkgerrors "github.com/pkg/errors"
@@ -37,6 +38,8 @@ import (
 	schemaloader "github.com/sdcio/config-server/pkg/schema"
 	ssclient "github.com/sdcio/config-server/pkg/sdc/schemaserver/client"
 	sdcpb "github.com/sdcio/sdc-protos/sdcpb"
+	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,6 +64,14 @@ const (
 	// errors
 	errGetCr        = "cannot get cr"
 	errUpdateStatus = "cannot update status"
+
+	// The Schema watch uses GenerationChangedPredicate, so our own status
+	// writes never retrigger a reconcile: every not-ready outcome that can
+	// still heal on its own must ask for a requeue explicitly.
+	// inProgressRequeue covers schema-server reporting INITIALIZING/RELOADING
+	// or being unreachable; errorRequeue covers any other recoverable failure.
+	inProgressRequeue = 10 * time.Second
+	errorRequeue      = 30 * time.Second
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -150,15 +161,21 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			}
 		}()
 
-		// check if the schema exists; this is == nil check; in case of err it does not exist
-		if _, err := schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
+		// check if the schema exists; a non-transient error means it does not exist.
+		// A transient error must not be read as "absent", otherwise we drop the
+		// finalizer and leak the schema in schema-server.
+		_, err = schemaclient.GetSchemaDetails(ctx, &sdcpb.GetSchemaDetailsRequest{
 			Schema: spec.GetSchema(),
-		}); err == nil {
+		})
+		switch {
+		case err == nil:
 			if _, err := schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
 				Schema: spec.GetSchema(),
 			}); err != nil {
 				return r.handleError(ctx, schema, "cannot delete schema from schemaserver", err)
 			}
+		case isTransient(err):
+			return r.handleError(ctx, schema, "cannot get schema details from schemaserver", err)
 		}
 
 		// delete the reference from disk
@@ -229,6 +246,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Schema: spec.GetSchema(),
 	})
 	if err != nil {
+		if isTransient(err) {
+			return r.handleError(ctx, schemaOrig, "cannot get schema details from schemaserver", err)
+		}
 		// schema does not exists in schema-server -> create it
 		if _, err := schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
 			Schema:    spec.GetSchema(),
@@ -256,6 +276,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return r.handleSuccess(ctx, schemaOrig, status)
 	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
+		// not a failure: schema-server is still working on it, check again
 		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
 	default: // OK case
 		return r.handleSuccess(ctx, schemaOrig, status)
@@ -295,8 +316,17 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	}), errUpdateStatus)
 }
 
+// handleError reports Ready=False and decides whether to try again.
+// Everything is retried except an explicit UnrecoverableError: the Schema
+// watch filters out status-only updates, so a nil error with an empty
+// ctrl.Result would park the Schema in Ready=False until something else
+// (spec change, secret change, pod restart) triggers a reconcile.
+// The retry decision is made before the no-change guard so that seeing the
+// same failure twice still requeues.
 func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	result := requeueFor(err)
 
 	if err != nil {
 		msg = fmt.Sprintf("%s err %s", msg, err.Error())
@@ -306,11 +336,11 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
 
 	if newCond.Equal(oldCond) {
-		log.Info("handleError -> no change")
-		return ctrl.Result{}, nil
+		log.Info("handleError -> no change", "requeueAfter", result.RequeueAfter)
+		return result, nil
 	}
 
-	log.Error(msg)
+	log.Error(msg, "requeueAfter", result.RequeueAfter)
 	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeWarning, crName, msg)
 
 	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
@@ -318,17 +348,53 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 			WithConditions(newCond),
 		)
 
-	var unrecoverableError *sdcerrors.UnrecoverableError
-	result := ctrl.Result{}
-	if errors.As(err, &unrecoverableError) {
-		result = ctrl.Result{Requeue: false}
-	}
-
+	// a failed status write is returned as an error: controller-runtime then
+	// retries with its own backoff and ignores result.
 	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
 	}), errUpdateStatus)
+}
+
+// requeueFor maps a failure to a retry decision:
+//   - UnrecoverableError        -> no retry (waits for a spec/secret change)
+//   - nil (in-progress state)   -> short requeue
+//   - transient gRPC/connection -> short requeue
+//   - anything else             -> longer requeue
+func requeueFor(err error) ctrl.Result {
+	var unrecoverableError *sdcerrors.UnrecoverableError
+	switch {
+	case errors.As(err, &unrecoverableError):
+		return ctrl.Result{}
+	case err == nil, isTransient(err):
+		return ctrl.Result{RequeueAfter: inProgressRequeue}
+	default:
+		return ctrl.Result{RequeueAfter: errorRequeue}
+	}
+}
+
+// isTransient reports whether err means schema-server could not be reached
+// or did not answer in time, as opposed to schema-server answering with an
+// error. ssclient's dial returns a plain error wrapping the dial ctx error
+// (not a gRPC status) on connect timeout, hence the DeadlineExceeded check.
+func isTransient(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	st, ok := grpcstatus.FromError(err)
+	if !ok {
+		return false
+	}
+	switch st.Code() {
+	case codes.Unavailable, codes.DeadlineExceeded, codes.ResourceExhausted, codes.Aborted:
+		return true
+	default:
+		return false
+	}
 }
 
 func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
