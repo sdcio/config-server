@@ -92,6 +92,12 @@ type StatusUpdate struct {
 	// change is already queued as an event, and the next reconcile derives
 	// the update again, so the conflict is dropped.
 	Conditional bool
+	// NewTransition stamps the owned conditions with the current time even
+	// when their status does not flip: the caller decides that the condition
+	// moved, e.g. ConfigReady when new content was applied
+	// (sdcio/config-server#556). Without it lastTransitionTime is kept while
+	// the status is unchanged.
+	NewTransition bool
 	// Build returns the apply configuration.
 	Build StatusApplyFn
 }

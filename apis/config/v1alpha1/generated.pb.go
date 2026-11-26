@@ -663,6 +663,18 @@ func (m *ConfigStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.LastAppliedTime != nil {
+		{
+			size, err := m.LastAppliedTime.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
 	if m.DeviationGeneration != nil {
 		i = encodeVarintGenerated(dAtA, i, uint64(*m.DeviationGeneration))
 		i--
@@ -2099,6 +2111,10 @@ func (m *ConfigStatus) Size() (n int) {
 	if m.DeviationGeneration != nil {
 		n += 1 + sovGenerated(uint64(*m.DeviationGeneration))
 	}
+	if m.LastAppliedTime != nil {
+		l = m.LastAppliedTime.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	return n
 }
 
@@ -2702,6 +2718,7 @@ func (this *ConfigStatus) String() string {
 		`LastKnownGoodSchema:` + strings.Replace(this.LastKnownGoodSchema.String(), "ConfigStatusLastKnownGoodSchema", "ConfigStatusLastKnownGoodSchema", 1) + `,`,
 		`AppliedConfig:` + strings.Replace(this.AppliedConfig.String(), "ConfigSpec", "ConfigSpec", 1) + `,`,
 		`DeviationGeneration:` + valueToStringGenerated(this.DeviationGeneration) + `,`,
+		`LastAppliedTime:` + strings.Replace(fmt.Sprintf("%v", this.LastAppliedTime), "Time", "v1.Time", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4697,6 +4714,42 @@ func (m *ConfigStatus) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.DeviationGeneration = &v
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastAppliedTime", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LastAppliedTime == nil {
+				m.LastAppliedTime = &v1.Time{}
+			}
+			if err := m.LastAppliedTime.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

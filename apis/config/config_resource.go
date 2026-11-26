@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-store/pkg/generic/registry"
@@ -138,8 +139,10 @@ func (r *Config) PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Ob
 	oldObj := old.(*Config)
 	newObj.Spec = oldObj.Spec
 
-	// Status updates are for only for updating status, not objectmeta.
-	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &newObj.ObjectMeta)
+	// Status updates are for only for updating status, not objectmeta:
+	// generation, labels, annotations, finalizers, ownerReferences and the
+	// deletionTimestamp come from the stored object.
+	metav1.ResetObjectMetaForStatus(&newObj.ObjectMeta, &oldObj.ObjectMeta)
 }
 
 // ValidateStatusUpdate validates status updates
@@ -185,6 +188,7 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 					config.GetCondition(condition.ConditionTypeReady).Message,
 					config.Spec.Priority,
 					config.GetTarget(),
+					lastApplied(config),
 					config.GetLastKnownGoodSchema().FileString(),
 				}
 			},
@@ -194,9 +198,38 @@ func (r *Config) TableConvertor() func(gr schema.GroupResource) rest.TableConver
 				{Name: "Reason", Type: "string"},
 				{Name: "Priority", Type: "integer"},
 				{Name: "Target", Type: "string"},
+				{Name: "Applied", Type: "date", Description: "Time since the applied config was last applied to the target"},
 				{Name: "Schema", Type: "string"},
 			},
 		)
+	}
+}
+
+// lastApplied renders the Applied column: the age of status.lastAppliedTime,
+// the last successful apply of new content (sdcio/config-server#556). It is
+// shown whatever Ready is: after a failed apply it still says when the
+// applied config got there. Server-side tables carry rendered cells, so the
+// age is computed here, like the built-in AGE column.
+func lastApplied(config *Config) string {
+	if config.Status.LastAppliedTime == nil || config.Status.LastAppliedTime.IsZero() {
+		return ""
+	}
+	return shortAge(time.Since(config.Status.LastAppliedTime.Time))
+}
+
+// shortAge renders d like the kubectl AGE column (45s, 12m, 5h, 3d).
+func shortAge(d time.Duration) string {
+	switch {
+	case d < 0:
+		return "0s"
+	case d < 2*time.Minute:
+		return fmt.Sprintf("%ds", int64(d/time.Second))
+	case d < 2*time.Hour:
+		return fmt.Sprintf("%dm", int64(d/time.Minute))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh", int64(d/time.Hour))
+	default:
+		return fmt.Sprintf("%dd", int64(d/(24*time.Hour)))
 	}
 }
 

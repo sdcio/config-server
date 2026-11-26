@@ -162,6 +162,13 @@ message ConfigStatus {
 
   // Deviations generation used for the latest config apply
   optional int64 deviationGeneration = 4;
+
+  // LastAppliedTime is when appliedConfig was last applied to the target:
+  // it moves only when new content is applied, and survives failed applies.
+  // A config sent again unchanged (with other configs of the target) or
+  // replayed on target recovery keeps it.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastAppliedTime = 5;
 }
 
 message ConfigStatusLastKnownGoodSchema {

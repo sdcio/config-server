@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	condv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
 	internalconfig "github.com/sdcio/config-server/apis/config"
@@ -170,7 +171,7 @@ func newTargetConfig(name string, priority int32) *configv1alpha1.Config {
 			Namespace:  "default",
 			Generation: 1,
 			Labels: map[string]string{
-				internalconfig.TargetNameKey:      "dev1",
+				internalconfig.TargetNameKey: "dev1",
 			},
 		},
 		Spec: configv1alpha1.ConfigSpec{
@@ -509,6 +510,7 @@ func TestTransact_FailureKeepsAppliedConfig(t *testing.T) {
 	assert.Equal(t, ptr.To[int64](0), cfg.Status.DeviationGeneration)
 	assert.NotNil(t, cfg.Status.AppliedConfig, "appliedConfig survives the failure")
 	assert.Equal(t, dsctx.Schema, cfg.Status.LastKnownGoodSchema, "lastKnownGoodSchema survives the failure")
+	assert.NotNil(t, cfg.Status.LastAppliedTime, "lastAppliedTime survives the failure")
 }
 
 // newDeletingConfig returns a Config that holds the transactor finalizer, so
@@ -599,4 +601,127 @@ func TestDeleteRetry(t *testing.T) {
 	retry, err = deleteRetry(nil, false, nonRecoverable) // no deletes: unchanged
 	assert.False(t, retry)
 	assert.ErrorIs(t, err, nonRecoverable)
+}
+
+// setConfigReadyTime moves the ConfigReady transition of a stored Config to
+// ts: timestamps have second precision, so the test cannot rely on two
+// applies landing in different seconds.
+func setConfigReadyTime(t *testing.T, c client.Client, name string, ts metav1.Time) {
+	t.Helper()
+	cfg := getTargetConfig(t, c, name)
+	found := false
+	for i := range cfg.Status.Conditions {
+		if cfg.Status.Conditions[i].Type == string(configv1alpha1.ConditionTypeConfigReady) {
+			cfg.Status.Conditions[i].LastTransitionTime = ts
+			found = true
+		}
+	}
+	require.True(t, found, "%s: ConfigReady", name)
+	require.NoError(t, c.Status().Update(context.Background(), cfg))
+}
+
+// setLastAppliedTime sets status.lastAppliedTime of a stored Config to ts,
+// like setConfigReadyTime.
+func setLastAppliedTime(t *testing.T, c client.Client, name string, ts metav1.Time) {
+	t.Helper()
+	cfg := getTargetConfig(t, c, name)
+	cfg.Status.LastAppliedTime = &ts
+	require.NoError(t, c.Status().Update(context.Background(), cfg))
+}
+
+// sdcio/config-server#556: status.lastAppliedTime is the time of the last
+// apply of new content. A config sent unchanged with it (every config of the
+// target goes out when one changes) keeps its time, and its status is not
+// written. ConfigReady keeps the Kubernetes meaning: its lastTransitionTime
+// only moves when its status flips.
+func TestTransact_LastAppliedTimeOnlyOnNewContent(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newTargetConfig("base", 10), newTargetConfig("secondary", 20))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	dsctx := newTestDatastore(ds)
+	tr := NewTransactor(c)
+
+	_, err := transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+	assertConfigApplied(t, c, "base")
+	assertConfigApplied(t, c, "secondary")
+	require.NotNil(t, getTargetConfig(t, c, "base").Status.LastAppliedTime, "base: first apply sets the time")
+	require.NotNil(t, getTargetConfig(t, c, "secondary").Status.LastAppliedTime, "secondary: first apply sets the time")
+
+	old := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	for _, name := range []string{"base", "secondary"} {
+		setConfigReadyTime(t, c, name, old)
+		setLastAppliedTime(t, c, name, old)
+	}
+	secondaryRV := getTargetConfig(t, c, "secondary").ResourceVersion
+
+	// only base changes
+	base := getTargetConfig(t, c, "base")
+	base.Spec.Config[0].Value = runtime.RawExtension{Raw: []byte(`{"admin-state":"disable"}`)}
+	require.NoError(t, c.Update(ctx, base))
+
+	_, err = transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, sets.New("default.base", "default.secondary"), ds.calls[1], "unchanged secondary is sent with base")
+
+	base = getTargetConfig(t, c, "base")
+	require.NotNil(t, base.Status.LastAppliedTime)
+	assert.True(t, base.Status.LastAppliedTime.After(old.Time), "base: new content moves lastAppliedTime")
+	baseReady := base.GetCondition(configv1alpha1.ConditionTypeConfigReady)
+	assert.True(t, baseReady.IsTrue())
+	assert.True(t, baseReady.LastTransitionTime.Time.Equal(old.Time), "base: ConfigReady stays True, lastTransitionTime stays")
+	assert.Equal(t, base.GetGeneration(), baseReady.ObservedGeneration)
+
+	secondary := getTargetConfig(t, c, "secondary")
+	require.NotNil(t, secondary.Status.LastAppliedTime)
+	assert.True(t, secondary.Status.LastAppliedTime.Time.Equal(old.Time), "secondary: sent unchanged, keeps lastAppliedTime")
+	assert.Equal(t, secondaryRV, secondary.ResourceVersion, "secondary: status not written")
+}
+
+// sdcio/config-server#556: a recovery replays the applied config into a
+// target that comes back under sdc management, so lastAppliedTime moves for
+// the replayed configs. appliedConfig is carried, and ConfigReady stays True
+// with its lastTransitionTime. A config that was never applied is not
+// replayed and gets no time.
+func TestRecoverConfigs_MovesLastAppliedTime(t *testing.T) {
+	ctx := context.Background()
+	c := newFakeConfigClient(t, nil, newTargetConfig("base", 10), newTargetConfig("secondary", 20))
+	target := &configv1alpha1.Target{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "dev1"}}
+	ds := &fakeDataServer{}
+	dsctx := newTestDatastore(ds)
+	recovered := false
+	dsctx.MarkRecovered = func(b bool) { recovered = b }
+	tr := NewTransactor(c)
+
+	_, err := transact(t, tr, c, target, dsctx)
+	require.NoError(t, err)
+
+	old := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+	for _, name := range []string{"base", "secondary"} {
+		setConfigReadyTime(t, c, name, old)
+		setLastAppliedTime(t, c, name, old)
+	}
+	appliedBefore := getTargetConfig(t, c, "base").Status.AppliedConfig
+	// never applied: not part of the recovery
+	require.NoError(t, c.Create(ctx, newTargetConfig("fresh", 30)))
+
+	msg, err := tr.RecoverConfigs(ctx, target, dsctx)
+	require.NoError(t, err)
+	assert.Nil(t, msg)
+	assert.True(t, recovered, "datastore marked recovered")
+	require.Len(t, ds.calls, 2)
+	assert.Equal(t, sets.New("default.base", "default.secondary"), ds.calls[1], "recovery replays the applied configs")
+
+	for _, name := range []string{"base", "secondary"} {
+		cfg := getTargetConfig(t, c, name)
+		require.NotNil(t, cfg.Status.LastAppliedTime, "%s: lastAppliedTime", name)
+		assert.True(t, cfg.Status.LastAppliedTime.After(old.Time), "%s: recovery moves lastAppliedTime", name)
+		ready := cfg.GetCondition(configv1alpha1.ConditionTypeConfigReady)
+		assert.True(t, ready.IsTrue(), "%s: ConfigReady", name)
+		assert.True(t, ready.LastTransitionTime.Time.Equal(old.Time), "%s: ConfigReady stays True, lastTransitionTime stays", name)
+	}
+	assert.Equal(t, appliedBefore, getTargetConfig(t, c, "base").Status.AppliedConfig, "appliedConfig carried")
+	assert.Nil(t, getTargetConfig(t, c, "fresh").Status.LastAppliedTime, "fresh: not recovered, no time")
 }

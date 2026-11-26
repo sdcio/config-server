@@ -116,9 +116,14 @@ func (r *Transactor) RecoverConfigs(ctx context.Context, target *configv1alpha1.
 	dsctx.MarkRecovered(true)
 	log.Debug("recovered configs", "count", len(configs))
 
-	if err := r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
-		return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
-	}); err != nil {
+	// the target is back under sdc management: the replayed configs are
+	// applied again, so their lastAppliedTime moves (sdcio/config-server#556)
+	if err := errors.Join(
+		r.setRecoveredApplied(ctx, cfgs, metav1.Now()),
+		r.setRecoveredConfigs(ctx, cfgs, func(cfg *configv1alpha1.Config) condv1alpha1.Condition {
+			return configv1alpha1.ConfigReady(cfg.GetGeneration(), "target recovered")
+		}),
+	); err != nil {
 		// recovery succeeded but we failed to patch status -> surface it
 		return ptr.To("recovered, but failed to update config status"), err
 	}
@@ -301,16 +306,23 @@ func (r *Transactor) transact(
 	}); err != nil {
 		return nil, true, err
 	}
+	now := metav1.Now()
 	results := make(map[string]txResult, len(configsToUpdate))
 	for key, cfg := range configsToUpdate {
 		applied := &configv1alpha1.ConfigSpec{}
 		if err := configv1alpha1.Convert_config_ConfigSpec_To_v1alpha1_ConfigSpec(&cfg.Spec, applied, nil); err != nil {
 			return results, false, err
 		}
+		// a config sent unchanged with the others keeps its applied time
+		lastApplied := cfg.Status.LastAppliedTime
+		if hasNewContent(ctx, cfg) {
+			lastApplied = &now
+		}
 		results[key] = txResult{
 			configReady: configv1alpha1.ConfigReady(cfg.GetGeneration(), ""),
 			applied:     applied,
 			schema:      dsctx.Schema,
+			lastApplied: lastApplied,
 		}
 	}
 
@@ -495,8 +507,7 @@ func getConfigsToTransact(
 		case !cfg.IsConfigConditionReady():
 			configsToUpdate[key] = cfg
 
-		case cfg.Status.AppliedConfig != nil &&
-			cfg.Spec.GetShaSum(ctx) == cfg.Status.AppliedConfig.GetShaSum(ctx):
+		case !hasNewContent(ctx, cfg):
 			configsNoChnge[key] = cfg
 			continue
 
@@ -538,6 +549,13 @@ func getConfigsToTransact(
 	)
 
 	return configsToUpdate, configsToDelete
+}
+
+// hasNewContent reports whether the spec of cfg differs from what was last
+// applied to the target: never applied, or a different shasum.
+func hasNewContent(ctx context.Context, cfg *config.Config) bool {
+	return cfg.Status.AppliedConfig == nil ||
+		cfg.Spec.GetShaSum(ctx) != cfg.Status.AppliedConfig.GetShaSum(ctx)
 }
 
 func mapKeys[T any](m map[string]T) []string {

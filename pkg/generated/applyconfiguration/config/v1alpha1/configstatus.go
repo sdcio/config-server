@@ -19,6 +19,7 @@ package v1alpha1
 
 import (
 	conditionv1alpha1 "github.com/sdcio/config-server/apis/condition/v1alpha1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ConfigStatusApplyConfiguration represents a declarative configuration of the ConfigStatus type for use
@@ -35,6 +36,11 @@ type ConfigStatusApplyConfiguration struct {
 	AppliedConfig *ConfigSpecApplyConfiguration `json:"appliedConfig,omitempty"`
 	// Deviations generation used for the latest config apply
 	DeviationGeneration *int64 `json:"deviationGeneration,omitempty"`
+	// LastAppliedTime is when appliedConfig was last applied to the target:
+	// it moves only when new content is applied, and survives failed applies.
+	// A config sent again unchanged (with other configs of the target) or
+	// replayed on target recovery keeps it.
+	LastAppliedTime *v1.Time `json:"lastAppliedTime,omitempty"`
 }
 
 // ConfigStatusApplyConfiguration constructs a declarative configuration of the ConfigStatus type for use with
@@ -74,5 +80,13 @@ func (b *ConfigStatusApplyConfiguration) WithAppliedConfig(value *ConfigSpecAppl
 // If called multiple times, the DeviationGeneration field is set to the value of the last call.
 func (b *ConfigStatusApplyConfiguration) WithDeviationGeneration(value int64) *ConfigStatusApplyConfiguration {
 	b.DeviationGeneration = &value
+	return b
+}
+
+// WithLastAppliedTime sets the LastAppliedTime field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the LastAppliedTime field is set to the value of the last call.
+func (b *ConfigStatusApplyConfiguration) WithLastAppliedTime(value v1.Time) *ConfigStatusApplyConfiguration {
+	b.LastAppliedTime = &value
 	return b
 }
