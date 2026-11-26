@@ -248,8 +248,18 @@ spec:
                   description: SchemaRepositoryStatus provides the observed hash of
                     a repository
                   properties:
+                    kind:
+                      description: Kind is the spec kind (branch/tag/hash) the repository
+                        was loaded with
+                      type: string
+                    ref:
+                      description: Ref is the spec ref (branch, tag or hash) the repository
+                        was loaded with
+                      type: string
                     reference:
-                      description: Reference indicating version of loaded repository
+                      description: |-
+                        Reference indicating version of loaded repository: the git commit hash
+                        that was checked out when the repository was loaded
                       type: string
                     repoURL:
                       description: RepoURL defines URL of the repository

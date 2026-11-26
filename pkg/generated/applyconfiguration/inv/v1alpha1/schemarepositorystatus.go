@@ -17,6 +17,10 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
+)
+
 // SchemaRepositoryStatusApplyConfiguration represents a declarative configuration of the SchemaRepositoryStatus type for use
 // with apply.
 //
@@ -24,8 +28,13 @@ package v1alpha1
 type SchemaRepositoryStatusApplyConfiguration struct {
 	// RepoURL defines URL of the repository
 	RepoURL *string `json:"repoURL,omitempty"`
-	// Reference indicating version of loaded repository
+	// Reference indicating version of loaded repository: the git commit hash
+	// that was checked out when the repository was loaded
 	Reference *string `json:"reference,omitempty"`
+	// Kind is the spec kind (branch/tag/hash) the repository was loaded with
+	Kind *invv1alpha1.BranchTagKind `json:"kind,omitempty"`
+	// Ref is the spec ref (branch, tag or hash) the repository was loaded with
+	Ref *string `json:"ref,omitempty"`
 }
 
 // SchemaRepositoryStatusApplyConfiguration constructs a declarative configuration of the SchemaRepositoryStatus type for use with
@@ -47,5 +56,21 @@ func (b *SchemaRepositoryStatusApplyConfiguration) WithRepoURL(value string) *Sc
 // If called multiple times, the Reference field is set to the value of the last call.
 func (b *SchemaRepositoryStatusApplyConfiguration) WithReference(value string) *SchemaRepositoryStatusApplyConfiguration {
 	b.Reference = &value
+	return b
+}
+
+// WithKind sets the Kind field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Kind field is set to the value of the last call.
+func (b *SchemaRepositoryStatusApplyConfiguration) WithKind(value invv1alpha1.BranchTagKind) *SchemaRepositoryStatusApplyConfiguration {
+	b.Kind = &value
+	return b
+}
+
+// WithRef sets the Ref field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Ref field is set to the value of the last call.
+func (b *SchemaRepositoryStatusApplyConfiguration) WithRef(value string) *SchemaRepositoryStatusApplyConfiguration {
+	b.Ref = &value
 	return b
 }

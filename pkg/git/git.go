@@ -70,6 +70,74 @@ func (g *GoGit) SetProxy(p string) error {
 	return nil
 }
 
+// installProxy installs a proxying http(s) transport when ProxyURL is set,
+// as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
+func (g *GoGit) installProxy() {
+	if g.ProxyURL == nil {
+		return
+	}
+	customClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(g.ProxyURL),
+		},
+	}
+	client.InstallProtocol("https", githttp.NewClient(customClient))
+	client.InstallProtocol("http", githttp.NewClient(customClient))
+}
+
+// RemoteReference returns the commit hash the configured branch or tag
+// currently points to on the remote, without cloning or fetching
+// (the equivalent of git ls-remote). For an annotated tag the peeled
+// commit is returned, so the result is comparable with CurrentReference
+// after a checkout.
+func (g *GoGit) RemoteReference(ctx context.Context) (string, error) {
+	var want plumbing.ReferenceName
+	switch {
+	case g.gitRepo.GetBranch() != "":
+		want = plumbing.NewBranchReferenceName(g.gitRepo.GetBranch())
+	case g.gitRepo.GetTag() != "":
+		want = plumbing.NewTagReferenceName(g.gitRepo.GetTag())
+	default:
+		return "", fmt.Errorf("cannot resolve remote reference for %q: no branch or tag set", g.gitRepo.GetName())
+	}
+
+	g.installProxy()
+	rem := gogit.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{g.gitRepo.GetCloneURL().String()},
+	})
+
+	var refs []*plumbing.Reference
+	if err := g.doGitWithAuth(ctx, func(auth transport.AuthMethod) error {
+		var err error
+		refs, err = rem.ListContext(ctx, &gogit.ListOptions{
+			Auth:          auth,
+			PeelingOption: gogit.AppendPeeled,
+		})
+		return err
+	}); err != nil {
+		return "", err
+	}
+
+	peeled := plumbing.ReferenceName(want.String() + "^{}")
+	var direct, commit string
+	for _, ref := range refs {
+		switch ref.Name() {
+		case want:
+			direct = ref.Hash().String()
+		case peeled:
+			commit = ref.Hash().String()
+		}
+	}
+	if commit != "" {
+		return commit, nil
+	}
+	if direct != "" {
+		return direct, nil
+	}
+	return "", &sdcerrors.UnrecoverableError{Message: fmt.Sprintf("remote reference %q not found in %q", want, g.gitRepo.GetCloneURL().String())}
+}
+
 // Clone takes the given GitRepo reference and clones the repo
 // with its internal implementation.
 func (g *GoGit) Clone(ctx context.Context) error {
@@ -129,16 +197,7 @@ func (g *GoGit) cloneExistingRepo(ctx context.Context) error {
 	log := log.FromContext(ctx)
 	log.Info("loading git", "repo", g.gitRepo.GetLocalPath())
 
-	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
-	if g.ProxyURL != nil {
-		customClient := &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(g.ProxyURL),
-			},
-		}
-		client.InstallProtocol("https", githttp.NewClient(customClient))
-		client.InstallProtocol("http", githttp.NewClient(customClient))
-	}
+	g.installProxy()
 
 	// open the existing repo
 	err = g.openRepo(ctx)
@@ -271,16 +330,7 @@ func (g *GoGit) FetchNonExistingBranch(ctx context.Context, branch string) error
 
 func (g *GoGit) cloneNonExisting(ctx context.Context) error {
 	var err error
-	// if the ProxyURL is set, use custom transport as per https://github.com/go-git/go-git/blob/master/_examples/custom_http/main.go
-	if g.ProxyURL != nil {
-		customClient := &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(g.ProxyURL),
-			},
-		}
-		client.InstallProtocol("https", githttp.NewClient(customClient))
-		client.InstallProtocol("http", githttp.NewClient(customClient))
-	}
+	g.installProxy()
 	// init clone options
 	co := &gogit.CloneOptions{
 		Depth:        1,
@@ -325,8 +375,8 @@ func (g *GoGit) doGitWithAuth(ctx context.Context, op func(transport.AuthMethod)
 	}
 	err = op(auth)
 	if err != nil {
-		if !errors.Is(err, transport.ErrAuthenticationRequired) || !errors.Is(err, transport.ErrAuthorizationFailed) {
-			return &sdcerrors.UnrecoverableError{Message: "authentication failed", WrappedError: err}
+		if !errors.Is(err, transport.ErrAuthenticationRequired) && !errors.Is(err, transport.ErrAuthorizationFailed) {
+			return &sdcerrors.UnrecoverableError{Message: "git operation failed", WrappedError: err}
 		}
 		log.Info("Authentication failed. Trying to refresh credentials")
 		// TODO: Consider having some kind of backoff here.

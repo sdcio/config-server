@@ -129,10 +129,21 @@ func (r *Loader) get(key string) (*invv1alpha1.Schema, bool) {
 	return schema, exists
 }
 
+// Load (re)builds the provider/version schema directory from the spec
+// repositories and returns what was loaded per repository.
+//
+// The directory is always rebuilt from scratch: files of a previous
+// branch/tag must not survive a reload, and a failed or partial load must
+// not leave a directory behind, since the reconciler treats an existing
+// directory as "loaded".
 func (r *Loader) Load(ctx context.Context, key string) ([]invv1alpha1.SchemaRepositoryStatus, error) {
 	schema, _, err := r.GetRef(ctx, key)
 	if err != nil {
 		return nil, err
+	}
+	basePath := schema.Spec.GetBasePath(r.schemaDir)
+	if err := utils.RemoveDirectory(basePath); err != nil {
+		return nil, fmt.Errorf("cannot clean schema dir %q: %w", basePath, err)
 	}
 
 	repoStatuses := make([]invv1alpha1.SchemaRepositoryStatus, 0, len(schema.Spec.Repositories))
@@ -144,14 +155,28 @@ func (r *Loader) Load(ctx context.Context, key string) ([]invv1alpha1.SchemaRepo
 		if err != nil {
 			errs = append(errs, err)
 		}
-		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{RepoURL: schemaRepo.RepoURL, Reference: reference})
+		repoStatuses = append(repoStatuses, invv1alpha1.SchemaRepositoryStatus{
+			RepoURL:   schemaRepo.RepoURL,
+			Reference: reference,
+			Kind:      schemaRepo.Kind,
+			Ref:       schemaRepo.Ref,
+		})
 	}
 
 	err = errors.Join(errs...)
 	if err != nil {
+		if rerr := utils.RemoveDirectory(basePath); rerr != nil {
+			log.FromContext(ctx).Error("cannot clean schema dir after failed load", "path", basePath, "error", rerr)
+		}
 		return nil, err
 	}
 	return repoStatuses, nil
+}
+
+// RemoteReference returns the commit the spec branch/tag of schemaRepo
+// currently points to upstream (git ls-remote), without cloning.
+func (r *Loader) RemoteReference(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) (string, error) {
+	return newGitDownloader(r.tmpDir, schema.Namespace, schemaRepo, r.credentialResolver).RemoteReference(ctx)
 }
 
 func (r *Loader) download(ctx context.Context, schema *invv1alpha1.Schema, schemaRepo *invv1alpha1.SchemaSpecRepository) (string, error) {

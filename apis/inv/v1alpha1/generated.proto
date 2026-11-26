@@ -327,8 +327,15 @@ message SchemaRepositoryStatus {
   // RepoURL defines URL of the repository
   optional string repoURL = 1;
 
-  // Reference indicating version of loaded repository
+  // Reference indicating version of loaded repository: the git commit hash
+  // that was checked out when the repository was loaded
   optional string reference = 2;
+
+  // Kind is the spec kind (branch/tag/hash) the repository was loaded with
+  optional string kind = 3;
+
+  // Ref is the spec ref (branch, tag or hash) the repository was loaded with
+  optional string ref = 4;
 }
 
 // SchemaSpec defines the desired state of Schema
