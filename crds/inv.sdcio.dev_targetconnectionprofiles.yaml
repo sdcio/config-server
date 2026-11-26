@@ -75,6 +75,16 @@ spec:
                 x-kubernetes-validations:
                 - message: connectRetry is immutable
                   rule: self == oldSelf
+              deviceProfile:
+                description: |-
+                  DeviceProfile selects a NOS-specific gNMI Set encoder on the data-server
+                  southbound layer. Absence (nil) means DeviceProfileNone (generic, no
+                  NOS-specific encoder).
+                enum:
+                - ""
+                - sonic
+                - cisco-ios-xr
+                type: string
               encoding:
                 enum:
                 - UNKNOWN
