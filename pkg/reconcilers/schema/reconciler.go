@@ -72,6 +72,9 @@ const (
 	// or being unreachable; errorRequeue covers any other recoverable failure.
 	inProgressRequeue = 10 * time.Second
 	errorRequeue      = 30 * time.Second
+	// upstreamPollInterval is how often a Ready schema with branch
+	// repositories checks whether the branch moved upstream.
+	upstreamPollInterval = 2 * time.Minute
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -204,8 +207,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleError(ctx, schemaOrig, "cannot get schema reference", err)
 	}
 
-	if !dirExists {
-		// SSA apply for loading condition
+	// (re)load when nothing is loaded yet, when the spec repositories no
+	// longer match what was loaded, or when a branch moved upstream.
+	// What was loaded is recorded in status.repositories.
+	reloadReason := r.reloadReason(ctx, schema, dirExists)
+	reloaded := reloadReason != ""
+	if reloaded {
+		log.Info("loading schema", "reason", reloadReason)
+		// SSA apply for loading condition; omitting repositories drops them:
+		// while the dir is rebuilt nothing is loaded.
 		loadingApply := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
 			WithStatus(invv1alpha1apply.SchemaStatus().
 				WithConditions(invv1alpha1.Loading()),
@@ -217,10 +227,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}); err != nil {
 			return r.handleError(ctx, schemaOrig, "cannot update status", err)
 		}
-		reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeNormal, "schema", "loading")
+		// keep the in-memory view in line with what was just applied, so the
+		// no-change guards below compare against Loading and not against the
+		// previous Ready; otherwise a reload that ends with the same status
+		// would skip the final write and leave the schema in Loading.
+		schemaOrig.SetConditions(invv1alpha1.Loading())
+		schemaOrig.Status.Repositories = nil
+		schema.SetConditions(invv1alpha1.Loading())
+		reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeNormal, "schema", "loading: "+reloadReason)
 		repoStatuses, err := r.schemaLoader.Load(ctx, spec.GetKey())
 		if err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot load schema", err)
+			status.Repositories = nil
+			return r.handleError(ctx, schema, "cannot load schema", err)
 		}
 		status.Repositories = repoStatuses
 	}
@@ -247,7 +265,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	})
 	if err != nil {
 		if isTransient(err) {
-			return r.handleError(ctx, schemaOrig, "cannot get schema details from schemaserver", err)
+			return r.handleError(ctx, schema, "cannot get schema details from schemaserver", err)
 		}
 		// schema does not exists in schema-server -> create it
 		if _, err := schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
@@ -256,12 +274,31 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
+			return r.handleError(ctx, schema, "cannot create schema", err)
 		}
 		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 	if rsp == nil || rsp.Schema == nil {
-		return r.handleError(ctx, schemaOrig, "get schema detail response w/o a response or schems", nil)
+		return r.handleError(ctx, schema, "get schema detail response w/o a response or schems", nil)
+	}
+
+	if reloaded {
+		// schema-server still serves the previous content of this
+		// provider/version: replace it with what was just loaded.
+		if _, err := schemaclient.DeleteSchema(ctx, &sdcpb.DeleteSchemaRequest{
+			Schema: spec.GetSchema(),
+		}); err != nil {
+			return r.handleError(ctx, schema, "cannot delete previous schema from schemaserver", err)
+		}
+		if _, err := schemaclient.CreateSchema(ctx, &sdcpb.CreateSchemaRequest{
+			Schema:    spec.GetSchema(),
+			File:      spec.GetNewSchemaBase(r.schemaBasePath).Models,
+			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
+			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
+		}); err != nil {
+			return r.handleError(ctx, schema, "cannot create schema", err)
+		}
+		return r.handleSuccess(ctx, schemaOrig, status)
 	}
 
 	switch rsp.Schema.Status {
@@ -272,12 +309,12 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			Directory: spec.GetNewSchemaBase(r.schemaBasePath).Includes,
 			Exclude:   spec.GetNewSchemaBase(r.schemaBasePath).Excludes,
 		}); err != nil {
-			return r.handleError(ctx, schemaOrig, "cannot create schema", err)
+			return r.handleError(ctx, schema, "cannot create schema", err)
 		}
 		return r.handleSuccess(ctx, schemaOrig, status)
 	case sdcpb.SchemaStatus_RELOADING, sdcpb.SchemaStatus_INITIALIZING:
 		// not a failure: schema-server is still working on it, check again
-		return r.handleError(ctx, schemaOrig, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
+		return r.handleError(ctx, schema, fmt.Sprintf("schema %s", rsp.Schema.Status), nil)
 	default: // OK case
 		return r.handleSuccess(ctx, schemaOrig, status)
 	}
@@ -290,10 +327,12 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	newCond := condv1alpha1.Ready()
 	oldCond := schema.GetCondition(condv1alpha1.ConditionTypeReady)
 
+	result := pollResult(schema)
+
 	// no-change guard includes both condition and repositories
 	if newCond.Equal(oldCond) && reflect.DeepEqual(updatedStatus.Repositories, schema.Status.Repositories) {
-		log.Info("handleSuccess -> no change")
-		return ctrl.Result{}, nil
+		log.Info("handleSuccess -> no change", "requeueAfter", result.RequeueAfter)
+		return result, nil
 	}
 
 	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeNormal, invv1alpha1.SchemaKind, "ready")
@@ -309,7 +348,7 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
 		WithStatus(statusApply)
 
-	return ctrl.Result{}, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
+	return result, pkgerrors.Wrap(r.client.Status().Apply(ctx, applyConfig, &client.SubResourceApplyOptions{
 		ApplyOptions: client.ApplyOptions{
 			FieldManager: reconcilerName,
 		},
@@ -323,6 +362,10 @@ func (r *reconciler) handleSuccess(ctx context.Context, schema *invv1alpha1.Sche
 // (spec change, secret change, pod restart) triggers a reconcile.
 // The retry decision is made before the no-change guard so that seeing the
 // same failure twice still requeues.
+//
+// schema.Status.Repositories is written along with the condition: this
+// field manager owns status.repositories, so an apply without it would
+// remove what is loaded on disk from status and force a needless reload.
 func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema, msg string, err error) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
@@ -343,10 +386,13 @@ func (r *reconciler) handleError(ctx context.Context, schema *invv1alpha1.Schema
 	log.Error(msg, "requeueAfter", result.RequeueAfter)
 	reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeWarning, crName, msg)
 
+	statusApply := invv1alpha1apply.SchemaStatus().
+		WithConditions(newCond)
+	if len(schema.Status.Repositories) > 0 {
+		statusApply = statusApply.WithRepositories(repoStatusToApply(schema.Status.Repositories)...)
+	}
 	applyConfig := invv1alpha1apply.Schema(schema.Name, schema.Namespace).
-		WithStatus(invv1alpha1apply.SchemaStatus().
-			WithConditions(newCond),
-		)
+		WithStatus(statusApply)
 
 	// a failed status write is returned as an error: controller-runtime then
 	// retries with its own backoff and ignores result.
@@ -397,6 +443,78 @@ func isTransient(err error) bool {
 	}
 }
 
+// reloadReason returns why the schema must be (re)loaded, or "" when what is
+// on disk is still what the spec asks for.
+func (r *reconciler) reloadReason(ctx context.Context, schema *invv1alpha1.Schema, dirExists bool) string {
+	if !dirExists {
+		return "schema not loaded"
+	}
+	if reason := specDrift(schema.Spec.Repositories, schema.Status.Repositories); reason != "" {
+		return reason
+	}
+	return r.upstreamDrift(ctx, schema)
+}
+
+// specDrift compares the spec repositories with what was loaded
+// (status.repositories). Status written before kind/ref were recorded has
+// them empty and therefore drifts: such schemas are reloaded once.
+func specDrift(spec []*invv1alpha1.SchemaSpecRepository, loaded []invv1alpha1.SchemaRepositoryStatus) string {
+	if len(spec) != len(loaded) {
+		return fmt.Sprintf("repositories changed: %d loaded, %d in spec", len(loaded), len(spec))
+	}
+	for i, repo := range spec {
+		l := loaded[i]
+		if repo.RepoURL != l.RepoURL || repo.Kind != l.Kind || repo.Ref != l.Ref {
+			return fmt.Sprintf("repository %d changed: loaded %s %s %q, spec %s %s %q",
+				i, l.RepoURL, l.Kind, l.Ref, repo.RepoURL, repo.Kind, repo.Ref)
+		}
+	}
+	return ""
+}
+
+// upstreamDrift checks whether a branch repository moved upstream since it
+// was loaded (git ls-remote, no clone). Tags and hashes are not checked.
+// When the check itself fails the loaded schema stays in use: it is still
+// consistent, and the next poll tries again.
+func (r *reconciler) upstreamDrift(ctx context.Context, schema *invv1alpha1.Schema) string {
+	log := log.FromContext(ctx)
+	for i, repo := range schema.Spec.Repositories {
+		if repo.Kind != invv1alpha1.BranchTagKindBranch {
+			continue
+		}
+		loaded := schema.Status.Repositories[i].Reference
+		commit, err := r.schemaLoader.RemoteReference(ctx, schema, repo)
+		if err != nil {
+			msg := fmt.Sprintf("cannot check branch %q of %s for updates, keeping %s: %s", repo.Ref, repo.RepoURL, shortHash(loaded), err)
+			log.Info(msg)
+			reconcilers.RecordEvent(r.recorder, schema, corev1.EventTypeWarning, crName, msg)
+			continue
+		}
+		if commit != loaded {
+			return fmt.Sprintf("branch %q of %s moved: %s -> %s", repo.Ref, repo.RepoURL, shortHash(loaded), shortHash(commit))
+		}
+	}
+	return ""
+}
+
+// pollResult requeues a Ready schema that tracks a branch so upstream
+// changes get picked up; schemas pinned to tags or hashes are left alone.
+func pollResult(schema *invv1alpha1.Schema) ctrl.Result {
+	for _, repo := range schema.Spec.Repositories {
+		if repo.Kind == invv1alpha1.BranchTagKindBranch {
+			return ctrl.Result{RequeueAfter: upstreamPollInterval}
+		}
+	}
+	return ctrl.Result{}
+}
+
+func shortHash(h string) string {
+	if len(h) > 12 {
+		return h[:12]
+	}
+	return h
+}
+
 func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration {
 	result := make([]*invv1alpha1apply.SchemaRepositoryStatusApplyConfiguration, 0, len(repos))
 	for _, r := range repos {
@@ -406,6 +524,12 @@ func repoStatusToApply(repos []invv1alpha1.SchemaRepositoryStatus) []*invv1alpha
 		}
 		if r.Reference != "" {
 			a.WithReference(r.Reference)
+		}
+		if r.Kind != "" {
+			a.WithKind(r.Kind)
+		}
+		if r.Ref != "" {
+			a.WithRef(r.Ref)
 		}
 		result = append(result, a)
 	}

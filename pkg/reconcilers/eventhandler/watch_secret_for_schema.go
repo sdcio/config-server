@@ -65,23 +65,26 @@ func (r *SecretForSchemaEventHandler) add(ctx context.Context, obj runtime.Objec
 	ctx = ctrlconfig.InitContext(ctx, r.ControllerName, types.NamespacedName{Namespace: "secret-event", Name: secret.GetName()})
 	log := log.FromContext(ctx)
 
+	// credentials are resolved in the schema namespace, so only schemas in
+	// the secret namespace can reference it
 	schemaList := &invv1alpha1.SchemaList{}
-	if err := r.Client.List(ctx, schemaList); err != nil {
+	if err := r.Client.List(ctx, schemaList, client.InNamespace(secret.GetNamespace())); err != nil {
 		log.Error("cannot list object", "error", err)
 		return
 	}
 
-	// when config changes and is part of a configset we need to reconcile the configset
+	// a secret (e.g. a deploy token) is typically shared by many schemas:
+	// requeue every schema that references it
 	for _, schema := range schemaList.Items {
 		for _, repo := range schema.Spec.Repositories {
-			if repo.Credentials == secret.Name {
+			if repo.Credentials == secret.GetName() {
 				key := types.NamespacedName{
 					Name:      schema.GetName(),
 					Namespace: schema.GetNamespace(),
 				}
 				log.Debug("event requeue", "key", key.String())
 				queue.Add(reconcile.Request{NamespacedName: key})
-				return // these should be 1 configset for a config
+				break
 			}
 		}
 	}

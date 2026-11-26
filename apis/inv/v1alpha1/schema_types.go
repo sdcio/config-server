@@ -96,8 +96,13 @@ type SchemaStatus struct {
 type SchemaRepositoryStatus struct {
 	// RepoURL defines URL of the repository
 	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
-	// Reference indicating version of loaded repository
+	// Reference indicating version of loaded repository: the git commit hash
+	// that was checked out when the repository was loaded
 	Reference string `json:"reference,omitempty" protobuf:"bytes,2,opt,name=reference"`
+	// Kind is the spec kind (branch/tag/hash) the repository was loaded with
+	Kind BranchTagKind `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind,casttype=BranchTagKind"`
+	// Ref is the spec ref (branch, tag or hash) the repository was loaded with
+	Ref string `json:"ref,omitempty" protobuf:"bytes,4,opt,name=ref"`
 }
 
 // +kubebuilder:object:root=true

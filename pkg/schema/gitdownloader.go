@@ -45,9 +45,38 @@ func newGitDownloader(destDir, namespace string, schemaRepo *invv1alpha1.SchemaS
 func (l *gitDownloader) Download(ctx context.Context) (string, error) {
 	log := log.FromContext(ctx)
 
-	repo, err := git.NewRepo(l.schemaRepo.RepoURL)
+	repo, goGit, err := l.newGit()
 	if err != nil {
 		return "", err
+	}
+
+	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
+
+	err = goGit.Clone(ctx)
+	if err != nil {
+		return "", err
+	}
+	ref, err := goGit.CurrentReference()
+	if err != nil {
+		return "", err
+	}
+	return ref, nil
+}
+
+// RemoteReference returns the commit the spec branch/tag currently points
+// to upstream, without touching the local clone.
+func (l *gitDownloader) RemoteReference(ctx context.Context) (string, error) {
+	_, goGit, err := l.newGit()
+	if err != nil {
+		return "", err
+	}
+	return goGit.RemoteReference(ctx)
+}
+
+func (l *gitDownloader) newGit() (git.GitRepo, *git.GoGit, error) {
+	repo, err := git.NewRepo(l.schemaRepo.RepoURL)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	repoPath := path.Join(l.destDir, repo.GetCloneURL().Path)
@@ -71,25 +100,12 @@ func (l *gitDownloader) Download(ctx context.Context) (string, error) {
 		l.credentialResolver,
 	)
 
-	log.Info("cloning", "from", repo.GetCloneURL(), "to", repo.GetLocalPath())
-
 	if l.schemaRepo.Proxy != nil && l.schemaRepo.Proxy.URL != "" {
-		err = goGit.SetProxy(l.schemaRepo.Proxy.URL)
-		if err != nil {
-			return "", err
+		if err := goGit.SetProxy(l.schemaRepo.Proxy.URL); err != nil {
+			return nil, nil, err
 		}
-		log.Debug("SetProxy", "proxy", l.schemaRepo.Proxy.URL)
 	}
-
-	err = goGit.Clone(ctx)
-	if err != nil {
-		return "", err
-	}
-	ref, err := goGit.CurrentReference()
-	if err != nil {
-		return "", err
-	}
-	return ref, nil
+	return repo, goGit, nil
 }
 
 func (l *gitDownloader) LocalPath(urlPath string) (string, error) {

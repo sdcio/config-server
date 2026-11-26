@@ -3401,7 +3401,21 @@ func schema_config_server_apis_inv_v1alpha1_SchemaRepositoryStatus(ref common.Re
 					},
 					"reference": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reference indicating version of loaded repository",
+							Description: "Reference indicating version of loaded repository: the git commit hash that was checked out when the repository was loaded",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is the spec kind (branch/tag/hash) the repository was loaded with",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref is the spec ref (branch, tag or hash) the repository was loaded with",
 							Type:        []string{"string"},
 							Format:      "",
 						},

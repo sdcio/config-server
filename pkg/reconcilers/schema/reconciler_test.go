@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"testing"
 
+	invv1alpha1 "github.com/sdcio/config-server/apis/inv/v1alpha1"
 	sdcerrors "github.com/sdcio/config-server/pkg/errors"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -66,5 +67,83 @@ func TestIsTransientGetSchemaDetailsUnknown(t *testing.T) {
 	err := grpcstatus.Errorf(codes.InvalidArgument, "unknown schema %v", "x")
 	if isTransient(err) {
 		t.Fatalf("unknown-schema answer classified as transient")
+	}
+}
+
+func TestSpecDrift(t *testing.T) {
+	repo := func(url string, kind invv1alpha1.BranchTagKind, ref string) *invv1alpha1.SchemaSpecRepository {
+		return &invv1alpha1.SchemaSpecRepository{Repository: invv1alpha1.Repository{RepoURL: url, Kind: kind, Ref: ref}}
+	}
+	loaded := func(url string, kind invv1alpha1.BranchTagKind, ref string) invv1alpha1.SchemaRepositoryStatus {
+		return invv1alpha1.SchemaRepositoryStatus{RepoURL: url, Kind: kind, Ref: ref, Reference: "c0ffee"}
+	}
+	const u1, u2 = "https://example.com/a.git", "https://example.com/b.git"
+	branch, tag := invv1alpha1.BranchTagKindBranch, invv1alpha1.BranchTagKindTag
+
+	cases := map[string]struct {
+		spec   []*invv1alpha1.SchemaSpecRepository
+		loaded []invv1alpha1.SchemaRepositoryStatus
+		drift  bool
+	}{
+		"unchanged": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, branch, "main"), repo(u2, tag, "v1")},
+			[]invv1alpha1.SchemaRepositoryStatus{loaded(u1, branch, "main"), loaded(u2, tag, "v1")},
+			false,
+		},
+		"branch changed (issue 449)": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, branch, "non-existing-branch")},
+			[]invv1alpha1.SchemaRepositoryStatus{loaded(u1, branch, "main")},
+			true,
+		},
+		"kind changed": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, tag, "main")},
+			[]invv1alpha1.SchemaRepositoryStatus{loaded(u1, branch, "main")},
+			true,
+		},
+		"url changed": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u2, branch, "main")},
+			[]invv1alpha1.SchemaRepositoryStatus{loaded(u1, branch, "main")},
+			true,
+		},
+		"repository added": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, branch, "main"), repo(u2, tag, "v1")},
+			[]invv1alpha1.SchemaRepositoryStatus{loaded(u1, branch, "main")},
+			true,
+		},
+		"nothing recorded": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, branch, "main")},
+			nil,
+			true,
+		},
+		"status from before kind/ref were recorded": {
+			[]*invv1alpha1.SchemaSpecRepository{repo(u1, branch, "main")},
+			[]invv1alpha1.SchemaRepositoryStatus{{RepoURL: u1, Reference: "c0ffee"}},
+			true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := specDrift(tc.spec, tc.loaded)
+			if (got != "") != tc.drift {
+				t.Errorf("specDrift() = %q, want drift=%v", got, tc.drift)
+			}
+		})
+	}
+}
+
+func TestPollResult(t *testing.T) {
+	schema := func(kinds ...invv1alpha1.BranchTagKind) *invv1alpha1.Schema {
+		s := &invv1alpha1.Schema{}
+		for _, k := range kinds {
+			s.Spec.Repositories = append(s.Spec.Repositories,
+				&invv1alpha1.SchemaSpecRepository{Repository: invv1alpha1.Repository{Kind: k}})
+		}
+		return s
+	}
+	if got := pollResult(schema(invv1alpha1.BranchTagKindTag, invv1alpha1.BranchTagKindHash)); got != (ctrl.Result{}) {
+		t.Errorf("tags/hashes only: got %+v, want no requeue", got)
+	}
+	if got := pollResult(schema(invv1alpha1.BranchTagKindTag, invv1alpha1.BranchTagKindBranch)); got.RequeueAfter != upstreamPollInterval {
+		t.Errorf("with a branch: got %+v, want RequeueAfter %s", got, upstreamPollInterval)
 	}
 }
